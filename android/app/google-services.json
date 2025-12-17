@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "728773599076",
+    "project_id": "mathfunapp-1460b",
+    "storage_bucket": "mathfunapp-1460b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:728773599076:android:bdd27f3f8529c5f36c6471",
+        "android_client_info": {
+          "package_name": "com.themathfunapp.mathfunapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "728773599076-iqijod9ks20g5q9sm57n3sm9shtiv4ss.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.themathfunapp.mathfunapp",
+            "certificate_hash": "1ffdbd21666c0c27467f6576a70b6c7b3ad8ca98"
+          }
+        },
+        {
+          "client_id": "728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCF4kzyx-S3X6CLtr8lZzZIzvoOERqXXaU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "728773599076-380lnpsfes1ls2s1rt7p0p9smjh5n1q0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.themathfunapp.mathfunapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

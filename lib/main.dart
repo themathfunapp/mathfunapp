@@ -1,74 +1,263 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'firebase_options.dart';
+import 'models/app_user.dart';
+import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'localization/app_localizations.dart';
 
-void main() {
-  runApp(const MathFunApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase'i başlat - isolate kullanarak
+  await _initializeFirebase();
+
+  // Performans için debugPrint ayarları
+  debugPrint = (String? message, {int? wrapWidth}) {
+    if (message != null) {
+      // Sadece debug modda log göster
+      assert(() {
+        print(message);
+        return true;
+      }());
+    }
+  };
+
+  runApp(
+    MultiProvider(
+      providers: [
+        // Lazy loading'i aç - sadece ihtiyaç duyulunca oluştur
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
-class MathFunApp extends StatefulWidget {
-  const MathFunApp({super.key});
-
-  @override
-  State<MathFunApp> createState() => _MathFunAppState();
-}
-
-class _MathFunAppState extends State<MathFunApp> {
-  Locale _locale = const Locale('tr');
-
-  void _changeLanguage(Locale locale) {
-    setState(() {
-      _locale = locale;
-    });
+// Firebase'i arka planda başlat
+Future<void> _initializeFirebase() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase başlatma hatası: $e");
   }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder<Locale>(
+      future: _getInitialLocale(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingApp();
+        }
+
+        return MaterialApp(
+          title: 'Matematik Macerası',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
+            fontFamily: 'Roboto',
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
+            fontFamily: 'Roboto',
+          ),
+          themeMode: ThemeMode.light,
+          locale: snapshot.data ?? const Locale('tr'),
+          localizationsDelegates: const [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('tr', 'TR'),
+            Locale('en', 'US'),
+            Locale('de', 'DE'),
+          ],
+          localeResolutionCallback: (locale, supportedLocales) {
+            // Basitleştirilmiş dil çözümleme
+            final savedLocale = snapshot.data ?? const Locale('tr');
+            if (savedLocale != const Locale('tr')) {
+              return savedLocale;
+            }
+
+            for (var supportedLocale in supportedLocales) {
+              if (supportedLocale.languageCode == locale?.languageCode) {
+                return supportedLocale;
+              }
+            }
+
+            return const Locale('tr');
+          },
+          home: const AuthWrapper(),
+        );
+      },
+    );
+  }
+
+  // Başlangıç dili al
+  static Future<Locale> _getInitialLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedLanguage = prefs.getString('user_language') ?? 'tr';
+      return Locale(savedLanguage);
+    } catch (e) {
+      return const Locale('tr');
+    }
+  }
+
+  // Basit loading ekranı
+  static Widget _buildLoadingApp() {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Matematik Macerası',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
+      home: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              Text(
+                'Matematik Macerası',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      locale: _locale,
-      localizationsDelegates: const [
-        AppLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('tr'),
-        Locale('en'),
-      ],
-      home: HomeScreen(
-        onGameSelection: () {
-          print('Oyun seçimine git');
-        },
-        onProfile: () {
-          print('Profile git');
-        },
-        onDailyRewards: () {
-          print('Günlük ödüllere git');
-        },
-        onBadges: () {
-          print('Rozetlere git');
-        },
-        onFriends: () {
-          print('Arkadaşlara git');
-        },
-        onStoryMode: () {
-          print('Hikaye moduna git');
-        },
-        onMiniGames: () {
-          print('Mini oyunlara git');
-        },
-        onPremium: () {
-          print('Premium ekrana git');
-        },
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    return StreamBuilder<AppUser?>(
+      stream: authService.userStream,
+      initialData: authService.currentUser, // İlk veriyi kullan
+      builder: (context, snapshot) {
+        // İlk veri varsa hemen göster
+        if (snapshot.hasData && snapshot.data != null) {
+          return const HomeScreenWrapper();
+        }
+
+        // Bağlantı durumu
+        // Bağlantı durumu
+        switch (snapshot.connectionState) {
+          case ConnectionState.waiting:
+            return _buildLoadingScreen();
+
+          case ConnectionState.active:
+          case ConnectionState.done:
+            if (snapshot.hasData && snapshot.data != null) {
+              return const HomeScreenWrapper();
+            } else {
+              return WelcomeScreen(
+                onSignInComplete: () {
+                  // giriş tamamlandıktan sonra ana ekrana geç
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HomeScreenWrapper(),
+                    ),
+                  );
+                },
+                onSkip: () {
+                  // misafir / atla
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HomeScreenWrapper(),
+                    ),
+                  );
+                },
+              );
+            }
+
+          default:
+            return _buildLoadingScreen();
+        }
+
+      },
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Matematik Macerası',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class HomeScreenWrapper extends StatelessWidget {
+  const HomeScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeScreen(
+      onGameSelection: () {},
+      onDailyRewards: () {},
+      onBadges: () {},
+      onFriends: () {},
+      onStoryMode: () {},
+      onMiniGames: () {},
+      onPremium: () {},
     );
   }
 }

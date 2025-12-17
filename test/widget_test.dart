@@ -6,7 +6,7 @@ import 'package:mathfunapp/main.dart';
 void main() {
   testWidgets('Matematik Macerası başlık testi', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MathFunApp());
+    await tester.pumpWidget(const MyApp());
 
     // Verify that our app title is correct
     expect(find.text('Matematik Macerası'), findsOneWidget);
