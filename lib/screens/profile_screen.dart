@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/badge_service.dart';
 import '../models/app_user.dart';
+import '../models/badge.dart';
 import '../localization/app_localizations.dart';
+import 'badges_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -564,6 +567,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAchievementsCard(AppLocalizations localizations) {
+    final badgeService = Provider.of<BadgeService>(context);
+    final earnedBadges = badgeService.earnedBadges;
+    final totalBadges = badgeService.totalBadgesCount;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -586,43 +593,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Text('🏅', style: TextStyle(fontSize: 20)),
               const SizedBox(width: 8),
               Text(
-                localizations.get('upcoming_achievements'),
+                localizations.get('badges_title'),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF2d3436),
                 ),
               ),
+              const Spacer(),
+              Text(
+                '${earnedBadges.length}/$totalBadges',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          const Center(
-            child: Column(
-              children: [
-                Text(
-                  '🎉',
-                  style: TextStyle(fontSize: 40),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Henüz hiç rozet kazanmadınız',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
+          
+          if (earnedBadges.isEmpty) ...[
+            // Rozet yok
+            Center(
+              child: Column(
+                children: [
+                  const Text('🎯', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text(
+                    localizations.get('no_earned_badges_title'),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Oyun oynayarak rozetler kazanabilirsiniz',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
+                  const SizedBox(height: 4),
+                  Text(
+                    localizations.get('no_earned_badges_desc'),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Kazanılan rozetler
+            SizedBox(
+              height: 80,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: earnedBadges.length > 5 ? 6 : earnedBadges.length,
+                itemBuilder: (context, index) {
+                  if (index == 5 && earnedBadges.length > 5) {
+                    // Daha fazla göster butonu
+                    return GestureDetector(
+                      onTap: () => _openBadgesScreen(),
+                      child: Container(
+                        width: 70,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '+${earnedBadges.length - 5}',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                'daha',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  final earned = earnedBadges[index];
+                  final badgeDef = badgeService.getBadgeDefinition(earned.badgeId);
+                  if (badgeDef == null) return const SizedBox();
+                  
+                  return _buildMiniBadge(badgeDef, localizations);
+                },
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 16),
+          // Tüm rozetleri gör butonu
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _openBadgesScreen(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF5A4FCF),
+                side: const BorderSide(color: Color(0xFF5A4FCF)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.emoji_events, size: 18),
+                  const SizedBox(width: 8),
+                  Text(localizations.get('all_badges')),
+                ],
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMiniBadge(BadgeDefinition badge, AppLocalizations localizations) {
+    final colors = badge.colors;
+    
+    return Container(
+      width: 70,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Color(colors['secondary'] as int).withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(colors['glow'] as int),
+            blurRadius: 6,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(colors['primary'] as int),
+                  Color(colors['secondary'] as int),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(badge.emoji, style: const TextStyle(fontSize: 20)),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              localizations.get(badge.nameKey),
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2d3436),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openBadgesScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BadgesScreen(
+          onBack: () => Navigator.pop(context),
+        ),
       ),
     );
   }

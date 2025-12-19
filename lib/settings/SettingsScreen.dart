@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../localization/app_localizations.dart';
 import '../models/game_manager.dart';
+import '../widgets/kurdistan_flag.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -186,7 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _buildAboutItem(
                         emoji: "👨‍💻",
                         title: localizations.get('developer'),
-                        subtitle: localizations.get('developer_name'),
+                        subtitle: localizations.get('TheMathFunApp'),
                       ),
 
                       _buildAboutItem(
@@ -232,6 +233,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         case 'tr': return localizations.get('language_tr');
         case 'en': return localizations.get('language_en');
         case 'de': return localizations.get('language_de');
+        case 'ar': return localizations.get('language_ar');
+        case 'fa': return localizations.get('language_fa');
+        case 'zh': return localizations.get('language_zh');
+        case 'id': return localizations.get('language_id');
+        case 'ku': return localizations.get('language_ku');
+        case 'es': return localizations.get('language_es');
+        case 'fr': return localizations.get('language_fr');
+        case 'ru': return localizations.get('language_ru');
+        case 'ja': return localizations.get('language_ja');
+        case 'ko': return localizations.get('language_ko');
         default: return code.toUpperCase();
       }
     }
@@ -307,31 +318,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text(localizations.get('select_language')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildLanguageOption(
-                context: context,
-                code: 'tr',
-                name: localizations.get('language_tr'),
-                flag: '🇹🇷',
-                isSelected: currentLocale == 'tr',
-              ),
-              _buildLanguageOption(
-                context: context,
-                code: 'en',
-                name: localizations.get('language_en'),
-                flag: '🇺🇸',
-                isSelected: currentLocale == 'en',
-              ),
-              _buildLanguageOption(
-                context: context,
-                code: 'de',
-                name: localizations.get('language_de'),
-                flag: '🇩🇪',
-                isSelected: currentLocale == 'de',
-              ),
-            ],
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                _buildLanguageOption(
+                  context: context,
+                  code: 'tr',
+                  name: localizations.get('language_tr'),
+                  flag: '🇹🇷',
+                  isSelected: currentLocale == 'tr',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'en',
+                  name: localizations.get('language_en'),
+                  flag: '🇺🇸',
+                  isSelected: currentLocale == 'en',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'de',
+                  name: localizations.get('language_de'),
+                  flag: '🇩🇪',
+                  isSelected: currentLocale == 'de',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'ar',
+                  name: localizations.get('language_ar'),
+                  flag: '🇸🇦',
+                  isSelected: currentLocale == 'ar',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'fa',
+                  name: localizations.get('language_fa'),
+                  flag: '🇮🇷',
+                  isSelected: currentLocale == 'fa',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'zh',
+                  name: localizations.get('language_zh'),
+                  flag: '🇨🇳',
+                  isSelected: currentLocale == 'zh',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'id',
+                  name: localizations.get('language_id'),
+                  flag: '🇮🇩',
+                  isSelected: currentLocale == 'id',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'ku',
+                  name: localizations.get('language_ku'),
+                  flagWidget: const KurdistanFlag(size: 24),
+                  isSelected: currentLocale == 'ku',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'es',
+                  name: localizations.get('language_es'),
+                  flag: '🇪🇸',
+                  isSelected: currentLocale == 'es',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'fr',
+                  name: localizations.get('language_fr'),
+                  flag: '🇫🇷',
+                  isSelected: currentLocale == 'fr',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'ru',
+                  name: localizations.get('language_ru'),
+                  flag: '🇷🇺',
+                  isSelected: currentLocale == 'ru',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'ja',
+                  name: localizations.get('language_ja'),
+                  flag: '🇯🇵',
+                  isSelected: currentLocale == 'ja',
+                ),
+                _buildLanguageOption(
+                  context: context,
+                  code: 'ko',
+                  name: localizations.get('language_ko'),
+                  flag: '🇰🇷',
+                  isSelected: currentLocale == 'ko',
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -350,7 +434,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required BuildContext context,
     required String code,
     required String name,
-    required String flag,
+    String? flag,
+    Widget? flagWidget,
     required bool isSelected,
   }) {
     final authService = Provider.of<AuthService>(context, listen: false);
@@ -370,10 +455,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Row(
           children: [
-            Text(
-              flag,
-              style: const TextStyle(fontSize: 20),
-            ),
+            if (flagWidget != null)
+              flagWidget
+            else
+              Text(
+                flag ?? '',
+                style: const TextStyle(fontSize: 20),
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -660,10 +748,3 @@ class FunBackButtonOption3 extends StatelessWidget {
   }
 }
 
-// GameManager Model Sınıfı (Örnek)
-class GameManager {
-  bool soundEnabled = true;
-  bool musicEnabled = true;
-
-// Diğer game manager özellikleri...
-}

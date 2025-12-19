@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../settings/SettingsScreen.dart';
 import '../widgets/animated_math_symbol.dart';
 import '../widgets/shiny_button.dart';
 import '../widgets/story_mode_button.dart';
@@ -9,7 +10,13 @@ import '../widgets/bottom_action_button.dart';
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
-import '../screens/profile_screen.dart'; // ProfileScreen'i import edin
+import '../screens/profile_screen.dart';
+import '../screens/friends_screen.dart';
+import '../screens/badges_screen.dart';
+import '../screens/daily_rewards_screen.dart';
+import '../screens/story_mode_screen.dart';
+import '../screens/mini_games_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onGameSelection;
@@ -157,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 StoryModeButton(
                   text: localizations.storyMode,
-                  onPressed: widget.onStoryMode,
+                  onPressed: () => _openStoryModeScreen(context),
                 ),
 
                 const SizedBox(height: 8),
@@ -166,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 MiniGamesButton(
                   text: localizations.miniGames,
                   subText: localizations.miniGamesCount,
-                  onPressed: widget.onMiniGames,
+                  onPressed: () => _openMiniGamesScreen(context),
                 ),
 
                 const SizedBox(height: 16),
@@ -185,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       child: BottomActionButton(
                         text: localizations.dailyRewards,
                         emoji: '🎁',
-                        onPressed: widget.onDailyRewards,
+                        onPressed: () => _openDailyRewardsScreen(context),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -193,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       child: BottomActionButton(
                         text: localizations.badges,
                         emoji: '🏆',
-                        onPressed: widget.onBadges,
+                        onPressed: () => _openBadgesScreen(context),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -201,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       child: BottomActionButton(
                         text: localizations.friends,
                         emoji: '👥',
-                        onPressed: widget.onFriends,
+                        onPressed: () => _openFriendsScreen(context),
                       ),
                     ),
                   ],
@@ -390,6 +397,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // Profil butonu - DEĞİŞTİRİLDİ: Direkt ProfileScreen'i açıyor
+  // HomeScreen'deki _buildProfileButton metodunu güncelleyin:
   Widget _buildProfileButton(BuildContext context, AppLocalizations localizations) {
     return GestureDetector(
       onTap: () {
@@ -400,11 +408,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             builder: (context) => ProfileScreen(
               onBack: () => Navigator.pop(context),
               onSettings: () {
-                // Ayarlar ekranına git
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Ayarlar ekranı yakında eklenecek!'),
-                    duration: Duration(seconds: 2),
+                // AYARLAR EKRANINA GİT - GÜNCELLENMİŞ
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsScreen(
+                      onBack: () => Navigator.pop(context),
+                    ),
                   ),
                 );
               },
@@ -436,6 +446,64 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             color: Colors.white,
             size: 24,
           ),
+        ),
+      ),
+    );
+  }
+
+  // Arkadaşlar ekranını aç
+  void _openFriendsScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FriendsScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // Rozetler ekranını aç
+  void _openBadgesScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BadgesScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // Günlük ödüller ekranını aç
+  void _openDailyRewardsScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DailyRewardsScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // Hikaye modu ekranını aç
+  void _openStoryModeScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const StoryModeScreen(),
+      ),
+    );
+  }
+
+  // Mini oyunlar ekranını aç
+  void _openMiniGamesScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MiniGamesScreen(
+          onBack: () => Navigator.pop(context),
         ),
       ),
     );

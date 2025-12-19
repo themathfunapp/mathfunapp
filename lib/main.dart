@@ -7,8 +7,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'models/app_user.dart';
 import 'services/auth_service.dart';
+import 'services/friend_service.dart';
+import 'services/badge_service.dart';
+import 'services/daily_reward_service.dart';
+import 'services/story_service.dart';
+import 'services/mini_game_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/mini_games_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/friends_screen.dart';
+import 'screens/badges_screen.dart';
+import 'screens/daily_rewards_screen.dart';
+import 'screens/story_mode_screen.dart';
 import 'localization/app_localizations.dart';
 
 Future<void> main() async {
@@ -34,6 +44,33 @@ Future<void> main() async {
         // Lazy loading'i aç - sadece ihtiyaç duyulunca oluştur
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
+        ),
+        ChangeNotifierProxyProvider<AuthService, FriendService>(
+          create: (_) => FriendService(),
+          update: (_, authService, friendService) {
+            friendService!.initialize(authService.currentUser);
+            return friendService;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, BadgeService>(
+          create: (_) => BadgeService(),
+          update: (_, authService, badgeService) {
+            badgeService!.initialize(authService.currentUser);
+            return badgeService;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, DailyRewardService>(
+          create: (_) => DailyRewardService(),
+          update: (_, authService, rewardService) {
+            rewardService!.initialize(authService.currentUser);
+            return rewardService;
+          },
+        ),
+        ChangeNotifierProvider<StoryService>(
+          create: (_) => StoryService(),
+        ),
+        ChangeNotifierProvider<MiniGameService>(
+          create: (_) => MiniGameService(),
         ),
       ],
       child: const MyApp(),
@@ -95,6 +132,16 @@ class MyApp extends StatelessWidget {
             Locale('tr', 'TR'),
             Locale('en', 'US'),
             Locale('de', 'DE'),
+            Locale('ar', 'SA'),
+            Locale('fa', 'IR'),
+            Locale('zh', 'CN'),
+            Locale('id', 'ID'),
+            Locale('ku', 'IQ'),
+            Locale('es', 'ES'),
+            Locale('fr', 'FR'),
+            Locale('ru', 'RU'),
+            Locale('ja', 'JP'),
+            Locale('ko', 'KR'),
           ],
           localeResolutionCallback: (locale, supportedLocales) {
             // Basitleştirilmiş dil çözümleme
@@ -252,11 +299,54 @@ class HomeScreenWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeScreen(
       onGameSelection: () {},
-      onDailyRewards: () {},
-      onBadges: () {},
-      onFriends: () {},
-      onStoryMode: () {},
-      onMiniGames: () {},
+      onDailyRewards: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DailyRewardsScreen(
+              onBack: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      },
+      onBadges: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BadgesScreen(
+              onBack: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      },
+      onFriends: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FriendsScreen(
+              onBack: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      },
+      onStoryMode: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const StoryModeScreen(),
+          ),
+        );
+      },
+      onMiniGames: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MiniGamesScreen(
+              onBack: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      },
       onPremium: () {},
     );
   }
