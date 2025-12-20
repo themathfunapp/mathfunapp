@@ -27,6 +27,9 @@ dependencies:
   provider: ^6.1.2
 
   shared_preferences: ^2.2.2
+  
+  # Connectivity
+  connectivity_plus: ^6.0.3
 
   # Localization
   flutter_localizations:

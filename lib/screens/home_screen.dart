@@ -16,6 +16,17 @@ import '../screens/badges_screen.dart';
 import '../screens/daily_rewards_screen.dart';
 import '../screens/story_mode_screen.dart';
 import '../screens/mini_games_screen.dart';
+import '../screens/game_start_screen.dart';
+import '../screens/spin_wheel_screen.dart';
+import '../screens/parent_panel_screen.dart';
+import '../screens/ai_storyteller_screen.dart';
+import '../screens/voice_commands_screen.dart';
+import '../screens/learning_journey_screen.dart';
+import '../screens/math_art_gallery_screen.dart';
+import '../screens/virtual_math_lab_screen.dart';
+import '../screens/avatar_customization_screen.dart';
+import '../screens/pet_screen.dart';
+import '../screens/accessibility_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -157,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // Ana butonlar
                 ShinyButton(
                   text: localizations.startGame,
-                  onPressed: widget.onGameSelection,
+                  onPressed: () => _openGameStartScreen(context),
                 ),
 
                 const SizedBox(height: 16),
@@ -209,6 +220,99 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         text: localizations.friends,
                         emoji: '👥',
                         onPressed: () => _openFriendsScreen(context),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // İkinci satır - Yeni özellikler
+                Row(
+                  children: [
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Şans Çarkı',
+                        emoji: '🎰',
+                        onPressed: () => _openSpinWheelScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Ebeveyn',
+                        emoji: '👨‍👩‍👧',
+                        onPressed: () => _openParentPanelScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Hikaye',
+                        emoji: '📖',
+                        onPressed: () => _openAIStorytellerScreen(context),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Üçüncü satır - Gelişmiş özellikler
+                Row(
+                  children: [
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Sesli',
+                        emoji: '🎤',
+                        onPressed: () => _openVoiceCommandsScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Avatar',
+                        emoji: '👤',
+                        onPressed: () => _openAvatarScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Evcil',
+                        emoji: '🐱',
+                        onPressed: () => _openPetScreen(context),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Dördüncü satır - Keşif özellikleri
+                Row(
+                  children: [
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Yolculuk',
+                        emoji: '🗺️',
+                        onPressed: () => _openLearningJourneyScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Galeri',
+                        emoji: '🎨',
+                        onPressed: () => _openMathArtGalleryScreen(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: 'Laboratuvar',
+                        emoji: '🧪',
+                        onPressed: () => _openVirtualMathLabScreen(context),
                       ),
                     ),
                   ],
@@ -463,6 +567,101 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _openSpinWheelScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SpinWheelScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openParentPanelScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ParentPanelScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openAIStorytellerScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AIStorytellerScreen(),
+      ),
+    );
+  }
+
+  void _openVoiceCommandsScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const VoiceCommandsScreen(),
+      ),
+    );
+  }
+
+  void _openAvatarScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AvatarCustomizationScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openPetScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PetScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openLearningJourneyScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LearningJourneyScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openMathArtGalleryScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MathArtGalleryScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _openVirtualMathLabScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VirtualMathLabScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
   // Rozetler ekranını aç
   void _openBadgesScreen(BuildContext context) {
     Navigator.push(
@@ -503,6 +702,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context,
       MaterialPageRoute(
         builder: (context) => MiniGamesScreen(
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // Oyun başlangıç ekranını aç
+  void _openGameStartScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GameStartScreen(
           onBack: () => Navigator.pop(context),
         ),
       ),

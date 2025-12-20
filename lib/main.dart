@@ -12,6 +12,10 @@ import 'services/badge_service.dart';
 import 'services/daily_reward_service.dart';
 import 'services/story_service.dart';
 import 'services/mini_game_service.dart';
+import 'services/game_mechanics_service.dart';
+import 'services/offline_service.dart';
+import 'services/ai_storyteller_service.dart';
+import 'services/voice_command_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/mini_games_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -71,6 +75,28 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<MiniGameService>(
           create: (_) => MiniGameService(),
+        ),
+        ChangeNotifierProxyProvider<AuthService, GameMechanicsService>(
+          create: (_) => GameMechanicsService(),
+          update: (_, authService, mechanicsService) {
+            if (authService.currentUser != null) {
+              mechanicsService!.initialize(authService.currentUser!.uid);
+            }
+            return mechanicsService!;
+          },
+        ),
+        ChangeNotifierProvider<OfflineService>(
+          create: (_) {
+            final service = OfflineService();
+            service.initialize();
+            return service;
+          },
+        ),
+        ChangeNotifierProvider<AIStorytellerService>(
+          create: (_) => AIStorytellerService(),
+        ),
+        ChangeNotifierProvider<VoiceCommandService>(
+          create: (_) => VoiceCommandService(),
         ),
       ],
       child: const MyApp(),

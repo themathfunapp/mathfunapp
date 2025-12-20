@@ -11,7 +11,7 @@ class StoryModeButton extends StatelessWidget {
     required this.text,
     required this.onPressed,
     this.width,
-    this.height = 60,
+    this.height = 56,
   });
 
   @override
