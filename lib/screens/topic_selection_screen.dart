@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
+import '../models/game_mechanics.dart';
 import 'game_start_screen.dart';
+import 'quick_math_screen.dart'; // Mevcut oyun ekranı
+import 'level_play_screen.dart'; // Alternatif oyun ekranı
 
 /// Konu Seçimi Ekranı
 class TopicSelectionScreen extends StatefulWidget {
@@ -22,6 +25,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  late PlayerInventory _inventory; // Oyuncu envanteri
 
   @override
   void initState() {
@@ -34,6 +38,9 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     _animation = Tween<double>(begin: -3, end: 3).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
+
+    // Geçici envanter (gerçek uygulamada kayıtlı veriden yüklenir)
+    _inventory = PlayerInventory();
   }
 
   @override
@@ -150,7 +157,56 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
             ),
           ),
           const Spacer(),
-          const SizedBox(width: 48),
+          // Envanter ikonları
+          Row(
+            children: [
+              _buildInventoryIcon(
+                icon: Icons.favorite,
+                count: _inventory.lives,
+                color: Colors.red,
+              ),
+              const SizedBox(width: 8),
+              _buildInventoryIcon(
+                icon: Icons.lightbulb,
+                count: _inventory.hints,
+                color: Colors.amber,
+              ),
+              const SizedBox(width: 8),
+              _buildInventoryIcon(
+                icon: Icons.monetization_on,
+                count: _inventory.coins,
+                color: Colors.amber,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInventoryIcon({
+    required IconData icon,
+    required int count,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -243,7 +299,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                           children: [
                             ...List.generate(
                               topic['stars'] as int,
-                              (i) => const Icon(
+                                  (i) => const Icon(
                                 Icons.star,
                                 color: Colors.amber,
                                 size: 16,
@@ -251,7 +307,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                             ),
                             ...List.generate(
                               3 - (topic['stars'] as int),
-                              (i) => Icon(
+                                  (i) => Icon(
                                 Icons.star_border,
                                 color: Colors.white.withOpacity(0.5),
                                 size: 16,
@@ -290,9 +346,9 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   List<Map<String, dynamic>> _getTopicsForAge(
-    AgeGroupSelection age,
-    AppLocalizations localizations,
-  ) {
+      AgeGroupSelection age,
+      AppLocalizations localizations,
+      ) {
     final baseTopic = [
       {
         'id': 'counting',
@@ -419,15 +475,303 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     }
 
     debugPrint('Selected topic: ${topic['id']}');
-    // TODO: Navigate to topic game
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${topic['title']} seçildi! Oyun başlıyor...'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+    // Can kontrolü
+    if (_inventory.lives <= 0) {
+      _showNoLivesDialog();
+      return;
+    }
+
+    // Oyun ayarlarını oluştur
+    final gameSettings = _createGameSettings(topic);
+
+    // Seviye seçim ekranını göster
+    _showLevelSelectionDialog(topic, gameSettings);
+  }
+
+  Map<String, dynamic> _createGameSettings(Map<String, dynamic> topic) {
+    // Yaş grubuna göre oyun ayarları
+    int questionCount;
+    int timeLimit;
+    String difficulty;
+
+    switch (widget.ageGroup) {
+      case AgeGroupSelection.preschool:
+        questionCount = 5;
+        timeLimit = 30;
+        difficulty = 'Kolay';
+        break;
+      case AgeGroupSelection.elementary:
+        questionCount = 10;
+        timeLimit = 45;
+        difficulty = 'Orta';
+        break;
+      case AgeGroupSelection.advanced:
+        questionCount = 15;
+        timeLimit = 60;
+        difficulty = 'Zor';
+        break;
+    }
+
+    return {
+      'topicId': topic['id'],
+      'topicName': topic['title'],
+      'topicEmoji': topic['emoji'],
+      'topicColor': topic['color'],
+      'questionCount': questionCount,
+      'timeLimit': timeLimit,
+      'difficulty': difficulty,
+      'baseScorePerQuestion': 100,
+      'coinReward': questionCount * 10,
+      'xpReward': questionCount * 5,
+    };
+  }
+
+  void _showNoLivesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Canın Kalmadı! ❤️'),
+        content: const Text('Yeni canlar için beklemelisin veya can satın almalısın.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tamam'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Can satın alma ekranına git
+              _showBuyLivesDialog();
+            },
+            child: const Text('Can Satın Al'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBuyLivesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Can Satın Al'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.favorite, color: Colors.red),
+              title: const Text('1 Can'),
+              subtitle: const Text('25 Altın'),
+              trailing: ElevatedButton(
+                onPressed: () {
+                  if (_inventory.coins >= 25) {
+                    setState(() {
+                      _inventory.lives++;
+                      _inventory.coins -= 25;
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('1 can satın alındı!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Yeterli altın yok!'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Satın Al'),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.favorite, color: Colors.red),
+              title: const Text('5 Can'),
+              subtitle: const Text('100 Altın'),
+              trailing: ElevatedButton(
+                onPressed: () {
+                  if (_inventory.coins >= 100) {
+                    setState(() {
+                      _inventory.lives += 5;
+                      _inventory.coins -= 100;
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('5 can satın alındı!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Yeterli altın yok!'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Satın Al'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLevelSelectionDialog(Map<String, dynamic> topic, Map<String, dynamic> settings) {
+    final levels = [
+      {
+        'level': 1,
+        'name': 'Kolay',
+        'emoji': '😊',
+        'description': 'Basit sorular',
+        'questionCount': settings['questionCount'],
+        'timeLimit': settings['timeLimit'],
+        'rewardMultiplier': 1.0,
+      },
+      {
+        'level': 2,
+        'name': 'Orta',
+        'emoji': '😐',
+        'description': 'Orta zorlukta sorular',
+        'questionCount': settings['questionCount'] + 5,
+        'timeLimit': settings['timeLimit'] - 10,
+        'rewardMultiplier': 1.5,
+      },
+      {
+        'level': 3,
+        'name': 'Zor',
+        'emoji': '😰',
+        'description': 'Zor sorular',
+        'questionCount': settings['questionCount'] + 10,
+        'timeLimit': settings['timeLimit'] - 20,
+        'rewardMultiplier': 2.0,
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          '${topic['emoji']} ${topic['title']}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: levels.map((level) {
+              return Card(
+                color: Colors.white.withOpacity(0.1),
+                child: ListTile(
+                  leading: Text(
+                    level['emoji'],
+                    style: const TextStyle(fontSize: 30),
+                  ),
+                  title: Text(
+                    '${level['name']} - Seviye ${level['level']}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${level['questionCount']} soru, ${level['timeLimit']} saniye\n${level['description']}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            'x${level['rewardMultiplier']}',
+                            style: const TextStyle(
+                              color: Colors.amber,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _startGame(topic, settings, level);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: topic['color'],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Başla',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startGame(Map<String, dynamic> topic, Map<String, dynamic> settings, Map<String, dynamic> level) {
+    // QuickMathScreen'e git (mevcut oyun ekranınız)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuickMathScreen(
+          gameType: 'topic_${topic['id']}',
+          ageGroup: widget.ageGroup,
+          topicId: topic['id'] as String,
+          topicName: topic['title'] as String,
+          difficulty: level['name'] as String,
+          questionCount: level['questionCount'] as int,
+          timeLimit: level['timeLimit'] as int,
+          rewardMultiplier: level['rewardMultiplier'] as double,
+          onBack: () => Navigator.pop(context),
+        ),
       ),
     );
   }
 }
-

@@ -297,7 +297,7 @@ class CollisionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return widget.child;
+        return child;
       },
     );
   }

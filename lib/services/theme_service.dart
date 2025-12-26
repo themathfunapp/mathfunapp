@@ -95,14 +95,15 @@ class ThemeService extends ChangeNotifier {
           ),
         ),
       ),
-      
-      cardTheme: CardTheme(
-        color: _currentTheme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_currentTheme.borderRadius),
+
+        cardTheme: CardThemeData(
+          color: _currentTheme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_currentTheme.borderRadius),
+          ),
+          elevation: _currentTheme.elevation,
         ),
-        elevation: _currentTheme.elevation,
-      ),
+
     );
   }
 }

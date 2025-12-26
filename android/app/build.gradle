@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace "com.themathfunapp.mathfunapp"
-    compileSdkVersion 34
+    compileSdkVersion 36
+
+    ndkVersion "29.0.14206865"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -15,8 +17,8 @@ android {
 
     defaultConfig {
         applicationId "com.themathfunapp.mathfunapp"
-        minSdkVersion 21
-        targetSdkVersion 34
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
         versionCode 1
         versionName "1.0.0"
         multiDexEnabled true

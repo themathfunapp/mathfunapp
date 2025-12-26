@@ -757,25 +757,27 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                   width: 2,
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
                   Text(
                     '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  if (_isAnswered) ...[
-                    const SizedBox(height: 16),
-                    Icon(
-                      _isCorrect ? Icons.check_circle : Icons.cancel,
-                      color: _isCorrect ? Colors.green : Colors.red,
-                      size: 48,
+                  if (_isAnswered)
+                    Positioned(
+                      bottom: -10,
+                      child: Icon(
+                        _isCorrect ? Icons.check_circle : Icons.cancel,
+                        color: _isCorrect ? Colors.green : Colors.red,
+                        size: 48,
+                      ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -792,7 +794,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 2.5,
+              childAspectRatio: 3.4,
             ),
             itemCount: _currentQuestion.options.length,
             itemBuilder: (context, index) {
@@ -831,7 +833,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                     child: Text(
                       '$option',
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),

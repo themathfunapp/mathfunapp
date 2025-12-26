@@ -9,6 +9,7 @@ import 'daily_challenge_screen.dart';
 import 'boss_battle_screen.dart';
 import 'live_duel_screen.dart';
 import '../models/game_mechanics.dart';
+import 'discover_screen.dart'; // YENİ EKLENDİ
 
 /// Yaş grupları enum
 enum AgeGroupSelection {
@@ -66,7 +67,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
     // Rastgele karşılama mesajı
     _currentMessage =
-        _dailyMessages[math.Random().nextInt(_dailyMessages.length)];
+    _dailyMessages[math.Random().nextInt(_dailyMessages.length)];
 
     // Kapı animasyonu
     _doorController = AnimationController(
@@ -413,7 +414,9 @@ class _GameStartScreenState extends State<GameStartScreen>
                 ),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withOpacity(0.3),
                   width: isSelected ? 3 : 1.5,
                 ),
                 boxShadow: [
@@ -496,9 +499,9 @@ class _GameStartScreenState extends State<GameStartScreen>
                       age == AgeGroupSelection.preschool
                           ? 1
                           : age == AgeGroupSelection.elementary
-                              ? 2
-                              : 3,
-                      (index) => const Padding(
+                          ? 2
+                          : 3,
+                          (index) => const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 2),
                         child: Icon(Icons.star, color: Colors.amber, size: 16),
                       ),
@@ -535,6 +538,11 @@ class _GameStartScreenState extends State<GameStartScreen>
 
         // Matematik Bölgeleri
         _buildMathRegionsSection(localizations),
+
+        const SizedBox(height: 24),
+
+        // YENİ GELİŞTİR/KEŞFET BÖLÜMÜ
+        _buildDiscoverSection(localizations),
 
         const SizedBox(height: 24),
 
@@ -930,7 +938,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
                 3,
-                (index) => Icon(
+                    (index) => Icon(
                   index < stars ? Icons.star : Icons.star_border,
                   color: Colors.amber,
                   size: 12,
@@ -1028,32 +1036,35 @@ class _GameStartScreenState extends State<GameStartScreen>
               Positioned(
                 bottom: 12,
                 right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        localizations.get('explore_map'),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                child: GestureDetector(
+                  onTap: _openMathRegions,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          localizations.get('explore_map'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF764ba2),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_forward,
+                          size: 14,
                           color: Color(0xFF764ba2),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.arrow_forward,
-                        size: 14,
-                        color: Color(0xFF764ba2),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1061,6 +1072,167 @@ class _GameStartScreenState extends State<GameStartScreen>
           ),
         ),
       ],
+    );
+  }
+
+  // YENİ GELİŞTİR/KEŞFET BÖLÜMÜ
+  Widget _buildDiscoverSection(AppLocalizations localizations) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.explore, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'Yeni Geliştir',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: _openDiscoverScreen,
+              child: Text(
+                'Tümünü Gör',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.amber.shade300,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // İlk satır - 3 öğe
+        Row(
+          children: [
+            _buildDiscoverCard(
+              emoji: '🧩',
+              title: 'Zeka Oyunları',
+              subtitle: 'Akıl oyunları',
+              color: const Color(0xFF00CEC9),
+              onTap: () => _openDiscoverItem('Zeka Oyunları'),
+            ),
+            const SizedBox(width: 12),
+            _buildDiscoverCard(
+              emoji: '🎭',
+              title: 'Zaman Atölyesi',
+              subtitle: 'Zaman kavramı',
+              color: const Color(0xFFA29BFE),
+              onTap: () => _openDiscoverItem('Zaman Atölyesi'),
+            ),
+            const SizedBox(width: 12),
+            _buildDiscoverCard(
+              emoji: '🧮',
+              title: 'Hesap Makinesi',
+              subtitle: 'Pratik yap',
+              color: const Color(0xFFFD79A8),
+              onTap: () => _openDiscoverItem('Hesap Makinesi'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // İkinci satır - 3 öğe
+        Row(
+          children: [
+            _buildDiscoverCard(
+              emoji: '📊',
+              title: 'İstatistik',
+              subtitle: 'Gelişim grafiği',
+              color: const Color(0xFFFDCB6E),
+              onTap: () => _openDiscoverItem('İstatistik'),
+            ),
+            const SizedBox(width: 12),
+            _buildDiscoverCard(
+              emoji: '🎨',
+              title: 'Renkli Matematik',
+              subtitle: 'Eğlenceli tasarım',
+              color: const Color(0xFF74B9FF),
+              onTap: () => _openDiscoverItem('Renkli Matematik'),
+            ),
+            const SizedBox(width: 12),
+            _buildDiscoverCard(
+              emoji: '🏆',
+              title: 'Başarılar',
+              subtitle: 'Rozet koleksiyonu',
+              color: const Color(0xFF55EFC4),
+              onTap: () => _openDiscoverItem('Başarılar'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoverCard({
+    required String emoji,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 100,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color, color.withOpacity(0.7)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1227,7 +1399,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   void _startQuickGame(String type) {
     debugPrint('Starting quick game: $type');
-    
+
     switch (type) {
       case 'instant':
         Navigator.push(
@@ -1292,7 +1464,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   void _showBossSelection() {
     final bosses = BossBattle.allBosses;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1409,15 +1581,18 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
+  // DÜZELTİLDİ: Artık TopicSelectionScreen'e gidiyor
   void _startTopicGame(String topic) {
     debugPrint('Starting topic game: $topic');
-    // TODO: Implement topic game start
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$topic konusu seçildi!'),
-        backgroundColor: Colors.blue,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+    // TopicSelectionScreen'e git
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TopicSelectionScreen(
+          ageGroup: _selectedAgeGroup!,
+          onBack: () => Navigator.pop(context),
+        ),
       ),
     );
   }
@@ -1446,9 +1621,52 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
+  // YENİ EKLENDİ: Keşfet ekranını aç
+  void _openDiscoverScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DiscoverScreen(
+          ageGroup: _selectedAgeGroup!,
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // YENİ EKLENDİ: Keşfet öğesini aç
+  void _openDiscoverItem(String itemName) {
+    debugPrint('Opening discover item: $itemName');
+
+    // Şimdilik snackbar göster, daha sonra gerçek ekranlar eklenebilir
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$itemName özelliği yakında eklenecek!'),
+        backgroundColor: Colors.purple,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Veya direkt DiscoverScreen'e git
+    // _openDiscoverScreen();
+  }
+
+  // DÜZELTİLDİ: Artık MathRegionsScreen'e gidiyor
   void _openRegion(String region) {
     debugPrint('Opening region: $region');
-    _openMathRegions();
+
+    // Bölgeye özel bir ekran yoksa, genel MathRegionsScreen'e git
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MathRegionsScreen(
+          ageGroup: _selectedAgeGroup!,
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   void _selectGoal(String goal) {
@@ -1507,4 +1725,3 @@ class _MapPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
