@@ -219,7 +219,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
       setState(() {
         _bossHealth -= widget.boss.damagePerCorrect;
-        _score += 100 + (_timeLeft * 10);
+        _score += 10;
       });
 
       if (_bossHealth <= 0) {
@@ -440,20 +440,22 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               // Üst bar
               _buildTopBar(),
 
+              const SizedBox(height: 4),
+
               // Boss alanı
-              Expanded(
-                flex: 2,
-                child: _buildBossArea(),
-              ),
+              _buildBossArea(),
+
+              const SizedBox(height: 12),
 
               // Soru
               _buildQuestion(),
 
+              const SizedBox(height: 12),
+
               // Seçenekler
               _buildOptions(),
 
-              // Oyuncu alanı
-              _buildPlayerArea(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -462,12 +464,14 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   Widget _buildTopBar() {
+    final healthPercent = (_playerHealth / _playerMaxHealth).clamp(0.0, 1.0);
+    
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
           GestureDetector(
-            onTap: widget.onBack,
+            onTap: _showExitConfirmation,
             child: Container(
               width: 40,
               height: 40,
@@ -478,7 +482,81 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               child: const Icon(Icons.close, color: Colors.white, size: 20),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 12),
+          // Oyuncu can barı
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text('🦸', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'SEN',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade800,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Stack(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: healthPercent > 0.5
+                                        ? [Colors.green, Colors.lightGreen]
+                                        : [Colors.orange, Colors.red],
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                alignment: Alignment.centerLeft,
+                                child: FractionallySizedBox(
+                                  widthFactor: healthPercent,
+                                  child: Container(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$_playerHealth / $_playerMaxHealth',
+                          style: const TextStyle(
+                            fontSize: 8,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -505,8 +583,82 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     );
   }
 
+  void _showExitConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Oyundan Çıkılsın Mı?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.3),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('HAYIR'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _timer?.cancel();
+                        Navigator.pop(context);
+                        widget.onBack();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('EVET'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBossArea() {
-    final healthPercent = _bossHealth / _bossMaxHealth;
+    final healthPercent = (_bossHealth / _bossMaxHealth).clamp(0.0, 1.0);
 
     return AnimatedBuilder(
       animation: _bossShakeAnimation,
@@ -517,63 +669,67 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                 math.sin(_bossShakeController.value * math.pi * 4),
             0,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Boss ismi
-              Text(
-                widget.boss.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Boss ismi
+                Text(
+                  widget.boss.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
-              // Boss can barı
-              Container(
-                width: 200,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Stack(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 200 * healthPercent,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: healthPercent > 0.5
-                              ? [Colors.red, Colors.orange]
-                              : [Colors.red.shade900, Colors.red],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '$_bossHealth / $_bossMaxHealth',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                // Boss can barı
+                Container(
+                  width: 180,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade800,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Stack(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 180 * healthPercent,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: healthPercent > 0.5
+                                ? [Colors.red, Colors.orange]
+                                : [Colors.red.shade900, Colors.red],
+                          ),
+                          borderRadius: BorderRadius.circular(7),
                         ),
                       ),
-                    ),
-                  ],
+                      Center(
+                        child: Text(
+                          '$_bossHealth / $_bossMaxHealth',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
-              // Boss emoji
-              Text(
-                widget.boss.emoji,
-                style: const TextStyle(fontSize: 80),
-              ),
-            ],
+                // Boss emoji
+                Text(
+                  widget.boss.emoji,
+                  style: const TextStyle(fontSize: 60),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -584,57 +740,62 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     final isLowTime = _timeLeft <= 3;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isLowTime ? Colors.red : Colors.white.withOpacity(0.3),
-          width: 2,
+        gradient: LinearGradient(
+          colors: [const Color(0xFF667eea), const Color(0xFF764ba2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: Colors.white, width: 2),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Zamanlayıcı
           Container(
-            width: 40,
-            height: 40,
+            width: 35,
+            height: 35,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isLowTime
-                  ? Colors.red.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.1),
+              color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
+              border: Border.all(
+                color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
+                width: 2,
+              ),
             ),
             child: Center(
               child: Text(
                 '$_timeLeft',
-                style: TextStyle(
-                  fontSize: 16,
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: isLowTime ? Colors.red : Colors.white,
+                  color: Colors.white,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
+          const Text('⚔️', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
           // Soru
           Text(
             '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           // Sonuç ikonu
           if (_isAnswered)
-            Icon(
-              _isCorrect ? Icons.check_circle : Icons.cancel,
-              color: _isCorrect ? Colors.green : Colors.red,
-              size: 32,
+            Text(
+              _isCorrect ? '✅' : '❌',
+              style: const TextStyle(fontSize: 22),
             ),
         ],
       ),
@@ -643,141 +804,90 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   Widget _buildOptions() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 1.5,
-        ),
-        itemCount: _currentQuestion.options.length,
-        itemBuilder: (context, index) {
-          final option = _currentQuestion.options[index];
-          final isSelected = _selectedAnswer == option;
-          final isCorrectAnswer = option == _currentQuestion.correctAnswer;
-
-          Color bgColor;
-          if (_isAnswered) {
-            if (isCorrectAnswer) {
-              bgColor = Colors.green;
-            } else if (isSelected && !isCorrectAnswer) {
-              bgColor = Colors.red;
-            } else {
-              bgColor = Colors.white.withOpacity(0.1);
-            }
-          } else {
-            bgColor = Colors.white.withOpacity(0.15);
-          }
-
-          return GestureDetector(
-            onTap: () => _checkAnswer(option),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '$option',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+              const SizedBox(width: 8),
+              Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+              const SizedBox(width: 8),
+              Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPlayerArea() {
-    final healthPercent = _playerHealth / _playerMaxHealth;
+  Widget _buildOptionButton(int option) {
+    final isSelected = _selectedAnswer == option;
+    final isCorrectAnswer = option == _currentQuestion.correctAnswer;
 
-    return AnimatedBuilder(
-      animation: _playerShakeAnimation,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(
-            _playerShakeAnimation.value *
-                math.sin(_playerShakeController.value * math.pi * 4),
-            0,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Oyuncu avatarı
-                const Text('🦸', style: TextStyle(fontSize: 40)),
-                const SizedBox(width: 12),
-                // Oyuncu can barı
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'SEN',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade800,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Stack(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              width: MediaQuery.of(context).size.width *
-                                  0.5 *
-                                  healthPercent,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: healthPercent > 0.5
-                                      ? [Colors.green, Colors.lightGreen]
-                                      : [Colors.orange, Colors.red],
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$_playerHealth / $_playerMaxHealth',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ],
-                  ),
+    Color bgColor;
+    Color borderColor;
+
+    if (_isAnswered) {
+      if (isCorrectAnswer) {
+        bgColor = Colors.green;
+        borderColor = Colors.green.shade700;
+      } else if (isSelected) {
+        bgColor = Colors.red;
+        borderColor = Colors.red.shade700;
+      } else {
+        bgColor = Colors.white.withOpacity(0.15);
+        borderColor = Colors.white.withOpacity(0.4);
+      }
+    } else {
+      bgColor = Colors.white.withOpacity(0.2);
+      borderColor = Colors.white.withOpacity(0.6);
+    }
+
+    return GestureDetector(
+      onTap: _isAnswered ? null : () => _checkAnswer(option),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 45,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: borderColor, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            '$option',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  blurRadius: 2,
+                  color: Colors.black26,
+                  offset: Offset(1, 1),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+
 }
 
 class _BossQuestion {

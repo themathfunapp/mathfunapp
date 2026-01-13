@@ -208,7 +208,7 @@ class AppLocalizations {
       'random_5_questions': 'Rastgele 5 soru',
       'daily_challenge': 'Günün Görevi',
       'surprise_reward': 'Sürpriz ödül',
-      'friend_race': 'Arkadaşlı Yarış',
+      'friend_race': 'Arkadaşla Yarış',
       'math_duel': 'Matematik düellosu',
       
       // Konu Seçimi
@@ -224,16 +224,16 @@ class AppLocalizations {
       'geometry': 'Geometri',
       'fractions': 'Kesirler',
       'counting': 'Sayma',
-      'time': 'Saat',
+      'time': 'Süre',
       'decimals': 'Ondalıklar',
       'algebra': 'Cebir',
-      'shapes': 'Şekiller',
+      'shapes': 'Geometri',
       'learn_numbers': 'Sayıları öğren',
       'add_numbers': 'Sayıları topla',
       'subtract_numbers': 'Sayıları çıkar',
       'multiply_numbers': 'Sayıları çarp',
       'divide_numbers': 'Sayıları böl',
-      'learn_shapes': 'Şekilleri öğren',
+      'learn_shapes': 'Geometriyi öğren',
       'read_clock': 'Saati oku',
       'learn_fractions': 'Kesirleri öğren',
       'learn_decimals': 'Ondalıkları öğren',
@@ -476,6 +476,7 @@ class AppLocalizations {
       'keep_trying': 'Denemeye Devam Et!',
       'back_to_map': 'Haritaya Dön',
       'play_again': 'Tekrar Oyna',
+      'back':'Geri',
       'questions_coming_soon': 'Sorular yakında geliyor!',
       'go_back': 'Geri Dön',
       'quest_complete_levels': '3 Seviye Tamamla',
@@ -1504,6 +1505,7 @@ class AppLocalizations {
       'keep_trying': 'Weiter versuchen!',
       'back_to_map': 'Zurück zur Karte',
       'play_again': 'Nochmal spielen',
+      'back': 'Zurück',
 
       // Friends
       'friends_tab': 'Freunde',
@@ -1805,6 +1807,7 @@ class AppLocalizations {
       'level_complete': 'اكتمل المستوى!',
       'score': 'النقاط',
       'play_again': 'العب مرة أخرى',
+      'back': 'رجوع',
       'daily_quests': 'المهام اليومية',
 
       'friends_tab': 'الأصدقاء',
@@ -2071,6 +2074,7 @@ class AppLocalizations {
       'ok': 'باشه',
       'level_complete': 'مرحله تمام شد!',
       'play_again': 'دوباره بازی کن',
+      'back': 'بازگشت',
       'daily_quests': 'ماموریت‌های روزانه',
 
       'friends_tab': 'دوستان',
@@ -2338,6 +2342,7 @@ class AppLocalizations {
       'ok': '好的',
       'level_complete': '关卡完成！',
       'play_again': '再玩一次',
+      'back': '返回',
       'daily_quests': '每日任务',
 
       'friends_tab': '好友',
@@ -2605,6 +2610,7 @@ class AppLocalizations {
       'ok': 'OK',
       'level_complete': 'Level Selesai!',
       'play_again': 'Main Lagi',
+      'back': 'Kembali',
       'daily_quests': 'Misi Harian',
 
       'friends_tab': 'Teman',
@@ -2872,6 +2878,7 @@ class AppLocalizations {
       'ok': 'Baş e',
       'level_complete': 'Asta Qediya!',
       'play_again': 'Dîsa Bilîze',
+      'back': 'Vegere',
       'daily_quests': 'Peywirên Rojane',
 
       'friends_tab': 'Heval',
@@ -3139,6 +3146,7 @@ class AppLocalizations {
       'ok': 'OK',
       'level_complete': '¡Nivel Completado!',
       'play_again': 'Jugar de Nuevo',
+      'back': 'Volver',
       'daily_quests': 'Misiones Diarias',
 
       'friends_tab': 'Amigos',
@@ -3406,6 +3414,7 @@ class AppLocalizations {
       'ok': 'OK',
       'level_complete': 'Niveau Terminé!',
       'play_again': 'Rejouer',
+      'back': 'Retour',
       'daily_quests': 'Quêtes Quotidiennes',
 
       'friends_tab': 'Amis',
@@ -3673,6 +3682,7 @@ class AppLocalizations {
       'ok': 'ОК',
       'level_complete': 'Уровень Пройден!',
       'play_again': 'Играть Снова',
+      'back': 'Назад',
       'daily_quests': 'Ежедневные Задания',
 
       'friends_tab': 'Друзья',
@@ -3940,6 +3950,7 @@ class AppLocalizations {
       'ok': 'OK',
       'level_complete': 'レベルクリア！',
       'play_again': 'もう一度プレイ',
+      'back': '戻る',
       'daily_quests': 'デイリークエスト',
 
       'friends_tab': '友達',
@@ -4207,6 +4218,7 @@ class AppLocalizations {
       'ok': '확인',
       'level_complete': '레벨 완료!',
       'play_again': '다시 플레이',
+      'back': '뒤로',
       'daily_quests': '일일 퀘스트',
 
       'friends_tab': '친구',

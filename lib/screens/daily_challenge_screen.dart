@@ -194,12 +194,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _combo++;
       if (_combo > _maxCombo) _maxCombo = _combo;
       
-      // Combo puanı
-      int comboMultiplier = 1;
-      if (_combo >= 10) comboMultiplier = 3;
-      else if (_combo >= 5) comboMultiplier = 2;
-      
-      _score += 100 * comboMultiplier + (_timeLeft > 0 ? 10 : 0);
+      // Her doğru cevap 10 puan
+      _score += 10;
     } else {
       _wrongAnswers++;
       _combo = 0;
@@ -370,6 +366,93 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showExitConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.red.shade400, Colors.orange.shade400],
+            ),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('⚠️', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 16),
+              const Text(
+                'Oyundan Çıkılsın Mı?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Oyundan çıkarsan ilerleme kaydedilmez.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('HAYIR'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _timer?.cancel();
+                        widget.onBack();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('EVET'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -652,48 +735,53 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   }
 
   Widget _buildPlayingView() {
+    final isLowTime = _timeLeft <= 30;
+    
     return Column(
       children: [
-        // Üst bar
-        Padding(
+        // Üst bar - Progress Bar
+        Container(
+          margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Geri butonu
+              GestureDetector(
+                onTap: _showExitConfirmation,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
               // Soru numarası
               Text(
                 'Soru ${_currentQuestionIndex + 1}',
                 style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.white70,
-                ),
-              ),
-              // Zamanlayıcı
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _timeLeft <= 30
-                      ? Colors.red.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.timer,
-                      color: _timeLeft <= 30 ? Colors.red : Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _timeLeft <= 30 ? Colors.red : Colors.white,
-                      ),
-                    ),
-                  ],
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
               // Puan
@@ -743,110 +831,180 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ),
           ),
 
-        // Soru
-        Expanded(
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.4),
-                  width: 2,
-                ),
+        const SizedBox(height: 30),
+
+        // Soru - Yeni tasarım (timer içinde)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (_isAnswered)
-                    Positioned(
-                      bottom: -10,
-                      child: Icon(
-                        _isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: _isCorrect ? Colors.green : Colors.red,
-                        size: 48,
+              borderRadius: BorderRadius.circular(50),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF667eea).withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Zamanlayıcı içerde
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: isLowTime ? _pulseAnimation.value : 1.0,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                const Text('🎯', style: TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Text(
+                  '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 4,
+                        color: Colors.black26,
+                        offset: Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (_isAnswered)
+                  Text(
+                    _isCorrect ? '✅' : '❌',
+                    style: const TextStyle(fontSize: 28),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 30),
+
+        // Seçenekler - Yeni tasarım
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
                 ],
               ),
-            ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+                ],
+              ),
+            ],
           ),
         ),
-
-        // Seçenekler
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 3.4,
-            ),
-            itemCount: _currentQuestion.options.length,
-            itemBuilder: (context, index) {
-              final option = _currentQuestion.options[index];
-              final isSelected = _selectedAnswer == option;
-              final isCorrectAnswer = option == _currentQuestion.correctAnswer;
-
-              Color bgColor;
-              if (_isAnswered) {
-                if (isCorrectAnswer) {
-                  bgColor = Colors.green;
-                } else if (isSelected && !isCorrectAnswer) {
-                  bgColor = Colors.red;
-                } else {
-                  bgColor = Colors.white.withOpacity(0.2);
-                }
-              } else {
-                bgColor = Colors.white.withOpacity(0.2);
-              }
-
-              return GestureDetector(
-                onTap: () => _checkAnswer(option),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.3),
-                      width: isSelected ? 3 : 1.5,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$option',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 16),
       ],
+    );
+  }
+
+  Widget _buildOptionButton(int option) {
+    final isSelected = _selectedAnswer == option;
+    final isCorrectAnswer = option == _currentQuestion.correctAnswer;
+
+    Color bgColor;
+    Color borderColor;
+
+    if (_isAnswered) {
+      if (isCorrectAnswer) {
+        bgColor = Colors.green;
+        borderColor = Colors.green.shade700;
+      } else if (isSelected) {
+        bgColor = Colors.red;
+        borderColor = Colors.red.shade700;
+      } else {
+        bgColor = Colors.white.withOpacity(0.15);
+        borderColor = Colors.white.withOpacity(0.4);
+      }
+    } else {
+      bgColor = Colors.white.withOpacity(0.2);
+      borderColor = Colors.white.withOpacity(0.6);
+    }
+
+    return GestureDetector(
+      onTap: _isAnswered ? null : () => _checkAnswer(option),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 55,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: borderColor, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            '$option',
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  blurRadius: 2,
+                  color: Colors.black26,
+                  offset: Offset(1, 1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

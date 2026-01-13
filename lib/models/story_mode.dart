@@ -231,8 +231,8 @@ class MathQuestion {
   final List<String> options; // Çoktan seçmeli için
   final String correctAnswer;
   final List<String>? alternativeAnswers; // Birden fazla doğru cevap
-  final String? hintKey; // İpucu
-  final String? explanationKey; // Açıklama
+  final String? hintKey;
+  final String? explanationKey;
   final int points;
   final int difficulty;
 

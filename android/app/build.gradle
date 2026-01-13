@@ -1,24 +1,31 @@
 plugins {
     id "com.android.application"
+    id "kotlin-android"
     id "com.google.gms.google-services"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
     namespace "com.themathfunapp.mathfunapp"
-    compileSdkVersion 36
-
-    ndkVersion "29.0.14206865"
+    compileSdkVersion flutter.compileSdkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
     defaultConfig {
         applicationId "com.themathfunapp.mathfunapp"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 36
+        targetSdkVersion flutter.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
         multiDexEnabled true
@@ -36,7 +43,6 @@ android {
                     'proguard-android-optimize.txt'
             ), 'proguard-rules.pro'
         }
-
     }
 }
 
@@ -46,4 +52,5 @@ flutter {
 
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }

@@ -9,7 +9,7 @@ import 'daily_challenge_screen.dart';
 import 'boss_battle_screen.dart';
 import 'live_duel_screen.dart';
 import '../models/game_mechanics.dart';
-import 'discover_screen.dart'; // YENİ EKLENDİ
+import 'discover_screen.dart';
 
 /// Yaş grupları enum
 enum AgeGroupSelection {
@@ -719,7 +719,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           ],
         ),
         const SizedBox(height: 12),
-        // Arkadaşlı Yarış (tam genişlik)
+        // Arkadaşla Yarış (tam genişlik)
         _buildQuickStartCard(
           emoji: '👥',
           title: localizations.get('friend_race'),
@@ -1204,13 +1204,14 @@ class _GameStartScreenState extends State<GameStartScreen>
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 24)),
-              const SizedBox(height: 8),
+              Text(emoji, style: const TextStyle(fontSize: 22)),
+              const SizedBox(height: 4),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -1218,15 +1219,15 @@ class _GameStartScreenState extends State<GameStartScreen>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   color: Colors.white.withOpacity(0.9),
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -1492,8 +1493,17 @@ class _GameStartScreenState extends State<GameStartScreen>
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 20),
-            ...bosses.map((boss) => _buildBossItem(boss)).toList(),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 450),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: bosses.map((boss) => _buildBossItem(boss)).toList(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -1516,19 +1526,19 @@ class _GameStartScreenState extends State<GameStartScreen>
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: Colors.white.withOpacity(0.2),
           ),
         ),
         child: Row(
           children: [
-            Text(boss.emoji, style: const TextStyle(fontSize: 40)),
-            const SizedBox(width: 16),
+            Text(boss.emoji, style: const TextStyle(fontSize: 35)),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

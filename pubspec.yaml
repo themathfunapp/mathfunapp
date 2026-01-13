@@ -46,4 +46,4 @@ flutter:
   generate: true
 
   assets:
-    - lib/assets/images/
+    - assets/images/

@@ -6,6 +6,8 @@ class BottomActionButton extends StatelessWidget {
   final VoidCallback onPressed;
   final double? width;
   final double? height;
+  final double fontSize;
+  final Color textColor;
 
   const BottomActionButton({
     super.key,
@@ -14,6 +16,8 @@ class BottomActionButton extends StatelessWidget {
     required this.onPressed,
     this.width,
     this.height = 60,
+    this.fontSize = 14,
+    this.textColor = Colors.white,
   });
 
   @override
@@ -21,6 +25,12 @@ class BottomActionButton extends StatelessWidget {
     return Container(
       width: width,
       height: height,
+      constraints: width == null
+          ? const BoxConstraints(
+        minWidth: 60,
+        maxWidth: 200,
+      )
+          : null,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(16),
@@ -34,15 +44,29 @@ class BottomActionButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 20)),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      emoji,
+                      style: TextStyle(fontSize: fontSize + 6),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    maxLines: 1,
                   ),
                 ),
               ],

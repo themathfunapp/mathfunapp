@@ -1,7 +1,29 @@
-/// Oyun Mekanikleri Modelleri
-/// Combo, Can, İpucu, Güç-Up sistemleri
+// models/game_mechanics.dart
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
-/// Güç-Up Türleri
+import '../screens/game_start_screen.dart';
+
+
+
+// === KONU TÜRLERİ ===
+enum TopicType {
+  counting,        // Sayma
+  addition,        // Toplama
+  subtraction,     // Çıkarma
+  multiplication,  // Çarpma
+  division,        // Bölme
+  geometry,        // Geometri
+  fractions,       // Kesirler
+  decimals,        // Ondalıklar
+  time,            // Zaman
+  measurements,    // Ölçümler
+  patterns,        // Örüntüler
+  algebra,         // Cebir
+  statistics,      // İstatistik
+}
+
+// === GÜÇ-UP TÜRLERİ ===
 enum PowerUpType {
   fiftyFifty,      // İki yanlış şıkkı eler
   freezeTime,      // Zamanı durdurur
@@ -13,7 +35,7 @@ enum PowerUpType {
   shield,          // Bir yanlışı engeller
 }
 
-/// Güç-Up Modeli
+// === GÜÇ-UP MODELİ ===
 class PowerUp {
   final PowerUpType type;
   final String name;
@@ -94,7 +116,7 @@ class PowerUp {
   ];
 }
 
-/// Can Sistemi
+// === CAN SİSTEMİ ===
 class LivesSystem {
   int maxLives;
   int currentLives;
@@ -144,13 +166,13 @@ class LivesSystem {
   factory LivesSystem.fromJson(Map<String, dynamic> json) => LivesSystem(
     maxLives: json['maxLives'] ?? 5,
     currentLives: json['currentLives'] ?? 5,
-    lastLifeLostAt: json['lastLifeLostAt'] != null 
-        ? DateTime.parse(json['lastLifeLostAt']) 
+    lastLifeLostAt: json['lastLifeLostAt'] != null
+        ? DateTime.parse(json['lastLifeLostAt'])
         : null,
   );
 }
 
-/// Combo Sistemi
+// === COMBO SİSTEMİ ===
 class ComboSystem {
   int currentCombo;
   int maxCombo;
@@ -222,7 +244,7 @@ class ComboSystem {
   }
 }
 
-/// İpucu Sistemi
+// === İPUCU SİSTEMİ ===
 class HintSystem {
   int availableHints;
   int maxFreeHints;
@@ -287,7 +309,786 @@ class HintSystem {
   }
 }
 
-/// Günlük Challenge
+// === KONU OYUN AYARLARI ===
+class TopicGameSettings {
+  final TopicType topicType;
+  final String title;
+  final String emoji;
+  final Color color;
+  final int ageGroupMin;
+  final int ageGroupMax;
+  final List<String> questionTypes;
+  final Map<String, dynamic> customRules;
+
+  TopicGameSettings({
+    required this.topicType,
+    required this.title,
+    required this.emoji,
+    required this.color,
+    required this.ageGroupMin,
+    required this.ageGroupMax,
+    required this.questionTypes,
+    this.customRules = const {},
+  });
+}
+
+// === KONU OYUN YÖNETİCİSİ ===
+class TopicGameManager {
+  static Map<TopicType, TopicGameSettings> getTopicSettings() {
+    return {
+      TopicType.counting: TopicGameSettings(
+        topicType: TopicType.counting,
+        title: 'Sayma',
+        emoji: '🔢',
+        color: Colors.blue,
+        ageGroupMin: 3,
+        ageGroupMax: 6,
+        questionTypes: ['count_objects', 'find_missing', 'whats_next'],
+        customRules: {
+          'visual_elements': true,
+          'sound_effects': true,
+          'max_number': 20,
+        },
+      ),
+
+      TopicType.addition: TopicGameSettings(
+        topicType: TopicType.addition,
+        title: 'Toplama',
+        emoji: '➕',
+        color: Colors.green,
+        ageGroupMin: 5,
+        ageGroupMax: 11,
+        questionTypes: ['basic_addition', 'word_problems', 'visual_addition'],
+        customRules: {
+          'carry_over': true,
+          'max_sum': 100,
+        },
+      ),
+
+      TopicType.subtraction: TopicGameSettings(
+        topicType: TopicType.subtraction,
+        title: 'Çıkarma',
+        emoji: '➖',
+        color: Colors.red,
+        ageGroupMin: 5,
+        ageGroupMax: 11,
+        questionTypes: ['basic_subtraction', 'word_problems', 'visual_subtraction'],
+        customRules: {
+          'allow_negative': false,
+          'max_difference': 50,
+        },
+      ),
+
+      TopicType.multiplication: TopicGameSettings(
+        topicType: TopicType.multiplication,
+        title: 'Çarpma',
+        emoji: '✖️',
+        color: Colors.purple,
+        ageGroupMin: 7,
+        ageGroupMax: 11,
+        questionTypes: ['basic_multiplication', 'array_visualization', 'word_problems'],
+        customRules: {
+          'max_factor': 12,
+          'times_table': true,
+        },
+      ),
+
+      TopicType.division: TopicGameSettings(
+        topicType: TopicType.division,
+        title: 'Bölme',
+        emoji: '➗',
+        color: Colors.orange,
+        ageGroupMin: 8,
+        ageGroupMax: 11,
+        questionTypes: ['basic_division', 'equal_groups', 'word_problems'],
+        customRules: {
+          'max_dividend': 144,
+          'remainder': false,
+        },
+      ),
+
+      TopicType.geometry: TopicGameSettings(
+        topicType: TopicType.geometry,
+        title: 'Geometri',
+        emoji: '🔺',
+        color: Colors.orange,
+        ageGroupMin: 4,
+        ageGroupMax: 11,
+        questionTypes: ['identify_shapes', 'count_sides', 'area_perimeter', 'symmetry'],
+        customRules: {
+          'shapes': ['daire', 'kare', 'üçgen', 'dikdörtgen', 'beşgen'],
+          'interactive_drawing': true,
+        },
+      ),
+
+      TopicType.fractions: TopicGameSettings(
+        topicType: TopicType.fractions,
+        title: 'Kesirler',
+        emoji: '½',
+        color: Colors.purple,
+        ageGroupMin: 7,
+        ageGroupMax: 11,
+        questionTypes: ['identify_fraction', 'compare_fractions', 'add_fractions', 'simplify'],
+        customRules: {
+          'visual_fractions': true,
+          'pizza_slices': true,
+          'max_denominator': 12,
+        },
+      ),
+
+      TopicType.decimals: TopicGameSettings(
+        topicType: TopicType.decimals,
+        title: 'Ondalıklar',
+        emoji: '0️⃣',
+        color: const Color(0xFF8E44AD),
+        ageGroupMin: 8,
+        ageGroupMax: 11,
+        questionTypes: ['addition', 'subtraction', 'compare', 'round'],
+        customRules: {
+          'max_decimal_places': 1,
+          'max_value': 10,
+        },
+      ),
+
+      TopicType.time: TopicGameSettings(
+        topicType: TopicType.time,
+        title: 'Zaman',
+        emoji: '🕰️',
+        color: Colors.teal,
+        ageGroupMin: 6,
+        ageGroupMax: 11,
+        questionTypes: ['read_clock', 'elapsed_time', 'time_conversion', 'schedule'],
+        customRules: {
+          'analog_clock': true,
+          'digital_clock': true,
+          'word_problems': true,
+        },
+      ),
+
+      TopicType.measurements: TopicGameSettings(
+        topicType: TopicType.measurements,
+        title: 'Ölçümler',
+        emoji: '📏',
+        color: Colors.brown,
+        ageGroupMin: 6,
+        ageGroupMax: 11,
+        questionTypes: ['length_comparison', 'weight_estimation', 'volume_conversion'],
+        customRules: {
+          'units': ['cm', 'm', 'kg', 'g', 'L', 'mL'],
+          'visual_comparison': true,
+        },
+      ),
+
+      TopicType.patterns: TopicGameSettings(
+        topicType: TopicType.patterns,
+        title: 'Örüntüler',
+        emoji: '🔁',
+        color: Colors.pink,
+        ageGroupMin: 5,
+        ageGroupMax: 11,
+        questionTypes: ['complete_pattern', 'create_pattern', 'pattern_rule'],
+        customRules: {
+          'pattern_types': ['color', 'shape', 'number', 'size'],
+          'max_pattern_length': 5,
+        },
+      ),
+
+      TopicType.algebra: TopicGameSettings(
+        topicType: TopicType.algebra,
+        title: 'Cebir',
+        emoji: '🔤',
+        color: Colors.indigo,
+        ageGroupMin: 9,
+        ageGroupMax: 11,
+        questionTypes: ['solve_equation', 'find_variable', 'word_problems'],
+        customRules: {
+          'max_variable': 20,
+          'simple_equations': true,
+        },
+      ),
+
+      TopicType.statistics: TopicGameSettings(
+        topicType: TopicType.statistics,
+        title: 'İstatistik',
+        emoji: '📊',
+        color: Colors.cyan,
+        ageGroupMin: 8,
+        ageGroupMax: 11,
+        questionTypes: ['read_graph', 'calculate_mean', 'find_mode', 'probability'],
+        customRules: {
+          'graph_types': ['bar', 'pie', 'line'],
+          'max_data_points': 10,
+        },
+      ),
+    };
+  }
+
+  // Konuya özel soru üret
+  static Map<String, dynamic> generateTopicQuestion(
+      TopicType topic,
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      ) {
+    final settings = getTopicSettings()[topic]!;
+
+    switch (topic) {
+      case TopicType.counting:
+        return _generateCountingQuestion(ageGroup, random, settings);
+
+      case TopicType.geometry:
+        return _generateGeometryQuestion(ageGroup, random, settings);
+
+      case TopicType.fractions:
+        return _generateFractionQuestion(ageGroup, random, settings);
+
+      case TopicType.time:
+        return _generateTimeQuestion(ageGroup, random, settings);
+
+      case TopicType.measurements:
+        return _generateMeasurementQuestion(ageGroup, random, settings);
+
+      case TopicType.patterns:
+        return _generatePatternQuestion(ageGroup, random, settings);
+
+      case TopicType.decimals:
+        return _generateDecimalsQuestion(ageGroup, random, settings);
+
+      case TopicType.algebra:
+        return _generateAlgebraQuestion(ageGroup, random, settings);
+
+      default:
+        return _generateBasicMathQuestion(topic, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateCountingQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final questionTypes = ['count_objects', 'find_missing', 'whats_next', 'before_after'];
+    final type = questionTypes[random.nextInt(questionTypes.length)];
+    final maxNumber = settings.customRules['max_number'] as int;
+
+    switch (type) {
+      case 'count_objects':
+        // "Kaç tane ... var?" sorusu
+        final count = random.nextInt(maxNumber - 5) + 3; // 3-17 arası
+        final emojis = ['🍎', '⭐', '🎈', '🌸', '🐝', '🎁', '🍕', '🚗', '⚽'];
+        final emoji = emojis[random.nextInt(emojis.length)];
+        
+        return {
+          'type': 'count_objects',
+          'question': 'Kaç tane var?',
+          'emoji': emoji,
+          'count': count,
+          'correctAnswer': count,
+          'options': _generateOptions(count, random),
+        };
+
+      case 'find_missing':
+        // "Hangi sayı eksik: 1, 2, __, 4" sorusu
+        final start = random.nextInt(maxNumber - 5) + 1;
+        final missing = start + 2;
+        
+        return {
+          'type': 'find_missing',
+          'question': 'Hangi sayı eksik?',
+          'sequence': '$start, ${start + 1}, __, ${start + 3}',
+          'correctAnswer': missing,
+          'options': [missing, missing - 1, missing + 1, missing + 2]..shuffle(),
+        };
+
+      case 'whats_next':
+        // "Sonraki sayı: 5, 6, 7, __" sorusu
+        final start = random.nextInt(maxNumber - 4) + 1;
+        final next = start + 3;
+        
+        return {
+          'type': 'whats_next',
+          'question': 'Sonraki sayı kaç?',
+          'sequence': '$start, ${start + 1}, ${start + 2}, __',
+          'correctAnswer': next,
+          'options': [next, next - 1, next + 1, next + 2]..shuffle(),
+        };
+
+      case 'before_after':
+        // "7'den önce/sonra hangi sayı gelir?" sorusu
+        final number = random.nextInt(maxNumber - 2) + 2;
+        final isBefore = random.nextBool();
+        final correctAnswer = isBefore ? number - 1 : number + 1;
+        
+        return {
+          'type': 'before_after',
+          'question': isBefore 
+              ? '$number\'den önce hangi sayı gelir?'
+              : '$number\'den sonra hangi sayı gelir?',
+          'correctAnswer': correctAnswer,
+          'options': [correctAnswer, number, correctAnswer + 1, correctAnswer - 1]..shuffle(),
+        };
+
+      default:
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateDecimalsQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final questionTypes = ['addition', 'subtraction', 'compare', 'round'];
+    final type = questionTypes[random.nextInt(questionTypes.length)];
+
+    switch (type) {
+      case 'addition':
+        // Ondalıklı toplama
+        final num1 = (random.nextInt(90) + 10) / 10; // 1.0-10.0 arası
+        final num2 = (random.nextInt(90) + 10) / 10;
+        final answer = (num1 + num2).toStringAsFixed(1);
+        
+        return {
+          'type': 'decimal_addition',
+          'question': '$num1 + $num2 = ?',
+          'correctAnswer': answer,
+          'options': _generateDecimalOptions(double.parse(answer), random),
+        };
+
+      case 'subtraction':
+        // Ondalıklı çıkarma
+        final num1 = (random.nextInt(90) + 10) / 10; // 1.0-10.0 arası
+        final num2 = (random.nextInt((num1 * 10).toInt() - 5) + 5) / 10;
+        final answer = (num1 - num2).toStringAsFixed(1);
+        
+        return {
+          'type': 'decimal_subtraction',
+          'question': '$num1 - $num2 = ?',
+          'correctAnswer': answer,
+          'options': _generateDecimalOptions(double.parse(answer), random),
+        };
+
+      case 'compare':
+        // Ondalıklı karşılaştırma
+        final num1 = (random.nextInt(90) + 10) / 10;
+        final num2 = (random.nextInt(90) + 10) / 10;
+        final correctAnswer = num1 > num2 ? '>' : num1 < num2 ? '<' : '=';
+        
+        return {
+          'type': 'decimal_compare',
+          'question': '$num1 __ $num2',
+          'correctAnswer': correctAnswer,
+          'options': ['>', '<', '=', '≠'],
+        };
+
+      case 'round':
+        // Yuvarlama
+        final decimal = (random.nextInt(95) + 5) / 10; // 0.5-10.0 arası
+        final rounded = decimal.round();
+        
+        return {
+          'type': 'decimal_round',
+          'question': '$decimal sayısını yuvarla:',
+          'correctAnswer': rounded,
+          'options': [rounded, rounded + 1, rounded - 1, rounded + 2]..shuffle(),
+        };
+
+      default:
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateAlgebraQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final questionTypes = ['solve_for_x', 'simple_equation', 'missing_number'];
+    final type = questionTypes[random.nextInt(questionTypes.length)];
+
+    switch (type) {
+      case 'solve_for_x':
+        // x + a = b tarzı denklemler
+        final a = random.nextInt(10) + 1;
+        final b = random.nextInt(10) + a + 1;
+        final x = b - a;
+        
+        return {
+          'type': 'solve_for_x',
+          'question': 'x + $a = $b\nx = ?',
+          'correctAnswer': x,
+          'options': _generateOptions(x, random),
+        };
+
+      case 'simple_equation':
+        // a × x = b tarzı denklemler
+        final x = random.nextInt(5) + 2;
+        final a = random.nextInt(5) + 2;
+        final b = a * x;
+        
+        return {
+          'type': 'simple_equation',
+          'question': '$a × x = $b\nx = ?',
+          'correctAnswer': x,
+          'options': _generateOptions(x, random),
+        };
+
+      case 'missing_number':
+        // __ + 5 = 12 tarzı sorular
+        final answer = random.nextInt(10) + 1;
+        final addend = random.nextInt(10) + 1;
+        final sum = answer + addend;
+        
+        return {
+          'type': 'missing_number',
+          'question': '__ + $addend = $sum\nEksik sayı?',
+          'correctAnswer': answer,
+          'options': _generateOptions(answer, random),
+        };
+
+      default:
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateGeometryQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final questionTypes = ['identify_shapes', 'count_sides', 'find_area'];
+    final type = questionTypes[random.nextInt(questionTypes.length)];
+
+    switch (type) {
+      case 'identify_shapes':
+        final shapes = settings.customRules['shapes'] as List<String>;
+        final shape = shapes[random.nextInt(shapes.length)];
+        final options = List.from(shapes)..shuffle();
+
+        return {
+          'type': 'identify_shapes',
+          'question': 'Hangi şekil bir $shape?',
+          'correctAnswer': shape,
+          'shapeToShow': shape, // Gösterilecek şekil
+          'options': options.take(4).toList(),
+          'explanation': 'Bir $shape, ${_getShapeDescription(shape)}.',
+        };
+
+      case 'count_sides':
+        final shapeData = [
+          {'name': 'üçgen', 'sides': 3},
+          {'name': 'kare', 'sides': 4},
+          {'name': 'beşgen', 'sides': 5},
+        ];
+        final selected = shapeData[random.nextInt(shapeData.length)];
+        final shapeName = selected['name'] as String;
+        final sides = selected['sides'] as int;
+
+        return {
+          'type': 'count_sides',
+          'question': 'Bir $shapeName kaç kenara sahiptir?',
+          'correctAnswer': sides,
+          'shapeToShow': shapeName, // Gösterilecek şekil
+          'options': [sides, sides + 1, sides - 1, sides + 2]..shuffle(),
+        };
+
+      case 'find_area':
+        final side = random.nextInt(5) + 2;
+        final area = side * side;
+
+        return {
+          'type': 'find_area',
+          'question': 'Bir kenarı $side cm olan karenin alanı kaç cm²?',
+          'correctAnswer': area,
+          'shapeToShow': 'kare', // Gösterilecek şekil
+          'options': _generateOptions(area, random),
+          'explanation': 'Karenin alanı = kenar × kenar = $side × $side = $area',
+        };
+
+      default:
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateFractionQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final questionTypes = ['identify_fraction', 'compare_fractions', 'add_fractions'];
+    final type = questionTypes[random.nextInt(questionTypes.length)];
+
+    switch (type) {
+      case 'identify_fraction':
+        final numerator = random.nextInt(3) + 1;
+        final denominator = random.nextInt(4) + 2;
+
+        return {
+          'type': 'identify_fraction',
+          'question': 'Görseldeki kesri seçin:',
+          'correctAnswer': '$numerator/$denominator',
+          'options': [
+            '$numerator/$denominator',
+            '${numerator + 1}/$denominator',
+            '$numerator/${denominator + 1}',
+            '${numerator - 1}/${denominator - 1}',
+          ],
+          'image': 'fraction_${numerator}_$denominator',
+        };
+
+      case 'compare_fractions':
+        final frac1 = '${random.nextInt(2) + 1}/${random.nextInt(3) + 2}';
+        final frac2 = '${random.nextInt(2) + 1}/${random.nextInt(3) + 2}';
+        final value1 = _fractionToDecimal(frac1);
+        final value2 = _fractionToDecimal(frac2);
+        final correct = value1 > value2 ? '>' : value1 < value2 ? '<' : '=';
+
+        return {
+          'type': 'compare_fractions',
+          'question': '$frac1 ? $frac2',
+          'correctAnswer': correct,
+          'options': ['>', '<', '=', '?'],
+        };
+
+      case 'add_fractions':
+        final denom = random.nextInt(4) + 2;
+        final num1 = random.nextInt(denom - 1) + 1;
+        final num2 = random.nextInt(denom - 1) + 1;
+        final sumNum = num1 + num2;
+
+        return {
+          'type': 'add_fractions',
+          'question': '$num1/$denom + $num2/$denom = ?',
+          'correctAnswer': sumNum <= denom ? '$sumNum/$denom' : '1 ${sumNum - denom}/$denom',
+          'options': _generateFractionOptions(num1, num2, denom, random),
+        };
+
+      default:
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+    }
+  }
+
+  static Map<String, dynamic> _generateTimeQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final hour = random.nextInt(12) + 1;
+    final minute = [0, 15, 30, 45][random.nextInt(4)];
+
+    return {
+      'type': 'read_clock',
+      'question': 'Saat kaçı gösteriyor?',
+      'correctAnswer': '$hour:${minute.toString().padLeft(2, '0')}',
+      'options': [
+        '$hour:${minute.toString().padLeft(2, '0')}',
+        '${(hour % 12) + 1}:${minute.toString().padLeft(2, '0')}',
+        '$hour:${((minute + 15) % 60).toString().padLeft(2, '0')}',
+        '${hour}:${((minute + 30) % 60).toString().padLeft(2, '0')}',
+      ],
+      'image': 'clock_${hour}_$minute',
+    };
+  }
+
+  static Map<String, dynamic> _generateMeasurementQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final units = ['cm', 'm', 'kg', 'g', 'L', 'mL'];
+    final unit = units[random.nextInt(units.length)];
+    final value = random.nextInt(10) + 1;
+    final convertedValue = _convertMeasurement(value, unit);
+
+    return {
+      'type': 'measurement_conversion',
+      'question': '$value $unit = ?',
+      'correctAnswer': convertedValue,
+      'options': _generateOptions(convertedValue, random),
+      'explanation': '1 $unit = ${convertedValue ~/ value} ${_getConvertedUnit(unit)}',
+    };
+  }
+
+  static Map<String, dynamic> _generatePatternQuestion(
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      TopicGameSettings settings,
+      ) {
+    final pattern = [1, 2, 3, 4, 5];
+    final missingIndex = random.nextInt(5);
+    final missingValue = pattern[missingIndex];
+
+    final displayPattern = List.from(pattern);
+    displayPattern[missingIndex] = '?';
+
+    return {
+      'type': 'complete_pattern',
+      'question': 'Örüntü: ${displayPattern.join(", ")}\nEksik sayı nedir?',
+      'correctAnswer': missingValue,
+      'options': [missingValue, missingValue + 1, missingValue - 1, missingValue + 2],
+      'explanation': 'Örüntü her adımda 1 artıyor: ${pattern.join(" → ")}',
+    };
+  }
+
+  static Map<String, dynamic> _generateBasicMathQuestion(
+      TopicType topic,
+      AgeGroupSelection ageGroup,
+      math.Random random,
+      ) {
+    int num1, num2, answer;
+    String operator;
+
+    switch (topic) {
+      case TopicType.addition:
+        num1 = random.nextInt(10) + 1;
+        num2 = random.nextInt(10) + 1;
+        answer = num1 + num2;
+        operator = '+';
+        break;
+
+      case TopicType.subtraction:
+        num1 = random.nextInt(10) + 1;
+        num2 = random.nextInt(num1) + 1;
+        answer = num1 - num2;
+        operator = '-';
+        break;
+
+      case TopicType.multiplication:
+        num1 = random.nextInt(5) + 1;
+        num2 = random.nextInt(5) + 1;
+        answer = num1 * num2;
+        operator = '×';
+        break;
+
+      case TopicType.division:
+        num2 = random.nextInt(5) + 1;
+        answer = random.nextInt(5) + 1;
+        num1 = num2 * answer;
+        operator = '÷';
+        break;
+
+      default:
+        num1 = random.nextInt(10) + 1;
+        num2 = random.nextInt(10) + 1;
+        answer = num1 + num2;
+        operator = '+';
+    }
+
+    return {
+      'type': 'basic_math',
+      'question': '$num1 $operator $num2 = ?',
+      'correctAnswer': answer,
+      'options': _generateOptions(answer, random),
+      'num1': num1,
+      'num2': num2,
+      'operator': operator,
+    };
+  }
+
+  // Yardımcı fonksiyonlar
+  static String _getShapeDescription(String shape) {
+    switch (shape) {
+      case 'daire': return 'etrafında hiç köşe olmayan yuvarlak bir şekildir';
+      case 'kare': return 'dört eşit kenarı ve dört dik açısı olan bir şekildir';
+      case 'üçgen': return 'üç kenarı ve üç köşesi olan bir şekildir';
+      case 'dikdörtgen': return 'karşılıklı kenarları eşit ve dik açılı bir şekildir';
+      case 'beşgen': return 'beş kenarı ve beş köşesi olan bir şekildir';
+      default: return 'geometrik bir şekildir';
+    }
+  }
+
+  static double _fractionToDecimal(String fraction) {
+    final parts = fraction.split('/');
+    return int.parse(parts[0]) / int.parse(parts[1]);
+  }
+
+  static List<int> _generateOptions(int correctAnswer, math.Random random) {
+    final options = <int>[correctAnswer];
+
+    while (options.length < 4) {
+      int wrongAnswer;
+      if (random.nextBool()) {
+        wrongAnswer = correctAnswer + random.nextInt(5) + 1;
+      } else {
+        wrongAnswer = correctAnswer - random.nextInt(5) - 1;
+      }
+      if (wrongAnswer > 0 && !options.contains(wrongAnswer)) {
+        options.add(wrongAnswer);
+      }
+    }
+
+    return options..shuffle();
+  }
+
+  static List<String> _generateFractionOptions(int num1, int num2, int denom, math.Random random) {
+    final sum = num1 + num2;
+    final options = <String>[];
+
+    options.add(sum <= denom ? '$sum/$denom' : '1 ${sum - denom}/$denom');
+
+    while (options.length < 4) {
+      final wrongNum = sum + random.nextInt(3) - 1;
+      final wrongDenom = denom + random.nextInt(3) - 1;
+      if (wrongNum > 0 && wrongDenom > 0) {
+        final option = wrongNum <= wrongDenom
+            ? '$wrongNum/$wrongDenom'
+            : '1 ${wrongNum - wrongDenom}/$wrongDenom';
+        if (!options.contains(option)) {
+          options.add(option);
+        }
+      }
+    }
+
+    return options..shuffle();
+  }
+
+  static List<String> _generateDecimalOptions(double correctAnswer, math.Random random) {
+    final options = <String>[correctAnswer.toStringAsFixed(1)];
+
+    while (options.length < 4) {
+      double wrongAnswer;
+      if (random.nextBool()) {
+        wrongAnswer = correctAnswer + (random.nextInt(10) + 1) / 10;
+      } else {
+        wrongAnswer = correctAnswer - (random.nextInt(10) + 1) / 10;
+      }
+      
+      if (wrongAnswer > 0) {
+        final wrongStr = wrongAnswer.toStringAsFixed(1);
+        if (!options.contains(wrongStr)) {
+          options.add(wrongStr);
+        }
+      }
+    }
+
+    return options..shuffle();
+  }
+
+  static int _convertMeasurement(int value, String unit) {
+    switch (unit) {
+      case 'cm': return value * 10; // cm -> mm
+      case 'm': return value * 100; // m -> cm
+      case 'kg': return value * 1000; // kg -> g
+      case 'g': return value ~/ 1000; // g -> kg
+      case 'L': return value * 1000; // L -> mL
+      case 'mL': return value ~/ 1000; // mL -> L
+      default: return value;
+    }
+  }
+
+  static String _getConvertedUnit(String unit) {
+    switch (unit) {
+      case 'cm': return 'mm';
+      case 'm': return 'cm';
+      case 'kg': return 'g';
+      case 'g': return 'kg';
+      case 'L': return 'mL';
+      case 'mL': return 'L';
+      default: return unit;
+    }
+  }
+}
+
+// === GÜNLÜK CHALLENGE ===
 class DailyChallenge {
   final String id;
   final DateTime date;
@@ -352,7 +1153,7 @@ class DailyChallenge {
   );
 }
 
-/// Şans Çarkı Ödülleri
+// === ŞANS ÇARKI ÖDÜLLERİ ===
 class SpinWheelReward {
   final String id;
   final String name;
@@ -438,7 +1239,7 @@ class SpinWheelReward {
   ];
 }
 
-/// Sürpriz Kutusu
+// === SÜRPRİZ KUTUSU ===
 class SurpriseBox {
   final String id;
   final String name;
@@ -471,7 +1272,7 @@ class BoxReward {
   });
 }
 
-/// Boss Savaşı
+// === BOSS SAVAŞI ===
 class BossBattle {
   final String id;
   final String name;
@@ -560,7 +1361,7 @@ class BossBattle {
   ];
 }
 
-/// Oyuncu Envanter
+// === OYUNCU ENVANTERİ ===
 class PlayerInventory {
   Map<PowerUpType, int> powerUps;
   int hints;
@@ -580,11 +1381,11 @@ class PlayerInventory {
     List<String>? unlockedAvatars,
     List<String>? unlockedBackgrounds,
     List<String>? unlockedPets,
-  }) : 
-    powerUps = powerUps ?? {},
-    unlockedAvatars = unlockedAvatars ?? ['default'],
-    unlockedBackgrounds = unlockedBackgrounds ?? ['default'],
-    unlockedPets = unlockedPets ?? [];
+  }) :
+        powerUps = powerUps ?? {},
+        unlockedAvatars = unlockedAvatars ?? ['default'],
+        unlockedBackgrounds = unlockedBackgrounds ?? ['default'],
+        unlockedPets = unlockedPets ?? [];
 
   int getPowerUpCount(PowerUpType type) => powerUps[type] ?? 0;
 
@@ -628,16 +1429,113 @@ class PlayerInventory {
       lives: json['lives'] ?? 5,
       coins: json['coins'] ?? 0,
       gems: json['gems'] ?? 0,
-      unlockedAvatars: json['unlockedAvatars'] != null 
-          ? List<String>.from(json['unlockedAvatars']) 
+      unlockedAvatars: json['unlockedAvatars'] != null
+          ? List<String>.from(json['unlockedAvatars'])
           : ['default'],
-      unlockedBackgrounds: json['unlockedBackgrounds'] != null 
-          ? List<String>.from(json['unlockedBackgrounds']) 
+      unlockedBackgrounds: json['unlockedBackgrounds'] != null
+          ? List<String>.from(json['unlockedBackgrounds'])
           : ['default'],
-      unlockedPets: json['unlockedPets'] != null 
-          ? List<String>.from(json['unlockedPets']) 
+      unlockedPets: json['unlockedPets'] != null
+          ? List<String>.from(json['unlockedPets'])
           : [],
     );
   }
 }
 
+// === MATEMATİK SORUSU MODELİ ===
+class MathQuestion {
+  final int num1;
+  final int num2;
+  final String operator;
+  final int correctAnswer;
+  final List<int> options;
+  final String? questionText; // Konuya özel soru metni
+  final String? questionImage; // Konuya özel görsel
+
+  MathQuestion({
+    required this.num1,
+    required this.num2,
+    required this.operator,
+    required this.correctAnswer,
+    required this.options,
+    this.questionText,
+    this.questionImage,
+  });
+}
+
+// === SORU ZORLUK SEVİYELERİ ===
+class DifficultyLevel {
+  final String id;
+  final String name;
+  final String emoji;
+  final int baseTime;
+  final int questionCount;
+  final double scoreMultiplier;
+  final int coinReward;
+  final int xpReward;
+
+  const DifficultyLevel({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.baseTime,
+    required this.questionCount,
+    required this.scoreMultiplier,
+    required this.coinReward,
+    required this.xpReward,
+  });
+
+  static List<DifficultyLevel> get allLevels => [
+    const DifficultyLevel(
+      id: 'easy',
+      name: 'Kolay',
+      emoji: '😊',
+      baseTime: 30,
+      questionCount: 5,
+      scoreMultiplier: 1.0,
+      coinReward: 50,
+      xpReward: 25,
+    ),
+    const DifficultyLevel(
+      id: 'medium',
+      name: 'Orta',
+      emoji: '😐',
+      baseTime: 25,
+      questionCount: 10,
+      scoreMultiplier: 1.5,
+      coinReward: 100,
+      xpReward: 50,
+    ),
+    const DifficultyLevel(
+      id: 'hard',
+      name: 'Zor',
+      emoji: '😰',
+      baseTime: 20,
+      questionCount: 15,
+      scoreMultiplier: 2.0,
+      coinReward: 150,
+      xpReward: 75,
+    ),
+    const DifficultyLevel(
+      id: 'expert',
+      name: 'Uzman',
+      emoji: '🤯',
+      baseTime: 15,
+      questionCount: 20,
+      scoreMultiplier: 3.0,
+      coinReward: 200,
+      xpReward: 100,
+    ),
+  ];
+}
+
+// === OYUN MODU TÜRLERİ ===
+enum GameMode {
+  quickPlay,      // Hızlı oyun
+  topicPractice,  // Konu pratiği
+  dailyChallenge, // Günlük challenge
+  bossBattle,     // Boss savaşı
+  endlessMode,    // Sonsuz mod
+  friendDuel,     // Arkadaş düellosu
+  tournament,     // Turnuva
+}

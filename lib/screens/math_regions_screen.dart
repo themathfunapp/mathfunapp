@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import 'game_start_screen.dart';
+import '../models/game_mechanics.dart' as GameMechanics;
+import 'specialized_game_screen.dart';
+import 'counting_forest_screen.dart';
+import 'number_river_screen.dart';
+import 'geometry_mountain_screen.dart';
 
 /// Matematik Bölgeleri Ekranı (Dünya Haritası)
 class MathRegionsScreen extends StatefulWidget {
@@ -639,18 +644,84 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
 
   void _enterRegion(Map<String, dynamic> region) {
     debugPrint('Entering region: ${region['id']}');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Text(region['emoji'] as String, style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 8),
-            Text('${region['name']} bölgesine giriş yapılıyor...'),
-          ],
+    
+    // Sayı Ormanı için özel ekran
+    if (region['id'] == 'number_forest') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CountingForestScreen(
+            onBack: () => Navigator.pop(context),
+          ),
         ),
-        backgroundColor: region['color'] as Color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      );
+      return;
+    }
+    
+    // Rakam Nehri için özel ekran
+    if (region['id'] == 'digit_river') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NumberRiverScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // Geometri Dağı için özel ekran
+    if (region['id'] == 'geometry_mountain') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GeometryMountainScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // Region ID'sine göre TopicType belirle
+    GameMechanics.TopicType topicType;
+    switch (region['id'] as String) {
+      case 'number_forest':
+        topicType = GameMechanics.TopicType.counting;
+        break;
+      case 'digit_river':
+        topicType = GameMechanics.TopicType.addition;
+        break;
+      case 'subtraction_mountain':
+        topicType = GameMechanics.TopicType.subtraction;
+        break;
+      case 'multiplication_castle':
+        topicType = GameMechanics.TopicType.multiplication;
+        break;
+      case 'division_desert':
+        topicType = GameMechanics.TopicType.division;
+        break;
+      case 'geometry_island':
+        topicType = GameMechanics.TopicType.geometry;
+        break;
+      default:
+        topicType = GameMechanics.TopicType.addition;
+    }
+
+    // Topic ayarlarını al
+    final topicSettings = GameMechanics.TopicGameManager.getTopicSettings()[topicType]!;
+
+    // Oyun ekranına git
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SpecializedGameScreen(
+          topicSettings: topicSettings,
+          ageGroup: widget.ageGroup,
+          difficulty: 'Orta',
+          onBack: () => Navigator.pop(context),
+        ),
       ),
     );
   }

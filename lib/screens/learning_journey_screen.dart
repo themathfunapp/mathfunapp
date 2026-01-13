@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../models/game_mechanics.dart' as GameMechanics;
+import 'specialized_game_screen.dart';
+import 'game_start_screen.dart';
 
 /// Öğrenme Yolculuğu Haritası
 /// Görsel ilerleme haritası, beceri ağacı, başarı duvarı
@@ -324,7 +327,20 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
 
           // Bölge kartı
           Expanded(
-            child: Container(
+            child: GestureDetector(
+              onTap: () {
+                if (region.isUnlocked) {
+                  _enterRegion(region);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bu bölge henüz kilitli! Önceki bölgeleri tamamlayın.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: region.isUnlocked
@@ -413,8 +429,160 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
                 ],
               ),
             ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _startRegionGame(JourneyRegion region) {
+    // Region ID'sine göre TopicType belirle
+    GameMechanics.TopicType topicType;
+    switch (region.id) {
+      case 'counting':
+        topicType = GameMechanics.TopicType.counting;
+        break;
+      case 'addition':
+        topicType = GameMechanics.TopicType.addition;
+        break;
+      case 'subtraction':
+        topicType = GameMechanics.TopicType.subtraction;
+        break;
+      case 'multiplication':
+        topicType = GameMechanics.TopicType.multiplication;
+        break;
+      case 'division':
+        topicType = GameMechanics.TopicType.division;
+        break;
+      case 'geometry':
+        topicType = GameMechanics.TopicType.geometry;
+        break;
+      default:
+        topicType = GameMechanics.TopicType.addition;
+    }
+
+    // Topic ayarlarını al
+    final topicSettings = GameMechanics.TopicGameManager.getTopicSettings()[topicType]!;
+
+    // Oyun ekranına git
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SpecializedGameScreen(
+          topicSettings: topicSettings,
+          ageGroup: AgeGroupSelection.elementary,
+          difficulty: 'Orta',
+          onBack: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  void _enterRegion(JourneyRegion region) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                region.color,
+                region.color.withOpacity(0.7),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                region.emoji,
+                style: const TextStyle(fontSize: 64),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                region.name,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${region.stars} ⭐ Yıldız',
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '%${(region.progress * 100).toInt()} Tamamlandı',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.3),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'İPTAL',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        // Dialog kapatıldıktan sonra navigation yap
+                        Future.microtask(() => _startRegionGame(region));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: region.color,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'BAŞLA',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
