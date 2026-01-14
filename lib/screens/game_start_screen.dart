@@ -10,6 +10,8 @@ import 'boss_battle_screen.dart';
 import 'live_duel_screen.dart';
 import '../models/game_mechanics.dart';
 import 'discover_screen.dart';
+import 'colorful_math_screen.dart';
+import 'intelligence_games_screen.dart';
 
 /// Yaş grupları enum
 enum AgeGroupSelection {
@@ -1647,6 +1649,32 @@ class _GameStartScreenState extends State<GameStartScreen>
   // YENİ EKLENDİ: Keşfet öğesini aç
   void _openDiscoverItem(String itemName) {
     debugPrint('Opening discover item: $itemName');
+
+    // Renkli Matematik için özel ekran
+    if (itemName == 'Renkli Matematik') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ColorfulMathScreen(
+            ageGroup: _selectedAgeGroup.toString().split('.').last,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Zeka Oyunları için özel ekran
+    if (itemName == 'Zeka Oyunları') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => IntelligenceGamesScreen(
+            ageGroup: _selectedAgeGroup.toString().split('.').last,
+          ),
+        ),
+      );
+      return;
+    }
 
     // Şimdilik snackbar göster, daha sonra gerçek ekranlar eklenebilir
     ScaffoldMessenger.of(context).showSnackBar(

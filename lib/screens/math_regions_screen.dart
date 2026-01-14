@@ -7,6 +7,8 @@ import 'specialized_game_screen.dart';
 import 'counting_forest_screen.dart';
 import 'number_river_screen.dart';
 import 'geometry_mountain_screen.dart';
+import 'time_island_screen.dart';
+import 'colorful_math_screen.dart';
 
 /// Matematik Bölgeleri Ekranı (Dünya Haritası)
 class MathRegionsScreen extends StatefulWidget {
@@ -629,6 +631,16 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'unlockRequirement': localizations.get('unlock_fraction_bakery'),
       },
       {
+        'id': 'colorful_math',
+        'emoji': '🎨',
+        'shortName': 'Renkli',
+        'name': localizations.get('game_color_math'),
+        'description': localizations.get('game_color_math_desc'),
+        'color': const Color(0xFFFF6B9D),
+        'progress': 0,
+        'locked': false,
+      },
+      {
         'id': 'magic_machine',
         'emoji': '🧮',
         'shortName': localizations.get('machine'),
@@ -678,6 +690,32 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         MaterialPageRoute(
           builder: (context) => GeometryMountainScreen(
             onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // Zaman Adası için özel ekran
+    if (region['id'] == 'time_island') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TimeIslandScreen(
+            ageGroup: widget.ageGroup.toString().split('.').last,
+          ),
+        ),
+      );
+      return;
+    }
+    
+    // Renkli Matematik için özel ekran
+    if (region['id'] == 'colorful_math') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ColorfulMathScreen(
+            ageGroup: widget.ageGroup.toString().split('.').last,
           ),
         ),
       );
