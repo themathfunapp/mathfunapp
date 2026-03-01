@@ -28,7 +28,19 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     BadgeCategory.social,
     BadgeCategory.loyalty,
     BadgeCategory.mastery,
+    BadgeCategory.special,
   ];
+
+  final Map<BadgeCategory, String> _categoryEmojis = {
+    BadgeCategory.gameplay: '🎮',
+    BadgeCategory.streak: '🔥',
+    BadgeCategory.speed: '⚡',
+    BadgeCategory.accuracy: '🎯',
+    BadgeCategory.social: '👥',
+    BadgeCategory.loyalty: '💎',
+    BadgeCategory.mastery: '🏆',
+    BadgeCategory.special: '✨',
+  };
 
   @override
   void initState() {
@@ -62,7 +74,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
             children: [
               // ÜST BAR
               _buildTopBar(localizations, badgeService),
-              
+
               const SizedBox(height: 8),
 
               // İSTATİSTİK KARTI
@@ -73,14 +85,20 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               // TAB BAR
               _buildTabBar(localizations),
 
-              // İÇERİK
+              // İÇERİK - Expanded ile esnek yükseklik
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildAllBadgesTab(badgeService, localizations),
-                    _buildEarnedBadgesTab(badgeService, localizations),
-                  ],
+                child: Container(
+                  // Alt kısımda güvenli boşluk bırak
+                  margin: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 8,
+                  ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildAllBadgesTab(badgeService, localizations),
+                      _buildEarnedBadgesTab(badgeService, localizations),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -100,37 +118,21 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
           GestureDetector(
             onTap: widget.onBack,
             child: Container(
-              width: 55,
-              height: 55,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFFFD93D), Color(0xFFFF6B6B)],
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
                 ),
-                borderRadius: BorderRadius.circular(27.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: const Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '←',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text('👑', style: TextStyle(fontSize: 16)),
-                  ],
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 18,
                 ),
               ),
             ),
@@ -139,9 +141,9 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
           Column(
             children: [
               Text(
-                localizations.get('badges_title'),
+                localizations.get('badges_title') ?? 'Rozetlerim',
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -155,8 +157,8 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
             ],
           ),
-          // PLACEHOLDER
-          const SizedBox(width: 55),
+          // BOŞLUK
+          const SizedBox(width: 44),
         ],
       ),
     );
@@ -164,7 +166,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
 
   Widget _buildStatsCard(BadgeService badgeService, AppLocalizations localizations) {
     final stats = badgeService.userStats;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -176,10 +178,10 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('🎮', '${stats?.totalGamesPlayed ?? 0}', localizations.get('total_games')),
-          _buildStatItem('✅', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('correct')),
-          _buildStatItem('🔥', '${stats?.bestStreak ?? 0}', localizations.get('best_streak')),
-          _buildStatItem('⭐', '${stats?.totalScore ?? 0}', localizations.get('score')),
+          _buildStatItem('🎮', '${stats?.totalGamesPlayed ?? 0}', localizations.get('total_games') ?? 'Toplam Oyun'),
+          _buildStatItem('✅', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('correct') ?? 'Doğru'),
+          _buildStatItem('🔥', '${stats?.bestStreak ?? 0}', localizations.get('best_streak') ?? 'En İyi Seri'),
+          _buildStatItem('⭐', '${stats?.totalScore ?? 0}', localizations.get('score') ?? 'Puan'),
         ],
       ),
     );
@@ -188,12 +190,12 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   Widget _buildStatItem(String emoji, String value, String label) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
+        Text(emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -201,7 +203,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             color: Colors.white.withOpacity(0.7),
           ),
         ),
@@ -212,25 +214,26 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   Widget _buildTabBar(AppLocalizations localizations) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
+      height: 44,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         indicatorPadding: const EdgeInsets.all(4),
         labelColor: const Color(0xFF667eea),
         unselectedLabelColor: Colors.white,
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
         tabs: [
-          Tab(text: localizations.get('all_badges')),
-          Tab(text: localizations.get('earned_badges')),
+          Tab(text: localizations.get('all_badges') ?? 'Tüm Rozetler'),
+          Tab(text: localizations.get('earned_badges') ?? 'Kazanılanlar'),
         ],
       ),
     );
@@ -239,19 +242,26 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   // ==================== TÜM ROZETLER ====================
 
   Widget _buildAllBadgesTab(BadgeService badgeService, AppLocalizations localizations) {
+    final allBadges = BadgeService.allBadges;
+    final uniqueBadges = allBadges.toSet().toList();
+
+    final displayBadges = _selectedCategory == null
+        ? uniqueBadges
+        : badgeService.getBadgesByCategory(_selectedCategory!).toSet().toList();
+
     return Column(
       children: [
         // KATEGORİ FİLTRESİ
         _buildCategoryFilter(localizations),
-        
-        // ROZETLER
+
+        const SizedBox(height: 8),
+
+        // ROZETLER - Expanded ile esnek yükseklik
         Expanded(
           child: _buildBadgeGrid(
             badgeService,
             localizations,
-            _selectedCategory == null
-                ? BadgeService.allBadges
-                : badgeService.getBadgesByCategory(_selectedCategory!),
+            displayBadges,
           ),
         ),
       ],
@@ -260,27 +270,47 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
 
   Widget _buildCategoryFilter(AppLocalizations localizations) {
     return Container(
-      height: 50,
-      margin: const EdgeInsets.only(top: 12),
+      height: 44,
+      margin: const EdgeInsets.only(top: 8),
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           // TÜMÜ
-          _buildCategoryChip(null, localizations.get('all'), localizations),
+          _buildCategoryChip(null, localizations.get('all') ?? 'Tümü'),
           ..._categories.map((cat) => _buildCategoryChip(
             cat,
-            localizations.get('category_${cat.name}'),
-            localizations,
+            '${_categoryEmojis[cat] ?? ''} ${_getCategoryName(cat, localizations)}',
           )),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryChip(BadgeCategory? category, String label, AppLocalizations localizations) {
+  String _getCategoryName(BadgeCategory category, AppLocalizations localizations) {
+    switch (category) {
+      case BadgeCategory.gameplay:
+        return localizations.get('category_gameplay') ?? 'Oynanış';
+      case BadgeCategory.streak:
+        return localizations.get('category_streak') ?? 'Seri';
+      case BadgeCategory.speed:
+        return localizations.get('category_speed') ?? 'Hız';
+      case BadgeCategory.accuracy:
+        return localizations.get('category_accuracy') ?? 'Doğruluk';
+      case BadgeCategory.social:
+        return localizations.get('category_social') ?? 'Sosyal';
+      case BadgeCategory.loyalty:
+        return localizations.get('category_loyalty') ?? 'Sadakat';
+      case BadgeCategory.mastery:
+        return localizations.get('category_mastery') ?? 'Ustalık';
+      case BadgeCategory.special:
+        return localizations.get('category_special') ?? 'Özel';
+    }
+  }
+
+  Widget _buildCategoryChip(BadgeCategory? category, String label) {
     final isSelected = _selectedCategory == category;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -289,7 +319,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(20),
@@ -303,7 +333,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
             style: TextStyle(
               color: isSelected ? const Color(0xFF667eea) : Colors.white,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13,
+              fontSize: 12,
             ),
           ),
         ),
@@ -313,22 +343,51 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
 
   Widget _buildBadgeGrid(BadgeService badgeService, AppLocalizations localizations, List<BadgeDefinition> badges) {
     if (badges.isEmpty) {
-      return _buildEmptyState(
-        emoji: '🏆',
-        title: localizations.get('no_badges_in_category'),
-        description: '',
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                localizations.get('no_badges_in_category') ?? 'Bu kategoride rozet bulunmuyor',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF2d3436),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      // DÜZELTME: Alt boşluk eklendi
+      padding: const EdgeInsets.only(
+        left: 12,
+        right: 12,
+        top: 8,
+        bottom: 24, // Alt boşluk artırıldı
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        childAspectRatio: 6.9, // Değiştirilmedi
+        mainAxisExtent: 140, // 👈 Sabit yükseklik
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemCount: badges.length,
+      // DÜZELTME: Fizik ayarları
+      physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         return _buildBadgeCard(badges[index], badgeService, localizations);
       },
@@ -345,95 +404,114 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
-            if (isEarned)
-              BoxShadow(
-                color: Color(colors['glow'] as int),
-                blurRadius: 12,
-                spreadRadius: 2,
-              ),
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Stack(
           children: [
-            // ANA İÇERİK
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // EMOJİ
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: isEarned
-                        ? LinearGradient(
-                            colors: [
-                              Color(colors['primary'] as int),
-                              Color(colors['secondary'] as int),
-                            ],
-                          )
-                        : null,
-                    color: isEarned ? null : Colors.grey.shade300,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      badge.emoji,
-                      style: TextStyle(
-                        fontSize: 24,
-                        color: isEarned ? null : Colors.grey,
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: isEarned
+                          ? LinearGradient(
+                        colors: [
+                          Color(colors['primary'] as int),
+                          Color(colors['secondary'] as int),
+                        ],
+                      )
+                          : null,
+                      color: isEarned ? null : Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        badge.emoji,
+                        style: TextStyle(
+                          fontSize: 24,
+                          color: isEarned ? null : Colors.grey.shade500,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                // İSİM
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    localizations.get(badge.nameKey),
+                  const SizedBox(height: 6),
+                  Text(
+                    localizations.get(badge.nameKey) ?? '',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isEarned ? const Color(0xFF2d3436) : Colors.grey,
+                      color: isEarned ? const Color(0xFF2d3436) : Colors.grey.shade500,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 4),
-                // YILDIZLAR
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    badge.starCount,
-                    (i) => Icon(
-                      Icons.star,
-                      size: 10,
-                      color: isEarned
-                          ? Color(colors['primary'] as int)
-                          : Colors.grey.shade400,
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      3,
+                          (i) => Icon(
+                        Icons.star,
+                        size: 10,
+                        color: i < badge.starCount
+                            ? (isEarned
+                            ? Color(colors['primary'] as int)
+                            : Colors.grey.shade400)
+                            : Colors.grey.shade200,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            // İLERLEME GÖSTERGE
             if (!isEarned)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Icon(
+                  Icons.lock,
+                  size: 12,
+                  color: Colors.grey.shade400,
+                ),
+              ),
+            if (isEarned)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    size: 10,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            if (!isEarned && progress > 0)
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(16),
+                    bottom: Radius.circular(14),
                   ),
                   child: LinearProgressIndicator(
                     value: progress,
@@ -441,37 +519,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Color(colors['primary'] as int).withOpacity(0.5),
                     ),
-                    minHeight: 4,
-                  ),
-                ),
-              ),
-            // KİLİT İKONU
-            if (!isEarned)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Icon(
-                  Icons.lock,
-                  size: 14,
-                  color: Colors.grey.shade400,
-                ),
-              ),
-            // CHECK İKONU
-            if (isEarned)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 12,
-                    color: Colors.white,
+                    minHeight: 3,
                   ),
                 ),
               ),
@@ -486,22 +534,68 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   Widget _buildEarnedBadgesTab(BadgeService badgeService, AppLocalizations localizations) {
     final earnedBadges = badgeService.earnedBadges;
 
-    if (earnedBadges.isEmpty) {
-      return _buildEmptyState(
-        emoji: '🎯',
-        title: localizations.get('no_earned_badges_title'),
-        description: localizations.get('no_earned_badges_desc'),
+    final Map<String, EarnedBadge> uniqueEarnedBadges = {};
+    for (var badge in earnedBadges) {
+      if (!uniqueEarnedBadges.containsKey(badge.badgeId) ||
+          badge.earnedAt.isAfter(uniqueEarnedBadges[badge.badgeId]!.earnedAt)) {
+        uniqueEarnedBadges[badge.badgeId] = badge;
+      }
+    }
+
+    final uniqueList = uniqueEarnedBadges.values.toList();
+
+    if (uniqueList.isEmpty) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎯', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                localizations.get('no_earned_badges_title') ?? 'Henüz rozet kazanılmamış',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2d3436),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                localizations.get('no_earned_badges_desc') ?? 'Oyun oynayarak rozetler kazanabilirsin!',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: earnedBadges.length,
+      // DÜZELTME: ListView için padding eklendi
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: 24, // Alt boşluk eklendi
+      ),
+      itemCount: uniqueList.length,
       itemBuilder: (context, index) {
-        final earnedBadge = earnedBadges[index];
+        final earnedBadge = uniqueList[index];
         final badgeDef = badgeService.getBadgeDefinition(earnedBadge.badgeId);
         if (badgeDef == null) return const SizedBox();
-        
+
         return _buildEarnedBadgeCard(earnedBadge, badgeDef, localizations);
       },
     );
@@ -513,29 +607,23 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Color(colors['glow'] as int),
-            blurRadius: 8,
-            spreadRadius: 1,
-          ),
-          BoxShadow(
             color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
-          // EMOJİ
           Container(
-            width: 60,
-            height: 60,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -552,48 +640,50 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          // BİLGİLER
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  localizations.get(badge.nameKey),
+                  localizations.get(badge.nameKey) ?? '',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF2d3436),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  localizations.get(badge.descriptionKey),
+                  localizations.get(badge.descriptionKey) ?? '',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey[400]),
+                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade400),
                     const SizedBox(width: 4),
                     Text(
                       timeAgo,
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                     const Spacer(),
-                    // YILDIZLAR
-                    ...List.generate(
-                      badge.starCount,
-                      (i) => Icon(
-                        Icons.star,
-                        size: 14,
-                        color: Color(colors['primary'] as int),
+                    Row(
+                      children: List.generate(
+                        badge.starCount,
+                            (i) => Icon(
+                          Icons.star,
+                          size: 12,
+                          color: Color(colors['primary'] as int),
+                        ),
                       ),
                     ),
                   ],
@@ -606,8 +696,6 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     );
   }
 
-  // ==================== ROZET DETAY ====================
-
   void _showBadgeDetail(BadgeDefinition badge, BadgeService badgeService, AppLocalizations localizations) {
     final isEarned = badgeService.isBadgeEarned(badge.id);
     final progress = badgeService.getBadgeProgress(badge);
@@ -617,207 +705,159 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // HANDLE
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // EMOJİ
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: isEarned
-                    ? LinearGradient(
-                        colors: [
-                          Color(colors['primary'] as int),
-                          Color(colors['secondary'] as int),
-                        ],
-                      )
-                    : null,
-                color: isEarned ? null : Colors.grey.shade300,
-                shape: BoxShape.circle,
-                boxShadow: isEarned
-                    ? [
-                        BoxShadow(
-                          color: Color(colors['glow'] as int),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  badge.emoji,
-                  style: const TextStyle(fontSize: 40),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // İSİM
-            Text(
-              localizations.get(badge.nameKey),
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3436),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // YILDIZLAR
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                5,
-                (i) => Icon(
-                  Icons.star,
-                  size: 20,
-                  color: i < badge.starCount
-                      ? Color(colors['primary'] as int)
-                      : Colors.grey.shade300,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // AÇIKLAMA
-            Text(
-              localizations.get(badge.descriptionKey),
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            // İLERLEME
-            if (!isEarned) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    localizations.get('progress'),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    '$currentValue / ${badge.targetValue}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(colors['primary'] as int),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Color(colors['primary'] as int),
-                  ),
-                  minHeight: 10,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${(progress * 100).toInt()}% ${localizations.get("completed")}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                ),
-              ),
-            ] else ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.shade200),
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: isEarned
+                      ? LinearGradient(
+                    colors: [
+                      Color(colors['primary'] as int),
+                      Color(colors['secondary'] as int),
+                    ],
+                  )
+                      : null,
+                  color: isEarned ? null : Colors.grey.shade200,
+                  shape: BoxShape.circle,
+                  boxShadow: isEarned
+                      ? [
+                    BoxShadow(
+                      color: Color(colors['glow'] as int).withOpacity(0.5),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    badge.emoji,
+                    style: const TextStyle(fontSize: 40),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                localizations.get(badge.nameKey) ?? '',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2d3436),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  3,
+                      (i) => Icon(
+                    Icons.star,
+                    size: 24,
+                    color: i < badge.starCount
+                        ? Color(colors['primary'] as int)
+                        : Colors.grey.shade300,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                localizations.get(badge.descriptionKey) ?? '',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              if (!isEarned) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
                     Text(
-                      localizations.get('badge_earned'),
+                      localizations.get('progress') ?? 'İlerleme',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      '$currentValue / ${badge.targetValue}',
                       style: TextStyle(
-                        color: Colors.green.shade700,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
+                        color: Color(colors['primary'] as int),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================== YARDIMCI ====================
-
-  Widget _buildEmptyState({
-    required String emoji,
-    required String title,
-    required String description,
-  }) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 48)),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3436),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(colors['primary'] as int),
+                    ),
+                    minHeight: 8,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(progress * 100).toInt()}% ${localizations.get("completed") ?? "tamamlandı"}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        localizations.get('badge_earned') ?? 'Kazanıldı!',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -828,18 +868,17 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     final difference = now.difference(dateTime);
 
     if (difference.inDays > 365) {
-      return '${(difference.inDays / 365).floor()} ${localizations.get("years_ago")}';
+      return '${(difference.inDays / 365).floor()} ${localizations.get("years_ago") ?? "yıl önce"}';
     } else if (difference.inDays > 30) {
-      return '${(difference.inDays / 30).floor()} ${localizations.get("months_ago")}';
+      return '${(difference.inDays / 30).floor()} ${localizations.get("months_ago") ?? "ay önce"}';
     } else if (difference.inDays > 0) {
-      return '${difference.inDays} ${localizations.get("days_ago")}';
+      return '${difference.inDays} ${localizations.get("days_ago") ?? "gün önce"}';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${localizations.get("hours_ago")}';
+      return '${difference.inHours} ${localizations.get("hours_ago") ?? "saat önce"}';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${localizations.get("minutes_ago")}';
+      return '${difference.inMinutes} ${localizations.get("minutes_ago") ?? "dakika önce"}';
     } else {
-      return localizations.get("just_now");
+      return localizations.get("just_now") ?? "şimdi";
     }
   }
 }
-

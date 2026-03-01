@@ -127,6 +127,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   Widget _buildTopBar(AppLocalizations localizations) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -171,17 +174,141 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               ),
             ),
           ),
-          // BAŞLIK
-          Text(
-            localizations.get('friends'),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          // BAŞLIK ve RKN KODU
+          Column(
+            children: [
+              Text(
+                localizations.get('friends'),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              if (currentUser != null && !authService.isGuest)
+                GestureDetector(
+                  onTap: () => _copyUserCode(currentUser.playerCode),
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.copy, size: 14, color: Colors.white70),
+                        const SizedBox(width: 6),
+                        Text(
+                          currentUser.playerCode,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
-          // PLACEHOLDER
-          const SizedBox(width: 55),
+          // BİLGİ BUTONU
+          IconButton(
+            onPressed: () => _showIdInfoDialog(localizations),
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copyUserCode(String code) {
+    // Clipboard'a kopyala
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check, color: Colors.white),
+            const SizedBox(width: 8),
+            Text('Oyuncu kodun kopyalandı: $code'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showIdInfoDialog(AppLocalizations localizations) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Text('🎮 '),
+            Text('Oyuncu Kodu'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (currentUser != null && !authService.isGuest) ...[
+              const Text('Senin kodun:', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      currentUser.playerCode,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            const Text(
+              'Arkadaşlarını eklemek için:\n'
+              '1. Arkadaşının RKN kodunu iste\n'
+              '2. Ara sekmesinde kodu yaz\n'
+              '3. Arkadaş olarak ekle\n'
+              '4. Düelloya davet et!',
+              style: TextStyle(height: 1.6),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667eea),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Anladım', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
@@ -398,65 +525,172 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          // AVATAR
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                friend.friendName.isNotEmpty 
-                    ? friend.friendName[0].toUpperCase() 
-                    : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              // AVATAR
+              Container(
+                width: 50,
+                height: 50,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                  shape: BoxShape.circle,
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // BİLGİLER
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  friend.friendName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2d3436),
+                child: Center(
+                  child: Text(
+                    friend.friendName.isNotEmpty 
+                        ? friend.friendName[0].toUpperCase() 
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'ID: ${friend.friendId.length > 12 ? '${friend.friendId.substring(0, 12)}...' : friend.friendId}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+              ),
+              const SizedBox(width: 12),
+              // BİLGİLER
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      friend.friendName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2d3436),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        friend.friendUserCode ?? 'RKN••••••••',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // SİL BUTONU
+              IconButton(
+                onPressed: () => _showRemoveFriendDialog(friend, friendService, localizations),
+                icon: Icon(Icons.person_remove, color: Colors.red.shade400, size: 20),
+                tooltip: localizations.get('remove_friend'),
+              ),
+            ],
           ),
-          // SİL BUTONU
-          IconButton(
-            onPressed: () => _showRemoveFriendDialog(friend, friendService, localizations),
-            icon: Icon(Icons.person_remove, color: Colors.red.shade400),
-            tooltip: localizations.get('remove_friend'),
+          const SizedBox(height: 12),
+          // DÜELLO BUTONU
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _challengeToDuel(friend),
+              icon: const Icon(Icons.sports_mma, size: 18),
+              label: const Text('Düelloya Davet Et'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  void _challengeToDuel(Friendship friend) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Text('⚔️ '),
+            Text('Düello Daveti'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.orange, Colors.deepOrange],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  const Text('🥊', style: TextStyle(fontSize: 48)),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${friend.friendName} adlı\narkadaşını düelloya\ndavet ediyorsun!',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Davet gönderildiğinde arkadaşın\nbildirim alacak ve kabul ederse\ndüello başlayacak!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _sendDuelInvite(friend);
+            },
+            icon: const Icon(Icons.send),
+            label: const Text('Davet Gönder'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _sendDuelInvite(Friendship friend) {
+    // TODO: Firebase'e düello daveti gönder
+    _showSuccessSnackbar('${friend.friendName} adlı arkadaşına düello daveti gönderildi!');
   }
 
   // ------------- İSTEKLER TAB -------------
@@ -615,12 +849,13 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: localizations.get('search_hint'),
+                  decoration: const InputDecoration(
+                    hintText: 'RKN kodu veya isim ara...',
                     border: InputBorder.none,
-                    icon: const Icon(Icons.search, color: Color(0xFF667eea)),
+                    icon: Icon(Icons.search, color: Color(0xFF667eea)),
                   ),
                   onSubmitted: (_) => _performSearch(),
+                  textCapitalization: TextCapitalization.characters,
                 ),
               ),
               if (_searchController.text.isNotEmpty)
@@ -751,12 +986,25 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  user.email ?? 'ID: ${user.uid.length > 12 ? '${user.uid.substring(0, 12)}...' : user.uid}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        user.playerCode,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

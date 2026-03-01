@@ -340,14 +340,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 24),
 
-          // HIZLI İSTATİSTİKLER
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatItem('🏆', '0', localizations.get('total_score')),
-              _buildStatItem('🪙', '0', localizations.get('coins')),
-              _buildStatItem('👤', '1', localizations.get('characters')),
-            ],
+          // HIZLI İSTATİSTİKLER - Gerçek verilerle
+          Consumer<BadgeService>(
+            builder: (context, badgeService, _) {
+              final stats = badgeService.userStats;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildStatItem('🏆', '${stats?.totalScore ?? 0}', localizations.get('total_score')),
+                  _buildStatItem('🪙', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('coins')),
+                  _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -480,11 +485,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStatisticsCard(AppLocalizations localizations) {
+    final badgeService = Provider.of<BadgeService>(context);
+    final userStats = badgeService.userStats;
+    
+    // Doğru cevap yüzdesini hesapla
+    final totalAnswered = userStats?.totalQuestionsAnswered ?? 0;
+    final correctAnswers = userStats?.totalCorrectAnswers ?? 0;
+    final correctPercentage = totalAnswered > 0 
+        ? ((correctAnswers / totalAnswered) * 100).round() 
+        : 0;
+    
     final stats = [
-      {'emoji': '🎯', 'label': localizations.get('total_games'), 'value': '0'},
-      {'emoji': '✅', 'label': localizations.get('correct_answers'), 'value': '0%'},
-      {'emoji': '🔥', 'label': localizations.get('streak_record'), 'value': '0'},
-      {'emoji': '⏱️', 'label': localizations.get('play_time'), 'value': '0dk'},
+      {'emoji': '🎯', 'label': localizations.get('total_games'), 'value': '${userStats?.totalGamesPlayed ?? 0}'},
+      {'emoji': '✅', 'label': localizations.get('correct_answers'), 'value': '$correctPercentage%'},
+      {'emoji': '🔥', 'label': localizations.get('streak_record'), 'value': '${userStats?.bestStreak ?? 0}'},
+      {'emoji': '⭐', 'label': localizations.get('total_score'), 'value': '${userStats?.totalScore ?? 0}'},
     ];
 
     return Container(

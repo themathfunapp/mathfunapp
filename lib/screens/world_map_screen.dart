@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
 import 'chapter_screen.dart';
+import 'counting_forest_screen.dart'; // Sayı Ormanı için
 
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
@@ -20,13 +21,17 @@ class WorldMapScreen extends StatefulWidget {
 }
 
 class _WorldMapScreenState extends State<WorldMapScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
+  late AnimationController _floatController;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _floatAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    // Nabız animasyonu
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -35,11 +40,22 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // Yüzdürme animasyonu
+    _floatController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _floatController.dispose();
     super.dispose();
   }
 
@@ -49,293 +65,77 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
     final localizations = AppLocalizations(Locale(currentLocale));
 
-    if (widget.worlds.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🏗️', style: TextStyle(fontSize: 60)),
-            const SizedBox(height: 20),
-            Text(
-              localizations.get('worlds_coming_soon'),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        // World Title
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Row(
-            children: [
-              const Text('🗺️', style: TextStyle(fontSize: 28)),
-              const SizedBox(width: 12),
-              Text(
-                localizations.get('world_map'),
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1a237e),
+              Color(0xFF4a148c),
+              Color(0xFF880e4f),
             ],
           ),
         ),
-
-        // World Cards
-        Expanded(
-          child: PageView.builder(
-            controller: PageController(viewportFraction: 0.85),
-            itemCount: widget.worlds.length,
-            itemBuilder: (context, index) {
-              return _buildWorldCard(
-                widget.worlds[index],
-                localizations,
-                index,
-              );
-            },
-          ),
-        ),
-
-        // Page indicator
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.worlds.length,
-              (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWorldCard(
-    StoryWorld world,
-    AppLocalizations localizations,
-    int index,
-  ) {
-    final worldProgress = widget.progress?.worldProgress[world.id];
-    final isLocked = world.requiredStars > (widget.progress?.totalStars ?? 0);
-    final totalStars = worldProgress?.totalStars ?? 0;
-    final maxStars = world.chapters.fold<int>(
-      0,
-      (sum, chapter) => sum + chapter.levels.length * 3,
-    );
-
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: !isLocked && index == 0 ? _pulseAnimation.value : 1.0,
-          child: child,
-        );
-      },
-      child: GestureDetector(
-        onTap: isLocked
-            ? () => _showLockedDialog(localizations, world)
-            : () => _openWorld(world, localizations),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isLocked
-                  ? [Colors.grey.shade700, Colors.grey.shade800]
-                  : [
-                      Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
-                      Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: isLocked
-                    ? Colors.black26
-                    : Color(int.parse(world.colors[0].replaceFirst('#', '0xFF')))
-                        .withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Stack(
+        child: SafeArea(
+          child: Column(
             children: [
-              // Background pattern
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: CustomPaint(
-                    painter: _WorldPatternPainter(
-                      color: Colors.white.withOpacity(0.05),
-                    ),
-                  ),
-                ),
-              ),
+              // Üst navigasyon barı
+              _buildTopBar(localizations),
 
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Center(
-                            child: Text(
-                              isLocked ? '🔒' : world.iconEmoji,
-                              style: const TextStyle(fontSize: 40),
-                            ),
-                          ),
+              // Ana içerik
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Başlık
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                localizations.get(world.nameKey),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: isLocked ? Colors.grey : Colors.white,
-                                ),
-                              ),
-                              if (!isLocked)
-                                Row(
-                                  children: [
-                                    const Text('⭐', style: TextStyle(fontSize: 16)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$totalStars / $maxStars',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Description
-                    Text(
-                      localizations.get(world.descriptionKey),
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isLocked ? Colors.grey : Colors.white.withOpacity(0.9),
-                        height: 1.4,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const Spacer(),
-
-                    // Topics
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: world.topics.take(3).map((topic) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Text(
-                            _getTopicName(topic, localizations),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isLocked ? Colors.grey : Colors.white,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Action button
-                    if (isLocked)
-                      Row(
-                        children: [
-                          const Icon(Icons.lock, color: Colors.grey, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${localizations.get('requires')} ${world.requiredStars} ⭐',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              localizations.get('start_adventure'),
+                              localizations.get('world_map'),
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    blurRadius: 10,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_forward,
-                              color: Colors.white,
-                              size: 20,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Her dünya yeni bir matematik macerası!',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                  ],
+
+                      // Dünya kartları
+                      ..._buildWorldCards(localizations),
+
+                      const SizedBox(height: 24),
+
+                      // Alt navigasyon
+                      _buildBottomNavigation(localizations),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -345,37 +145,321 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 
-  String _getTopicName(MathTopic topic, AppLocalizations localizations) {
-    switch (topic) {
-      case MathTopic.counting:
-        return localizations.get('topic_counting');
-      case MathTopic.addition:
-        return localizations.get('topic_addition');
-      case MathTopic.subtraction:
-        return localizations.get('topic_subtraction');
-      case MathTopic.multiplication:
-        return localizations.get('topic_multiplication');
-      case MathTopic.division:
-        return localizations.get('topic_division');
-      case MathTopic.fractions:
-        return localizations.get('topic_fractions');
-      case MathTopic.shapes:
-        return localizations.get('topic_shapes');
-      case MathTopic.time:
-        return localizations.get('topic_time');
-      case MathTopic.money:
-        return localizations.get('topic_money');
-      case MathTopic.measurement:
-        return localizations.get('topic_measurement');
-      case MathTopic.angles:
-        return localizations.get('topic_angles');
-      case MathTopic.decimals:
-        return localizations.get('topic_decimals');
-      case MathTopic.patterns:
-        return localizations.get('topic_patterns');
-      case MathTopic.algebra:
-        return localizations.get('topic_algebra');
-    }
+  Widget _buildTopBar(AppLocalizations localizations) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Geri butonu
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+
+          const Spacer(),
+
+          // Yıldız sayısı
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.amber.withOpacity(0.5),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 20),
+                const SizedBox(width: 4),
+                Text(
+                  '${widget.progress?.totalStars ?? 0}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildWorldCards(AppLocalizations localizations) {
+    return widget.worlds.map((world) {
+      final worldProgress = widget.progress?.worldProgress[world.id];
+      final isLocked = world.requiredStars > (widget.progress?.totalStars ?? 0);
+
+      return AnimatedBuilder(
+        animation: _floatAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(0, _floatAnimation.value * 0.5),
+            child: child,
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isLocked
+                  ? [Colors.grey.shade700, Colors.grey.shade800]
+                  : [
+                Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
+                Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isLocked
+                  ? () => _showLockedDialog(localizations, world)
+                  : () => _openWorld(world),
+              borderRadius: BorderRadius.circular(25),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    // Dünya ikonu
+                    AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: !isLocked ? _pulseAnimation.value : 1.0,
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            isLocked ? '🔒' : world.iconEmoji,
+                            style: const TextStyle(fontSize: 36),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // Dünya bilgileri
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  localizations.get(world.nameKey),
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: isLocked ? Colors.grey : Colors.white,
+                                  ),
+                                ),
+                              ),
+                              if (!isLocked)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'Başla',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isLocked ? Colors.grey : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            localizations.get(world.descriptionKey),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isLocked
+                                  ? Colors.grey
+                                  : Colors.white.withOpacity(0.9),
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // İlerleme barı
+                          if (!isLocked)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Text('⭐',
+                                            style: TextStyle(fontSize: 14)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${worldProgress?.totalStars ?? 0}',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      isLocked
+                                          ? 'Kilitli'
+                                          : '${((worldProgress?.totalStars ?? 0) / 100 * 100).toInt()}%',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: LinearProgressIndicator(
+                                    value: isLocked
+                                        ? 0
+                                        : (worldProgress?.totalStars ?? 0) / 100,
+                                    backgroundColor: Colors.white.withOpacity(0.2),
+                                    valueColor: AlwaysStoppedAnimation(
+                                      Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
+                                    ),
+                                    minHeight: 6,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.lock,
+                                  color: Colors.grey,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${world.requiredStars} ⭐ gerekiyor',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildBottomNavigation(AppLocalizations localizations) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem('🏆', 'Başarılar', true),
+          _buildNavItem('🎯', 'Görevler'),
+          _buildNavItem('⚡', 'Enerji'),
+          _buildNavItem('📊', 'İstatistikler'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(String icon, String label, [bool isActive = false]) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 20)),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showLockedDialog(AppLocalizations localizations, StoryWorld world) {
@@ -390,7 +474,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                localizations.get('world_locked'),
+                'Dünya Kilitli',
                 style: const TextStyle(color: Colors.white),
               ),
             ),
@@ -400,7 +484,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${localizations.get('collect_stars_to_unlock')} ${world.requiredStars} ⭐',
+              'Bu dünyayı açmak için ${world.requiredStars} ⭐ toplaman gerekiyor!',
               style: const TextStyle(color: Colors.white70, fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -437,9 +521,9 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              localizations.get('ok'),
-              style: const TextStyle(color: Colors.blue),
+            child: const Text(
+              'Tamam',
+              style: TextStyle(color: Colors.blue),
             ),
           ),
         ],
@@ -447,7 +531,21 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 
-  void _openWorld(StoryWorld world, AppLocalizations localizations) {
+  void _openWorld(StoryWorld world) {
+    // Eğer Sayı Ormanı ise özel ekrana yönlendir
+    if (world.nameKey == 'number_forest') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CountingForestScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Diğer dünyalar için bölüm ekranına git
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -459,32 +557,3 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 }
-
-class _WorldPatternPainter extends CustomPainter {
-  final Color color;
-
-  _WorldPatternPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Draw decorative circles
-    for (int i = 0; i < 5; i++) {
-      canvas.drawCircle(
-        Offset(
-          size.width * (0.1 + i * 0.2),
-          size.height * (0.2 + (i % 2) * 0.6),
-        ),
-        20 + i * 10,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

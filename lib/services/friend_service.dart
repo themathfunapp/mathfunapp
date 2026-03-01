@@ -11,6 +11,7 @@ class FriendService extends ChangeNotifier {
   String? _currentUserId;
   String? _currentUserName;
   String? _currentUserPhotoUrl;
+  String? _currentUserCode;
   bool _isGuest = true;
 
   // Lists
@@ -24,6 +25,7 @@ class FriendService extends ChangeNotifier {
   List<FriendRequest> get outgoingRequests => _outgoingRequests;
   bool get isGuest => _isGuest;
   int get pendingRequestsCount => _incomingRequests.length;
+  String? get currentUserCode => _currentUserCode;
 
   // Initialize with user
   void initialize(AppUser? user) {
@@ -31,6 +33,7 @@ class FriendService extends ChangeNotifier {
       _currentUserId = null;
       _currentUserName = null;
       _currentUserPhotoUrl = null;
+      _currentUserCode = null;
       _isGuest = true;
       _friends = [];
       _incomingRequests = [];
@@ -42,6 +45,7 @@ class FriendService extends ChangeNotifier {
     _currentUserId = user.uid;
     _currentUserName = user.displayName ?? user.email?.split('@').first ?? 'Kullanıcı';
     _currentUserPhotoUrl = user.photoURL;
+    _currentUserCode = user.userCode;
     _isGuest = user.isGuest;
 
     if (!_isGuest) {
@@ -179,6 +183,42 @@ class FriendService extends ChangeNotifier {
     }
   }
 
+  // RKN kodu ile kullanıcı ara
+  Future<AppUser?> searchUserByCode(String userCode) async {
+    if (_isGuest) return null;
+
+    try {
+      final normalizedCode = userCode.toUpperCase().trim();
+      
+      // userCode alanında ara
+      final snapshot = await _firestore
+          .collection('users')
+          .where('userCode', isEqualTo: normalizedCode)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return AppUser.fromMap(snapshot.docs.first.data());
+      }
+
+      // userCodeLower alanında da ara (küçük harf)
+      final snapshotLower = await _firestore
+          .collection('users')
+          .where('userCodeLower', isEqualTo: normalizedCode.toLowerCase())
+          .limit(1)
+          .get();
+
+      if (snapshotLower.docs.isNotEmpty) {
+        return AppUser.fromMap(snapshotLower.docs.first.data());
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Search user by code error: $e');
+      return null;
+    }
+  }
+
   // İsim ile kullanıcı ara
   Future<List<AppUser>> searchUsersByName(String name) async {
     if (_isGuest || name.trim().isEmpty) return [];
@@ -198,12 +238,14 @@ class FriendService extends ChangeNotifier {
             // Kendini hariç tut
             if (user.uid == _currentUserId) return false;
             
-            // İsim veya email ile eşleşme
+            // İsim, email veya userCode ile eşleşme
             final displayName = user.displayName?.toLowerCase() ?? '';
             final email = user.email?.toLowerCase() ?? '';
+            final userCode = user.userCode?.toLowerCase() ?? '';
             
             return displayName.contains(searchTerm) || 
-                   email.contains(searchTerm);
+                   email.contains(searchTerm) ||
+                   userCode.contains(searchTerm);
           })
           .take(20) // Maximum 20 sonuç
           .toList();
@@ -215,13 +257,21 @@ class FriendService extends ChangeNotifier {
     }
   }
 
-  // Genel arama (ID veya isim)
+  // Genel arama (RKN kodu, ID veya isim)
   Future<List<AppUser>> searchUsers(String query) async {
     if (_isGuest || query.trim().isEmpty) return [];
 
     final trimmedQuery = query.trim();
 
-    // Önce ID ile dene
+    // RKN kodu ile ara (RKN ile başlıyorsa)
+    if (trimmedQuery.toUpperCase().startsWith('RKN')) {
+      final userByCode = await searchUserByCode(trimmedQuery);
+      if (userByCode != null && userByCode.uid != _currentUserId && !userByCode.isGuest) {
+        return [userByCode];
+      }
+    }
+
+    // Firebase ID ile dene
     final userById = await searchUserById(trimmedQuery);
     if (userById != null && userById.uid != _currentUserId && !userById.isGuest) {
       return [userById];
@@ -296,9 +346,11 @@ class FriendService extends ChangeNotifier {
         senderId: _currentUserId!,
         senderName: _currentUserName ?? 'Kullanıcı',
         senderPhotoUrl: _currentUserPhotoUrl,
+        senderUserCode: _currentUserCode,
         receiverId: targetUser.uid,
         receiverName: targetUser.displayName ?? targetUser.email?.split('@').first ?? 'Kullanıcı',
         receiverPhotoUrl: targetUser.photoURL,
+        receiverUserCode: targetUser.userCode,
         status: FriendRequestStatus.pending,
         createdAt: DateTime.now(),
       );
@@ -348,6 +400,7 @@ class FriendService extends ChangeNotifier {
             friendId: request.receiverId,
             friendName: request.receiverName,
             friendPhotoUrl: request.receiverPhotoUrl,
+            friendUserCode: request.receiverUserCode,
             friendsSince: now,
           ).toMap());
 
@@ -362,6 +415,7 @@ class FriendService extends ChangeNotifier {
             friendId: request.senderId,
             friendName: request.senderName,
             friendPhotoUrl: request.senderPhotoUrl,
+            friendUserCode: request.senderUserCode,
             friendsSince: now,
           ).toMap());
 

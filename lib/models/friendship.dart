@@ -6,6 +6,7 @@ class Friendship {
   final String friendName; // Arkadaşın adı
   final String? friendPhotoUrl;
   final String? friendEmail;
+  final String? friendUserCode; // Arkadaşın RKN kodu
   final DateTime friendsSince;
   final bool isOnline;
   final DateTime? lastSeen;
@@ -16,6 +17,7 @@ class Friendship {
     required this.friendName,
     this.friendPhotoUrl,
     this.friendEmail,
+    this.friendUserCode,
     required this.friendsSince,
     this.isOnline = false,
     this.lastSeen,
@@ -28,6 +30,7 @@ class Friendship {
       friendName: map['friendName'] ?? '',
       friendPhotoUrl: map['friendPhotoUrl'],
       friendEmail: map['friendEmail'],
+      friendUserCode: map['friendUserCode'],
       friendsSince: map['friendsSince'] is Timestamp
           ? (map['friendsSince'] as Timestamp).toDate()
           : DateTime.parse(map['friendsSince']),
@@ -46,6 +49,7 @@ class Friendship {
       'friendName': friendName,
       'friendPhotoUrl': friendPhotoUrl,
       'friendEmail': friendEmail,
+      'friendUserCode': friendUserCode,
       'friendsSince': Timestamp.fromDate(friendsSince),
       'isOnline': isOnline,
       'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,
@@ -58,6 +62,7 @@ class Friendship {
     String? friendName,
     String? friendPhotoUrl,
     String? friendEmail,
+    String? friendUserCode,
     DateTime? friendsSince,
     bool? isOnline,
     DateTime? lastSeen,
@@ -68,6 +73,7 @@ class Friendship {
       friendName: friendName ?? this.friendName,
       friendPhotoUrl: friendPhotoUrl ?? this.friendPhotoUrl,
       friendEmail: friendEmail ?? this.friendEmail,
+      friendUserCode: friendUserCode ?? this.friendUserCode,
       friendsSince: friendsSince ?? this.friendsSince,
       isOnline: isOnline ?? this.isOnline,
       lastSeen: lastSeen ?? this.lastSeen,

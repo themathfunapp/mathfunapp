@@ -2,7 +2,7 @@
     package="com.themathfunapp.mathfunapp">
 
     <application
-        android:label="mathfunapp"
+        android:label="Mathfun"
         android:icon="@mipmap/ic_launcher">
 
         <activity
@@ -27,6 +27,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-6873365802729244~7261728403"/>
     </application>
 
     <queries>

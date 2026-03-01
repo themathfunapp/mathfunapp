@@ -18,7 +18,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   late AnimationController _bubbleController;
   late AnimationController _celebrationController;
   late Animation<double> _waveAnimation;
-  
+
   int _currentLevel = 1;
   int _score = 0;
   int _stars = 0;
@@ -26,37 +26,40 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   List<int> _options = [];
   bool _isAnswered = false;
   bool _isCorrect = false;
-  
+
   // Deniz canlıları
-  final List<String> _fishes = ['🐟', '🐠', '🐡', '🦈', '🐬', '🦑', '🐙', '🦀'];
-  final List<String> _seaCreatures = ['🌊', '💧', '🫧'];
-  
+  final List<String> _fishes = ['🐟', '🐠', '🐡', '🦈', '🐬', '🦑', '🐙', '🦀', '🐋', '🐊'];
+  final List<String> _seaCreatures = ['🌊', '💧', '🫧', '🐚', '⭐', '🌿'];
+
+  // Her balık için rastgele pozisyonları saklayacağız
+  late List<Map<String, dynamic>> _fishPositions;
+
   @override
   void initState() {
     super.initState();
-    
+
     _waveController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat();
-    
+
     _waveAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(_waveController);
-    
+
     _swimController = AnimationController(
       duration: const Duration(seconds: 4),
       vsync: this,
     )..repeat();
-    
+
     _bubbleController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
-    
+
     _celebrationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _generateQuestion();
   }
 
@@ -71,11 +74,11 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
 
   void _generateQuestion() {
     final random = math.Random();
-    
+
     // Seviyeye göre zorluk
     final maxNumber = math.min(10, 3 + _currentLevel);
     _targetNumber = random.nextInt(maxNumber) + 1;
-    
+
     // Seçenekler oluştur
     _options = [_targetNumber];
     while (_options.length < 4) {
@@ -85,25 +88,44 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
       }
     }
     _options.shuffle();
-    
+
+    // Balık pozisyonlarını oluştur - suyun içinde dağınık yerleşim
+    _generateFishPositions();
+
     setState(() {
       _isAnswered = false;
       _isCorrect = false;
     });
   }
 
+  void _generateFishPositions() {
+    _fishPositions = [];
+    final random = math.Random();
+
+    for (int i = 0; i < _targetNumber; i++) {
+      // Her balık için rastgele konum (yatay: 0.1-0.9 arası, dikey: 0.2-0.8 arası)
+      // Bu sayede balıklar suyun her yerine dağılacak
+      _fishPositions.add({
+        'horizontal': 0.1 + random.nextDouble() * 0.8, // 0.1 - 0.9 arası
+        'vertical': 0.2 + random.nextDouble() * 0.6,   // 0.2 - 0.8 arası
+        'fish': _fishes[random.nextInt(_fishes.length)],
+        'offset': random.nextDouble() * 2 * math.pi,   // Animasyon için başlangıç ofseti
+      });
+    }
+  }
+
   void _checkAnswer(int answer) {
     if (_isAnswered) return;
-    
+
     setState(() {
       _isAnswered = true;
       _isCorrect = answer == _targetNumber;
-      
+
       if (_isCorrect) {
         _score += 10;
         _stars++;
         _celebrationController.forward(from: 0);
-        
+
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             setState(() {
@@ -145,14 +167,14 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               // Arka plan animasyonları
               ..._buildFloatingBubbles(),
               ..._buildBackgroundWaves(),
-              
+
               Column(
                 children: [
                   // Üst bar
                   _buildTopBar(),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Ana oyun alanı
                   Expanded(
                     child: SingleChildScrollView(
@@ -160,17 +182,17 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                         children: [
                           // Seviye ve skor
                           _buildLevelInfo(),
-                          
+
                           const SizedBox(height: 30),
-                          
+
                           // Soru bölümü - Nehir ve balıklar
                           _buildQuestionArea(),
-                          
+
                           const SizedBox(height: 40),
-                          
+
                           // Cevap seçenekleri
                           _buildAnswerOptions(),
-                          
+
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -178,7 +200,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                   ),
                 ],
               ),
-              
+
               // Kutlama animasyonu
               if (_isCorrect && _isAnswered)
                 _buildCelebration(),
@@ -207,9 +229,9 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               child: const Icon(Icons.arrow_back, color: Colors.white),
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           // Başlık
           const Expanded(
             child: Column(
@@ -233,7 +255,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               ],
             ),
           ),
-          
+
           // Skor
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -308,9 +330,6 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   }
 
   Widget _buildQuestionArea() {
-    final random = math.Random();
-    final fish = _fishes[random.nextInt(_fishes.length)];
-    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(24),
@@ -328,20 +347,20 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
       child: Column(
         children: [
           const Text(
-            'Nehirde kaç balık var?',
+            'Suda kaç canlı yüzüyor?',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF01579B),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
-          // Nehir ve Balıklar
+
+          // Nehir ve Balıklar - Suyun içinde
           Container(
-            height: 180,
-            padding: const EdgeInsets.all(16),
+            height: 300,
+            width: double.infinity,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
@@ -357,52 +376,189 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
             ),
             child: Stack(
               children: [
-                // Dalgalar
+                // Su yüzeyi dalgaları (üst kısım)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 30,
+                  child: AnimatedBuilder(
+                    animation: _waveAnimation,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        painter: _SurfaceWavePainter(
+                          wavePhase: _waveAnimation.value,
+                        ),
+                        size: const Size(double.infinity, 30),
+                      );
+                    },
+                  ),
+                ),
+
+                // Su altı dalgaları (içeride)
                 AnimatedBuilder(
                   animation: _waveAnimation,
                   builder: (context, child) {
                     return CustomPaint(
-                      painter: _WavePainter(
+                      painter: _UnderwaterWavePainter(
                         wavePhase: _waveAnimation.value,
                       ),
-                      size: const Size(double.infinity, 180),
+                      size: const Size(double.infinity, 300),
                     );
                   },
                 ),
-                
-                // Yüzen balıklar
+
+                // Su altı bitkileri ve dekorasyon
+                ..._buildUnderwaterDecoration(),
+
+                // Yüzen balıklar - suyun içinde dağınık
                 AnimatedBuilder(
                   animation: _swimController,
                   builder: (context, child) {
-                    return Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: List.generate(
-                        _targetNumber,
-                        (index) {
-                          final offset = math.sin((_swimController.value * 2 * math.pi) + (index * 0.5));
-                          return Transform.translate(
-                            offset: Offset(offset * 15, 0),
-                            child: Transform.scale(
-                              scale: 1.0 + (math.sin((index + _swimController.value) * math.pi) * 0.1),
-                              child: Text(
-                                fish,
-                                style: const TextStyle(fontSize: 36),
-                              ),
+                    return Stack(
+                      children: _fishPositions.map((fishData) {
+                        final index = _fishPositions.indexOf(fishData);
+                        final horizontal = fishData['horizontal'] as double;
+                        final vertical = fishData['vertical'] as double;
+                        final fish = fishData['fish'] as String;
+                        final offset = fishData['offset'] as double;
+
+                        // Yüzme animasyonu - hafif sağa sola ve yukarı aşağı hareket
+                        final swimX = math.sin((_swimController.value * 2 * math.pi) + offset) * 8;
+                        final swimY = math.cos((_swimController.value * 2 * math.pi) + offset) * 4;
+
+                        // Boyut animasyonu - hafif büyüyüp küçülme
+                        final scale = 1.0 + (math.sin((_swimController.value * 2 * math.pi) + index) * 0.1);
+
+                        return Positioned(
+                          left: (MediaQuery.of(context).size.width * 0.7 * horizontal) + swimX,
+                          top: (180 * vertical) + swimY + 30, // 30px üstten boşluk (su yüzeyi)
+                          child: Transform.scale(
+                            scale: scale,
+                            child: Text(
+                              fish,
+                              style: const TextStyle(fontSize: 36),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }).toList(),
                     );
                   },
                 ),
+
+                // Su kabarcıkları
+                ..._buildUnderwaterBubbles(),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildUnderwaterDecoration() {
+    return [
+      // Kum (alt kısım)
+      Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Container(
+          height: 30,
+          decoration: BoxDecoration(
+            color: Colors.brown.withOpacity(0.4),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+        ),
+      ),
+
+      // Deniz yosunları
+      Positioned(
+        bottom: 0,
+        left: 20,
+        child: _buildSeaweed(30, 60),
+      ),
+      Positioned(
+        bottom: 0,
+        left: 80,
+        child: _buildSeaweed(40, 80),
+      ),
+      Positioned(
+        bottom: 0,
+        right: 40,
+        child: _buildSeaweed(35, 70),
+      ),
+      Positioned(
+        bottom: 0,
+        right: 100,
+        child: _buildSeaweed(25, 50),
+      ),
+
+      // Taşlar
+      Positioned(
+        bottom: 5,
+        left: 150,
+        child: Container(
+          width: 40,
+          height: 25,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade600,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
+      Positioned(
+        bottom: 5,
+        right: 180,
+        child: Container(
+          width: 30,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade500,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildSeaweed(double width, double height) {
+    return CustomPaint(
+      painter: _SeaweedPainter(),
+      size: Size(width, height),
+    );
+  }
+
+  List<Widget> _buildUnderwaterBubbles() {
+    return List.generate(8, (index) {
+      final random = math.Random(index);
+      return Positioned(
+        left: random.nextDouble() * 250,
+        bottom: random.nextDouble() * 200 + 30,
+        child: AnimatedBuilder(
+          animation: _bubbleController,
+          builder: (context, child) {
+            final progress = (_bubbleController.value + (index * 0.15)) % 1.0;
+            return Transform.translate(
+              offset: Offset(
+                math.sin(progress * 2 * math.pi) * 5,
+                -progress * 80,
+              ),
+              child: Opacity(
+                opacity: 0.7 - (progress * 0.5),
+                child: Text(
+                  '🫧',
+                  style: TextStyle(fontSize: 12 + random.nextDouble() * 12),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    });
   }
 
   Widget _buildAnswerOptions() {
@@ -455,7 +611,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     final creature = _seaCreatures[random.nextInt(_seaCreatures.length)];
     final isCorrectAnswer = number == _targetNumber;
     final isSelected = _isAnswered && number == _targetNumber;
-    
+
     Color buttonColor;
     if (_isAnswered) {
       if (isCorrectAnswer) {
@@ -466,7 +622,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     } else {
       buttonColor = Colors.white.withOpacity(0.9);
     }
-    
+
     return GestureDetector(
       onTap: _isAnswered ? null : () => _checkAnswer(number),
       child: AnimatedContainer(
@@ -521,7 +677,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                 final startX = random.nextDouble();
                 final delay = random.nextDouble() * 0.3;
                 final progress = (_celebrationController.value - delay).clamp(0.0, 1.0);
-                
+
                 return Positioned(
                   left: MediaQuery.of(context).size.width * startX,
                   top: -50 + (MediaQuery.of(context).size.height * progress * 1.2),
@@ -595,36 +751,94 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   }
 }
 
-// Dalga çizimi
-class _WavePainter extends CustomPainter {
+// Su yüzeyi dalgaları
+class _SurfaceWavePainter extends CustomPainter {
   final double wavePhase;
 
-  _WavePainter({required this.wavePhase});
+  _SurfaceWavePainter({required this.wavePhase});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
+      ..color = Colors.white.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
 
     final path = Path();
     path.moveTo(0, size.height * 0.5);
 
     for (double i = 0; i < size.width; i += 5) {
-      final y = size.height * 0.5 + 
-                math.sin((i / 50) + wavePhase) * 10;
+      final y = size.height * 0.5 +
+          math.sin((i / 30) + wavePhase * 2) * 5;
       path.lineTo(i, y);
     }
-
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
 
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(_WavePainter oldDelegate) => true;
+  bool shouldRepaint(_SurfaceWavePainter oldDelegate) => true;
+}
+
+// Su altı dalgaları
+class _UnderwaterWavePainter extends CustomPainter {
+  final double wavePhase;
+
+  _UnderwaterWavePainter({required this.wavePhase});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (int j = 1; j <= 3; j++) {
+      final path = Path();
+      path.moveTo(0, size.height * (0.3 + j * 0.1));
+
+      for (double i = 0; i < size.width; i += 10) {
+        final y = size.height * (0.3 + j * 0.1) +
+            math.sin((i / 50) + wavePhase * (j + 1)) * 8;
+        path.lineTo(i, y);
+      }
+
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_UnderwaterWavePainter oldDelegate) => true;
+}
+
+// Deniz yosunu çizimi
+class _SeaweedPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.green.withOpacity(0.7)
+      ..style = PaintingStyle.fill
+      ..strokeWidth = 2;
+
+    final path = Path();
+    path.moveTo(size.width * 0.5, size.height);
+
+    // Yosun dalları
+    for (int i = 0; i < 3; i++) {
+      final offset = i * 0.3;
+      path.cubicTo(
+        size.width * 0.2, size.height * 0.7,
+        size.width * 0.8, size.height * 0.4,
+        size.width * 0.5, 0,
+      );
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // Arka plan dalgaları
@@ -643,8 +857,8 @@ class _BackgroundWavePainter extends CustomPainter {
     path.moveTo(0, size.height * 0.3);
 
     for (double i = 0; i < size.width; i += 5) {
-      final y = size.height * 0.3 + 
-                math.sin((i / 80) + wavePhase) * 15;
+      final y = size.height * 0.3 +
+          math.sin((i / 80) + wavePhase) * 15;
       path.lineTo(i, y);
     }
 
@@ -658,4 +872,3 @@ class _BackgroundWavePainter extends CustomPainter {
   @override
   bool shouldRepaint(_BackgroundWavePainter oldDelegate) => true;
 }
-

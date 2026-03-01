@@ -3,9 +3,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
+import '../services/ad_service.dart';
 import 'game_start_screen.dart';
 
-/// Boss Savaşı Ekranı
+/// Boss Savaşı Ekranı - 3 CAN SİSTEMİ VE REKLAM EKLENDİ
 class BossBattleScreen extends StatefulWidget {
   final BossBattle boss;
   final AgeGroupSelection ageGroup;
@@ -30,10 +31,11 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   late int _bossHealth;
   late int _bossMaxHealth;
 
-  // Oyuncu durumu
-  int _playerHealth = 100;
-  final int _playerMaxHealth = 100;
+  // OYUNCU CAN SİSTEMİ - 3 CAN
+  int _playerLives = 3;
+  final int _playerMaxLives = 3;
   int _score = 0;
+  bool _gameOver = false;
 
   // Soru durumu
   late _BossQuestion _currentQuestion;
@@ -49,9 +51,11 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   late AnimationController _bossShakeController;
   late AnimationController _playerShakeController;
   late AnimationController _attackController;
+  late AnimationController _lifeShakeController;
   late Animation<double> _bossShakeAnimation;
   late Animation<double> _playerShakeAnimation;
   late Animation<double> _attackAnimation;
+  late Animation<double> _lifeShakeAnimation;
 
   final math.Random _random = math.Random();
 
@@ -88,6 +92,15 @@ class _BossBattleScreenState extends State<BossBattleScreen>
       CurvedAnimation(parent: _attackController, curve: Curves.easeOut),
     );
 
+    // Can kaybı animasyonu
+    _lifeShakeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _lifeShakeAnimation = Tween<double>(begin: 0, end: 8).animate(
+      CurvedAnimation(parent: _lifeShakeController, curve: Curves.elasticIn),
+    );
+
     _generateQuestion();
     _startTimer();
   }
@@ -98,6 +111,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     _bossShakeController.dispose();
     _playerShakeController.dispose();
     _attackController.dispose();
+    _lifeShakeController.dispose();
     super.dispose();
   }
 
@@ -188,11 +202,11 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     _timeLeft = widget.boss.timePerQuestion;
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft > 0) {
+      if (_timeLeft > 0 && !_gameOver) {
         setState(() {
           _timeLeft--;
         });
-      } else {
+      } else if (_timeLeft == 0 && !_gameOver) {
         _handleTimeout();
       }
     });
@@ -203,7 +217,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
 
     _timer?.cancel();
     setState(() {
@@ -213,7 +227,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     });
 
     if (_isCorrect) {
-      // Boss'a hasar ver
+      // DOĞRU CEVAP - Boss'a hasar ver
       _attackController.forward().then((_) => _attackController.reset());
       _bossShakeController.forward().then((_) => _bossShakeController.reset());
 
@@ -227,21 +241,23 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         return;
       }
     } else {
-      // Oyuncuya hasar
+      // YANLIŞ CEVAP - 1 CAN GİDER
+      _playerLives--;
+
+      // Can kaybı animasyonu
+      _lifeShakeController.forward().then((_) => _lifeShakeController.reset());
       _playerShakeController.forward().then((_) => _playerShakeController.reset());
 
-      setState(() {
-        _playerHealth -= widget.boss.damagePerWrong;
-      });
-
-      if (_playerHealth <= 0) {
+      // CAN BİTTİ Mİ?
+      if (_playerLives <= 0) {
+        _gameOver = true;
         _defeat();
         return;
       }
     }
 
     Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!mounted) return;
+      if (!mounted || _gameOver) return;
       setState(() {
         _isAnswered = false;
         _selectedAnswer = null;
@@ -259,8 +275,176 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   void _defeat() {
     _timer?.cancel();
-    widget.onComplete?.call(false, _score);
-    _showResultDialog(false);
+    if (_playerLives <= 0) {
+      _showGameOverDialog(); // CAN BİTTİĞİNDE ÖZEL DİYALOG
+    } else {
+      widget.onComplete?.call(false, _score);
+      _showResultDialog(false);
+    }
+  }
+
+  // OYUN BİTTİ DİYALOĞU - REKLAM İLE 1 CAN ALMA
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2C3E50), Color(0xFFE74C3C)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('💔', style: TextStyle(fontSize: 60)),
+              const SizedBox(height: 16),
+              const Text(
+                'CANLAR BİTTİ!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Boss\'a ${_bossMaxHealth - _bossHealth} hasar verdin',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // REKLAM İLE 1 CAN ALMA BUTONU
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _reviveWithAd();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.play_circle, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'REKLAM İZLE +1 CAN KAZAN',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // NORMAL TEKRAR DENE
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _restartBattle();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('TEKRAR DENE'),
+                ),
+              ),
+
+              // ÇIKIŞ
+              Container(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onBack();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white.withOpacity(0.7),
+                  ),
+                  child: const Text('ÇIKIŞ'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // REKLAM İLE 1 CAN ALMA
+  void _reviveWithAd() {
+    final adService = AdService();
+    
+    adService.watchAdForLife(
+      onLifeEarned: () {
+        if (!mounted) return;
+        
+        setState(() {
+          _playerLives = 1;
+          _gameOver = false;
+          _isAnswered = false;
+          _selectedAnswer = null;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        _generateQuestion();
+        _startTimer();
+      },
+      onAdClosed: () {
+        if (mounted && _playerLives <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   void _showResultDialog(bool won) {
@@ -410,177 +594,14 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   void _restartBattle() {
     setState(() {
       _bossHealth = _bossMaxHealth;
-      _playerHealth = _playerMaxHealth;
+      _playerLives = 3; // CANLARI TAM DOLDUR
       _score = 0;
+      _gameOver = false;
       _isAnswered = false;
       _selectedAnswer = null;
       _generateQuestion();
     });
     _startTimer();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0f0c29),
-              Color(0xFF302b63),
-              Color(0xFF24243e),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Üst bar
-              _buildTopBar(),
-
-              const SizedBox(height: 4),
-
-              // Boss alanı
-              _buildBossArea(),
-
-              const SizedBox(height: 12),
-
-              // Soru
-              _buildQuestion(),
-
-              const SizedBox(height: 12),
-
-              // Seçenekler
-              _buildOptions(),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    final healthPercent = (_playerHealth / _playerMaxHealth).clamp(0.0, 1.0);
-    
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _showExitConfirmation,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, color: Colors.white, size: 20),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Oyuncu can barı
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Text('🦸', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'SEN',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Container(
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade800,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Stack(
-                            children: [
-                              AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: healthPercent > 0.5
-                                        ? [Colors.green, Colors.lightGreen]
-                                        : [Colors.orange, Colors.red],
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                alignment: Alignment.centerLeft,
-                                child: FractionallySizedBox(
-                                  widthFactor: healthPercent,
-                                  child: Container(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$_playerHealth / $_playerMaxHealth',
-                          style: const TextStyle(
-                            fontSize: 8,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showExitConfirmation() {
@@ -653,6 +674,150 @@ class _BossBattleScreenState extends State<BossBattleScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0f0c29),
+              Color(0xFF302b63),
+              Color(0xFF24243e),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Üst bar - CANLAR EKLENDİ
+              _buildTopBar(),
+
+              const SizedBox(height: 4),
+
+              // Boss alanı
+              _buildBossArea(),
+
+              const SizedBox(height: 12),
+
+              // Soru
+              _buildQuestion(),
+
+              const SizedBox(height: 12),
+
+              // Seçenekler
+              _buildOptions(),
+
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          // Geri butonu
+          GestureDetector(
+            onTap: _showExitConfirmation,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // OYUNCU CANLARI - 3 KALP
+          AnimatedBuilder(
+            animation: _lifeShakeAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(_lifeShakeAnimation.value, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('🦸', style: TextStyle(fontSize: 18)),
+                      const SizedBox(width: 8),
+                      ...List.generate(
+                        3,
+                            (index) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            index < _playerLives
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: index < _playerLives
+                                ? Colors.red
+                                : Colors.white.withOpacity(0.5),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_playerLives/3',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(width: 12),
+
+          // Puan
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 18),
+                const SizedBox(width: 4),
+                Text(
+                  '$_score',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -851,7 +1016,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _gameOver || _playerLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 45,
@@ -887,7 +1052,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
       ),
     );
   }
-
 }
 
 class _BossQuestion {
@@ -905,4 +1069,3 @@ class _BossQuestion {
     required this.options,
   });
 }
-

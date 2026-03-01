@@ -305,16 +305,16 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
               decoration: BoxDecoration(
                 gradient: isLocked
                     ? LinearGradient(
-                        colors: [Colors.grey.shade600, Colors.grey.shade800],
-                      )
+                  colors: [Colors.grey.shade600, Colors.grey.shade800],
+                )
                     : LinearGradient(
-                        colors: [
-                          region['color'] as Color,
-                          (region['color'] as Color).withOpacity(0.7),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                  colors: [
+                    region['color'] as Color,
+                    (region['color'] as Color).withOpacity(0.7),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected ? Colors.amber : Colors.white.withOpacity(0.5),
@@ -368,8 +368,8 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                         ),
                       ),
                     ),
-                  // İlerleme göstergesi
-                  if (!isLocked)
+                  // İlerleme göstergesi - sadece kilitli olmayanlar için
+                  if (!isLocked && region['progress'] > 0)
                     Positioned(
                       bottom: 5,
                       child: Container(
@@ -424,13 +424,18 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: (region['color'] as Color).withOpacity(0.3),
+                  color: isLocked
+                      ? Colors.grey.withOpacity(0.3)
+                      : (region['color'] as Color).withOpacity(0.3),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
                   child: Text(
                     region['emoji'] as String,
-                    style: const TextStyle(fontSize: 32),
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: isLocked ? Colors.grey.shade400 : Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -441,10 +446,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                   children: [
                     Text(
                       region['name'] as String,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: isLocked ? Colors.grey.shade400 : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -452,7 +457,9 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                       region['description'] as String,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.8),
+                        color: isLocked
+                            ? Colors.grey.shade500
+                            : Colors.white.withOpacity(0.8),
                       ),
                     ),
                   ],
@@ -556,15 +563,29 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.lock_open, color: Colors.orange, size: 24),
+                  const Icon(Icons.lock_clock, color: Colors.orange, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      '${region['unlockRequirement']}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '🔒 Bu bölge henüz açılmadı',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Önceki bölgeleri tamamlayarak açabilirsin.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade200,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -577,7 +598,9 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
   }
 
   List<Map<String, dynamic>> _getRegions(AppLocalizations localizations) {
+    // SADECE İLK İKİ BÖLGE AÇIK, DİĞERLERİ KİLİTLİ
     return [
+      // 1. Bölge - Sayı Ormanı (AÇIK)
       {
         'id': 'number_forest',
         'emoji': '🌲',
@@ -588,6 +611,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'progress': 45,
         'locked': false,
       },
+      // 2. Bölge - Rakam Nehri (AÇIK)
       {
         'id': 'digit_river',
         'emoji': '🌊',
@@ -598,6 +622,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'progress': 20,
         'locked': false,
       },
+      // 3. Bölge - Geometri Dağı (KİLİTLİ)
       {
         'id': 'geometry_mountain',
         'emoji': '⛰️',
@@ -606,8 +631,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'description': localizations.get('geometry_mountain_desc'),
         'color': const Color(0xFF9B59B6),
         'progress': 0,
-        'locked': false,
+        'locked': true,
+        'unlockRequirement': 'Sayı Ormanı\'nı tamamla',
       },
+      // 4. Bölge - Zaman Adası (KİLİTLİ)
       {
         'id': 'time_island',
         'emoji': '🏝️',
@@ -616,9 +643,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'description': localizations.get('time_island_desc'),
         'color': const Color(0xFFE67E22),
         'progress': 0,
-        'locked': widget.ageGroup == AgeGroupSelection.preschool,
-        'unlockRequirement': localizations.get('unlock_time_island'),
+        'locked': true,
+        'unlockRequirement': 'Rakam Nehri\'ni tamamla',
       },
+      // 5. Bölge - Kesir Fırını (KİLİTLİ)
       {
         'id': 'fraction_bakery',
         'emoji': '🍰',
@@ -627,9 +655,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'description': localizations.get('fraction_bakery_desc'),
         'color': const Color(0xFFE91E63),
         'progress': 0,
-        'locked': widget.ageGroup != AgeGroupSelection.advanced,
-        'unlockRequirement': localizations.get('unlock_fraction_bakery'),
+        'locked': true,
+        'unlockRequirement': 'Geometri Dağı\'nı tamamla',
       },
+      // 6. Bölge - Renkli Matematik (KİLİTLİ)
       {
         'id': 'colorful_math',
         'emoji': '🎨',
@@ -638,8 +667,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'description': localizations.get('game_color_math_desc'),
         'color': const Color(0xFFFF6B9D),
         'progress': 0,
-        'locked': false,
+        'locked': true,
+        'unlockRequirement': 'Zaman Adası\'nı tamamla',
       },
+      // 7. Bölge - Sihirli Makine (KİLİTLİ)
       {
         'id': 'magic_machine',
         'emoji': '🧮',
@@ -648,15 +679,21 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'description': localizations.get('magic_machine_region_desc'),
         'color': const Color(0xFF00BCD4),
         'progress': 0,
-        'locked': widget.ageGroup != AgeGroupSelection.advanced,
-        'unlockRequirement': localizations.get('unlock_magic_machine'),
+        'locked': true,
+        'unlockRequirement': 'Kesir Fırını\'nı tamamla',
       },
     ];
   }
 
   void _enterRegion(Map<String, dynamic> region) {
+    // Kilitli bölgeye girilmeye çalışılırsa uyarı göster
+    if (region['locked'] == true) {
+      _showLockedRegionDialog(region);
+      return;
+    }
+
     debugPrint('Entering region: ${region['id']}');
-    
+
     // Sayı Ormanı için özel ekran
     if (region['id'] == 'number_forest') {
       Navigator.push(
@@ -669,7 +706,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       );
       return;
     }
-    
+
     // Rakam Nehri için özel ekran
     if (region['id'] == 'digit_river') {
       Navigator.push(
@@ -682,7 +719,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       );
       return;
     }
-    
+
     // Geometri Dağı için özel ekran
     if (region['id'] == 'geometry_mountain') {
       Navigator.push(
@@ -695,7 +732,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       );
       return;
     }
-    
+
     // Zaman Adası için özel ekran
     if (region['id'] == 'time_island') {
       Navigator.push(
@@ -708,7 +745,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       );
       return;
     }
-    
+
     // Renkli Matematik için özel ekran
     if (region['id'] == 'colorful_math') {
       Navigator.push(
@@ -721,7 +758,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       );
       return;
     }
-    
+
     // Region ID'sine göre TopicType belirle
     GameMechanics.TopicType topicType;
     switch (region['id'] as String) {
@@ -763,6 +800,73 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       ),
     );
   }
+
+  void _showLockedRegionDialog(Map<String, dynamic> region) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.grey.shade800, Colors.grey.shade900],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orange.shade300, width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_clock, color: Colors.orange, size: 60),
+              const SizedBox(height: 16),
+              Text(
+                '🔒 ${region['name']} Kilitli',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                region['unlockRequirement'] as String? ?? 'Bu bölge henüz açılmadı',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.orange.shade200,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Önceki bölgeleri tamamlayarak yeni bölgelerin kilidini açabilirsin!',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                ),
+                child: const Text('TAMAM'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // Bağlantı çizgileri painter
@@ -778,11 +882,6 @@ class _ConnectionPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-
-    final dashPaint = Paint()
-      ..color = Colors.amber.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
 
     // Noktalar arası bağlantılar
     for (int i = 0; i < nodeCount - 1; i++) {
@@ -816,4 +915,3 @@ class _ConnectionPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

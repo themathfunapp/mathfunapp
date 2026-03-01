@@ -3,11 +3,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import 'game_start_screen.dart';
 
-/// Günlük Meydan Okuma Ekranı
+/// Günlük Meydan Okuma Ekranı - 3 CAN SİSTEMİ VE KARIŞIK SORULAR
 class DailyChallengeScreen extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -29,6 +30,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   int? _selectedAnswer;
   bool _isCorrect = false;
 
+  // CAN SİSTEMİ - 3 CAN
+  int _lives = 3;
+  bool _gameOver = false;
+
   // Soru
   late _ChallengeQuestion _currentQuestion;
   List<_ChallengeQuestion> _questions = [];
@@ -44,10 +49,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   // Animasyonlar
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
 
   @override
   void initState() {
     super.initState();
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -56,12 +64,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // Sallanma animasyonu (can kaybı için)
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _shakeAnimation = Tween<double>(begin: 0, end: 5).animate(
+      CurvedAnimation(
+        parent: _shakeController,
+        curve: Curves.elasticIn,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
+    _shakeController.dispose();
     super.dispose();
   }
 
@@ -73,6 +95,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _score = 0;
       _correctAnswers = 0;
       _wrongAnswers = 0;
+      _lives = 3; // CAN SİSTEMİ - 3 can ile başla
+      _gameOver = false;
       _combo = 0;
       _maxCombo = 0;
       _timeLeft = challenge.timeLimit;
@@ -83,21 +107,24 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _startTimer();
   }
 
+  // KARIŞIK SORU ÜRETİCİ - Toplama, Çıkarma, Çarpma, Bölme
   void _generateQuestions(DailyChallenge challenge) {
     _questions = [];
     final random = math.Random();
+    final allTopics = ['addition', 'subtraction', 'multiplication', 'division'];
 
     for (int i = 0; i < challenge.targetCorrect + 5; i++) {
-      final topic = challenge.topics[random.nextInt(challenge.topics.length)];
+      // Karışık topic - rastgele seç
+      final topic = allTopics[random.nextInt(allTopics.length)];
       _questions.add(_generateQuestion(topic, challenge.difficulty, random));
     }
   }
 
   _ChallengeQuestion _generateQuestion(
-    String topic,
-    String difficulty,
-    math.Random random,
-  ) {
+      String topic,
+      String difficulty,
+      math.Random random,
+      ) {
     int num1, num2, answer;
     String operator;
     int maxNum;
@@ -170,18 +197,18 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft > 0) {
+      if (_timeLeft > 0 && !_gameOver) {
         setState(() {
           _timeLeft--;
         });
-      } else {
+      } else if (_timeLeft == 0) {
         _endChallenge();
       }
     });
   }
 
   void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
 
     setState(() {
       _isAnswered = true;
@@ -190,19 +217,37 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     });
 
     if (_isCorrect) {
+      // DOĞRU CEVAP
       _correctAnswers++;
       _combo++;
       if (_combo > _maxCombo) _maxCombo = _combo;
-      
+
       // Her doğru cevap 10 puan
       _score += 10;
     } else {
+      // YANLIŞ CEVAP - 1 CAN GİDER
       _wrongAnswers++;
       _combo = 0;
+      _lives--;
+
+      // Sallanma animasyonu
+      _shakeController.forward().then((_) {
+        _shakeController.reverse();
+      });
+
+      // CAN BİTTİ Mİ?
+      if (_lives <= 0) {
+        _gameOver = true;
+        _timer?.cancel();
+        _showGameOverDialog();
+        return;
+      }
     }
 
     Future.delayed(const Duration(milliseconds: 800), () {
-      _nextQuestion();
+      if (!_gameOver) {
+        _nextQuestion();
+      }
     });
   }
 
@@ -221,19 +266,171 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   void _endChallenge() {
     _timer?.cancel();
-    
+
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     mechanicsService.completeChallenge(_score, _correctAnswers);
-    
+
     _showResultsDialog();
+  }
+
+  // OYUN BİTTİ DİYALOĞU - REKLAM İLE CAN ALMA BUTONU
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2C3E50), Color(0xFFE74C3C)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('💔', style: TextStyle(fontSize: 60)),
+              const SizedBox(height: 16),
+              const Text(
+                'CANLAR BİTTİ!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$_correctAnswers doğru, $_wrongAnswers yanlış',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // REKLAM İLE CAN ALMA BUTONU (ŞİMDİLİK BASİT)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _reviveWithAd();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.play_circle, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'REKLAM İZLE VE DEVAM ET',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // NORMAL TEKRAR DENE
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onBack();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('TEKRAR DENE'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // REKLAM İLE CAN ALMA
+  void _reviveWithAd() {
+    final adService = AdService();
+    
+    adService.watchAdForLife(
+      onLifeEarned: () {
+        if (mounted) {
+          setState(() {
+            _lives = 1;
+            _gameOver = false;
+            _isAnswered = false;
+            _selectedAnswer = null;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          
+          _startTimer();
+        }
+      },
+      onAdClosed: () {
+        if (mounted && _lives <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
   }
 
   void _showResultsDialog() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final challenge = mechanicsService.todayChallenge;
-    
+
     final isSuccess = _correctAnswers >= (challenge?.targetCorrect ?? 0) &&
-                      _score >= (challenge?.targetScore ?? 0);
+        _score >= (challenge?.targetScore ?? 0);
+
+    // Her 3 oyunda bir geçiş reklamı göster (Premium değilse)
+    final adService = AdService();
+    adService.showInterstitialAd();
 
     showDialog(
       context: context,
@@ -734,12 +931,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     );
   }
 
+  // OYUN EKRANI - CAN GÖSTERGESİ EKLENDİ
   Widget _buildPlayingView() {
     final isLowTime = _timeLeft <= 30;
-    
+
     return Column(
       children: [
-        // Üst bar - Progress Bar
+        // Üst bar - CANLAR EKLENDİ
         Container(
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(16),
@@ -775,15 +973,34 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                   ),
                 ),
               ),
-              // Soru numarası
-              Text(
-                'Soru ${_currentQuestionIndex + 1}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+
+              // CANLAR - 3 KALP
+              AnimatedBuilder(
+                animation: _shakeController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(_shakeAnimation.value, 0),
+                    child: Row(
+                      children: List.generate(
+                        3,
+                            (index) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Icon(
+                            index < _lives
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: index < _lives
+                                ? Colors.red
+                                : Colors.white.withOpacity(0.5),
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
+
               // Puan
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -833,7 +1050,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
         const SizedBox(height: 30),
 
-        // Soru - Yeni tasarım (timer içinde)
+        // Soru
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Container(
@@ -858,7 +1075,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Zamanlayıcı içerde
+                // Zamanlayıcı
                 AnimatedBuilder(
                   animation: _pulseAnimation,
                   builder: (context, child) {
@@ -920,7 +1137,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
         const SizedBox(height: 30),
 
-        // Seçenekler - Yeni tasarım
+        // Seçenekler
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(
@@ -971,7 +1188,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _lives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 55,
@@ -1024,4 +1241,3 @@ class _ChallengeQuestion {
     required this.options,
   });
 }
-

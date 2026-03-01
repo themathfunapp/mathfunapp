@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
 /// Yaş grupları
 enum AgeGroup {
   preschool, // 3-5 yaş - Sayı Maceracıları
@@ -48,35 +49,72 @@ enum HelperCharacter {
 class PlayerAvatar {
   final String oderId;
   final String odername;
-  final String skinColor;
-  final String hairStyle;
-  final String hairColor;
-  final String outfit;
-  final String accessory;
+
+  final int skinIndex;
+  final int faceIndex;
+
+  final int hairStyleIndex;
+  final String hairColorName;
+
+  final int shirtIndex;
+
+  final int pantsIndex;
+  final String pantsColorName;
+
+  final int shoesIndex;
+  final String shoesColorName;
+
+  final int accessoryIndex;
+
   final int level;
   final int experience;
 
   PlayerAvatar({
     required this.oderId,
     required this.odername,
-    this.skinColor = 'light',
-    this.hairStyle = 'short',
-    this.hairColor = 'brown',
-    this.outfit = 'explorer',
-    this.accessory = 'none',
+
+    this.skinIndex = 0,
+    this.faceIndex = 0,
+
+    this.hairStyleIndex = 0,
+    this.hairColorName = 'Black',
+
+    this.shirtIndex = 0,
+
+    this.pantsIndex = 0,
+    this.pantsColorName = 'Blue 1',
+
+    this.shoesIndex = 0,
+    this.shoesColorName = 'Black',
+
+    this.accessoryIndex = 0,
+
     this.level = 1,
     this.experience = 0,
+
   });
 
   factory PlayerAvatar.fromMap(Map<String, dynamic> map) {
     return PlayerAvatar(
-      oderId: map['id'] ?? '',
-      odername: map['name'] ?? 'Kahraman',
-      skinColor: map['skinColor'] ?? 'light',
-      hairStyle: map['hairStyle'] ?? 'short',
-      hairColor: map['hairColor'] ?? 'brown',
-      outfit: map['outfit'] ?? 'explorer',
-      accessory: map['accessory'] ?? 'none',
+      oderId: map['oderId'] ?? '',
+      odername: map['odername'] ?? 'Kahraman',
+
+      skinIndex: map['skinIndex'] ?? 0,
+      faceIndex: map['faceIndex'] ?? 0,
+
+      hairStyleIndex: map['hairStyleIndex'] ?? 0,
+      hairColorName: map['hairColorName'] ?? 'Black',
+
+      shirtIndex: map['shirtIndex'] ?? 0,
+
+      pantsIndex: map['pantsIndex'] ?? 0,
+      pantsColorName: map['pantsColorName'] ?? 'Blue 1',
+
+      shoesIndex: map['shoesIndex'] ?? 0,
+      shoesColorName: map['shoesColorName'] ?? 'Black',
+
+      accessoryIndex: map['accessoryIndex'] ?? 0,
+
       level: map['level'] ?? 1,
       experience: map['experience'] ?? 0,
     );
@@ -84,42 +122,80 @@ class PlayerAvatar {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': oderId,
-      'name': odername,
-      'skinColor': skinColor,
-      'hairColor': hairColor,
-      'hairStyle': hairStyle,
-      'outfit': outfit,
-      'accessory': accessory,
+      'oderId': oderId,
+      'odername': odername,
+
+      'skinIndex': skinIndex,
+      'faceIndex': faceIndex,
+
+      'hairStyleIndex': hairStyleIndex,
+      'hairColorName': hairColorName,
+
+      'shirtIndex': shirtIndex,
+
+      'pantsIndex': pantsIndex,
+      'pantsColorName': pantsColorName,
+
+      'shoesIndex': shoesIndex,
+      'shoesColorName': shoesColorName,
+
+      'accessoryIndex': accessoryIndex,
+
       'level': level,
       'experience': experience,
     };
   }
 
   PlayerAvatar copyWith({
-    String? id,
-    String? name,
-    String? skinColor,
-    String? hairStyle,
-    String? hairColor,
-    String? outfit,
-    String? accessory,
+    String? oderId,
+    String? odername,
+
+    int? skinIndex,
+    int? faceIndex,
+
+    int? hairStyleIndex,
+    String? hairColorName,
+
+    int? shirtIndex,
+
+    int? pantsIndex,
+    String? pantsColorName,
+
+    int? shoesIndex,
+    String? shoesColorName,
+
+    int? accessoryIndex,
+
     int? level,
     int? experience,
+
   }) {
     return PlayerAvatar(
-      oderId: id ?? oderId,
-      odername: name ?? odername,
-      skinColor: skinColor ?? this.skinColor,
-      hairStyle: hairStyle ?? this.hairStyle,
-      hairColor: hairColor ?? this.hairColor,
-      outfit: outfit ?? this.outfit,
-      accessory: accessory ?? this.accessory,
+      oderId: oderId ?? this.oderId,
+      odername: odername ?? this.odername,
+
+      skinIndex: skinIndex ?? this.skinIndex,
+      faceIndex: faceIndex ?? this.faceIndex,
+
+      hairStyleIndex: hairStyleIndex ?? this.hairStyleIndex,
+      hairColorName: hairColorName ?? this.hairColorName,
+
+      shirtIndex: shirtIndex ?? this.shirtIndex,
+
+      pantsIndex: pantsIndex ?? this.pantsIndex,
+      pantsColorName: pantsColorName ?? this.pantsColorName,
+
+      shoesIndex: shoesIndex ?? this.shoesIndex,
+      shoesColorName: shoesColorName ?? this.shoesColorName,
+
+      accessoryIndex: accessoryIndex ?? this.accessoryIndex,
+
       level: level ?? this.level,
       experience: experience ?? this.experience,
     );
   }
 }
+
 
 /// Dünya (World) - Ana tema
 class StoryWorld {

@@ -555,7 +555,7 @@ class GameManager extends ChangeNotifier {
   // İlerleme yüzdesi
   double getProgressPercentage(String category) {
     final score = _categoryScores[category] ?? 0;
-    return (score / 1000).clamp(0.0, 1.0); // Max 1000 puan üzerinden
+    return (score / 100).clamp(0.0, 1.0); // Max 100 puan üzerinden
   }
 
   // Seviye bilgisi

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
+import '../services/ad_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
 import 'world_map_screen.dart';
@@ -40,15 +41,15 @@ class _StoryModeScreenState extends State<StoryModeScreen>
 
   Future<void> _initStoryMode() async {
     if (!mounted) return;
-    
+
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final storyService = Provider.of<StoryService>(context, listen: false);
 
       if (authService.currentUser != null) {
         await storyService.loadProgress(authService.currentUser!.uid);
-        
-        if (mounted && storyService.progress != null && 
+
+        if (mounted && storyService.progress != null &&
             storyService.progress!.avatar.odername != 'Kahraman') {
           setState(() {
             _showAgeSelection = false;
@@ -108,147 +109,161 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   }
 
   Widget _buildAgeSelection(AppLocalizations localizations, StoryService storyService) {
-    return Column(
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              ),
-              Expanded(
-                child: Text(
-                  localizations.get('story_mode'),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context);
+        return false;
+      },
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                 ),
-              ),
-              const SizedBox(width: 48),
-            ],
-          ),
-        ),
-
-        // Floating mascot
-        AnimatedBuilder(
-          animation: _floatAnimation,
-          builder: (context, child) {
-            return Transform.translate(
-              offset: Offset(0, _floatAnimation.value),
-              child: const Text(
-                '🦸',
-                style: TextStyle(fontSize: 80),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(height: 20),
-
-        Text(
-          localizations.get('choose_your_adventure'),
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Text(
-            localizations.get('age_selection_subtitle'),
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white.withOpacity(0.8),
+                Expanded(
+                  child: Text(
+                    localizations.storyMode,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
-        ),
 
-        const SizedBox(height: 40),
-
-        // Age group cards
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              _buildAgeCard(
-                localizations: localizations,
-                ageGroup: AgeGroup.preschool,
-                title: localizations.get('age_group_preschool'),
-                subtitle: localizations.get('age_group_preschool_subtitle'),
-                ageRange: '3-5',
-                emoji: '🧒',
-                colors: [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
-                storyService: storyService,
-              ),
-              const SizedBox(height: 16),
-              _buildAgeCard(
-                localizations: localizations,
-                ageGroup: AgeGroup.earlyElementary,
-                title: localizations.get('age_group_early'),
-                subtitle: localizations.get('age_group_early_subtitle'),
-                ageRange: '6-8',
-                emoji: '🚀',
-                colors: [const Color(0xFF2196F3), const Color(0xFF03A9F4)],
-                storyService: storyService,
-              ),
-              const SizedBox(height: 16),
-              _buildAgeCard(
-                localizations: localizations,
-                ageGroup: AgeGroup.lateElementary,
-                title: localizations.get('age_group_late'),
-                subtitle: localizations.get('age_group_late_subtitle'),
-                ageRange: '9-11',
-                emoji: '🏰',
-                colors: [const Color(0xFF9C27B0), const Color(0xFFE91E63)],
-                storyService: storyService,
-              ),
-              const SizedBox(height: 30),
-            ],
+          // Floating mascot
+          AnimatedBuilder(
+            animation: _floatAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _floatAnimation.value),
+                child: const Text(
+                  '🦸',
+                  style: TextStyle(fontSize: 80),
+                ),
+              );
+            },
           ),
-        ),
-      ],
+
+          const SizedBox(height: 20),
+
+          Text(
+            localizations.get('choose_adventure'),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              localizations.get('age_appropriate_adventure'),
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.8),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          const SizedBox(height: 40),
+
+          // Age group cards
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: [
+                _buildAgeCard(
+                  title: localizations.get('number_adventures'),
+                  subtitle: localizations.get('colorful_animals_discovery'),
+                  ageRange: '3-5',
+                  yearsOld: localizations.get('years_old'),
+                  emoji: '🧒',
+                  colors: [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
+                  storyService: storyService,
+                  ageGroup: AgeGroup.preschool,
+                ),
+                const SizedBox(height: 16),
+                _buildAgeCard(
+                  title: localizations.get('math_explorers'),
+                  subtitle: localizations.get('time_space_journey'),
+                  ageRange: '6-8',
+                  yearsOld: localizations.get('years_old'),
+                  emoji: '🚀',
+                  colors: [const Color(0xFF2196F3), const Color(0xFF03A9F4)],
+                  storyService: storyService,
+                  ageGroup: AgeGroup.earlyElementary,
+                ),
+                const SizedBox(height: 16),
+                _buildAgeCard(
+                  title: localizations.get('math_kingdom'),
+                  subtitle: localizations.get('kingdom_rescue_mission'),
+                  ageRange: '9-11',
+                  yearsOld: localizations.get('years_old'),
+                  emoji: '🏰',
+                  colors: [const Color(0xFF9C27B0), const Color(0xFFE91E63)],
+                  storyService: storyService,
+                  ageGroup: AgeGroup.lateElementary,
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildAgeCard({
-    required AppLocalizations localizations,
-    required AgeGroup ageGroup,
     required String title,
     required String subtitle,
     required String ageRange,
+    required String yearsOld,
     required String emoji,
     required List<Color> colors,
     required StoryService storyService,
+    required AgeGroup ageGroup,
   }) {
     return GestureDetector(
       onTap: () async {
         await storyService.selectAgeGroup(ageGroup);
-        
-        // Avatar oluşturma ekranına git
-        if (mounted) {
-          final result = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AvatarCreatorScreen(ageGroup: ageGroup),
-            ),
-          );
 
-          if (result == true) {
-            setState(() {
-              _showAgeSelection = false;
-            });
-          }
+        // TODO: Avatar özelliği yayın sonrası güncellemede aktif edilecek
+        // Avatar oluşturma ekranını atlayıp direkt devam et
+        // if (mounted) {
+        //   final result = await Navigator.push<bool>(
+        //     context,
+        //     MaterialPageRoute(
+        //       builder: (context) => AvatarCreatorScreen(ageGroup: ageGroup),
+        //     ),
+        //   );
+        //
+        //   if (result == true) {
+        //     setState(() {
+        //       _showAgeSelection = false;
+        //     });
+        //   }
+        // }
+        
+        // Varsayılan avatar ile direkt devam et
+        if (mounted) {
+          setState(() {
+            _showAgeSelection = false;
+          });
         }
       },
       child: Container(
@@ -289,28 +304,32 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                          horizontal: 6,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '$ageRange ${localizations.get('years_old')}',
+                          '$ageRange $yearsOld',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -343,22 +362,35 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   Widget _buildMainContent(AppLocalizations localizations, StoryService storyService) {
     final progress = storyService.progress;
 
-    return Column(
-      children: [
-        // Top Bar
-        _buildTopBar(localizations, progress),
+    return WillPopScope(
+      onWillPop: () async {
+        setState(() {
+          _showAgeSelection = true;
+        });
+        return false;
+      },
+      child: Column(
+        children: [
+          // Top Bar
+          _buildTopBar(localizations, progress),
 
-        // World Map
-        Expanded(
-          child: WorldMapScreen(
-            worlds: storyService.worlds,
-            progress: progress,
+          // World Map
+          Expanded(
+            child: WorldMapScreen(
+              worlds: storyService.worlds,
+              progress: progress,
+            ),
           ),
-        ),
 
-        // Bottom Navigation
-        _buildBottomNav(localizations, storyService),
-      ],
+          // Banner reklam (Premium olmayan kullanıcılar için)
+          const BannerAdWidget(
+            padding: EdgeInsets.symmetric(vertical: 8),
+          ),
+
+          // Bottom Navigation
+          _buildBottomNav(localizations, storyService),
+        ],
+      ),
     );
   }
 
@@ -369,7 +401,11 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         children: [
           // Back button
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              setState(() {
+                _showAgeSelection = true;
+              });
+            },
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -381,17 +417,29 @@ class _StoryModeScreenState extends State<StoryModeScreen>
           ),
 
           // Avatar
+          // TODO: Avatar düzenleme yayın sonrası güncellemede aktif edilecek
           GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AvatarCreatorScreen(
-                    ageGroup: progress?.selectedAgeGroup ?? AgeGroup.preschool,
-                    isEditing: true,
+              // Avatar düzenleme geçici olarak devre dışı
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${localizations.get('avatar_coming_soon')} 🎨'),
+                  backgroundColor: Colors.purple,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               );
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => AvatarCreatorScreen(
+              //       ageGroup: progress?.selectedAgeGroup ?? AgeGroup.preschool,
+              //       isEditing: true,
+              //     ),
+              //   ),
+              // );
             },
             child: Container(
               padding: const EdgeInsets.all(4),
@@ -423,7 +471,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  progress?.avatar.odername ?? 'Kahraman',
+                  progress?.avatar.odername ?? localizations.get('hero'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -596,7 +644,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -632,6 +680,28 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   }
 
   Widget _buildQuestCard(StoryQuest quest, AppLocalizations localizations) {
+    String questName = '';
+    String questDesc = '';
+
+    // Quest isimlerini lokalizasyondan al
+    switch (quest.nameKey) {
+      case 'quest_complete_levels':
+        questName = localizations.get('complete_3_levels');
+        questDesc = localizations.get('complete_3_levels_desc');
+        break;
+      case 'quest_earn_stars':
+        questName = localizations.get('earn_5_stars');
+        questDesc = localizations.get('earn_5_stars_desc');
+        break;
+      case 'quest_correct_answers':
+        questName = localizations.get('correct_20_answers');
+        questDesc = localizations.get('correct_20_answers_desc');
+        break;
+      default:
+        questName = quest.nameKey;
+        questDesc = quest.descriptionKey;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -669,7 +739,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      localizations.get(quest.nameKey),
+                      questName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -677,7 +747,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                       ),
                     ),
                     Text(
-                      localizations.get(quest.descriptionKey),
+                      questDesc,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withOpacity(0.7),
@@ -755,4 +825,3 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     );
   }
 }
-

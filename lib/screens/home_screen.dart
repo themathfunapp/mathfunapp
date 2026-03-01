@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/locale_provider.dart';
 import '../settings/SettingsScreen.dart';
 import '../widgets/animated_math_symbol.dart';
 import '../widgets/shiny_button.dart';
@@ -7,6 +8,7 @@ import '../widgets/story_mode_button.dart';
 import '../widgets/mini_games_button.dart';
 import '../widgets/premium_button.dart';
 import '../widgets/bottom_action_button.dart';
+import '../widgets/kurdistan_flag.dart'; // KurtceFlag widget
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
@@ -26,8 +28,6 @@ import '../screens/math_art_gallery_screen.dart';
 import '../screens/virtual_math_lab_screen.dart';
 import '../screens/avatar_customization_screen.dart';
 import '../screens/pet_screen.dart';
-import '../screens/accessibility_screen.dart';
-
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onGameSelection;
@@ -78,11 +78,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  // Desteklenen diller listesi
+  // Desteklenen diller listesi - Ekrandaki tüm diller
   final List<Map<String, dynamic>> _supportedLanguages = [
     {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
     {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
     {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
+    {'code': 'ar', 'name': 'العربية (Arapça)', 'flag': '🇸🇦'},
+    {'code': 'fa', 'name': 'فارسی (Farsça)', 'flag': '🇮🇷'},
+    {'code': 'zh', 'name': '中文 (Çince)', 'flag': '🇨🇳'},
+    {'code': 'id', 'name': 'Bahasa (Endonezce)', 'flag': '🇮🇩'},
+    {'code': 'ku', 'name': 'Kurdî (Kürtçe)', 'flag': '☀️'},
+    {'code': 'es', 'name': 'Español (İspanyolca)', 'flag': '🇪🇸'},
+    {'code': 'fr', 'name': 'Français (Fransızca)', 'flag': '🇫🇷'},
+    {'code': 'ru', 'name': 'Русский (Rusça)', 'flag': '🇷🇺'},
+    {'code': 'ja', 'name': '日本語 (Japonca)', 'flag': '🇯🇵'},
+    {'code': 'ko', 'name': '한국어 (Korece)', 'flag': '🇰🇷'},
   ];
 
   @override
@@ -95,12 +105,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         decoration: BoxDecoration(gradient: primaryGradient),
         child: Stack(
           children: [
-            // Dönen matematik sembolü
-            Positioned(
+            // Dönen matematik sembolü - dokunma olaylarını engellemez
+            const Positioned(
               top: 80,
               left: 0,
               right: 0,
-              child: const AnimatedMathSymbol(),
+              child: IgnorePointer(
+                child: AnimatedMathSymbol(),
+              ),
             ),
 
             // Ana içerik
@@ -227,96 +239,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 const SizedBox(height: 12),
 
-                // İkinci satır - Yeni özellikler
+                // İkinci satır - Şans Çarkı
                 Row(
                   children: [
                     Expanded(
                       child: BottomActionButton(
-                        text: 'Şans Çarkı',
+                        text: localizations.get('spin_wheel_title'),
                         emoji: '🎰',
                         onPressed: () => _openSpinWheelScreen(context),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Ebeveyn',
-                        emoji: '👨‍👩‍👧',
-                        onPressed: () => _openParentPanelScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Hikaye',
-                        emoji: '📖',
-                        onPressed: () => _openAIStorytellerScreen(context),
-                      ),
-                    ),
                   ],
                 ),
 
-                const SizedBox(height: 12),
-
-                // Üçüncü satır - Gelişmiş özellikler
-                Row(
-                  children: [
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Sesli',
-                        emoji: '🎤',
-                        onPressed: () => _openVoiceCommandsScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Avatar',
-                        emoji: '👤',
-                        onPressed: () => _openAvatarScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Evcil',
-                        emoji: '🐱',
-                        onPressed: () => _openPetScreen(context),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Dördüncü satır - Keşif özellikleri
-                Row(
-                  children: [
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Yolculuk',
-                        emoji: '🗺️',
-                        onPressed: () => _openLearningJourneyScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Galeri',
-                        emoji: '🎨',
-                        onPressed: () => _openMathArtGalleryScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: 'Laboratuvar',
-                        emoji: '🧪',
-                        onPressed: () => _openVirtualMathLabScreen(context),
-                      ),
-                    ),
-                  ],
-                ),
+                // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
+                // İKİNCİ SATIĞA EKLENECEKLER:
+                // - Ebeveyn (👨‍👩‍👧) - _openParentPanelScreen
+                // - Hikaye (📖) - _openAIStorytellerScreen
+                //
+                // ÜÇÜNCÜ SATIR:
+                // - Sesli (🎤) - _openVoiceCommandsScreen
+                // - Avatar (👤) - _openAvatarScreen
+                // - Evcil (🐱) - _openPetScreen
+                //
+                // DÖRDÜNCÜ SATIR:
+                // - Yolculuk (🗺️) - _openLearningJourneyScreen
+                // - Galeri (🎨) - _openMathArtGalleryScreen
+                // - Laboratuvar (🧪) - _openVirtualMathLabScreen
 
                 const SizedBox(height: 24),
               ],
@@ -329,69 +278,166 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // Dil değiştirme butonu
   Widget _buildLanguageButton(BuildContext context, AuthService authService) {
-    return PopupMenuButton<String>(
-      icon: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.black.withAlpha(128),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            width: 1.5,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            _getCurrentFlag(authService),
-            style: const TextStyle(fontSize: 20),
-          ),
-        ),
-      ),
-      offset: const Offset(0, 60),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      onSelected: (String languageCode) {
-        _changeLanguage(context, languageCode, authService);
+    final currentLocale = Localizations.localeOf(context);
+    final isKurdish = currentLocale.languageCode == 'ku';
+    
+    return ElevatedButton(
+      onPressed: () {
+        debugPrint('Dil butonu tıklandı!');
+        _showLanguageDialog(context, authService);
       },
-      itemBuilder: (BuildContext context) {
-        return _supportedLanguages.map((lang) {
-          final isCurrent = _isCurrentLanguage(lang['code'] as String, authService);
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        shape: const CircleBorder(),
+        padding: const EdgeInsets.all(12),
+        elevation: 4,
+      ),
+      child: isKurdish
+          ? const KurtceFlag(size: 28)
+          : Text(
+              _getCurrentFlag(authService),
+              style: const TextStyle(fontSize: 24),
+            ),
+    );
+  }
+  
+  // Bayrak widget'ı oluştur (Kürtçe için özel widget)
+  Widget _buildFlagWidget(String languageCode, String flagEmoji, {double size = 24}) {
+    if (languageCode == 'ku') {
+      return KurtceFlag(size: size);
+    }
+    return Text(
+      flagEmoji,
+      style: TextStyle(fontSize: size),
+    );
+  }
 
-          return PopupMenuItem<String>(
-            value: lang['code'] as String,
-            child: Row(
-              children: [
-                Text(
-                  lang['flag'] as String,
-                  style: const TextStyle(fontSize: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    lang['name'] as String,
-                    style: TextStyle(
-                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                      color: isCurrent ? Colors.blue : Colors.white,
-                      fontSize: 15,
+  // Dil seçim dialogu - DÜZELTİLDİ: Tüm diller görünür
+  void _showLanguageDialog(BuildContext ctx, AuthService authService) {
+    debugPrint('_showLanguageDialog çağrıldı');
+    final currentLocale = Localizations.localeOf(ctx);
+    
+    showDialog(
+      context: ctx,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF1a1a2e),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.7, // Ekranın %70'i
+              maxWidth: 400,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Başlık
+                  Row(
+                    children: [
+                      const Icon(Icons.language, color: Colors.blue, size: 28),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Dil Seçin',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Dil listesi - Expanded ile tüm alanı kullan
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _supportedLanguages.length,
+                      itemBuilder: (_, index) {
+                        final lang = _supportedLanguages[index];
+                        final isCurrent = currentLocale.languageCode == lang['code'];
+                        
+                        return InkWell(
+                          onTap: () {
+                            _changeLanguage(dialogContext, lang['code'] as String, authService);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: isCurrent 
+                                  ? Colors.blue.withOpacity(0.2) 
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: isCurrent 
+                                  ? Border.all(color: Colors.blue, width: 2)
+                                  : Border.all(color: Colors.white.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              children: [
+                                _buildFlagWidget(
+                                  lang['code'] as String,
+                                  lang['flag'] as String,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    lang['name'] as String,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      color: isCurrent ? Colors.blue : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                if (isCurrent)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.blue,
+                                    size: 24,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-                if (isCurrent)
-                  Icon(
-                    Icons.check_circle,
-                    color: Colors.blue,
-                    size: 18,
+                  
+                  const SizedBox(height: 16),
+                  
+                  // İptal butonu
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'İptal',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
-          );
-        }).toList();
+          ),
+        );
       },
     );
   }
@@ -406,72 +452,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return lang['flag'] as String;
   }
 
-  // Dilin şu anki dil olup olmadığını kontrol et
-  bool _isCurrentLanguage(String languageCode, AuthService authService) {
-    final currentLocale = Localizations.localeOf(context);
-    return currentLocale.languageCode == languageCode;
-  }
-
   // Dil değiştirme işlemi
-  void _changeLanguage(BuildContext context, String languageCode, AuthService authService) async {
+  void _changeLanguage(BuildContext dialogContext, String languageCode, AuthService authService) async {
+    // Önce dialog'u kapat
+    Navigator.of(dialogContext).pop();
+    
     try {
       // AuthService üzerinden dil güncelle
       await authService.updateUserLanguage(languageCode);
 
-      // AppState'i güncelle
-      final appState = context.findAncestorStateOfType<_MyAppState>();
-      if (appState != null && appState.mounted) {
-        appState.changeLanguage(Locale(languageCode));
-      }
-
-      // Snackbar ile bilgilendir
-      _showLanguageChangedSnackbar(context, languageCode);
-
-      // UI'ı yenile
+      // LocaleProvider üzerinden dil değiştir - anında değişiklik
       if (mounted) {
-        setState(() {});
+        context.read<LocaleProvider>().changeLanguage(Locale(languageCode));
       }
     } catch (e) {
-      _showErrorSnackbar(context, 'Dil değiştirilirken bir hata oluştu: $e');
+      if (mounted) {
+        _showErrorSnackbar(context, 'Dil değiştirilirken bir hata oluştu: $e');
+      }
     }
-  }
-
-  // Dil değişti snackbar'ı
-  void _showLanguageChangedSnackbar(BuildContext context, String languageCode) {
-    final langName = _supportedLanguages.firstWhere(
-          (lang) => lang['code'] == languageCode,
-      orElse: () => _supportedLanguages[0],
-    )['name'] as String;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.language, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Dil değiştirildi: $langName',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        action: SnackBarAction(
-          label: 'Tamam',
-          textColor: Colors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
   }
 
   // Hata snackbar'ı
@@ -500,19 +498,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Profil butonu - DEĞİŞTİRİLDİ: Direkt ProfileScreen'i açıyor
-  // HomeScreen'deki _buildProfileButton metodunu güncelleyin:
+  // Profil butonu
   Widget _buildProfileButton(BuildContext context, AppLocalizations localizations) {
     return GestureDetector(
       onTap: () {
-        // ProfileScreen'i aç
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ProfileScreen(
               onBack: () => Navigator.pop(context),
               onSettings: () {
-                // AYARLAR EKRANINA GİT - GÜNCELLENMİŞ
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -555,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Arkadaşlar ekranını aç
+  // Ekran açma metodları
   void _openFriendsScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -662,7 +657,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Rozetler ekranını aç
   void _openBadgesScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -674,7 +668,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Günlük ödüller ekranını aç
   void _openDailyRewardsScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -686,7 +679,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Hikaye modu ekranını aç
   void _openStoryModeScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -696,7 +688,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Mini oyunlar ekranını aç
   void _openMiniGamesScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -708,7 +699,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Oyun başlangıç ekranını aç
   void _openGameStartScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -719,21 +709,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
-}
-
-// MyAppState sınıfına erişim için extension
-// Bu, main.dart'daki _MyAppState sınıfına erişmek için kullanılır
-extension MyAppStateExtension on BuildContext {
-  _MyAppState? get _myAppState => findAncestorStateOfType<_MyAppState>();
-}
-
-// MyAppState sınıfı - main.dart'daki sınıfa referans
-// Bu sadece tip güvenliği için, gerçek sınıf main.dart'da
-abstract class _MyAppState extends State<MyApp> {
-  void changeLanguage(Locale locale);
-}
-
-// MyApp sınıfı - main.dart'daki sınıfa referans
-abstract class MyApp extends StatefulWidget {
-  const MyApp({super.key});
 }

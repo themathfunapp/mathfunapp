@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'models/app_user.dart';
@@ -16,6 +15,9 @@ import 'services/game_mechanics_service.dart';
 import 'services/offline_service.dart';
 import 'services/ai_storyteller_service.dart';
 import 'services/voice_command_service.dart';
+import 'services/premium_service.dart';
+import 'services/ad_service.dart';
+import 'providers/locale_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/mini_games_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -23,6 +25,7 @@ import 'screens/friends_screen.dart';
 import 'screens/badges_screen.dart';
 import 'screens/daily_rewards_screen.dart';
 import 'screens/story_mode_screen.dart';
+import 'screens/premium_screen.dart';
 import 'localization/app_localizations.dart';
 
 Future<void> main() async {
@@ -30,6 +33,9 @@ Future<void> main() async {
 
   // Firebase'i başlat - isolate kullanarak
   await _initializeFirebase();
+
+  // AdMob'u başlat
+  await AdService().initialize();
 
   // Performans için debugPrint ayarları
   debugPrint = (String? message, {int? wrapWidth}) {
@@ -45,6 +51,10 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
+        // Dil yönetimi
+        ChangeNotifierProvider<LocaleProvider>(
+          create: (_) => LocaleProvider(),
+        ),
         // Lazy loading'i aç - sadece ihtiyaç duyulunca oluştur
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
@@ -80,7 +90,10 @@ Future<void> main() async {
           create: (_) => GameMechanicsService(),
           update: (_, authService, mechanicsService) {
             if (authService.currentUser != null) {
-              mechanicsService!.initialize(authService.currentUser!.uid);
+              mechanicsService!.initialize(
+                authService.currentUser!.uid,
+                isGuest: authService.currentUser!.isGuest,
+              );
             }
             return mechanicsService!;
           },
@@ -98,6 +111,21 @@ Future<void> main() async {
         ChangeNotifierProvider<VoiceCommandService>(
           create: (_) => VoiceCommandService(),
         ),
+        ChangeNotifierProxyProvider<AuthService, PremiumService>(
+          create: (_) => PremiumService(),
+          update: (_, authService, premiumService) {
+            premiumService!.initialize(userId: authService.currentUser?.uid);
+            return premiumService;
+          },
+        ),
+        ChangeNotifierProxyProvider<PremiumService, AdService>(
+          create: (_) => AdService(),
+          update: (_, premiumService, adService) {
+            // Premium durumunu AdService ile senkronize et
+            adService!.setPremiumUser(premiumService.isPremium);
+            return adService;
+          },
+        ),
       ],
       child: const MyApp(),
     ),
@@ -110,6 +138,9 @@ Future<void> _initializeFirebase() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Web için oturum kalıcılığını ayarla (tarayıcı kapatılsa bile oturum açık kalsın)
+    await AuthService.initializePersistence();
   } catch (e) {
     debugPrint("Firebase başlatma hatası: $e");
   }
@@ -120,10 +151,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Locale>(
-      future: _getInitialLocale(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return Consumer<LocaleProvider>(
+      builder: (context, localeProvider, child) {
+        if (localeProvider.isLoading) {
           return _buildLoadingApp();
         }
 
@@ -147,7 +177,7 @@ class MyApp extends StatelessWidget {
             fontFamily: 'Roboto',
           ),
           themeMode: ThemeMode.light,
-          locale: snapshot.data ?? const Locale('tr'),
+          locale: localeProvider.locale,
           localizationsDelegates: const [
             AppLocalizationsDelegate(),
             GlobalMaterialLocalizations.delegate,
@@ -170,35 +200,17 @@ class MyApp extends StatelessWidget {
             Locale('ko', 'KR'),
           ],
           localeResolutionCallback: (locale, supportedLocales) {
-            // Basitleştirilmiş dil çözümleme
-            final savedLocale = snapshot.data ?? const Locale('tr');
-            if (savedLocale != const Locale('tr')) {
-              return savedLocale;
-            }
-
             for (var supportedLocale in supportedLocales) {
-              if (supportedLocale.languageCode == locale?.languageCode) {
+              if (supportedLocale.languageCode == localeProvider.locale.languageCode) {
                 return supportedLocale;
               }
             }
-
-            return const Locale('tr');
+            return localeProvider.locale;
           },
           home: const AuthWrapper(),
         );
       },
     );
-  }
-
-  // Başlangıç dili al
-  static Future<Locale> _getInitialLocale() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedLanguage = prefs.getString('user_language') ?? 'tr';
-      return Locale(savedLanguage);
-    } catch (e) {
-      return const Locale('tr');
-    }
   }
 
   // Basit loading ekranı
@@ -373,7 +385,16 @@ class HomeScreenWrapper extends StatelessWidget {
           ),
         );
       },
-      onPremium: () {},
+      onPremium: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PremiumScreen(
+              onBack: () => Navigator.pop(context),
+            ),
+          ),
+        );
+      },
     );
   }
 }

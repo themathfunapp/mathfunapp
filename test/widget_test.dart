@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mathfunapp/main.dart';
+import 'package:mathfun/main.dart';
 
 void main() {
   testWidgets('Matematik Macerası başlık testi', (WidgetTester tester) async {

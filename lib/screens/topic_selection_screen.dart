@@ -246,13 +246,6 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
           Row(
             children: [
               _buildInventoryBubble(
-                icon: Icons.favorite,
-                count: _inventory.lives,
-                color: Colors.red,
-                theme: theme,
-              ),
-              const SizedBox(width: 6),
-              _buildInventoryBubble(
                 icon: Icons.attach_money,
                 count: _inventory.coins,
                 color: Colors.amber,
@@ -260,6 +253,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
               ),
             ],
           ),
+
         ],
       ),
     );

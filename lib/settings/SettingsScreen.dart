@@ -90,10 +90,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 elevation: 8,
                 child: Column(
                   children: [
-                    // Dil Ayarı
-                    _buildLanguageSettingItem(context),
-
-                    const Divider(color: Color(0xFFE0E0E0), height: 1),
+                    // Dil Ayarı - Ana ekrana taşındı
+                    // _buildLanguageSettingItem(context),
+                    // const Divider(color: Color(0xFFE0E0E0), height: 1),
 
                     // Ses Efektleri
                     _buildSettingItem(

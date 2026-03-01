@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import '../localization/app_localizations.dart';
 import '../models/game_mechanics.dart';
+import '../services/ad_service.dart';
+import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 
-/// Hızlı Matematik Oyunu Ekranı - Çocuklar için özel tasarım
+/// Hızlı Matematik Oyunu Ekranı - 3 CAN SİSTEMİ VE REKLAM EKLENDİ
 class QuickMathScreen extends StatefulWidget {
   final String gameType;
   final AgeGroupSelection ageGroup;
@@ -47,9 +50,15 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   int _totalQuestions = 5;
   int _score = 0;
   int _correctAnswers = 0;
+  int _wrongAnswers = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   int? _selectedAnswer;
+
+  // CAN SİSTEMİ - 3 CAN
+  int _playerLives = 3;
+  final int _playerMaxLives = 3;
+  bool _gameOver = false;
 
   // Mevcut soru
   late MathQuestion _currentQuestion;
@@ -66,11 +75,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   late AnimationController _pulseController;
   late AnimationController _confettiController;
   late AnimationController _emojiFloatController;
+  late AnimationController _lifeShakeController;
 
   late Animation<double> _bounceAnimation;
   late Animation<double> _shakeAnimation;
   late Animation<double> _pulseAnimation;
   late Animation<double> _emojiFloatAnimation;
+  late Animation<double> _lifeShakeAnimation;
 
   // Oyun ayarları
   late Color _gameColor;
@@ -92,34 +103,22 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _initializeGameSettings();
     _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
 
-    // Animasyonları başlat
     _initializeAnimations();
-
-    // Soruları oluştur
     _generateQuestions();
     _currentQuestion = _questions[0];
-
-    // Parçacıkları başlat
     _startParticles();
-
-    // Zamanlayıcıyı başlat
     _startTimer();
   }
 
   void _initializeAnimations() {
-    // Bounce animasyonu (doğru cevap)
     _bounceController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _bounceAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(
-        parent: _bounceController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut),
     );
 
-    // Shake animasyonu (yanlış cevap)
     _shakeController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -128,7 +127,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
     );
 
-    // Pulse animasyonu (zamanlayıcı)
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -137,19 +135,25 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Konfeti animasyonu
     _confettiController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
 
-    // Emoji float animasyonu
     _emojiFloatController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
     _emojiFloatAnimation = Tween<double>(begin: -5, end: 5).animate(
       CurvedAnimation(parent: _emojiFloatController, curve: Curves.easeInOut),
+    );
+
+    _lifeShakeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _lifeShakeAnimation = Tween<double>(begin: 0, end: 8).animate(
+      CurvedAnimation(parent: _lifeShakeController, curve: Curves.elasticIn),
     );
   }
 
@@ -171,10 +175,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         _particles.add(newParticle);
       });
 
-      // Eski parçacıkları temizle
-      if (_particles.length > 20) {
-        _particles.removeAt(0);
+      for (var particle in _particles) {
+        particle.y += particle.speed;
+        particle.opacity -= 0.005;
+        particle.rotation += 0.05;
       }
+
+      _particles.removeWhere((p) => p.opacity <= 0 || p.y > MediaQuery.of(context).size.height + 50);
     });
   }
 
@@ -237,6 +244,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _pulseController.dispose();
     _confettiController.dispose();
     _emojiFloatController.dispose();
+    _lifeShakeController.dispose();
     super.dispose();
   }
 
@@ -244,14 +252,8 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     final random = math.Random();
     _questions = [];
     for (int i = 0; i < _totalQuestions; i++) {
-      _questions.add(_generateQuestion(random));
+      _questions.add(_generateMixedQuestion(random));
     }
-  }
-
-  MathQuestion _generateQuestion(math.Random random) {
-    // Konuya özel soru üret (önceki koddan aynı)
-    // ...
-    return _generateMixedQuestion(random);
   }
 
   MathQuestion _generateMixedQuestion(math.Random random) {
@@ -259,7 +261,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     String operator;
     List<int> options;
 
-    // Yaş grubuna göre zorluk
     int maxNumber;
     List<String> operators;
 
@@ -338,12 +339,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _timeLeft = widget.timeLimit ?? 15;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft > 0) {
+      if (_timeLeft > 0 && !_gameOver) {
         setState(() {
           _timeLeft--;
           _totalTime++;
         });
-      } else {
+      } else if (_timeLeft == 0 && !_gameOver) {
         _handleTimeout();
       }
     });
@@ -351,20 +352,17 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   void _handleTimeout() {
     _timer?.cancel();
-    _shakeController.forward().then((_) {
-      _shakeController.reset();
-      _nextQuestion();
-    });
+    _checkAnswer(-1, isTimeout: true);
   }
 
-  void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+  void _checkAnswer(int answer, {bool isTimeout = false}) {
+    if (_isAnswered || _gameOver) return;
 
     _timer?.cancel();
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
-      _isCorrect = answer == _currentQuestion.correctAnswer;
+      _isCorrect = !isTimeout && answer == _currentQuestion.correctAnswer;
     });
 
     if (_isCorrect) {
@@ -374,16 +372,34 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
       _confettiController.forward(from: 0);
     } else {
+      _wrongAnswers++;
+      _playerLives--;
       _shakeController.forward(from: 0);
+      _lifeShakeController.forward().then((_) => _lifeShakeController.reset());
+
+      if (_playerLives <= 0) {
+        _gameOver = true;
+        _particleTimer?.cancel();
+        _showGameOverDialog();
+        return;
+      }
     }
 
     Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted || _gameOver) return;
       _nextQuestion();
     });
   }
 
   int _calculateScore() {
-    return 10;
+    int baseScore = 10;
+    if (_timeLeft > 0) {
+      baseScore += _timeLeft;
+    }
+    if (_correctAnswers > 0 && _correctAnswers % 3 == 0) {
+      baseScore = (baseScore * 1.5).round();
+    }
+    return baseScore;
   }
 
   void _nextQuestion() {
@@ -398,6 +414,166 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     } else {
       _showResults();
     }
+  }
+
+  void _showGameOverDialog() {
+    _timer?.cancel();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2C3E50), Color(0xFFE74C3C)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('💔', style: TextStyle(fontSize: 60)),
+              const SizedBox(height: 16),
+              const Text(
+                'CANLAR BİTTİ!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$_correctAnswers doğru, $_wrongAnswers yanlış',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _reviveWithAd();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.play_circle, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'REKLAM İZLE +1 CAN KAZAN',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _restartGame();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('TEKRAR DENE'),
+                ),
+              ),
+
+              Container(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onBack();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white.withOpacity(0.7),
+                  ),
+                  child: const Text('ÇIKIŞ'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _reviveWithAd() {
+    final adService = AdService();
+    
+    adService.watchAdForLife(
+      onLifeEarned: () {
+        if (mounted) {
+          setState(() {
+            _playerLives = 1;
+            _gameOver = false;
+            _isAnswered = false;
+            _selectedAnswer = null;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          
+          _startTimer();
+        }
+      },
+      onAdClosed: () {
+        if (mounted && _playerLives <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    );
+
+    _startParticles();
+    _startTimer();
   }
 
   Widget _buildTopBar() {
@@ -418,7 +594,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       ),
       child: Row(
         children: [
-          // Geri butonu
           GestureDetector(
             onTap: () => _showExitConfirmation(),
             child: Container(
@@ -428,58 +603,60 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 color: Colors.white.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 24),
             ),
           ),
 
           const Spacer(),
 
-          // Başlık
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.topicName ?? 'Hızlı Matematik',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-              ),
-              if (widget.difficulty != null)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          AnimatedBuilder(
+            animation: _lifeShakeAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(_lifeShakeAnimation.value, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
                   ),
-                  child: Text(
-                    widget.difficulty!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.amber,
-                    ),
+                  child: Row(
+                    children: [
+                      ...List.generate(
+                        _playerMaxLives,
+                            (index) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            index < _playerLives
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: index < _playerLives
+                                ? Colors.red
+                                : Colors.white.withOpacity(0.5),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_playerLives/$_playerMaxLives',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
                   ),
+
                 ),
-            ],
+              );
+            },
           ),
 
-          const Spacer(),
+          const SizedBox(width: 12),
 
-          // Puan
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
@@ -575,77 +752,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     );
   }
 
-  Widget _buildTimer() {
-    final isLowTime = _timeLeft <= 5;
-
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: isLowTime ? _pulseAnimation.value : 1.0,
-          child: Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isLowTime
-                    ? [Colors.red.shade400, Colors.orange.shade400]
-                    : [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.1)],
-              ),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (isLowTime ? Colors.red : Colors.white).withOpacity(0.3),
-                  blurRadius: 15,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Süre
-                Center(
-                  child: Text(
-                    '$_timeLeft',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: isLowTime ? Colors.white : Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Zamanlayıcı simgesi
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: Icon(
-                    Icons.timer,
-                    color: isLowTime ? Colors.red.shade200 : Colors.white70,
-                    size: 20,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildQuestion() {
     final isLowTime = _timeLeft <= 5;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: AnimatedBuilder(
@@ -653,95 +762,91 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         builder: (context, child) {
           return Transform.scale(
             scale: _isAnswered && _isCorrect ? _bounceAnimation.value : 1.0,
-            child: Opacity(
-              opacity: 1.0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_gameColor.withOpacity(0.9), _gameColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _gameColor.withOpacity(0.4),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                  border: Border.all(color: Colors.white, width: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_gameColor.withOpacity(0.9), _gameColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Zamanlayıcı
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: _gameColor.withOpacity(0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: isLowTime ? _pulseAnimation.value : 1.0,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$_timeLeft',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  Text(_currentCharacter, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 4,
+                          color: Colors.black26,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (_isAnswered)
                     AnimatedBuilder(
-                      animation: _pulseAnimation,
+                      animation: _bounceController,
                       builder: (context, child) {
                         return Transform.scale(
-                          scale: isLowTime ? _pulseAnimation.value : 1.0,
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
-                                width: 2,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$_timeLeft',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
+                          scale: 1.0 + _bounceController.value * 0.3,
+                          child: Text(
+                            _isCorrect ? '✅' : '❌',
+                            style: const TextStyle(fontSize: 28),
                           ),
                         );
                       },
                     ),
-                    const SizedBox(width: 12),
-                    Text(_currentCharacter, style: const TextStyle(fontSize: 28)),
-                    const SizedBox(width: 12),
-                    Text(
-                      '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 4,
-                            color: Colors.black26,
-                            offset: Offset(2, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (_isAnswered)
-                      AnimatedBuilder(
-                        animation: _bounceController,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: 1.0 + _bounceController.value * 0.3,
-                            child: Text(
-                              _isCorrect ? '✅' : '❌',
-                              style: const TextStyle(fontSize: 28),
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
           );
@@ -799,7 +904,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _gameOver || _playerLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 55,
@@ -840,8 +945,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     return SizedBox.expand(
       child: Stack(
         children: _particles.map((particle) {
-          return AnimatedPositioned(
-            duration: const Duration(milliseconds: 100),
+          return Positioned(
             left: particle.x,
             top: particle.y,
             child: Opacity(
@@ -890,19 +994,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
               const SizedBox(height: 16),
               const Text(
                 'Oyundan Çıkılsın Mı?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 12),
               const Text(
                 'Oyundan çıkarsan skorun kaydedilmez.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white70),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -914,9 +1011,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white.withOpacity(0.2),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: const Text('HAYIR'),
@@ -926,15 +1021,15 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
+                        _timer?.cancel();
+                        _particleTimer?.cancel();
                         Navigator.pop(context);
                         widget.onBack();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: const Text('EVET'),
@@ -953,6 +1048,10 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _timer?.cancel();
     _particleTimer?.cancel();
 
+    // Her 3 oyunda bir geçiş reklamı göster (Premium değilse)
+    final adService = AdService();
+    adService.showInterstitialAd();
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -961,7 +1060,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildResultsDialog() {
-    final percentage = (_correctAnswers / _totalQuestions * 100).round();
+    final percentage = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions * 100).round() : 0;
     final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
 
     return Dialog(
@@ -973,10 +1072,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.purple.shade400,
-                Colors.blue.shade400,
-              ],
+              colors: [Colors.purple.shade400, Colors.blue.shade400],
             ),
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
@@ -990,29 +1086,21 @@ class _QuickMathScreenState extends State<QuickMathScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Başlık
               const Text(
                 '🎉 OYUN BİTTİ 🎉',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black38,
-                      blurRadius: 10,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
+                  shadows: [Shadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 3))],
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // Yıldızlar
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (index) {
+                children: List.generate(_playerMaxLives, (index) {
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 500 + index * 200),
                     tween: Tween(begin: 0.0, end: 1.0),
@@ -1039,7 +1127,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
               const SizedBox(height: 30),
 
-              // İstatistikler
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -1051,18 +1138,21 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                   children: [
                     _buildResultRow('📊 Doğru Cevaplar', '$_correctAnswers / $_totalQuestions'),
                     const Divider(color: Colors.white24),
+                    _buildResultRow('❌ Yanlış Cevaplar', '$_wrongAnswers'),
+                    const Divider(color: Colors.white24),
                     _buildResultRow('⭐ Toplam Puan', '$_score'),
                     const Divider(color: Colors.white24),
                     _buildResultRow('🎯 Başarı Oranı', '%$percentage'),
                     const Divider(color: Colors.white24),
                     _buildResultRow('⏱️ Toplam Süre', '${_totalTime}s'),
+                    const Divider(color: Colors.white24),
+                    _buildResultRow('❤️ Kalan Can', '$_playerLives/3'),
                   ],
                 ),
               ),
 
               const SizedBox(height: 30),
 
-              // Butonlar
               Row(
                 children: [
                   Expanded(
@@ -1074,18 +1164,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white.withOpacity(0.2),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.home),
-                          SizedBox(width: 8),
-                          Text('Ana Menü', style: TextStyle(fontSize: 16)),
-                        ],
+                        children: [Icon(Icons.home), SizedBox(width: 8), Text('Ana Menü', style: TextStyle(fontSize: 16))],
                       ),
                     ),
                   ),
@@ -1099,19 +1183,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         elevation: 8,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.refresh),
-                          SizedBox(width: 8),
-                          Text('Tekrar Oyna', style: TextStyle(fontSize: 16)),
-                        ],
+                        children: [Icon(Icons.refresh), SizedBox(width: 8), Text('Tekrar Oyna', style: TextStyle(fontSize: 16))],
                       ),
                     ),
                   ),
@@ -1130,21 +1208,8 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.white70,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16, color: Colors.white70)),
+          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
         ],
       ),
     );
@@ -1155,6 +1220,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _currentQuestionIndex = 0;
       _score = 0;
       _correctAnswers = 0;
+      _wrongAnswers = 0;
+      _playerLives = 3;
+      _gameOver = false;
       _totalTime = 0;
       _isAnswered = false;
       _selectedAnswer = null;
@@ -1175,18 +1243,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              _gameColor,
-              _gameColor.withOpacity(0.8),
-              Colors.deepPurple.shade900,
-            ],
+            colors: [_gameColor, _gameColor.withOpacity(0.8), Colors.deepPurple.shade900],
           ),
         ),
         child: Stack(
           children: [
-            // Arka plan parçacıkları
             _buildBackgroundParticles(),
-
             SafeArea(
               child: Column(
                 children: [
@@ -1224,5 +1286,21 @@ class _Particle {
     required this.speed,
     required this.color,
     required this.emoji,
+  });
+}
+
+class MathQuestion {
+  final int num1;
+  final int num2;
+  final String operator;
+  final int correctAnswer;
+  final List<int> options;
+
+  MathQuestion({
+    required this.num1,
+    required this.num2,
+    required this.operator,
+    required this.correctAnswer,
+    required this.options,
   });
 }

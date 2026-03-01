@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
+import '../models/daily_reward.dart';
+import '../services/badge_service.dart';
+import '../services/daily_reward_service.dart';
 import 'game_start_screen.dart';
 
 class SpecializedGameScreen extends StatefulWidget {
@@ -30,7 +34,14 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   int _currentQuestionIndex = 0;
   int _score = 0;
   int _correctAnswers = 0;
+  int _wrongAnswers = 0;
   int _lives = 3;
+  int _currentStreak = 0;
+  int _bestStreak = 0;
+  int _totalAnswerTimeSeconds = 0;
+  int _fastAnswersCount = 0;
+  int _superFastAnswersCount = 0;
+  bool _hasReportedCompletion = false;
   bool _isAnswered = false;
   dynamic _selectedAnswer;
   bool _isCorrect = false;
@@ -40,6 +51,14 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   late Animation<double> _animation;
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
+
+  // REKLAM SİSTEMİ
+  int _remainingAds = 3; // Kalan reklam hakkı
+  int _totalAdsWatched = 0; // İzlenen reklam sayısı
+  bool _isGameOver = false; // Oyun bitti mi?
+  bool _gamePaused = false; // Oyun duraklatıldı mı?
+  late AnimationController _adController; // Reklam butonu animasyonu
+  late Animation<double> _adAnimation;
 
   @override
   void initState() {
@@ -61,6 +80,16 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _heartAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
       CurvedAnimation(parent: _heartController, curve: Curves.elasticOut),
     );
+
+    // Reklam animasyonu
+    _adController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
+    _adAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _adController, curve: Curves.easeInOut),
+    );
+
     _startTimer();
   }
 
@@ -69,6 +98,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _timer?.cancel();
     _animationController.dispose();
     _heartController.dispose();
+    _adController.dispose();
     super.dispose();
   }
 
@@ -83,7 +113,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         widget.ageGroup,
         random,
       );
-      // Map<String, dynamic>'e dönüştür
       _questions.add(Map<String, dynamic>.from(question));
     }
   }
@@ -98,12 +127,14 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   void _startTimer() {
+    if (_isGameOver || _gamePaused) return;
+
     _timer?.cancel();
     _timeLeft = _getTimeLimit();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_timeLeft > 0) {
+      if (_timeLeft > 0 && !_isGameOver && !_gamePaused) {
         setState(() => _timeLeft--);
-      } else {
+      } else if (_timeLeft == 0 && !_isGameOver && !_gamePaused) {
         _handleTimeout();
       }
     });
@@ -120,22 +151,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   void _handleTimeout() {
     _timer?.cancel();
-    setState(() {
-      _isAnswered = true;
-      _isCorrect = false;
-      _lives--;
-    });
-    _heartController.forward().then((_) => _heartController.reset());
-    
-    if (_lives <= 0) {
-      _showGameOver();
-    } else {
-      Future.delayed(const Duration(seconds: 1), _nextQuestion);
-    }
+    _loseLife();
   }
 
   void _checkAnswer(dynamic answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _isGameOver || _gamePaused) return;
 
     _timer?.cancel();
     final currentQuestion = _questions[_currentQuestionIndex];
@@ -145,19 +165,51 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _isCorrect = answer == currentQuestion['correctAnswer'];
     });
 
+    final timeUsed = _getTimeLimit() - _timeLeft;
+    _totalAnswerTimeSeconds += timeUsed;
+    if (timeUsed <= 5) _superFastAnswersCount++;
+    else if (timeUsed <= 10) _fastAnswersCount++;
+
     if (_isCorrect) {
       _score += _calculateScore();
       _correctAnswers++;
+      _currentStreak++;
+      if (_currentStreak > _bestStreak) _bestStreak = _currentStreak;
       _animationController.forward(from: 0);
+
+      // Biraz bekle ve sonraki soruya geç
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted || _isGameOver) return;
+        _nextQuestion();
+      });
     } else {
-      _lives--;
-      _heartController.forward().then((_) => _heartController.reset());
+      _wrongAnswers++;
+      _currentStreak = 0;
+      _loseLife();
     }
+  }
+
+  void _loseLife() {
+    _heartController.forward().then((_) => _heartController.reset());
+
+    setState(() {
+      _lives--;
+    });
 
     if (_lives <= 0) {
-      Future.delayed(const Duration(seconds: 1), _showGameOver);
+      _gameOver();
     } else {
-      Future.delayed(const Duration(seconds: 2), _nextQuestion);
+      _gamePaused = true;
+
+      Future.delayed(const Duration(seconds: 1), () {
+        if (!mounted || _isGameOver) return;
+        setState(() {
+          _isAnswered = false;
+          _selectedAnswer = null;
+          _gamePaused = false;
+        });
+        _startTimer();
+      });
     }
   }
 
@@ -178,6 +230,295 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
+  // REKLAM İZLEYEREK CAN KAZANMA
+  void _reviveWithAd() {
+    // TODO: Gerçek reklam entegrasyonu buraya eklenecek
+
+    setState(() {
+      _lives = 1; // 1 CAN KAZANIR
+      _remainingAds--; // Kalan reklam hakkı azalır
+      _totalAdsWatched++; // İzlenen reklam sayısı artar
+      _isGameOver = false;
+      _gamePaused = false;
+      _isAnswered = false;
+      _selectedAnswer = null;
+    });
+
+    // Kullanıcıya bildirim göster
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.play_circle, color: Colors.white, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '🎬 Reklam izlendi!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    '+1 can kazandın! (Kalan: $_remainingAds)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+
+    // Yeni soruya geç ve devam et
+    _startTimer();
+  }
+
+  void _gameOver() {
+    setState(() {
+      _isGameOver = true;
+      _gamePaused = true;
+    });
+    _timer?.cancel();
+    _reportGameCompletion();
+    _showGameOverDialog();
+  }
+
+  /// Oyun sonuçlarını BadgeService ve DailyRewardService'e bildir
+  void _reportGameCompletion() {
+    if (!mounted || _hasReportedCompletion) return;
+    _hasReportedCompletion = true;
+    try {
+      final badgeService = Provider.of<BadgeService>(context, listen: false);
+      final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+
+      final questionsAnswered = _currentQuestionIndex + 1;
+      final avgTime = questionsAnswered > 0
+          ? _totalAnswerTimeSeconds / questionsAnswered
+          : 0.0;
+
+      badgeService.onGameCompleted(
+        questionsAnswered: questionsAnswered,
+        correctAnswers: _correctAnswers,
+        wrongAnswers: _wrongAnswers,
+        score: _score,
+        averageTime: avgTime,
+        fastAnswersCount: _fastAnswersCount,
+        superFastAnswersCount: _superFastAnswersCount,
+        streak: _bestStreak,
+      );
+
+      rewardService.updateTaskProgress(TaskType.playGames, 1);
+      rewardService.updateTaskProgress(TaskType.solveQuestions, _correctAnswers);
+      rewardService.updateTaskProgress(TaskType.correctStreak, _bestStreak);
+      if (_wrongAnswers == 0 && _correctAnswers > 0) {
+        rewardService.updateTaskProgress(TaskType.perfectGame, 1);
+      }
+      rewardService.updateTaskProgress(TaskType.fastAnswers, _fastAnswersCount + _superFastAnswersCount);
+    } catch (e) {
+      debugPrint('Report game completion error: $e');
+    }
+  }
+
+  void _showGameOverDialog() {
+    final bool showAdOption = _remainingAds > 0; // Reklam hakkı varsa göster
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                widget.topicSettings.color.withOpacity(0.8),
+                widget.topicSettings.color,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '💔 CANLAR BİTTİ 💔',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${widget.topicSettings.emoji} ${widget.topicSettings.title}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    _buildStatRow('Doğru Cevaplar', '$_correctAnswers / ${_currentQuestionIndex + 1}'),
+                    const Divider(color: Colors.white24),
+                    _buildStatRow('Skor', '$_score'),
+                    if (_totalAdsWatched > 0) ...[
+                      const Divider(color: Colors.white24),
+                      _buildStatRow('İzlenen Reklam', '$_totalAdsWatched'),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // REKLAM İZLE BUTONU - Kalan hak varsa göster
+              if (showAdOption) ...[
+                AnimatedBuilder(
+                  animation: _adAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _adAnimation.value,
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _reviveWithAd();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber,
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 8,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.play_circle, size: 28),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'REKLAM İZLE +1 CAN KAZAN',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Kalan hak: $_remainingAds/3',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+
+              // TEKRAR DENE
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _restartGame();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'TEKRAR DENE',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+
+              // ANA MENÜ
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.onBack();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'ANA MENÜ',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) {
+      if (!_isGameOver) {
+        setState(() {
+          _gamePaused = false;
+        });
+      }
+    });
+  }
+
   Widget _buildGeometryQuestion(Map<String, dynamic> question) {
     final type = question['type'] as String? ?? '';
     final correctAnswer = question['correctAnswer'];
@@ -186,8 +527,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
     switch (type) {
       case 'identify_shapes':
-        final shapeToShow = question['shapeToShow'] as String? ?? 
-                           (correctAnswer is String ? correctAnswer : '');
+        final shapeToShow = question['shapeToShow'] as String? ??
+            (correctAnswer is String ? correctAnswer : '');
         return Column(
           children: [
             Container(
@@ -225,9 +566,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         );
 
       case 'count_sides':
-        final shapeName = question['shapeToShow'] as String? ?? 
-                         (correctAnswer is int && correctAnswer == 3 ? 'üçgen' :
-                          correctAnswer is int && correctAnswer == 4 ? 'kare' : 'beşgen');
+        final shapeName = question['shapeToShow'] as String? ??
+            (correctAnswer is int && correctAnswer == 3 ? 'üçgen' :
+            correctAnswer is int && correctAnswer == 4 ? 'kare' : 'beşgen');
         final optionsList = options.map((o) => o as int).toList();
 
         return Column(
@@ -407,6 +748,15 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     final options = question['options'] as List<dynamic>? ?? [];
     final correctAnswer = question['correctAnswer'];
 
+    // Eğer soru daha önce karıştırılmamışsa, karıştır ve soruya ekle
+    if (!question.containsKey('shuffledOptions')) {
+      final shuffled = List<dynamic>.from(options)..shuffle(math.Random());
+      question['shuffledOptions'] = shuffled;
+    }
+
+    // Karıştırılmış seçenekleri kullan
+    final displayOptions = question['shuffledOptions'] as List<dynamic>;
+
     return Column(
       children: [
         Container(
@@ -438,7 +788,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: options.map((option) {
+          children: displayOptions.map((option) {
             return _buildTimeOption(option.toString());
           }).toList(),
         ),
@@ -446,14 +796,15 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
+
   Widget _buildAnalogClock(String time) {
     try {
       final parts = time.split(':');
       if (parts.length != 2) return const Icon(Icons.access_time, size: 80);
-      
+
       final hour = int.tryParse(parts[0]) ?? 0;
       final minute = int.tryParse(parts[1]) ?? 0;
-      
+
       return CustomPaint(
         painter: _ClockPainter(hour: hour, minute: minute),
         child: Container(),
@@ -604,7 +955,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Sadece görsel - rakam yok
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 4,
@@ -635,7 +985,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       case 'üçgen': return '🔺';
       case 'dikdörtgen': return '▭';
       case 'beşgen': return '⬟';
-      // Geriye dönük uyumluluk için İngilizce isimleri de destekleyelim
       case 'circle': return '🔴';
       case 'square': return '⬛';
       case 'triangle': return '🔺';
@@ -652,7 +1001,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       case 'üçgen': return 'Üçgen';
       case 'dikdörtgen': return 'Dikdörtgen';
       case 'beşgen': return 'Beşgen';
-      // Geriye dönük uyumluluk için İngilizce isimleri de destekleyelim
       case 'circle': return 'Daire';
       case 'square': return 'Kare';
       case 'triangle': return 'Üçgen';
@@ -697,7 +1045,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Soru başlığı
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -730,12 +1077,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 30),
 
-        // Sayma tipine göre içerik
         if (type == 'count_objects') ...[
-          // Emoji'leri göster
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(20),
@@ -750,7 +1095,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               runSpacing: 12,
               children: List.generate(
                 question['count'] as int,
-                (index) => Text(
+                    (index) => Text(
                   question['emoji'] as String,
                   style: const TextStyle(fontSize: 32),
                 ),
@@ -759,7 +1104,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           ),
           const SizedBox(height: 20),
         ] else if (type == 'find_missing' || type == 'whats_next') ...[
-          // Sayı dizisini göster
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -781,7 +1125,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           const SizedBox(height: 20),
         ],
 
-        // Seçenekler - 2x2 layout
         if (optionsList.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -819,8 +1162,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     final type = question['type'] as String? ?? '';
     final questionText = question['question'] as String? ?? '';
     final options = question['options'] as List<dynamic>? ?? [];
-    
-    // Seçenekleri string veya int olabilir
+
     List<dynamic> optionsList = [];
     if (type == 'decimal_compare') {
       optionsList = options.whereType<String>().toList();
@@ -833,7 +1175,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Soru kutusu - kompakt tasarım
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -866,10 +1207,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 30),
 
-        // Seçenekler - 2x2 layout
         if (optionsList.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -919,9 +1259,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           gradient: _isAnswered
               ? (isCorrectAnswer
               ? const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF45a049)])
-              : (isSelected 
-                  ? const LinearGradient(colors: [Color(0xFFE53935), Color(0xFFD32F2F)])
-                  : LinearGradient(colors: [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.1)])))
+              : (isSelected
+              ? const LinearGradient(colors: [Color(0xFFE53935), Color(0xFFD32F2F)])
+              : LinearGradient(colors: [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.1)])))
               : LinearGradient(colors: [Colors.white.withOpacity(0.3), Colors.white.withOpacity(0.2)]),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
@@ -951,7 +1291,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Soru kutusu - kompakt tasarım
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -982,10 +1321,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 30),
 
-        // Seçenekler - 2x2 layout
         if (optionsList.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1027,7 +1365,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Soru kutusu - kompakt tasarım
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1060,10 +1397,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 30),
 
-        // Seçenekler - 2x2 layout
         if (optionsList.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1207,6 +1543,34 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
           const Spacer(),
+          // Reklam hakkı göstergesi (kalan hak varsa)
+          if (_remainingAds > 0 && !_isGameOver)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.play_circle, color: Colors.amber, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_remainingAds',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -1228,37 +1592,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTimer() {
-    final isLowTime = _timeLeft <= 5;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        width: 70,
-        height: 70,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isLowTime
-              ? Colors.red.withOpacity(0.3)
-              : Colors.white.withOpacity(0.2),
-          border: Border.all(
-            color: isLowTime ? Colors.red : Colors.white.withOpacity(0.5),
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            '$_timeLeft',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: isLowTime ? Colors.red.shade200 : Colors.white,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1338,6 +1671,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   void _showExitDialog() {
+    _gamePaused = true;
+    _timer?.cancel();
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1375,6 +1711,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
+                          setState(() {
+                            _gamePaused = false;
+                          });
+                          _startTimer();
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
@@ -1417,117 +1757,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  void _showGameOver() {
-    _timer?.cancel();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                widget.topicSettings.color.withOpacity(0.8),
-                widget.topicSettings.color,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '💔 CANLAR BİTTİ 💔',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '${widget.topicSettings.emoji} ${widget.topicSettings.title}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _buildStatRow('Doğru Cevaplar', '$_correctAnswers / ${_currentQuestionIndex + 1}'),
-                    const Divider(color: Colors.white24),
-                    _buildStatRow('Skor', '$_score'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Ana Menü',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _restartGame();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Tekrar Oyna',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showResults() {
     _timer?.cancel();
+    _reportGameCompletion();
 
     final percentage = _questions.isNotEmpty
         ? (_correctAnswers / _questions.length * 100).round()
@@ -1604,6 +1836,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                     _buildStatRow('Skor', '$_score'),
                     const Divider(color: Colors.white24),
                     _buildStatRow('Başarı Oranı', '%$percentage'),
+                    if (_totalAdsWatched > 0) ...[
+                      const Divider(color: Colors.white24),
+                      _buildStatRow('İzlenen Reklam', '$_totalAdsWatched'),
+                    ],
                   ],
                 ),
               ),
@@ -1684,6 +1920,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _score = 0;
       _correctAnswers = 0;
       _lives = 3;
+      _remainingAds = 3; // REKLAM HAKLARI SIFIRLANIR
+      _totalAdsWatched = 0;
+      _isGameOver = false;
+      _gamePaused = false;
       _isAnswered = false;
       _selectedAnswer = null;
       _generateQuestions();
@@ -1719,9 +1959,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                 child: Center(
                   child: _questions.isNotEmpty
                       ? AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 500),
-                          child: _buildQuestionContent(currentQuestion),
-                        )
+                    duration: const Duration(milliseconds: 500),
+                    child: _buildQuestionContent(currentQuestion),
+                  )
                       : const CircularProgressIndicator(color: Colors.white),
                 ),
               ),
@@ -1746,26 +1986,23 @@ class _ClockPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2 - 10;
 
-    // Saat çerçevesi
     final framePaint = Paint()
       ..color = const Color(0xFF1ABC9C)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8;
     canvas.drawCircle(center, radius, framePaint);
 
-    // Saat arkaplanı
     final bgPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius - 4, bgPaint);
 
-    // Saat işaretleri
     for (int i = 0; i < 12; i++) {
       final angle = (i * 30 - 90) * math.pi / 180;
       final isHourMark = i % 3 == 0;
       final markLength = isHourMark ? 15.0 : 8.0;
       final markWidth = isHourMark ? 3.0 : 2.0;
-      
+
       final startX = center.dx + (radius - markLength - 4) * math.cos(angle);
       final startY = center.dy + (radius - markLength - 4) * math.sin(angle);
       final endX = center.dx + (radius - 4) * math.cos(angle);
@@ -1775,11 +2012,10 @@ class _ClockPainter extends CustomPainter {
         ..color = Colors.grey.shade800
         ..strokeWidth = markWidth
         ..strokeCap = StrokeCap.round;
-      
+
       canvas.drawLine(Offset(startX, startY), Offset(endX, endY), markPaint);
     }
 
-    // Saat sayıları
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
@@ -1806,14 +2042,13 @@ class _ClockPainter extends CustomPainter {
       );
     }
 
-    // Dakika kolu
     final minuteAngle = (minute * 6 - 90) * math.pi / 180;
     final minuteLength = radius * 0.6;
     final minutePaint = Paint()
       ..color = Colors.grey.shade700
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
-    
+
     canvas.drawLine(
       center,
       Offset(
@@ -1823,7 +2058,6 @@ class _ClockPainter extends CustomPainter {
       minutePaint,
     );
 
-    // Saat kolu (12 saat formatı)
     final normalizedHour = hour % 12;
     final hourAngle = ((normalizedHour * 30 + minute * 0.5) - 90) * math.pi / 180;
     final hourLength = radius * 0.4;
@@ -1831,7 +2065,7 @@ class _ClockPainter extends CustomPainter {
       ..color = Colors.grey.shade800
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
-    
+
     canvas.drawLine(
       center,
       Offset(
@@ -1841,7 +2075,6 @@ class _ClockPainter extends CustomPainter {
       hourPaint,
     );
 
-    // Merkez noktası
     final centerDotPaint = Paint()
       ..color = const Color(0xFF1ABC9C)
       ..style = PaintingStyle.fill;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/daily_reward_service.dart';
 import '../services/auth_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../models/daily_reward.dart';
 import '../localization/app_localizations.dart';
 
@@ -450,6 +451,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
                   ? () async {
                       final rewards = await rewardService.claimStreakReward();
                       if (rewards.isNotEmpty && mounted) {
+                        if (!rewardService.isGuest) {
+                          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+                          await mechanicsService.syncInventoryFromRewards(
+                            rewardService.coins,
+                            rewardService.diamonds,
+                            rewardService.userRewards?.hintCount ?? 0,
+                          );
+                        }
                         _showRewardDialog(rewards, localizations);
                       }
                     }
@@ -595,6 +604,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
               setState(() => _isOpeningBox = false);
               
               if (rewards.isNotEmpty && mounted) {
+                if (!rewardService.isGuest) {
+                  final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+                  await mechanicsService.syncInventoryFromRewards(
+                    rewardService.coins,
+                    rewardService.diamonds,
+                    rewardService.userRewards?.hintCount ?? 0,
+                  );
+                }
                 _showRewardDialog(rewards, localizations);
               }
             },
@@ -834,6 +851,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
     setState(() => _isSpinning = false);
 
     if (reward != null && mounted) {
+      if (!rewardService.isGuest) {
+        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+        await mechanicsService.syncInventoryFromRewards(
+          rewardService.coins,
+          rewardService.diamonds,
+          rewardService.userRewards?.hintCount ?? 0,
+        );
+      }
       _showRewardDialog([reward], localizations);
     }
   }
@@ -1057,6 +1082,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
                   onPressed: () async {
                     final rewards = await rewardService.claimTaskReward(task.id);
                     if (rewards.isNotEmpty && mounted) {
+                      if (!rewardService.isGuest) {
+                        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+                        await mechanicsService.syncInventoryFromRewards(
+                          rewardService.coins,
+                          rewardService.diamonds,
+                          rewardService.userRewards?.hintCount ?? 0,
+                        );
+                      }
                       _showRewardDialog(rewards, localizations);
                     }
                   },

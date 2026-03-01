@@ -1,6 +1,8 @@
 // lib/screens/discover_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../services/auth_service.dart';
 import 'game_start_screen.dart'; // AgeGroupSelection için
 
 class DiscoverScreen extends StatefulWidget {
@@ -26,30 +28,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Beyin jimnastiği yap, matematiksel düşünme becerilerini geliştir!',
       color: Color(0xFF00CEC9),
       isNew: true,
-    ),
-    DiscoverItem(
-      emoji: '🎭',
-      title: 'Zaman Atölyesi',
-      subtitle: 'Saat, dakika, saniye öğren',
-      description: 'Zaman kavramını eğlenceli etkinliklerle öğren, saat okumayı öğren!',
-      color: Color(0xFFA29BFE),
-      isNew: false,
-    ),
-    DiscoverItem(
-      emoji: '🧮',
-      title: 'Hesap Makinesi',
-      subtitle: 'Pratik yap, hızını test et',
-      description: 'Kendi hesaplamalarını yap, matematik işlemlerinde hız kazan!',
-      color: Color(0xFFFD79A8),
-      isNew: true,
-    ),
-    DiscoverItem(
-      emoji: '📊',
-      title: 'İstatistik',
-      subtitle: 'Gelişimini takip et',
-      description: 'Haftalık ve aylık ilerleme grafiklerini gör, başarılarını izle!',
-      color: Color(0xFFFDCB6E),
-      isNew: false,
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎨',
@@ -58,14 +37,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Renklerle matematik öğren, görsel hafızana hitap eden oyunlar!',
       color: Color(0xFF74B9FF),
       isNew: true,
-    ),
-    DiscoverItem(
-      emoji: '🏆',
-      title: 'Başarılar',
-      subtitle: 'Rozet koleksiyonu',
-      description: 'Kazandığın tüm rozetleri gör, koleksiyonunu tamamla!',
-      color: Color(0xFF55EFC4),
-      isNew: false,
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎵',
@@ -99,6 +71,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       color: Color(0xFF0984E3),
       isNew: false,
     ),
+    // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
+    // - Zaman Atölyesi (🎭)
+    // - Hesap Makinesi (🧮)
+    // - İstatistik (📊)
+    // - Başarılar (🏆)
     DiscoverItem(
       emoji: '🎯',
       title: 'Hedef Vurma',
@@ -371,6 +348,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _buildDiscoverItemCard(DiscoverItem item) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final isLocked = item.isPremium && !authService.isPremium;
+
     return GestureDetector(
       onTap: () {
         _showFeatureDetails(item);
@@ -405,25 +385,66 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         item.emoji,
                         style: TextStyle(fontSize: 28),
                       ),
-                      if (item.isNew)
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'YENİ',
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: item.color,
-                              fontWeight: FontWeight.bold,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isLocked)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              margin: EdgeInsets.only(right: 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('👑', style: TextStyle(fontSize: 8)),
+                                  SizedBox(width: 2),
+                                  Text(
+                                    'PRO',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      color: Color(0xFF8B4513),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
+                          if (item.isNew)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'YENİ',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: item.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                   SizedBox(height: 12),
@@ -457,7 +478,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        'KEŞFET',
+                        isLocked ? '👑 PREMİUM' : 'KEŞFET',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white,
@@ -476,6 +497,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   void _showFeatureDetails(DiscoverItem item) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final isLocked = item.isPremium && !authService.isPremium;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -516,22 +540,52 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.isNew)
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'YENİ ÖZELLİK',
-                        style: TextStyle(
-                          color: item.color,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      if (isLocked)
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          margin: EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('👑', style: TextStyle(fontSize: 12)),
+                              SizedBox(width: 4),
+                              Text(
+                                'PREMİUM',
+                                style: TextStyle(
+                                  color: Color(0xFF8B4513),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
+                      if (item.isNew)
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'YENİ ÖZELLİK',
+                            style: TextStyle(
+                              color: item.color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   SizedBox(height: 12),
                   Text(
                     item.title,
@@ -558,29 +612,70 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       height: 1.5,
                     ),
                   ),
+                  if (isLocked) ...[
+                    SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text('✨', style: TextStyle(fontSize: 20)),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Bu özellik sadece Premium üyelere özeldir.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   SizedBox(height: 32),
                   Container(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _launchFeature(item.title);
+                        if (isLocked) {
+                          _showPremiumUpgradeDialog();
+                        } else {
+                          _launchFeature(item.title);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: item.color,
+                        backgroundColor: isLocked ? Colors.amber : Colors.white,
+                        foregroundColor: isLocked ? Color(0xFF8B4513) : item.color,
                         padding: EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 8,
                       ),
-                      child: Text(
-                        'Hemen Dene',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isLocked) ...[
+                            Text('👑', style: TextStyle(fontSize: 18)),
+                            SizedBox(width: 8),
+                          ],
+                          Text(
+                            isLocked ? "Premium'a Yükselt" : 'Hemen Dene',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -589,6 +684,106 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showPremiumUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D1B69),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Text('👑', style: TextStyle(fontSize: 28)),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Premium'a Yükselt",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Premium üye olarak tüm özelliklere sınırsız erişim kazanın!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+            SizedBox(height: 16),
+            _buildPremiumFeature('🧩', 'Zeka Oyunları'),
+            _buildPremiumFeature('🎨', 'Renkli Matematik'),
+            _buildPremiumFeature('🚀', 'Özel İçerikler'),
+            _buildPremiumFeature('🏆', 'Reklamsız Deneyim'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Daha Sonra',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Premium üyelik yakında aktif olacak! 👑'),
+                  backgroundColor: Colors.amber.shade700,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Color(0xFF8B4513),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('👑', style: TextStyle(fontSize: 14)),
+                SizedBox(width: 8),
+                Text("Yükselt", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumFeature(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 16)),
+          SizedBox(width: 12),
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -614,6 +809,7 @@ class DiscoverItem {
   final String description;
   final Color color;
   final bool isNew;
+  final bool isPremium;
 
   DiscoverItem({
     required this.emoji,
@@ -622,5 +818,6 @@ class DiscoverItem {
     required this.description,
     required this.color,
     required this.isNew,
+    this.isPremium = false,
   });
 }

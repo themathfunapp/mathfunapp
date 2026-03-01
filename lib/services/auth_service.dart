@@ -11,6 +11,19 @@ import '../models/app_user.dart';
 
 class AuthService extends ChangeNotifier {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
+  
+  // Web için oturum kalıcılığı - uygulama kapatılsa bile oturum açık kalsın
+  static Future<void> initializePersistence() async {
+    if (kIsWeb) {
+      try {
+        await firebase_auth.FirebaseAuth.instance
+            .setPersistence(firebase_auth.Persistence.LOCAL);
+        debugPrint('Firebase Auth persistence: LOCAL (kalıcı)');
+      } catch (e) {
+        debugPrint('Firebase Auth persistence ayarlanamadı: $e');
+      }
+    }
+  }
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
@@ -253,15 +266,31 @@ class AuthService extends ChangeNotifier {
 
   // ------------- GOOGLE İLE GİRİŞ -------------
 
+// AuthService.dart içindeki signInWithGoogle metodunu güncelle
+
   Future<AppUser?> signInWithGoogle() async {
     try {
       debugPrint('Google Sign-In başlıyor...');
 
       if (kIsWeb) {
-        // Web için
+        // Web için - önce mevcut oturumu temizle
+        try {
+          await _auth.signOut();
+        } catch (e) {
+          debugPrint('Önceki oturum temizleme: $e');
+        }
+
+        // Web için - popup ile hesap seçimi
         final googleProvider = firebase_auth.GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
+
+        // Her zaman hesap seçme ekranını göster ve şifre isteme
+        googleProvider.setCustomParameters({
+          'prompt': 'select_account',  // Hesap seçim ekranını göster
+          'access_type': 'offline',     // Refresh token al
+          'include_granted_scopes': 'true',
+        });
 
         final userCredential = await _auth.signInWithPopup(googleProvider);
 
@@ -269,7 +298,16 @@ class AuthService extends ChangeNotifier {
           return await _handleGoogleSignInSuccess(userCredential.user!);
         }
       } else {
-        // Android/iOS için
+        // Android/iOS için - her zaman hesap seçme ekranını göster
+        await _googleSignIn.signOut(); // Önce çıkış yap (eski hesabı unut)
+        
+        // Ayrıca Firebase Auth'dan da çıkış yap
+        try {
+          await _auth.signOut();
+        } catch (e) {
+          debugPrint('Firebase signOut: $e');
+        }
+
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
         if (googleUser == null) {
@@ -282,14 +320,10 @@ class AuthService extends ChangeNotifier {
         final GoogleSignInAuthentication googleAuth =
         await googleUser.authentication;
 
-        debugPrint('Google auth token alındı');
-
         final credential = firebase_auth.GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-
-        debugPrint('Firebase credential oluşturuldu');
 
         final userCredential = await _auth.signInWithCredential(credential);
 
@@ -486,15 +520,19 @@ class AuthService extends ChangeNotifier {
   // Sign out
   Future<void> signOut() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final isGuest = prefs.getBool(_isGuestKey) ?? false;
+
       await _auth.signOut();
       await _googleSignIn.signOut();
       _currentUser = null;
 
-      // Keep guest status if it was a guest
-      final prefs = await SharedPreferences.getInstance();
-      final isGuest = prefs.getBool(_isGuestKey) ?? false;
-
-      if (!isGuest) {
+      if (isGuest) {
+        // Misafir çıkışında tüm misafir verilerini temizle
+        await _clearGuestData(prefs);
+        await prefs.remove(_guestIdKey);
+        await prefs.setBool(_isGuestKey, false);
+      } else {
         await prefs.remove(_userIdKey);
       }
 
@@ -503,6 +541,17 @@ class AuthService extends ChangeNotifier {
       debugPrint("Sign out error: $e");
     }
   }
+
+  /// Misafir kullanıcı verilerini temizle (çıkış veya uygulama yeniden başlatıldığında)
+  Future<void> _clearGuestData(SharedPreferences prefs) async {
+    try {
+      await prefs.remove(_guestMechanicsKey);
+    } catch (e) {
+      debugPrint("Clear guest data error: $e");
+    }
+  }
+
+  static const String _guestMechanicsKey = 'guest_mechanics';
 
   // Save user ID locally
   Future<void> saveUserId(String userId) async {
@@ -598,6 +647,39 @@ class AuthService extends ChangeNotifier {
 
   // Check if user is guest
   bool get isGuest => _currentUser?.isGuest == true;
+
+  // Check if user is premium
+  bool get isPremium {
+    if (_currentUser == null) return false;
+    if (!_currentUser!.isPremium) return false;
+    if (_currentUser!.premiumExpiresAt != null) {
+      return _currentUser!.premiumExpiresAt!.isAfter(DateTime.now());
+    }
+    return true;
+  }
+
+  // Update premium status (called from PremiumService)
+  Future<void> updatePremiumStatus(bool isPremium, DateTime? expiresAt) async {
+    if (_currentUser == null) return;
+
+    try {
+      // Update in Firestore
+      await _firestore.collection('users').doc(_currentUser!.uid).set({
+        'isPremium': isPremium,
+        'premiumExpiresAt': expiresAt?.toIso8601String(),
+        'premiumUpdatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+
+      // Update current user
+      _currentUser = _currentUser!.copyWith(
+        isPremium: isPremium,
+        premiumExpiresAt: expiresAt,
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Update premium status error: $e");
+    }
+  }
 
   // Get user display name
   String get displayName {

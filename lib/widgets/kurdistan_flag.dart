@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-class KurdistanFlag extends StatelessWidget {
+/// Kürtçe dili için bayrak widget'ı
+class KurtceFlag extends StatelessWidget {
   final double size;
 
-  const KurdistanFlag({super.key, this.size = 24});
+  const KurtceFlag({super.key, this.size = 24});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: CustomPaint(
-          size: Size(size, size),
-          painter: _KurdistanFlagPainter(),
+    return IgnorePointer(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: ClipOval(
+          child: CustomPaint(
+            size: Size(size, size),
+            painter: _KurtceFlagPainter(),
+          ),
         ),
       ),
     );
   }
 }
 
-class _KurdistanFlagPainter extends CustomPainter {
+/// Eski isim için alias (geriye uyumluluk)
+typedef KurdistanFlag = KurtceFlag;
+
+class _KurtceFlagPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double width = size.width;

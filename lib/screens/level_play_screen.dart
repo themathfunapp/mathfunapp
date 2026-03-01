@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
+import 'dart:math';
+import 'package:confetti/confetti.dart';
+
+
+
 
 class LevelPlayScreen extends StatefulWidget {
   final StoryLevel level;
   final StoryChapter chapter;
   final StoryWorld world;
+
 
   const LevelPlayScreen({
     super.key,
@@ -24,6 +32,8 @@ class LevelPlayScreen extends StatefulWidget {
 
 class _LevelPlayScreenState extends State<LevelPlayScreen>
     with TickerProviderStateMixin {
+  final Random _random = Random();
+  int _currentObjectCount = 1;
   int _currentQuestionIndex = 0;
   int _correctAnswers = 0;
   int _score = 0;
@@ -31,37 +41,106 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
   String? _selectedAnswer;
   Timer? _timer;
   int _timeRemaining = 0;
+  bool _showSadEmoji = false;
+
 
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   late AnimationController _bounceController;
   late Animation<double> _bounceAnimation;
+  late String _currentObjectEmoji;
+  late ConfettiController _confettiController;
+  late AnimationController _helperJumpController;
+  late Animation<double> _helperJumpAnimation;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+
+  final List<String> _objectEmojis = [
+    '⭐',
+    '🐿️',
+    '🐶',
+    '🐱',
+    '🐰',
+    '🐸',
+  ];
+
+
+  void _generateRandomCount() {
+    setState(() {
+      _currentObjectCount = _random.nextInt(10) + 1; // 1–10
+      _currentObjectEmoji =
+      _objectEmojis[_random.nextInt(_objectEmojis.length)];
+    });
+  }
+
+
 
   @override
   void initState() {
     super.initState();
 
+    _generateRandomCount();
+
+    // 📳 SHAKE CONTROLLER (YANLIŞ CEVAP)
     _shakeController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _shakeAnimation = Tween<double>(begin: 0, end: 10).animate(
-      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -10), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10, end: -10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -10, end: 0), weight: 1),
+    ]).animate(
+      CurvedAnimation(
+        parent: _shakeController,
+        curve: Curves.easeInOut,
+      ),
     );
 
+    // 🔘 BOUNCE CONTROLLER (DOĞRU CEVAP BUTONU)
     _bounceController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
+
     _bounceAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut),
+      CurvedAnimation(
+        parent: _bounceController,
+        curve: Curves.elasticOut,
+      ),
     );
 
+    // ⏱️ TIMER
     if (widget.level.timeLimit > 0) {
       _timeRemaining = widget.level.timeLimit;
       _startTimer();
     }
+
+    // 🎉 CONFETTI
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 1),
+    );
+
+    // 🐿️ HELPER ZIPLAMA
+    _helperJumpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _helperJumpAnimation = Tween<double>(
+      begin: 0,
+      end: -16, // yukarı zıplama
+    ).animate(
+      CurvedAnimation(
+        parent: _helperJumpController,
+        curve: Curves.easeOut,
+      ),
+    );
   }
+
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -81,6 +160,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
     _timer?.cancel();
     _shakeController.dispose();
     _bounceController.dispose();
+    _confettiController.dispose();
+    _helperJumpController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -141,41 +223,66 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              _buildHeader(localizations),
+        child: Stack(
+          children: [
 
-              // Progress bar
-              _buildProgressBar(),
+            // 🔹 ASIL UI
+            SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(localizations),
+                  _buildProgressBar(),
+                  const SizedBox(height: 8),
 
-              const SizedBox(height: 8),
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: AnimatedBuilder(
+                      animation: _shakeAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(_shakeAnimation.value, 0),
+                          child: child,
+                        );
+                      },
+                      child: _buildQuestion(currentQuestion, localizations),
+                    ),
+                  ),
 
-              // Question - Expanded to take available space
-              Expanded(
-                flex: 3,
-                child: AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(_shakeAnimation.value, 0),
-                      child: child,
-                    );
-                  },
-                  child: _buildQuestion(currentQuestion, localizations),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildAnswers(currentQuestion, localizations),
+                  ),
+
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+
+            // 🎉 CONFETTI – EN ÜST KATMAN
+            Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height,
+                width: MediaQuery.of(context).size.width,
+                child: ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  shouldLoop: false,
+                  emissionFrequency: 0.6,
+                  numberOfParticles: 20,
+                  gravity: 0.3,
+                  colors: const [
+                    Colors.green,
+                    Colors.yellow,
+                    Colors.blue,
+                    Colors.orange,
+                    Colors.pink,
+                  ],
                 ),
               ),
+            ),
 
-              // Answers - Fixed size
-              SizedBox(
-                height: 120,
-                child: _buildAnswers(currentQuestion, localizations),
-              ),
-
-              const SizedBox(height: 8),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -325,16 +432,22 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
   }
 
   Widget _buildQuestion(MathQuestion question, AppLocalizations localizations) {
-    final questionText = _getQuestionText(question, localizations);
-    
-    // Soru metnini parçalara ayır (emojiler ve soru)
-    final parts = questionText.split('\n\n');
-    final objectsDisplay = parts.length > 1 ? parts[0] : '';
-    final questionDisplay = parts.length > 1 ? parts[1] : questionText;
-    
+    // ⭐🐶🐱 Dinamik nesneler
+    final objectsDisplay = List.generate(
+      _currentObjectCount,
+          (_) => _currentObjectEmoji,
+    ).join(' ');
+
+
+
+// ❓ Dinamik soru
+    final questionDisplay = localizations
+        .get('how_many_objects')
+        .replaceAll('{object}', _currentObjectEmoji);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(24),
@@ -354,31 +467,50 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Helper character hint
-          Text(
-            _getHelperEmoji(),
-            style: const TextStyle(fontSize: 36),
+          AnimatedBuilder(
+            animation: _helperJumpAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _helperJumpAnimation.value),
+                child: child,
+              );
+            },
+            child: Text(
+              _getHelperEmoji(),
+              style: const TextStyle(fontSize: 36),
+            ),
           ),
-          const SizedBox(height: 16),
 
-          // Objects display (emojis for counting)
-          if (objectsDisplay.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
+
+          if (_showSadEmoji)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
               child: Text(
-                objectsDisplay,
-                style: const TextStyle(fontSize: 32),
-                textAlign: TextAlign.center,
+                '😢',
+                style: TextStyle(fontSize: 30),
               ),
             ),
-            const SizedBox(height: 16),
-          ],
 
-          // Question text
+          const SizedBox(height: 10),
+
+
+          // ⭐⭐ Nesneler
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              objectsDisplay,
+              style: const TextStyle(fontSize: 32),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ❓ Soru
           Text(
             questionDisplay,
             style: const TextStyle(
@@ -389,29 +521,30 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
             textAlign: TextAlign.center,
           ),
 
-          if (question.imageUrl != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: Text('🖼️', style: TextStyle(fontSize: 50)),
+          if (_showSadEmoji)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                '😢',
+                style: TextStyle(fontSize: 32),
               ),
             ),
-          ],
+
         ],
       ),
     );
   }
 
+
   String _getHelperEmoji() {
     final storyService = Provider.of<StoryService>(context, listen: false);
     final helperInfo = storyService.getHelperInfo(widget.chapter.helper);
     return helperInfo['emoji'] as String;
+
+
   }
+
+
 
   String _getQuestionText(MathQuestion question, AppLocalizations localizations) {
     // If it's a localization key, translate it
@@ -423,60 +556,55 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
   }
 
   Widget _buildAnswers(MathQuestion question, AppLocalizations localizations) {
-    if (question.type == QuestionType.multipleChoice) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(child: _buildAnswerButton(question.options[0], question)),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildAnswerButton(question.options.length > 2 ? question.options[2] : '', question)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(child: _buildAnswerButton(question.options.length > 1 ? question.options[1] : '', question)),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildAnswerButton(question.options.length > 3 ? question.options[3] : '', question)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+    final int correct = _currentObjectCount;
+
+    final Set<int> optionSet = {correct};
+    while (optionSet.length < 4) {
+      optionSet.add(_random.nextInt(10) + 1);
     }
 
-    // For other question types, show a placeholder
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Text(
-          localizations.get('interactive_question'),
-          style: const TextStyle(
-            fontSize: 16,
-            color: Colors.white70,
+    final options = optionSet.toList()..shuffle();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildAnswerButton(options[0].toString(), question),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildAnswerButton(options[1].toString(), question),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAnswerButton(options[2].toString(), question),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildAnswerButton(options[3].toString(), question),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
+
+
+
 
   Widget _buildAnswerButton(String option, MathQuestion question) {
     if (option.isEmpty) return const SizedBox.shrink();
     
     final isSelected = _selectedAnswer == option;
-    final isCorrect = option == question.correctAnswer;
+    final isCorrect = option == _currentObjectCount.toString();
 
     Color bgColor = Colors.white.withOpacity(0.15);
     Color borderColor = Colors.white.withOpacity(0.3);
@@ -505,6 +633,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
       child: GestureDetector(
         onTap: _isAnswered ? null : () => _selectAnswer(option, question),
         child: AnimatedContainer(
+          constraints: const BoxConstraints(
+            minHeight: 56,
+          ),
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: bgColor,
@@ -528,31 +659,67 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
     );
   }
 
-  void _selectAnswer(String answer, MathQuestion question) {
+  void _selectAnswer(String answer, MathQuestion question) async {
     setState(() {
       _selectedAnswer = answer;
       _isAnswered = true;
     });
 
-    final isCorrect = answer == question.correctAnswer;
+    final isCorrect = answer == _currentObjectCount.toString();
 
     if (isCorrect) {
+      // 📳 HAPTIC (DOĞRU)
+      HapticFeedback.lightImpact();
+
+      // 🎉 CONFETTI
+      _confettiController.play();
+
+      // 🐿️ HELPER ZIPLASIN
+      _helperJumpController.forward().then((_) {
+        _helperJumpController.reverse();
+      });
+
+      // ⭐ SKOR
       _correctAnswers++;
       _score += question.points;
-      _bounceController.forward().then((_) => _bounceController.reverse());
-      
-      // Play success sound/feedback
+
+      // 🔘 DOĞRU BUTON ZIPLASIN
+      _bounceController.forward().then((_) {
+        _bounceController.reverse();
+      });
+
     } else {
-      _shakeController.forward().then((_) => _shakeController.reverse());
-      
-      // Play error sound/feedback
+      // 📳 HAPTIC (YANLIŞ)
+      HapticFeedback.heavyImpact();
+
+      // 😢 ÜZGÜN EMOJI GÖSTER
+      setState(() {
+        _showSadEmoji = true;
+      });
+
+      // 📳 EKRAN TİTREMESİ
+      _shakeController.forward().then((_) {
+        _shakeController.reverse();
+      });
+
+      // 😢 EMOJIYI KAPAT
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        setState(() {
+          _showSadEmoji = false;
+        });
+      });
     }
 
-    // Wait and move to next question
+
+    // ➡️ SONRAKİ SORU
     Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+
       if (_currentQuestionIndex < widget.level.questions.length - 1) {
         setState(() {
           _currentQuestionIndex++;
+          _generateRandomCount();
           _isAnswered = false;
           _selectedAnswer = null;
         });
@@ -561,6 +728,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
       }
     });
   }
+
+
 
   void _showTimeUpDialog() {
     final authService = Provider.of<AuthService>(context, listen: false);

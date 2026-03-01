@@ -1,4 +1,4 @@
-name: mathfunapp
+name: mathfun
 description: "Matematik Macerası - Çocuklar için Matematik Öğrenme Oyunu"
 publish_to: 'none'
 version: 1.0.0+1
@@ -12,6 +12,8 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   animations: ^2.1.1
+  confetti: ^0.7.0
+  audioplayers: ^6.0.0
 
   # Firebase
   firebase_core: ^4.2.1
@@ -27,7 +29,13 @@ dependencies:
   provider: ^6.1.2
 
   shared_preferences: ^2.2.2
-  
+
+  # In-App Purchase
+  in_app_purchase: ^3.2.0
+
+  # AdMob
+  google_mobile_ads: ^5.3.0
+
   # Connectivity
   connectivity_plus: ^6.0.3
 
@@ -41,9 +49,62 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # App Icon
+  flutter_launcher_icons: ^0.13.1
+
 flutter:
   uses-material-design: true
   generate: true
 
   assets:
-    - assets/images/
+    - assets/avatar/face/Face/Completes/
+    - assets/avatar/hair/Hair/Black/
+    - assets/avatar/hair/Hair/Blonde/
+    - assets/avatar/hair/Hair/Brown 1/
+    - assets/avatar/hair/Hair/Brown 2/
+    - assets/avatar/hair/Hair/Grey/
+    - assets/avatar/hair/Hair/Red/
+    - assets/avatar/hair/Hair/Tan/
+    - assets/avatar/hair/Hair/White/
+    - assets/avatar/shirt/Shirts/Blue/
+    - assets/avatar/shirt/Shirts/Green/
+    - assets/avatar/shirt/Shirts/Grey/
+    - assets/avatar/shirt/Shirts/Navy/
+    - assets/avatar/shirt/Shirts/Pine/
+    - assets/avatar/shirt/Shirts/Red/
+    - assets/avatar/shirt/Shirts/White/
+    - assets/avatar/shirt/Shirts/Yellow/
+    - assets/avatar/pants/Pants/Blue 1/
+    - assets/avatar/pants/Pants/Blue 2/
+    - assets/avatar/pants/Pants/Brown/
+    - assets/avatar/pants/Pants/Green/
+    - assets/avatar/pants/Pants/Grey/
+    - assets/avatar/pants/Pants/Light Blue/
+    - assets/avatar/pants/Pants/Navy/
+    - assets/avatar/pants/Pants/Pine/
+    - assets/avatar/pants/Pants/Red/
+    - assets/avatar/pants/Pants/Tan/
+    - assets/avatar/pants/Pants/White/
+    - assets/avatar/pants/Pants/Yellow/
+    - assets/avatar/shoes/Shoes/Black/
+    - assets/avatar/shoes/Shoes/Blue/
+    - assets/avatar/shoes/Shoes/Brown 1/
+    - assets/avatar/shoes/Shoes/Brown 2/
+    - assets/avatar/shoes/Shoes/Grey/
+    - assets/avatar/shoes/Shoes/Red/
+    - assets/avatar/shoes/Shoes/Tan/
+    - assets/avatar/skin/Skin/Tint 1/
+    - assets/avatar/skin/Skin/Tint 2/
+    - assets/avatar/skin/Skin/Tint 3/
+    - assets/avatar/skin/Skin/Tint 4/
+    - assets/avatar/skin/Skin/Tint 5/
+    - assets/avatar/skin/Skin/Tint 6/
+    - assets/avatar/skin/Skin/Tint 7/
+    - assets/avatar/skin/Skin/Tint 8/
+    - assets/images/welcome_illustration.png
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21

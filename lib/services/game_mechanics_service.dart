@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_mechanics.dart';
 
 /// Oyun Mekanikleri Servisi
@@ -35,8 +37,11 @@ class GameMechanicsService extends ChangeNotifier {
   DateTime? lastPlayDate;
   
   String? _userId;
+  bool _isGuest = false;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool get isGuest => _isGuest;
+  static const String _guestMechanicsKey = 'guest_mechanics';
 
   GameMechanicsService() {
     comboSystem = ComboSystem();
@@ -46,13 +51,20 @@ class GameMechanicsService extends ChangeNotifier {
   }
 
   /// Kullanıcı için sistemi başlat
-  Future<void> initialize(String userId) async {
+  Future<void> initialize(String userId, {bool isGuest = false}) async {
     _userId = userId;
+    _isGuest = isGuest;
     _isLoading = true;
     notifyListeners();
 
     try {
+      if (_isGuest) {
+        await _clearGuestData();
+      }
       await _loadUserData();
+      if (!_isGuest) {
+        await _loadCurrencyFromRewards();
+      }
       await _loadTodayChallenge();
       _checkLifeRegeneration();
       _updateDailyStreak();
@@ -64,32 +76,95 @@ class GameMechanicsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Misafir verilerini temizle (her uygulama açılışında - çıkış sonrası sıfırlama)
+  Future<void> _clearGuestData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_guestMechanicsKey);
+    } catch (e) {
+      debugPrint('Clear guest data error: $e');
+    }
+  }
+
+  /// DailyRewardService'ten alınan ödüller sonrası envanteri senkronize et
+  Future<void> syncInventoryFromRewards(int coins, int diamonds, int hints) async {
+    inventory.coins = coins;
+    inventory.gems = diamonds;
+    hintSystem.availableHints = hints;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  /// Kayıtlı kullanıcılar için UserRewards'tan para birimlerini yükle
+  Future<void> _loadCurrencyFromRewards() async {
+    if (_userId == null || _isGuest) return;
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('rewards')
+          .doc('daily')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final d = doc.data()!;
+        final coins = (d['coins'] is int) ? d['coins'] as int : 0;
+        final diamonds = (d['diamonds'] is int) ? d['diamonds'] as int : 0;
+        final hints = (d['hintCount'] is int) ? d['hintCount'] as int : 0;
+        if (coins > inventory.coins) inventory.coins = coins;
+        if (diamonds > inventory.gems) inventory.gems = diamonds;
+        if (hints > hintSystem.availableHints) hintSystem.availableHints = hints;
+      }
+    } catch (e) {
+      debugPrint('Load currency from rewards error: $e');
+    }
+  }
+
   /// Kullanıcı verisini yükle
   Future<void> _loadUserData() async {
     if (_userId == null) return;
 
     try {
-      final doc = await _firestore
-          .collection('user_mechanics')
-          .doc(_userId)
-          .get();
+      if (_isGuest) {
+        final prefs = await SharedPreferences.getInstance();
+        final jsonStr = prefs.getString(_guestMechanicsKey);
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          try {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>? ?? {};
+            livesSystem = LivesSystem.fromJson(data['lives'] ?? {});
+            inventory = PlayerInventory.fromJson(data['inventory'] ?? {});
+            if (data['lastSpinTime'] != null) {
+              lastSpinTime = DateTime.tryParse(data['lastSpinTime'].toString());
+            }
+            dailyStreak = data['dailyStreak'] ?? 0;
+            if (data['lastPlayDate'] != null) {
+              lastPlayDate = DateTime.tryParse(data['lastPlayDate'].toString());
+            }
+            hintSystem.availableHints = data['hints'] ?? 3;
+          } catch (_) {}
+        }
+      } else {
+        final doc = await _firestore
+            .collection('user_mechanics')
+            .doc(_userId)
+            .get();
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        
-        livesSystem = LivesSystem.fromJson(data['lives'] ?? {});
-        inventory = PlayerInventory.fromJson(data['inventory'] ?? {});
-        
-        if (data['lastSpinTime'] != null) {
-          lastSpinTime = DateTime.parse(data['lastSpinTime']);
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          
+          livesSystem = LivesSystem.fromJson(data['lives'] ?? {});
+          inventory = PlayerInventory.fromJson(data['inventory'] ?? {});
+          
+          if (data['lastSpinTime'] != null) {
+            lastSpinTime = DateTime.tryParse(data['lastSpinTime'].toString());
+          }
+          
+          dailyStreak = data['dailyStreak'] ?? 0;
+          if (data['lastPlayDate'] != null) {
+            lastPlayDate = DateTime.tryParse(data['lastPlayDate'].toString());
+          }
+          
+          hintSystem.availableHints = data['hints'] ?? 3;
         }
-        
-        dailyStreak = data['dailyStreak'] ?? 0;
-        if (data['lastPlayDate'] != null) {
-          lastPlayDate = DateTime.parse(data['lastPlayDate']);
-        }
-        
-        hintSystem.availableHints = data['hints'] ?? 3;
       }
     } catch (e) {
       debugPrint('Error loading user mechanics data: $e');
@@ -101,17 +176,50 @@ class GameMechanicsService extends ChangeNotifier {
     if (_userId == null) return;
 
     try {
-      await _firestore.collection('user_mechanics').doc(_userId).set({
-        'lives': livesSystem.toJson(),
-        'inventory': inventory.toJson(),
-        'lastSpinTime': lastSpinTime?.toIso8601String(),
-        'dailyStreak': dailyStreak,
-        'lastPlayDate': lastPlayDate?.toIso8601String(),
-        'hints': hintSystem.availableHints,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      if (_isGuest) {
+        final prefs = await SharedPreferences.getInstance();
+        final data = {
+          'lives': livesSystem.toJson(),
+          'inventory': inventory.toJson(),
+          'lastSpinTime': lastSpinTime?.toIso8601String(),
+          'dailyStreak': dailyStreak,
+          'lastPlayDate': lastPlayDate?.toIso8601String(),
+          'hints': hintSystem.availableHints,
+        };
+        await prefs.setString(_guestMechanicsKey, jsonEncode(data));
+      } else {
+        await _firestore.collection('user_mechanics').doc(_userId).set({
+          'lives': livesSystem.toJson(),
+          'inventory': inventory.toJson(),
+          'lastSpinTime': lastSpinTime?.toIso8601String(),
+          'dailyStreak': dailyStreak,
+          'lastPlayDate': lastPlayDate?.toIso8601String(),
+          'hints': hintSystem.availableHints,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        await _syncCurrencyToRewards();
+      }
     } catch (e) {
       debugPrint('Error saving user mechanics data: $e');
+    }
+  }
+
+  /// Para birimlerini users/rewards/daily ile senkronize et
+  Future<void> _syncCurrencyToRewards() async {
+    if (_userId == null || _isGuest) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('rewards')
+          .doc('daily')
+          .set({
+        'coins': inventory.coins,
+        'diamonds': inventory.gems,
+        'hintCount': hintSystem.availableHints,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Sync currency to rewards error: $e');
     }
   }
 
@@ -524,5 +632,27 @@ class GameMechanicsService extends ChangeNotifier {
     _saveUserData();
     notifyListeners();
   }
+
+  // ============= REKLAM İLE CAN KAZANMA =============
+  
+  /// Reklam izleyerek 1 can kazan
+  void earnLifeFromAd() {
+    livesSystem.gainLife();
+    _saveUserData();
+    notifyListeners();
+    debugPrint('GameMechanicsService: Reklam ile 1 can kazanıldı!');
+  }
+
+  /// Can durumunu kontrol et
+  bool get hasLives => livesSystem.hasLives;
+  
+  /// Mevcut can sayısı
+  int get currentLives => livesSystem.currentLives;
+  
+  /// Maksimum can sayısı
+  int get maxLives => livesSystem.maxLives;
+  
+  /// Canlar dolu mu?
+  bool get isFullLives => livesSystem.isFullLives;
 }
 

@@ -11,9 +11,11 @@ class FriendRequest {
   final String senderId;
   final String senderName;
   final String? senderPhotoUrl;
+  final String? senderUserCode;
   final String receiverId;
   final String receiverName;
   final String? receiverPhotoUrl;
+  final String? receiverUserCode;
   final FriendRequestStatus status;
   final DateTime createdAt;
   final DateTime? respondedAt;
@@ -23,9 +25,11 @@ class FriendRequest {
     required this.senderId,
     required this.senderName,
     this.senderPhotoUrl,
+    this.senderUserCode,
     required this.receiverId,
     required this.receiverName,
     this.receiverPhotoUrl,
+    this.receiverUserCode,
     this.status = FriendRequestStatus.pending,
     required this.createdAt,
     this.respondedAt,
@@ -37,9 +41,11 @@ class FriendRequest {
       senderId: map['senderId'] ?? '',
       senderName: map['senderName'] ?? '',
       senderPhotoUrl: map['senderPhotoUrl'],
+      senderUserCode: map['senderUserCode'],
       receiverId: map['receiverId'] ?? '',
       receiverName: map['receiverName'] ?? '',
       receiverPhotoUrl: map['receiverPhotoUrl'],
+      receiverUserCode: map['receiverUserCode'],
       status: FriendRequestStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => FriendRequestStatus.pending,
@@ -60,9 +66,11 @@ class FriendRequest {
       'senderId': senderId,
       'senderName': senderName,
       'senderPhotoUrl': senderPhotoUrl,
+      'senderUserCode': senderUserCode,
       'receiverId': receiverId,
       'receiverName': receiverName,
       'receiverPhotoUrl': receiverPhotoUrl,
+      'receiverUserCode': receiverUserCode,
       'status': status.name,
       'createdAt': Timestamp.fromDate(createdAt),
       'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
@@ -74,9 +82,11 @@ class FriendRequest {
     String? senderId,
     String? senderName,
     String? senderPhotoUrl,
+    String? senderUserCode,
     String? receiverId,
     String? receiverName,
     String? receiverPhotoUrl,
+    String? receiverUserCode,
     FriendRequestStatus? status,
     DateTime? createdAt,
     DateTime? respondedAt,
@@ -86,9 +96,11 @@ class FriendRequest {
       senderId: senderId ?? this.senderId,
       senderName: senderName ?? this.senderName,
       senderPhotoUrl: senderPhotoUrl ?? this.senderPhotoUrl,
+      senderUserCode: senderUserCode ?? this.senderUserCode,
       receiverId: receiverId ?? this.receiverId,
       receiverName: receiverName ?? this.receiverName,
       receiverPhotoUrl: receiverPhotoUrl ?? this.receiverPhotoUrl,
+      receiverUserCode: receiverUserCode ?? this.receiverUserCode,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       respondedAt: respondedAt ?? this.respondedAt,

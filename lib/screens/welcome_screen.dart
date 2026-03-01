@@ -7,6 +7,9 @@ import '../localization/app_localizations.dart';
 import '../models/app_user.dart';
 import 'home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'dart:ui';
+
+
 
 class WelcomeScreen extends StatefulWidget {
   final VoidCallback onSignInComplete;
@@ -91,33 +94,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'description': AppLocalizations(_currentLocale).get('google_signin_desc'),
     });
 
-    // Diğer seçenekler
-    options.addAll([
-      {
-        'id': 'email',
-        'title': AppLocalizations(_currentLocale).get('sign_in_email'),
-        'icon': '✉️',
-        'color': Colors.blue,
-        'description': AppLocalizations(_currentLocale).get('email_signup_desc'),
-      },
-      {
-        'id': 'guest',
-        'title': AppLocalizations(_currentLocale).get('sign_in_guest'),
-        'icon': '👤',
-        'color': Colors.grey,
-        'description': AppLocalizations(_currentLocale).get('guest_signin_desc'),
-      },
-      {
-        'id': 'skip',
-        'title': AppLocalizations(_currentLocale).get('sign_in_later'),
-        'icon': '➡️',
-        'color': Colors.orange,
-        'description': AppLocalizations(_currentLocale).get('skip_description'),
-      },
-    ]);
+    // E-posta ile kayıt
+    options.add({
+      'id': 'email',
+      'title': AppLocalizations(_currentLocale).get('sign_in_email'),
+      'icon': '✉️',
+      'color': Colors.blue,
+      'description': AppLocalizations(_currentLocale).get('email_signup_desc'),
+    });
 
     return options;
   }
+
+// WelcomeScreen.dart içindeki _handleLogin metodunu güncelle
 
   void _handleLogin(String optionId) async {
     setState(() {
@@ -131,16 +120,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       switch (optionId) {
         case 'google':
+          // Google Sign-In - auth service içinde hesap seçimi yönetilir
           user = await authService.signInWithGoogle();
           break;
         case 'email':
           _showEmailDialog();
-          return;
-        case 'guest':
-          user = await authService.signInAsGuest();
-          break;
-        case 'skip':
-          widget.onSkip();
           return;
       }
 
@@ -154,13 +138,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         } else {
           widget.onSignInComplete();
         }
+      } else {
+        // Kullanıcı giriş yapmadı (hesap seçmedi veya iptal etti)
+        setState(() {
+          _isLoading = false;
+          _selectedOption = '';
+        });
       }
     } catch (e) {
       _showErrorSnackbar('${AppLocalizations(_currentLocale).get('login_error')}: $e');
-    } finally {
       setState(() {
         _isLoading = false;
+        _selectedOption = '';
       });
+    } finally {
+      // Sadece hata durumunda değil, başarılı durumda da isLoading'i false yap
+      // Ancak bu kısım zaten yönlendirme yapıldığı için çalışmayabilir
+      if (mounted && _selectedOption.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -455,100 +453,177 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildWelcomePage(AppLocalizations localizations) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            height: 220,
-            width: 220,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue.shade50,
-                  Colors.blue.shade100,
-                ],
+    const imagePath = 'assets/images/welcome_illustration.png';
+
+    return Stack(
+      children: [
+        // 1) ARKA PLAN: cover + blur + karartma (ekranı doldurur)
+        Positioned.fill(
+          child: Stack(
+            children: [
+              Image.asset(
+                imagePath,
+                fit: BoxFit.cover, // ekran dolsun
+                alignment: Alignment.center,
               ),
-              borderRadius: BorderRadius.circular(110),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.2),
-                  blurRadius: 20,
-                  spreadRadius: 5,
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                child: Container(color: Colors.black.withOpacity(0.25)),
+              ),
+            ],
+          ),
+        ),
+
+        // 2) ÖN PLAN: görselin tamamı (kırpma yok)
+        Positioned.fill(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child:AspectRatio(
+                aspectRatio: 1.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24), // çok hafif
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.30),
+                        blurRadius: 60,
+                        spreadRadius: -20,
+                        offset: const Offset(0, 0), // 👈 çok önemli
+                      ),
+                    ],
+
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child:ShaderMask(
+                      shaderCallback: (Rect rect) {
+                        return RadialGradient(
+                          center: Alignment.center,
+                          radius: 0.75,
+                          colors: [
+                            Colors.black,
+                            Colors.black,
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.85, 1.0],
+                        ).createShader(rect);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: Image.asset(
+                        imagePath,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+
+                  ),
                 ),
+              ),
+
+            ),
+          ),
+        ),
+
+        // 3) ÜSTTEKİ YAZILAR + BUTONLAR (senin mevcut content’in)
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.menu_book, color: Colors.white, size: 32),
+                    const SizedBox(width: 8),
+                    Text(
+                      localizations.get('app_name'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  localizations.get('app_motto'),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
+                  ),
+                ),
+
+                const Spacer(),
+
+                Text(
+                  localizations.get('welcome_title'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  localizations.get('welcome_description'),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.6,
+                    shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const Spacer(),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _pageController.animateToPage(
+                        1,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orangeAccent,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 8,
+                      shadowColor: Colors.black54,
+                    ),
+                    child: Text(
+                      localizations.get('continue_button'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
-            child: const Center(
-              child: Icon(
-                Icons.school,
-                size: 100,
-                color: Colors.blue,
-              ),
-            ),
           ),
-          const SizedBox(height: 40),
-          Text(
-            localizations.get('welcome_title'),
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-              height: 1.3,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            localizations.get('welcome_description'),
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              height: 1.6,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          _buildFeatureItem(
-            icon: Icons.star,
-            color: Colors.amber,
-            text: localizations.get('personalized_learning'),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(
-            icon: Icons.track_changes,
-            color: Colors.green,
-            text: localizations.get('progress_tracking'),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(
-            icon: Icons.cloud_upload,
-            color: Colors.blue,
-            text: localizations.get('cloud_backup'),
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(
-            icon: Icons.games,
-            color: Colors.purple,
-            text: 'Eğlenceli Oyunlar',
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(
-            icon: Icons.emoji_events,
-            color: Colors.orange,
-            text: 'Rozetler ve Başarılar',
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(
-            icon: Icons.person_outline,
-            color: Colors.grey,
-            text: 'Misafir Modu - Hemen Başla',
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+
+
 
   Widget _buildLoginOptions(AppLocalizations localizations) {
     return SingleChildScrollView(
@@ -743,20 +818,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          if (!_isLoading)
-            TextButton(
-              onPressed: widget.onSkip,
-              child: Text(
-                'Üyelik Olmadan Demo Modu',
-                style: TextStyle(
-                  color: Colors.orange[600],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -773,149 +835,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final localizations = AppLocalizations(_currentLocale);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            children: [
-              // SAĞ ÜSTE DİL SEÇİCİ
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  PopupMenuButton<String>(
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.language, color: Colors.blue, size: 20),
-                          const SizedBox(width: 6),
-                          Text(
-                            _supportedLanguages.firstWhere(
-                                  (lang) => lang['code'] == _currentLocale.languageCode,
-                              orElse: () => _supportedLanguages[0],
-                            )['flag'] as String,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                    offset: const Offset(0, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    onSelected: _changeLanguage,
-                    itemBuilder: (BuildContext context) {
-                      return _supportedLanguages.map((lang) {
-                        return PopupMenuItem<String>(
-                          value: lang['code'],
-                          child: Row(
-                            children: [
-                              Text(
-                                lang['flag'] as String,
-                                style: const TextStyle(fontSize: 18),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                lang['name'] as String,
-                                style: TextStyle(
-                                  fontWeight: _currentLocale.languageCode == lang['code']
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: _currentLocale.languageCode == lang['code']
-                                      ? Theme.of(context).primaryColor
-                                      : Colors.black,
-                                ),
-                              ),
-                              if (_currentLocale.languageCode == lang['code'])
-                                const SizedBox(width: 8),
-                              if (_currentLocale.languageCode == lang['code'])
-                                Icon(
-                                  Icons.check,
-                                  color: Theme.of(context).primaryColor,
-                                  size: 18,
-                                ),
-                            ],
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Text(
-                '📚 ${localizations.get('app_name')}',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                localizations.get('app_motto'),
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const ClampingScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentPage = index;
-                    });
-                  },
-                  children: [
-                    _buildWelcomePage(localizations),
-                    _buildLoginOptions(localizations),
-                  ],
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(2, (index) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: _currentPage == index ? 24 : 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.rectangle,
-                      borderRadius: BorderRadius.circular(4),
-                      color: _currentPage == index
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[300],
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 24),
-              if (_currentPage == 0)
-                ShinyButton(
-                  text: localizations.get('continue_button'),
-                  onPressed: () {
-                    _pageController.animateToPage(
-                      1,
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                ),
-            ],
-          ),
-        ),
+      body: PageView(
+        controller: _pageController,
+        physics: const ClampingScrollPhysics(),
+        onPageChanged: (index) {
+          setState(() {
+            _currentPage = index;
+          });
+        },
+        children: [
+          _buildWelcomePage(localizations), // 🔥 TAM EKRAN GÖRSEL
+          _buildLoginOptions(localizations),
+        ],
       ),
     );
   }
+
 
   @override
   void dispose() {

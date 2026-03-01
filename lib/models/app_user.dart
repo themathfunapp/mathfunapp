@@ -21,6 +21,13 @@ class AppUser {
   final bool isGuest;
   final String? guestId;
 
+  // 🎮 OYUNCU KODU - Her kullanıcı için benzersiz RKN ID
+  final String? userCode;
+
+  // 👑 PREMİUM ÜYELİK
+  final bool isPremium;
+  final DateTime? premiumExpiresAt;
+
   AppUser({
     required this.uid,
     this.email,
@@ -32,12 +39,15 @@ class AppUser {
     this.emailVerified,
     this.isGuest = false,
     this.guestId,
+    this.userCode,
+    this.isPremium = false,
+    this.premiumExpiresAt,
   });
 
   // =========================
   // Firebase User → AppUser
   // =========================
-  factory AppUser.fromFirebaseUser(firebase_auth.User user) {
+  factory AppUser.fromFirebaseUser(firebase_auth.User user, {String? existingUserCode}) {
     return AppUser(
       uid: user.uid,
       email: user.email,
@@ -49,6 +59,7 @@ class AppUser {
       emailVerified: user.emailVerified,
       isGuest: false,
       guestId: null,
+      userCode: existingUserCode ?? _generateUserCode(),
     );
   }
 
@@ -71,6 +82,11 @@ class AppUser {
       emailVerified: map['emailVerified'] ?? false,
       isGuest: map['isGuest'] ?? false,
       guestId: map['guestId'],
+      userCode: map['userCode'],
+      isPremium: map['isPremium'] ?? false,
+      premiumExpiresAt: map['premiumExpiresAt'] != null
+          ? DateTime.parse(map['premiumExpiresAt'])
+          : null,
     );
   }
 
@@ -89,6 +105,10 @@ class AppUser {
       'emailVerified': emailVerified ?? false,
       'isGuest': isGuest,
       'guestId': guestId,
+      'userCode': userCode,
+      'userCodeLower': userCode?.toLowerCase(),
+      'isPremium': isPremium,
+      'premiumExpiresAt': premiumExpiresAt?.toIso8601String(),
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }
@@ -107,6 +127,9 @@ class AppUser {
     bool? emailVerified,
     bool? isGuest,
     String? guestId,
+    String? userCode,
+    bool? isPremium,
+    DateTime? premiumExpiresAt,
   }) {
     return AppUser(
       uid: uid ?? this.uid,
@@ -119,6 +142,9 @@ class AppUser {
       emailVerified: emailVerified ?? this.emailVerified,
       isGuest: isGuest ?? this.isGuest,
       guestId: guestId ?? this.guestId,
+      userCode: userCode ?? this.userCode,
+      isPremium: isPremium ?? this.isPremium,
+      premiumExpiresAt: premiumExpiresAt ?? this.premiumExpiresAt,
     );
   }
 
@@ -128,22 +154,29 @@ class AppUser {
   factory AppUser.guest({
     String languageCode = 'tr',
   }) {
+    final code = _generateUserCode();
     return AppUser(
       uid: '',
       selectedLanguage: languageCode,
       isGuest: true,
-      guestId: _generateGuestId(),
+      guestId: code,
+      userCode: code,
       createdAt: DateTime.now(),
       emailVerified: false,
     );
   }
 
-  // RKN + 10 haneli ID
-  static String _generateGuestId() {
+  // RKN + 8 haneli ID (her kullanıcı için benzersiz)
+  static String _generateUserCode() {
     const prefix = 'RKN';
     final random = Random();
-    final numbers = List.generate(10, (_) => random.nextInt(10)).join();
+    final numbers = List.generate(8, (_) => random.nextInt(10)).join();
     return '$prefix$numbers';
+  }
+
+  // Eski guest ID uyumluluğu için
+  static String _generateGuestId() {
+    return _generateUserCode();
   }
 
   // =========================
@@ -168,6 +201,9 @@ class AppUser {
     }
     return 'Kullanıcı';
   }
+
+  // Oyuncu kodu (RKN ID)
+  String get playerCode => userCode ?? guestId ?? 'RKN00000000';
 
   // Dil adı
   String getLanguageName() {

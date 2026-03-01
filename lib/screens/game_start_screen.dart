@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../services/auth_service.dart';
 import 'topic_selection_screen.dart';
 import 'math_regions_screen.dart';
 import 'quick_math_screen.dart';
@@ -12,6 +14,7 @@ import '../models/game_mechanics.dart';
 import 'discover_screen.dart';
 import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
+import 'package:mathfun/services/game_mechanics_service.dart';
 
 /// Yaş grupları enum
 enum AgeGroupSelection {
@@ -46,9 +49,13 @@ class _GameStartScreenState extends State<GameStartScreen>
   late Animation<double> _floatAnimation;
   late Animation<double> _pulseAnimation;
 
-  // Seçili yaş grubu
-  AgeGroupSelection? _selectedAgeGroup;
-  bool _showContent = false;
+  // Varsayılan yaş grubu (arka planda kullanılır, seçim ekranı yok)
+  AgeGroupSelection _selectedAgeGroup = AgeGroupSelection.elementary;
+  bool _showContent = true;
+
+  // Game Mechanics Service
+  late GameMechanicsService _mechanicsService;
+  bool _isLoading = true;
 
   // Günlük karşılama mesajları
   final List<String> _dailyMessages = [
@@ -66,6 +73,10 @@ class _GameStartScreenState extends State<GameStartScreen>
   @override
   void initState() {
     super.initState();
+
+    // GameMechanicsService başlat
+    _mechanicsService = GameMechanicsService();
+    _initializeMechanics();
 
     // Rastgele karşılama mesajı
     _currentMessage =
@@ -104,6 +115,14 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
+  Future<void> _initializeMechanics() async {
+    // Gerçek uygulamada kullanıcı ID'si authentication'dan alınacak
+    await _mechanicsService.initialize('current_user_id');
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
   @override
   void dispose() {
     _doorController.dispose();
@@ -128,13 +147,10 @@ class _GameStartScreenState extends State<GameStartScreen>
     });
   }
 
-  void _resetSelection() {
-    setState(() {
-      _showContent = false;
-      _selectedAgeGroup = null;
-    });
-    _doorController.reverse();
-    _characterController.reverse();
+  // Can bilgisini formatlamak için yardımcı metod
+  String _getLivesDisplay() {
+    final lives = _mechanicsService.livesSystem.currentLives;
+    return '❤️' * lives + '🖤' * (3 - lives);
   }
 
   @override
@@ -155,27 +171,31 @@ class _GameStartScreenState extends State<GameStartScreen>
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              // Arka plan parçacıkları
-              ..._buildBackgroundParticles(),
-
-              // Ana içerik
-              Column(
-                children: [
-                  // Üst bar
-                  _buildTopBar(localizations),
-
-                  // İçerik
-                  Expanded(
-                    child: _showContent
-                        ? _buildGameModeContent(localizations)
-                        : _buildAgeSelection(localizations),
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
                   ),
-                ],
-              ),
-            ],
-          ),
+                )
+              : Stack(
+                  children: [
+                    // Arka plan parçacıkları
+                    ..._buildBackgroundParticles(),
+
+                    // Ana içerik
+                    Column(
+                      children: [
+                        // Üst bar
+                        _buildTopBar(localizations),
+
+                        // İçerik (yaş grubu seçimi olmadan doğrudan ana sayfa)
+                        Expanded(
+                          child: _buildGameModeContent(localizations),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -222,7 +242,7 @@ class _GameStartScreenState extends State<GameStartScreen>
         children: [
           // Geri butonu
           GestureDetector(
-            onTap: _showContent ? _resetSelection : widget.onBack,
+            onTap: widget.onBack,
             child: Container(
               width: 48,
               height: 48,
@@ -245,27 +265,13 @@ class _GameStartScreenState extends State<GameStartScreen>
           const Spacer(),
 
           // Başlık
-          Column(
-            children: [
-              Text(
-                _showContent
-                    ? _getAgeGroupTitle(localizations)
-                    : localizations.get('select_age_group'),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (_showContent)
-                Text(
-                  _getAgeGroupSubtitle(localizations),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-            ],
+          Text(
+            localizations.get('app_name'),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
 
           const Spacer(),
@@ -548,10 +554,14 @@ class _GameStartScreenState extends State<GameStartScreen>
 
         const SizedBox(height: 24),
 
+        // TODO: Yayın sonrası güncellemede eklenecek (6-7 ay sonra)
         // Öğrenme Hedefi Seçimi
-        _buildLearningGoalSection(localizations),
+        // - Okul Destek (🎯)
+        // - Yetenek Geliştir (🌟)
+        // - Eğlence Modu (😊)
+        // _buildLearningGoalSection(localizations),
 
-        const SizedBox(height: 40),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -647,7 +657,7 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  // Hızlı Başlangıç bölümü
+  // Hızlı Başlangıç bölümü - CAN EKLENDİ
   Widget _buildQuickStartSection(AppLocalizations localizations) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,16 +691,20 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
             ),
             const SizedBox(width: 12),
-            // Günün Görevi
+            // Günün Görevi - 3 CAN EKLENDİ
+            // Günün Görevi kartı (can göstergesi olmadan)
             Expanded(
               child: _buildQuickStartCard(
                 emoji: '🎯',
                 title: localizations.get('daily_challenge'),
-                subtitle: localizations.get('surprise_reward'),
+                subtitle: 'Sürpriz ödül',
                 color: const Color(0xFF4ECDC4),
                 onTap: () => _startQuickGame('daily'),
+                // showLives: true,    → kaldırıldı
+                // livesCount: _mechanicsService.livesSystem.currentLives,  → kaldırıldı
               ),
             ),
+
           ],
         ),
         const SizedBox(height: 12),
@@ -734,6 +748,7 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
+  // Hızlı Başlangıç Kartı - CAN GÖSTERGESİ EKLENDİ
   Widget _buildQuickStartCard({
     required String emoji,
     required String title,
@@ -741,6 +756,9 @@ class _GameStartScreenState extends State<GameStartScreen>
     required Color color,
     required VoidCallback onTap,
     bool isWide = false,
+    // showLives ve livesCount parametreleri artık kullanılmıyor, kaldırılabilir
+    // bool showLives = false,
+    // int livesCount = 3,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -769,8 +787,11 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
               child: Row(
                 children: [
+                  // Emoji
                   Text(emoji, style: const TextStyle(fontSize: 28)),
                   const SizedBox(width: 12),
+
+                  // Başlık ve alt başlık (can kısmı tamamen kaldırıldı)
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -784,6 +805,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                             color: Colors.white,
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           subtitle,
                           style: TextStyle(
@@ -794,6 +816,8 @@ class _GameStartScreenState extends State<GameStartScreen>
                       ],
                     ),
                   ),
+
+                  // Play butonu
                   const Icon(
                     Icons.play_arrow,
                     color: Colors.white,
@@ -1114,7 +1138,7 @@ class _GameStartScreenState extends State<GameStartScreen>
         ),
         const SizedBox(height: 12),
 
-        // İlk satır - 3 öğe
+        // Keşfet kartları - sadece aktif özellikler
         Row(
           children: [
             _buildDiscoverCard(
@@ -1123,36 +1147,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               subtitle: 'Akıl oyunları',
               color: const Color(0xFF00CEC9),
               onTap: () => _openDiscoverItem('Zeka Oyunları'),
-            ),
-            const SizedBox(width: 12),
-            _buildDiscoverCard(
-              emoji: '🎭',
-              title: 'Zaman Atölyesi',
-              subtitle: 'Zaman kavramı',
-              color: const Color(0xFFA29BFE),
-              onTap: () => _openDiscoverItem('Zaman Atölyesi'),
-            ),
-            const SizedBox(width: 12),
-            _buildDiscoverCard(
-              emoji: '🧮',
-              title: 'Hesap Makinesi',
-              subtitle: 'Pratik yap',
-              color: const Color(0xFFFD79A8),
-              onTap: () => _openDiscoverItem('Hesap Makinesi'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // İkinci satır - 3 öğe
-        Row(
-          children: [
-            _buildDiscoverCard(
-              emoji: '📊',
-              title: 'İstatistik',
-              subtitle: 'Gelişim grafiği',
-              color: const Color(0xFFFDCB6E),
-              onTap: () => _openDiscoverItem('İstatistik'),
+              isPremium: true,
             ),
             const SizedBox(width: 12),
             _buildDiscoverCard(
@@ -1161,17 +1156,16 @@ class _GameStartScreenState extends State<GameStartScreen>
               subtitle: 'Eğlenceli tasarım',
               color: const Color(0xFF74B9FF),
               onTap: () => _openDiscoverItem('Renkli Matematik'),
-            ),
-            const SizedBox(width: 12),
-            _buildDiscoverCard(
-              emoji: '🏆',
-              title: 'Başarılar',
-              subtitle: 'Rozet koleksiyonu',
-              color: const Color(0xFF55EFC4),
-              onTap: () => _openDiscoverItem('Başarılar'),
+              isPremium: true,
             ),
           ],
         ),
+
+        // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
+        // - Zaman Atölyesi (🎭)
+        // - Hesap Makinesi (🧮)
+        // - İstatistik (📊)
+        // - Başarılar (🏆)
       ],
     );
   }
@@ -1182,58 +1176,103 @@ class _GameStartScreenState extends State<GameStartScreen>
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
+    bool isPremium = false,
   }) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final isLocked = isPremium && !authService.isPremium;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          height: 100,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color, color.withOpacity(0.7)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+        child: Stack(
+          children: [
+            Container(
+              height: 100,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.7)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.4),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            // Premium badge - sağ üst köşe
+            if (isLocked)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('👑', style: TextStyle(fontSize: 10)),
+                      SizedBox(width: 2),
+                      Text(
+                        'PRO',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF8B4513),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -1410,7 +1449,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           MaterialPageRoute(
             builder: (context) => QuickMathScreen(
               gameType: type,
-              ageGroup: _selectedAgeGroup!,
+              ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1422,6 +1461,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           MaterialPageRoute(
             builder: (context) => DailyChallengeScreen(
               onBack: () => Navigator.pop(context),
+              // initialLives parametresini KALDIRDIM
             ),
           ),
         );
@@ -1431,7 +1471,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           context,
           MaterialPageRoute(
             builder: (context) => EndlessModeScreen(
-              ageGroup: _selectedAgeGroup!,
+              ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1445,7 +1485,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           context,
           MaterialPageRoute(
             builder: (context) => LiveDuelScreen(
-              ageGroup: _selectedAgeGroup!,
+              ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1457,7 +1497,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           MaterialPageRoute(
             builder: (context) => QuickMathScreen(
               gameType: type,
-              ageGroup: _selectedAgeGroup!,
+              ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1521,7 +1561,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           MaterialPageRoute(
             builder: (context) => BossBattleScreen(
               boss: boss,
-              ageGroup: _selectedAgeGroup!,
+              ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1593,16 +1633,14 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  // DÜZELTİLDİ: Artık TopicSelectionScreen'e gidiyor
   void _startTopicGame(String topic) {
     debugPrint('Starting topic game: $topic');
 
-    // TopicSelectionScreen'e git
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TopicSelectionScreen(
-          ageGroup: _selectedAgeGroup!,
+          ageGroup: _selectedAgeGroup,
           onBack: () => Navigator.pop(context),
         ),
       ),
@@ -1614,7 +1652,7 @@ class _GameStartScreenState extends State<GameStartScreen>
       context,
       MaterialPageRoute(
         builder: (context) => TopicSelectionScreen(
-          ageGroup: _selectedAgeGroup!,
+          ageGroup: _selectedAgeGroup,
           onBack: () => Navigator.pop(context),
         ),
       ),
@@ -1626,31 +1664,38 @@ class _GameStartScreenState extends State<GameStartScreen>
       context,
       MaterialPageRoute(
         builder: (context) => MathRegionsScreen(
-          ageGroup: _selectedAgeGroup!,
+          ageGroup: _selectedAgeGroup,
           onBack: () => Navigator.pop(context),
         ),
       ),
     );
   }
 
-  // YENİ EKLENDİ: Keşfet ekranını aç
   void _openDiscoverScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DiscoverScreen(
-          ageGroup: _selectedAgeGroup!,
+          ageGroup: _selectedAgeGroup,
           onBack: () => Navigator.pop(context),
         ),
       ),
     );
   }
 
-  // YENİ EKLENDİ: Keşfet öğesini aç
   void _openDiscoverItem(String itemName) {
     debugPrint('Opening discover item: $itemName');
 
-    // Renkli Matematik için özel ekran
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    // Premium kontrol gerektiren özellikler
+    const premiumFeatures = ['Zeka Oyunları', 'Renkli Matematik'];
+    
+    if (premiumFeatures.contains(itemName) && !authService.isPremium) {
+      _showPremiumRequiredDialog(itemName);
+      return;
+    }
+
     if (itemName == 'Renkli Matematik') {
       Navigator.push(
         context,
@@ -1663,7 +1708,6 @@ class _GameStartScreenState extends State<GameStartScreen>
       return;
     }
 
-    // Zeka Oyunları için özel ekran
     if (itemName == 'Zeka Oyunları') {
       Navigator.push(
         context,
@@ -1676,7 +1720,6 @@ class _GameStartScreenState extends State<GameStartScreen>
       return;
     }
 
-    // Şimdilik snackbar göster, daha sonra gerçek ekranlar eklenebilir
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$itemName özelliği yakında eklenecek!'),
@@ -1686,21 +1729,132 @@ class _GameStartScreenState extends State<GameStartScreen>
         duration: const Duration(seconds: 2),
       ),
     );
-
-    // Veya direkt DiscoverScreen'e git
-    // _openDiscoverScreen();
   }
 
-  // DÜZELTİLDİ: Artık MathRegionsScreen'e gidiyor
+  // Premium gerektiren özellik için dialog
+  void _showPremiumRequiredDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D1B69),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Text('👑', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Premium Özellik',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    featureName,
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Bu özellik sadece Premium üyelere özeldir.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '✨ Premium üye olarak tüm özelliklere erişebilirsiniz!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Kapat',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateToPremiumScreen();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: const Color(0xFF8B4513),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('👑', style: TextStyle(fontSize: 16)),
+                SizedBox(width: 8),
+                Text(
+                  "Premium'a Yükselt",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Premium ekranına yönlendir
+  void _navigateToPremiumScreen() {
+    // TODO: Premium satın alma ekranına yönlendir
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Premium üyelik yakında aktif olacak! 👑'),
+        backgroundColor: Colors.amber.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _openRegion(String region) {
     debugPrint('Opening region: $region');
 
-    // Bölgeye özel bir ekran yoksa, genel MathRegionsScreen'e git
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MathRegionsScreen(
-          ageGroup: _selectedAgeGroup!,
+          ageGroup: _selectedAgeGroup,
           onBack: () => Navigator.pop(context),
         ),
       ),
@@ -1709,7 +1863,6 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   void _selectGoal(String goal) {
     debugPrint('Selected goal: $goal');
-    // TODO: Implement goal selection
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$goal hedefi seçildi!'),
