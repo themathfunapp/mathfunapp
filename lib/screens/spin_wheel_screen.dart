@@ -101,108 +101,116 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      builder: (dialogContext) {
+        final loc = AppLocalizations.of(dialogContext);
+        final rewardName = loc.get('spin_reward_${_reward!.id}');
+        final displayName = rewardName != 'spin_reward_${_reward!.id}' ? rewardName : _reward!.name;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(24),
             ),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '🎉 TEBRİKLER! 🎉',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    _reward!.emoji,
-                    style: const TextStyle(fontSize: 48),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _reward!.name,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'TAMAM',
-                  style: TextStyle(
-                    fontSize: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '🎉 ${loc.get('spin_wheel_congrats')} 🎉',
+                  style: const TextStyle(
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _reward!.emoji,
+                      style: const TextStyle(fontSize: 48),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    loc.get('spin_wheel_ok'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   void _showAlreadySpunDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF764ba2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text(
-          '⏰ Yarın Gel!',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'Bugün zaten çarkı döndürdünüz. Yarın tekrar deneyin!',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'TAMAM',
-              style: TextStyle(color: Colors.amber),
-            ),
+      builder: (dialogContext) {
+        final loc = AppLocalizations.of(dialogContext);
+        return AlertDialog(
+          backgroundColor: const Color(0xFF764ba2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
-      ),
+          title: Text(
+            '⏰ ${loc.get('spin_wheel_come_tomorrow_title')}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            loc.get('spin_wheel_already_spun'),
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                loc.get('spin_wheel_ok'),
+                style: const TextStyle(color: Colors.amber),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -233,9 +241,9 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
               const SizedBox(height: 20),
 
               // Başlık
-              const Text(
-                '🎰 ŞANS ÇARKI 🎰',
-                style: TextStyle(
+              Text(
+                '🎰 ${localizations.get('spin_wheel_title')} 🎰',
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.amber,
@@ -252,8 +260,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
               Text(
                 mechanicsService.canSpin
-                    ? 'Günlük ücretsiz çevirme hakkın var!'
-                    : 'Yarın tekrar gel!',
+                    ? localizations.get('spin_wheel_subtitle_free')
+                    : localizations.get('spin_wheel_subtitle_tomorrow'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white.withOpacity(0.8),
@@ -311,9 +319,9 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                                     color: Colors.white,
                                     strokeWidth: 3,
                                   )
-                                : const Text(
-                                    'ÇEVİR',
-                                    style: TextStyle(
+                                : Text(
+                                    localizations.get('spin_wheel_button'),
+                                    style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -353,7 +361,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
               ),
 
               // Ödül listesi
-              _buildRewardsList(),
+              _buildRewardsList(localizations),
 
               const SizedBox(height: 20),
             ],
@@ -389,7 +397,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     );
   }
 
-  Widget _buildRewardsList() {
+  Widget _buildRewardsList(AppLocalizations localizations) {
     return Container(
       height: 80,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -398,6 +406,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
         itemCount: rewards.length,
         itemBuilder: (context, index) {
           final reward = rewards[index];
+          final rewardLabel = localizations.get('spin_reward_${reward.id}');
+          final displayName = rewardLabel != 'spin_reward_${reward.id}' ? rewardLabel : reward.name;
           return Container(
             width: 70,
             margin: const EdgeInsets.only(right: 8),
@@ -419,7 +429,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  reward.name,
+                  displayName,
                   style: const TextStyle(
                     fontSize: 8,
                     color: Colors.white,

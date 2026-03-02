@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 /// Sayı Ormanı - Eğlenceli Sayma Oyunu
 class CountingForestScreen extends StatefulWidget {
@@ -120,6 +123,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -145,7 +149,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
               Column(
                 children: [
                   // Üst bar
-                  _buildTopBar(),
+                  _buildTopBar(loc),
                   
                   const SizedBox(height: 20),
                   
@@ -155,17 +159,17 @@ class _CountingForestScreenState extends State<CountingForestScreen>
                       child: Column(
                         children: [
                           // Seviye ve skor
-                          _buildLevelInfo(),
+                          _buildLevelInfo(loc),
                           
                           const SizedBox(height: 30),
                           
                           // Soru bölümü - Ağaçlar ve meyveler
-                          _buildQuestionArea(),
+                          _buildQuestionArea(loc),
                           
                           const SizedBox(height: 40),
                           
                           // Cevap seçenekleri
-                          _buildAnswerOptions(),
+                          _buildAnswerOptions(loc),
                         ],
                       ),
                     ),
@@ -183,7 +187,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -205,21 +209,21 @@ class _CountingForestScreenState extends State<CountingForestScreen>
           const SizedBox(width: 16),
           
           // Başlık
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🌳 Sayı Ormanı',
-                  style: TextStyle(
+                  '🌳 ${loc.get('number_forest')}',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Meyveleri say!',
-                  style: TextStyle(
+                  loc.get('count_fruits_subtitle'),
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                   ),
@@ -255,7 +259,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
     );
   }
 
-  Widget _buildLevelInfo() {
+  Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -267,8 +271,8 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Seviye', _currentLevel.toString(), '🎯'),
-          _buildStatItem('Skor', _score.toString(), '🏆'),
+          _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
+          _buildStatItem(loc.get('score'), _score.toString(), '🏆'),
         ],
       ),
     );
@@ -301,7 +305,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
     );
   }
 
-  Widget _buildQuestionArea() {
+  Widget _buildQuestionArea(AppLocalizations loc) {
     final random = math.Random();
     final fruit = _fruits[random.nextInt(_fruits.length)];
     
@@ -321,9 +325,9 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            'Ormanda kaç meyve var?',
-            style: TextStyle(
+          Text(
+            loc.get('forest_how_many_fruits'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1B5E20),
@@ -415,14 +419,14 @@ class _CountingForestScreenState extends State<CountingForestScreen>
     );
   }
 
-  Widget _buildAnswerOptions() {
+  Widget _buildAnswerOptions(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          const Text(
-            'Cevabını seç:',
-            style: TextStyle(
+          Text(
+            loc.get('choose_answer'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,

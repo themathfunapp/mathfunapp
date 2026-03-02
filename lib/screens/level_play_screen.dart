@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
-import '../services/auth_service.dart';
+import '../providers/locale_provider.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
@@ -168,9 +168,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
 
     final gradientColors = [
       Color(int.parse(widget.world.colors[0].replaceFirst('#', '0xFF'))),
@@ -732,9 +731,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
 
 
   void _showTimeUpDialog() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
 
     showDialog(
       context: context,
@@ -828,9 +826,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
 
     if (!mounted) return;
 
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
 
     showDialog(
       context: context,

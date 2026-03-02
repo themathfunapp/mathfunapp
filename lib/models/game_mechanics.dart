@@ -579,7 +579,8 @@ class TopicGameManager {
         
         return {
           'type': 'count_objects',
-          'question': 'Kaç tane var?',
+          'questionKey': 'question_how_many',
+          'questionParams': <String, String>{},
           'emoji': emoji,
           'count': count,
           'correctAnswer': count,
@@ -593,7 +594,8 @@ class TopicGameManager {
         
         return {
           'type': 'find_missing',
-          'question': 'Hangi sayı eksik?',
+          'questionKey': 'question_which_missing',
+          'questionParams': <String, String>{},
           'sequence': '$start, ${start + 1}, __, ${start + 3}',
           'correctAnswer': missing,
           'options': [missing, missing - 1, missing + 1, missing + 2]..shuffle(),
@@ -606,7 +608,8 @@ class TopicGameManager {
         
         return {
           'type': 'whats_next',
-          'question': 'Sonraki sayı kaç?',
+          'questionKey': 'question_next_number',
+          'questionParams': <String, String>{},
           'sequence': '$start, ${start + 1}, ${start + 2}, __',
           'correctAnswer': next,
           'options': [next, next - 1, next + 1, next + 2]..shuffle(),
@@ -620,9 +623,8 @@ class TopicGameManager {
         
         return {
           'type': 'before_after',
-          'question': isBefore 
-              ? '$number\'den önce hangi sayı gelir?'
-              : '$number\'den sonra hangi sayı gelir?',
+          'questionKey': isBefore ? 'question_before_number' : 'question_after_number',
+          'questionParams': <String, String>{'number': number.toString()},
           'correctAnswer': correctAnswer,
           'options': [correctAnswer, number, correctAnswer + 1, correctAnswer - 1]..shuffle(),
         };

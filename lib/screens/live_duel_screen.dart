@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
 /// Canlı Düello Ekranı - Optimize Edilmiş Çocuk Tasarımı
@@ -38,7 +40,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   int _timeLeft = 15;
   int _searchTime = 0;
 
-  String _opponentName = '';
+  String _opponentNameKey = '';
   String _opponentAvatar = '';
   int _opponentLevel = 0;
 
@@ -167,11 +169,11 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   void _findOpponent() {
     _searchTimer?.cancel();
 
-    final names = ['Sayı Şampiyonu', 'Matematik Ustası', 'Hızlı Hesap', 'Akıllı Çocuk', 'Süper Beyin', 'Zeka Küpü'];
+    final nameKeys = ['opponent_number_champion', 'opponent_math_master', 'opponent_fast_calc', 'opponent_smart_kid', 'opponent_super_brain', 'opponent_genius_cube'];
     final avatar = _characterAvatars[_random.nextInt(_characterAvatars.length)];
 
     setState(() {
-      _opponentName = names[_random.nextInt(names.length)];
+      _opponentNameKey = nameKeys[_random.nextInt(nameKeys.length)];
       _opponentAvatar = avatar['emoji'];
       _opponentLevel = _random.nextInt(20) + 5;
       _state = DuelState.matched;
@@ -414,6 +416,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   }
 
   Widget _buildSearchingView() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -453,9 +458,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                 colors: [Colors.amber, Colors.orange, Colors.yellow],
               ).createShader(bounds);
             },
-            child: const Text(
-              'Rakip Aranıyor...',
-              style: TextStyle(
+            child: Text(
+              loc.get('searching_for_opponent'),
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -494,7 +499,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
             backgroundColor: Colors.red,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.close),
-            label: const Text('İptal', style: TextStyle(fontSize: 16)),
+            label: Text(loc.get('cancel'), style: const TextStyle(fontSize: 16)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -505,6 +510,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   }
 
   Widget _buildMatchedView() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
+
     return Center(
       child: ScaleTransition(
         scale: _vsAnimation,
@@ -513,8 +521,8 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
           children: [
             _buildPlayerCard(
               emoji: '👑',
-              name: 'SEN',
-              level: 'ŞAMPİYON',
+              name: loc.get('you'),
+              level: loc.get('champion'),
               color: _playerColors[_currentRound % _playerColors.length],
               isPlayer: true,
             ),
@@ -553,15 +561,15 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
             const SizedBox(height: 16),
             _buildPlayerCard(
               emoji: _opponentAvatar,
-              name: _opponentName,
-              level: 'SEVİYE $_opponentLevel',
+              name: loc.get(_opponentNameKey),
+              level: '${loc.get('duel_level')} $_opponentLevel',
               color: _opponentColors[_currentRound % _opponentColors.length],
               isPlayer: false,
             ),
             const SizedBox(height: 25),
-            const Text(
-              'HAZIR MISIN?',
-              style: TextStyle(
+            Text(
+              loc.get('ready_to_play'),
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.amber,
@@ -643,6 +651,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   }
 
   Widget _buildPlayingView() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
+
     return Column(
       children: [
         // Üst skor kartı - DÜZELTİLDİ
@@ -705,9 +716,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            'SEN',
-                            style: TextStyle(
+                          Text(
+                            loc.get('you'),
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -808,7 +819,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            _opponentName,
+                            loc.get(_opponentNameKey),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -1076,9 +1087,13 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   }
 
   Widget _buildFinishedView() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
     final playerWon = _playerScore > _opponentScore;
     final isDraw = _playerScore == _opponentScore;
     final medalColor = playerWon ? Colors.amber : isDraw ? Colors.blue : Colors.grey;
+    final resultText = playerWon ? loc.get('result_congratulations') : isDraw ? loc.get('result_draw') : loc.get('result_try_again');
+    final opponentName = loc.get(_opponentNameKey);
 
     return Center(
       child: SingleChildScrollView(
@@ -1137,7 +1152,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                   ).createShader(bounds);
                 },
                 child: Text(
-                  playerWon ? 'TEBRİKLER!' : isDraw ? 'BERABERE!' : 'TEKRAR DENEYİN',
+                  resultText,
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -1152,13 +1167,13 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildFinalScoreCard(
-                    title: 'SEN',
+                    title: loc.get('you'),
                     score: _playerScore,
                     emoji: '👑',
                     color: Colors.blue,
                   ),
                   _buildFinalScoreCard(
-                    title: _opponentName,
+                    title: opponentName,
                     score: _opponentScore,
                     emoji: _opponentAvatar,
                     color: Colors.purple,
@@ -1180,9 +1195,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                     children: [
                       const Text('🏆', style: TextStyle(fontSize: 20)),
                       const SizedBox(width: 8),
-                      const Text(
-                        'KAZANÇ:',
-                        style: TextStyle(
+                      Text(
+                        loc.get('winnings'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -1220,7 +1235,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                         shadowColor: Colors.black.withOpacity(0.3),
                       ),
                       icon: const Icon(Icons.exit_to_app),
-                      label: const Text('ÇIKIŞ', style: TextStyle(fontSize: 16)),
+                      label: Text(loc.get('exit_button'), style: const TextStyle(fontSize: 16)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1238,7 +1253,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                         shadowColor: Colors.amber.withOpacity(0.5),
                       ),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('TEKRAR OYNA', style: TextStyle(fontSize: 16)),
+                      label: Text(loc.get('play_again_action'), style: const TextStyle(fontSize: 16)),
                     ),
                   ),
                 ],

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import '../models/daily_reward.dart';
@@ -14,6 +15,7 @@ class SpecializedGameScreen extends StatefulWidget {
   final TopicGameSettings topicSettings;
   final AgeGroupSelection ageGroup;
   final String difficulty;
+  final String? difficultyDisplay;
   final VoidCallback onBack;
 
   const SpecializedGameScreen({
@@ -21,6 +23,7 @@ class SpecializedGameScreen extends StatefulWidget {
     required this.topicSettings,
     required this.ageGroup,
     required this.difficulty,
+    this.difficultyDisplay,
     required this.onBack,
   });
 
@@ -93,6 +96,40 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _startTimer();
   }
 
+  /// TopicType'a göre lokalize konu adını döndürür.
+  String _getLocalizedTopicTitle(AppLocalizations loc) {
+    switch (widget.topicSettings.topicType) {
+      case GameMechanics.TopicType.counting:
+        return loc.get('topic_counting');
+      case GameMechanics.TopicType.addition:
+        return loc.get('topic_addition');
+      case GameMechanics.TopicType.subtraction:
+        return loc.get('topic_subtraction');
+      case GameMechanics.TopicType.multiplication:
+        return loc.get('topic_multiplication');
+      case GameMechanics.TopicType.division:
+        return loc.get('topic_division');
+      case GameMechanics.TopicType.geometry:
+        return loc.get('topic_geometry');
+      case GameMechanics.TopicType.fractions:
+        return loc.get('topic_fractions');
+      case GameMechanics.TopicType.decimals:
+        return loc.get('topic_decimals');
+      case GameMechanics.TopicType.time:
+        return loc.get('topic_time');
+      case GameMechanics.TopicType.measurements:
+        return loc.get('topic_measurement');
+      case GameMechanics.TopicType.patterns:
+        return loc.get('topic_patterns');
+      case GameMechanics.TopicType.algebra:
+        return loc.get('topic_algebra');
+      case GameMechanics.TopicType.statistics:
+        return loc.get('topic_statistics');
+      default:
+        return widget.topicSettings.title;
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -119,8 +156,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   int _getQuestionCount() {
     switch (widget.difficulty) {
+      case 'easy':
       case 'Kolay': return 5;
+      case 'medium':
       case 'Orta': return 10;
+      case 'hard':
       case 'Zor': return 15;
       default: return 10;
     }
@@ -142,8 +182,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   int _getTimeLimit() {
     switch (widget.difficulty) {
+      case 'easy':
       case 'Kolay': return 45;
+      case 'medium':
       case 'Orta': return 30;
+      case 'hard':
       case 'Zor': return 20;
       default: return 30;
     }
@@ -361,152 +404,158 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '💔 CANLAR BİTTİ 💔',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '${widget.topicSettings.emoji} ${widget.topicSettings.title}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _buildStatRow('Doğru Cevaplar', '$_correctAnswers / ${_currentQuestionIndex + 1}'),
-                    const Divider(color: Colors.white24),
-                    _buildStatRow('Skor', '$_score'),
-                    if (_totalAdsWatched > 0) ...[
-                      const Divider(color: Colors.white24),
-                      _buildStatRow('İzlenen Reklam', '$_totalAdsWatched'),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '💔 ${loc.get('lives_finished')} 💔',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${widget.topicSettings.emoji} ${_getLocalizedTopicTitle(loc)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildStatRow(loc.get('correct_answers'), '$_correctAnswers / ${_currentQuestionIndex + 1}'),
+                        const Divider(color: Colors.white24),
+                        _buildStatRow(loc.get('score'), '$_score'),
+                        if (_totalAdsWatched > 0) ...[
+                          const Divider(color: Colors.white24),
+                          _buildStatRow(loc.get('ads_watched'), '$_totalAdsWatched'),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
-              // REKLAM İZLE BUTONU - Kalan hak varsa göster
-              if (showAdOption) ...[
-                AnimatedBuilder(
-                  animation: _adAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _adAnimation.value,
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _reviveWithAd();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black87,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 8,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.play_circle, size: 28),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+                  // REKLAM İZLE BUTONU - Kalan hak varsa göster
+                  if (showAdOption) ...[
+                    AnimatedBuilder(
+                      animation: _adAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _adAnimation.value,
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _reviveWithAd();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black87,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 8,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    'REKLAM İZLE +1 CAN KAZAN',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Kalan hak: $_remainingAds/3',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black.withOpacity(0.6),
-                                    ),
+                                  const Icon(Icons.play_circle, size: 28),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        loc.get('watch_ad_gain_life'),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${loc.get('remaining_ads')}: $_remainingAds/3',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
+                        );
+                      },
+                    ),
+                  ],
+
+                  // TEKRAR DENE
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _restartGame();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ],
-
-              // TEKRAR DENE
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _restartGame();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      child: Text(
+                        loc.get('try_again'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'TEKRAR DENE',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
 
-              // ANA MENÜ
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    widget.onBack();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.15),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  // ANA MENÜ
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onBack();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.15),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        loc.get('main_menu'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'ANA MENÜ',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -519,7 +568,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     });
   }
 
-  Widget _buildGeometryQuestion(Map<String, dynamic> question) {
+  Widget _buildGeometryQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
     final correctAnswer = question['correctAnswer'];
     final questionText = question['question'] as String? ?? '';
@@ -699,7 +748,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  Widget _buildFractionQuestion(Map<String, dynamic> question) {
+  Widget _buildFractionQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
     final correctAnswer = question['correctAnswer'];
     final questionText = question['question'] as String? ?? '';
@@ -743,7 +792,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  Widget _buildTimeQuestion(Map<String, dynamic> question) {
+  Widget _buildTimeQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final questionText = question['question'] as String? ?? '';
     final options = question['options'] as List<dynamic>? ?? [];
     final correctAnswer = question['correctAnswer'];
@@ -1010,35 +1059,47 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  Widget _buildQuestionContent(Map<String, dynamic> question) {
+  Widget _buildQuestionContent(Map<String, dynamic> question, AppLocalizations loc) {
     final topicType = widget.topicSettings.topicType;
 
     switch (topicType) {
       case GameMechanics.TopicType.counting:
-        return _buildCountingQuestion(question);
+        return _buildCountingQuestion(question, loc);
       case GameMechanics.TopicType.geometry:
-        return _buildGeometryQuestion(question);
+        return _buildGeometryQuestion(question, loc);
       case GameMechanics.TopicType.fractions:
-        return _buildFractionQuestion(question);
+        return _buildFractionQuestion(question, loc);
       case GameMechanics.TopicType.time:
-        return _buildTimeQuestion(question);
+        return _buildTimeQuestion(question, loc);
       case GameMechanics.TopicType.addition:
       case GameMechanics.TopicType.subtraction:
       case GameMechanics.TopicType.multiplication:
       case GameMechanics.TopicType.division:
-        return _buildBasicMathQuestion(question);
+        return _buildBasicMathQuestion(question, loc);
       case GameMechanics.TopicType.decimals:
-        return _buildDecimalsQuestion(question);
+        return _buildDecimalsQuestion(question, loc);
       case GameMechanics.TopicType.algebra:
-        return _buildAlgebraQuestion(question);
+        return _buildAlgebraQuestion(question, loc);
       default:
-        return _buildBasicMathQuestion(question);
+        return _buildBasicMathQuestion(question, loc);
     }
   }
 
-  Widget _buildCountingQuestion(Map<String, dynamic> question) {
+  Widget _buildCountingQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String;
-    final questionText = question['question'] as String? ?? '';
+    String questionText;
+    final questionKey = question['questionKey'] as String?;
+    final questionParams = question['questionParams'] as Map<String, String>?;
+    if (questionKey != null) {
+      questionText = loc.get(questionKey);
+      if (questionParams != null && questionParams.isNotEmpty) {
+        for (final e in questionParams.entries) {
+          questionText = questionText.replaceAll('{${e.key}}', e.value);
+        }
+      }
+    } else {
+      questionText = question['question'] as String? ?? '';
+    }
     final options = question['options'] as List<dynamic>? ?? [];
     final optionsList = options.whereType<int>().toList();
 
@@ -1158,7 +1219,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  Widget _buildDecimalsQuestion(Map<String, dynamic> question) {
+  Widget _buildDecimalsQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
     final questionText = question['question'] as String? ?? '';
     final options = question['options'] as List<dynamic>? ?? [];
@@ -1283,7 +1344,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  Widget _buildAlgebraQuestion(Map<String, dynamic> question) {
+  Widget _buildAlgebraQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final questionText = question['question'] as String? ?? '';
     final options = question['options'] as List<dynamic>? ?? [];
     final optionsList = options.whereType<int>().toList();
@@ -1314,7 +1375,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               if (_isAnswered) ...[
                 const SizedBox(height: 8),
                 Text(
-                  _isCorrect ? '✅ Doğru!' : '❌ Yanlış!',
+                  _isCorrect ? '✅ ${loc.get('correct_feedback')}' : '❌ ${loc.get('wrong_feedback')}',
                   style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ],
@@ -1357,7 +1418,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  Widget _buildBasicMathQuestion(Map<String, dynamic> question) {
+  Widget _buildBasicMathQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final questionText = question['question'] as String? ?? '? = ?';
     final options = question['options'] as List<dynamic>? ?? [];
     final optionsList = options.whereType<int>().toList();
@@ -1497,6 +1558,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   Widget _buildTopBar() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -1526,7 +1588,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           Column(
             children: [
               Text(
-                widget.topicSettings.title,
+                _getLocalizedTopicTitle(loc),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1534,7 +1596,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                 ),
               ),
               Text(
-                widget.difficulty,
+                widget.difficultyDisplay ?? widget.difficulty,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white.withOpacity(0.8),
@@ -1597,6 +1659,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   Widget _buildProgressBar() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
@@ -1622,7 +1687,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Soru ${_currentQuestionIndex + 1} / ${_questions.length}',
+                  '${localizations.get('question')} ${_currentQuestionIndex + 1} / ${_questions.length}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -1693,63 +1758,75 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Oyundan Çıkılsın Mı?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Row(
+            child: Builder(
+              builder: (context) {
+                final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+                final loc = AppLocalizations(localeProvider.locale);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _gamePaused = false;
-                          });
-                          _startTimer();
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.3),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('HAYIR', style: TextStyle(fontSize: 14)),
+                    Text(
+                      loc.get('exit_game_confirm'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _timer?.cancel();
-                          Navigator.pop(context);
-                          widget.onBack();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 12),
+                    Text(
+                      loc.get('progress_not_saved'),
+                      style: const TextStyle(fontSize: 14, color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _gamePaused = false;
+                              });
+                              _startTimer();
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.3),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(loc.get('no'), style: const TextStyle(fontSize: 14)),
                           ),
                         ),
-                        child: const Text('EVET', style: TextStyle(fontSize: 14)),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _timer?.cancel();
+                              Navigator.pop(context);
+                              widget.onBack();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(loc.get('yes'), style: const TextStyle(fontSize: 14)),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),
@@ -1769,37 +1846,39 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                widget.topicSettings.color,
-                widget.topicSettings.color.withOpacity(0.7),
+      builder: (context) {
+        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  widget.topicSettings.color,
+                  widget.topicSettings.color.withOpacity(0.7),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${widget.topicSettings.emoji} ${widget.topicSettings.title}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${widget.topicSettings.emoji} ${_getLocalizedTopicTitle(loc)}',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
               const SizedBox(height: 16),
               Text(
                 percentage >= 60 ? '🎉 Tebrikler!' : '💪 Daha Çok Çalışmalısın',
@@ -1888,7 +1967,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
         ),
-      ),
+      );
+      },
     );
   }
 
@@ -1933,6 +2013,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
     final currentQuestion = _questions.isNotEmpty
         ? _questions[_currentQuestionIndex]
         : <String, dynamic>{};
@@ -1960,7 +2042,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                   child: _questions.isNotEmpty
                       ? AnimatedSwitcher(
                     duration: const Duration(milliseconds: 500),
-                    child: _buildQuestionContent(currentQuestion),
+                    child: _buildQuestionContent(currentQuestion, loc),
                   )
                       : const CircularProgressIndicator(color: Colors.white),
                 ),

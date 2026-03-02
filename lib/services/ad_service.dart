@@ -47,8 +47,10 @@ class AdService extends ChangeNotifier {
   
   bool get isInitialized => _isInitialized;
   bool get isRewardedAdLoaded => _isRewardedAdLoaded;
+  bool get isRewardedAdLoading => _isRewardedAdLoading;
   bool get isInterstitialAdLoaded => _isInterstitialAdLoaded;
   bool get isPremiumUser => _isPremiumUser;
+  bool get isLoading => _isRewardedAdLoading;
   
   // Debug modda test reklamları kullan
   String get _rewardedId => kDebugMode ? _testRewardedAdUnitId : _rewardedAdUnitId;

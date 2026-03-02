@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 /// Rakam Nehri - Balıklarla Sayma Oyunu
 class NumberRiverScreen extends StatefulWidget {
@@ -148,6 +151,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -171,7 +175,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               Column(
                 children: [
                   // Üst bar
-                  _buildTopBar(),
+                  _buildTopBar(loc),
 
                   const SizedBox(height: 20),
 
@@ -181,17 +185,17 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                       child: Column(
                         children: [
                           // Seviye ve skor
-                          _buildLevelInfo(),
+                          _buildLevelInfo(loc),
 
                           const SizedBox(height: 30),
 
                           // Soru bölümü - Nehir ve balıklar
-                          _buildQuestionArea(),
+                          _buildQuestionArea(loc),
 
                           const SizedBox(height: 40),
 
                           // Cevap seçenekleri
-                          _buildAnswerOptions(),
+                          _buildAnswerOptions(loc),
 
                           const SizedBox(height: 20),
                         ],
@@ -211,7 +215,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -233,21 +237,21 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
           const SizedBox(width: 16),
 
           // Başlık
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🌊 Rakam Nehri',
-                  style: TextStyle(
+                  '🌊 ${loc.get('digit_river')}',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Balıkları say!',
-                  style: TextStyle(
+                  loc.get('count_fish_subtitle'),
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                   ),
@@ -283,7 +287,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     );
   }
 
-  Widget _buildLevelInfo() {
+  Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -295,8 +299,8 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Seviye', _currentLevel.toString(), '🎯'),
-          _buildStatItem('Skor', _score.toString(), '🏆'),
+          _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
+          _buildStatItem(loc.get('score'), _score.toString(), '🏆'),
         ],
       ),
     );
@@ -329,7 +333,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     );
   }
 
-  Widget _buildQuestionArea() {
+  Widget _buildQuestionArea(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(24),
@@ -346,8 +350,8 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            'Suda kaç canlı yüzüyor?',
+          Text(
+            loc.get('river_how_many_creatures'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -561,14 +565,14 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     });
   }
 
-  Widget _buildAnswerOptions() {
+  Widget _buildAnswerOptions(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          const Text(
-            'Cevabını seç:',
-            style: TextStyle(
+          Text(
+            loc.get('choose_answer'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
@@ -441,27 +442,31 @@ class _QuickMathScreenState extends State<QuickMathScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('💔', style: TextStyle(fontSize: 60)),
-              const SizedBox(height: 16),
-              const Text(
-                'CANLAR BİTTİ!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$_correctAnswers doğru, $_wrongAnswers yanlış',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
-              ),
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💔', style: TextStyle(fontSize: 60)),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('lives_finished'),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_correctAnswers ${loc.get('correct')}, $_wrongAnswers ${loc.get('wrong')}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                  ),
               const SizedBox(height: 24),
 
               Container(
@@ -480,14 +485,14 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.play_circle, size: 24),
-                      SizedBox(width: 8),
+                      const Icon(Icons.play_circle, size: 24),
+                      const SizedBox(width: 8),
                       Text(
-                        'REKLAM İZLE +1 CAN KAZAN',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        loc.get('watch_ad_gain_life'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -510,7 +515,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text('TEKRAR DENE'),
+                  child: Text(loc.get('try_again')),
                 ),
               ),
 
@@ -524,10 +529,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withOpacity(0.7),
                   ),
-                  child: const Text('ÇIKIŞ'),
+                  child: Text(loc.get('exit_game')),
                 ),
               ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -693,6 +700,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildProgressBar() {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
@@ -728,7 +738,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 ],
               ),
               Text(
-                'Soru ${_currentQuestionIndex + 1}/$_totalQuestions',
+                '${localizations.get('question')} ${_currentQuestionIndex + 1}/$_totalQuestions',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -987,57 +997,63 @@ class _QuickMathScreenState extends State<QuickMathScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('⚠️', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 16),
-              const Text(
-                'Oyundan Çıkılsın Mı?',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Oyundan çıkarsan skorun kaydedilmez.',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('HAYIR'),
-                    ),
+                  const Text('⚠️', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('exit_game_confirm'),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _timer?.cancel();
-                        _particleTimer?.cancel();
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.get('progress_not_saved'),
+                    style: const TextStyle(fontSize: 16, color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(loc.get('no')),
+                        ),
                       ),
-                      child: const Text('EVET'),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _timer?.cancel();
+                            _particleTimer?.cancel();
+                            Navigator.pop(context);
+                            widget.onBack();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(loc.get('yes')),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

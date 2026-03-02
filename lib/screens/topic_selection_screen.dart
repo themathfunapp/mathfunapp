@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import 'game_start_screen.dart' as GameMechanics;
 import 'specialized_game_screen.dart';
@@ -35,13 +37,13 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   final PageController _pageController = PageController(viewportFraction: 0.8);
   int _currentPage = 0;
 
-  // Yaşa göre karakter ve tema
-  Map<String, dynamic> get _ageTheme {
+  // Yaşa göre karakter ve tema (characterName build'de localizations ile doldurulur)
+  Map<String, dynamic> _getAgeTheme(AppLocalizations loc) {
     switch (widget.ageGroup) {
       case GameMechanics.AgeGroupSelection.preschool:
         return {
           'character': '🐣',
-          'characterName': 'Sayı Civciv',
+          'characterName': loc.get('character_chick'),
           'bgColor': const Color(0xFFFFF9C4),
           'accentColor': const Color(0xFFFF9800),
           'particleColor': const Color(0xFFFFB74D),
@@ -49,7 +51,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       case GameMechanics.AgeGroupSelection.elementary:
         return {
           'character': '🚀',
-          'characterName': 'Roket Uzmanı',
+          'characterName': loc.get('character_rocket'),
           'bgColor': const Color(0xFFE3F2FD),
           'accentColor': const Color(0xFF2196F3),
           'particleColor': const Color(0xFF64B5F6),
@@ -57,7 +59,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       case GameMechanics.AgeGroupSelection.advanced:
         return {
           'character': '🧙‍♂️',
-          'characterName': 'Matematik Büyücüsü',
+          'characterName': loc.get('character_wizard'),
           'bgColor': const Color(0xFFEDE7F6),
           'accentColor': const Color(0xFF673AB7),
           'particleColor': const Color(0xFF9575CD),
@@ -65,7 +67,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       default:
         return {
           'character': '🌟',
-          'characterName': 'Matematik Yıldızı',
+          'characterName': loc.get('character_star'),
           'bgColor': const Color(0xFFF3E5F5),
           'accentColor': const Color(0xFF9C27B0),
           'particleColor': const Color(0xFFCE93D8),
@@ -129,9 +131,10 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
     final topics = _getTopicsForAge(widget.ageGroup, localizations);
-    final theme = _ageTheme;
+    final theme = _getAgeTheme(localizations);
 
     return Scaffold(
       body: Container(
@@ -156,11 +159,11 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
 
               // Kaydırılabilir konu kartları
               Expanded(
-                child: _buildTopicCarousel(topics, theme),
+                child: _buildTopicCarousel(topics, theme, localizations),
               ),
 
               // Alt navigasyon
-              _buildBottomNavigation(theme),
+              _buildBottomNavigation(theme, localizations),
             ],
           ),
         ),
@@ -376,7 +379,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Hangi konuda pratik yapmak istiyorsun?',
+                    localizations.get('which_topic_practice'),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.black.withOpacity(0.7),
@@ -391,7 +394,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     );
   }
 
-  Widget _buildTopicCarousel(List<Map<String, dynamic>> topics, Map<String, dynamic> theme) {
+  Widget _buildTopicCarousel(List<Map<String, dynamic>> topics, Map<String, dynamic> theme, AppLocalizations localizations) {
     return Column(
       children: [
         // Parçacık efekti
@@ -425,7 +428,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                 },
                 itemBuilder: (context, index) {
                   final topic = topics[index];
-                  return _buildTopicCard(topic: topic, index: index, theme: theme);
+                  return _buildTopicCard(topic: topic, index: index, theme: theme, localizations: localizations);
                 },
               ),
               
@@ -509,7 +512,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
         ),
 
         // Sayfa göstergesi
-        _buildPageIndicator(topics.length),
+        _buildPageIndicator(topics.length, theme),
       ],
     );
   }
@@ -518,6 +521,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     required Map<String, dynamic> topic,
     required int index,
     required Map<String, dynamic> theme,
+    required AppLocalizations localizations,
   }) {
     final isLocked = topic['locked'] == true;
 
@@ -648,8 +652,8 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              'OYNA',
+                            Text(
+                              localizations.get('play_button'),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -724,7 +728,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     );
   }
 
-  Widget _buildPageIndicator(int count) {
+  Widget _buildPageIndicator(int count, Map<String, dynamic> theme) {
     return Container(
       height: 40,
       child: Row(
@@ -737,7 +741,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               color: index == _currentPage
-                  ? _ageTheme['accentColor'] as Color
+                  ? theme['accentColor'] as Color
                   : Colors.grey[300],
               borderRadius: BorderRadius.circular(4),
             ),
@@ -747,7 +751,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     );
   }
 
-  Widget _buildBottomNavigation(Map<String, dynamic> theme) {
+  Widget _buildBottomNavigation(Map<String, dynamic> theme, AppLocalizations localizations) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       decoration: BoxDecoration(
@@ -762,26 +766,21 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Yardım butonu
           _buildBottomButton(
             icon: Icons.help_outline,
-            label: 'Yardım',
+            label: localizations.get('help'),
             color: Colors.blue,
             onTap: () => _showHelpDialog(),
           ),
-
-          // Güçlendirme butonu
           _buildBottomButton(
             icon: Icons.flash_on,
-            label: 'Güçler',
+            label: localizations.get('powers'),
             color: Colors.purple,
             onTap: () => _showPowerUps(),
           ),
-
-          // Seviye seçimi butonu
           _buildBottomButton(
             icon: Icons.school,
-            label: 'Seviye',
+            label: localizations.get('level_label'),
             color: Colors.green,
             onTap: () => _showLevelSelection(),
           ),
@@ -863,8 +862,8 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       {
         'id': 'shapes',
         'emoji': '🔺',
-        'title': 'Geometri',
-        'subtitle': 'Şekilleri öğren',
+        'title': localizations.get('geometry'),
+        'subtitle': localizations.get('learn_shapes'),
         'color': const Color(0xFFE67E22),
         'stars': 1,
         'locked': false,
@@ -889,8 +888,8 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       {
         'id': 'time',
         'emoji': '🕰',
-        'title': 'Saat',
-        'subtitle': 'Saati oku',
+        'title': localizations.get('topic_time'),
+        'subtitle': localizations.get('read_clock'),
         'color': const Color(0xFF1ABC9C),
         'stars': 2,
         'locked': false,
@@ -1141,30 +1140,35 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showLevelSelectionDialog(Map<String, dynamic> topic, Map<String, dynamic> settings) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+
     final levels = [
       {
         'level': 1,
-        'name': 'Kolay',
+        'nameKey': 'level_easy',
+        'difficultyId': 'easy',
         'emoji': '😊',
-        'description': 'Başlangıç seviyesi',
+        'descriptionKey': 'level_description_beginner',
         'questionCount': settings['questionCount'] as int,
         'timeLimit': settings['timeLimit'] as int,
         'rewardMultiplier': 1.0,
       },
       {
         'level': 2,
-        'name': 'Orta',
+        'nameKey': 'level_medium',
+        'difficultyId': 'medium',
         'emoji': '😐',
-        'description': 'Orta seviye',
+        'descriptionKey': 'level_description_medium',
         'questionCount': (settings['questionCount'] as int) + 5,
         'timeLimit': (settings['timeLimit'] as int) - 10,
         'rewardMultiplier': 1.5,
       },
       {
         'level': 3,
-        'name': 'Zor',
+        'nameKey': 'level_hard',
+        'difficultyId': 'hard',
         'emoji': '😰',
-        'description': 'Uzman seviyesi',
+        'descriptionKey': 'level_description_expert',
         'questionCount': (settings['questionCount'] as int) + 10,
         'timeLimit': (settings['timeLimit'] as int) - 20,
         'rewardMultiplier': 2.0,
@@ -1241,14 +1245,14 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                         ),
                       ),
                       title: Text(
-                        '${level['name']} - Seviye ${level['level']}',
+                        '${loc.get(level['nameKey'] as String)} - ${loc.get('level_label')} ${level['level']}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        '${level['questionCount']} soru • ${level['timeLimit']} saniye',
+                        '${level['questionCount']} ${loc.get('questions_unit')} • ${level['timeLimit']} ${loc.get('seconds_unit')}',
                         style: const TextStyle(fontSize: 14),
                       ),
                       trailing: Column(
@@ -1282,17 +1286,21 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
 
               const SizedBox(height: 10),
 
-              // İptal butonu
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'İPTAL',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+                  return TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      loc.get('cancel'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -1308,12 +1316,16 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SpecializedGameScreen(
-          topicSettings: topicSettings,
-          ageGroup: widget.ageGroup,
-          difficulty: level['name'] as String,
-          onBack: () => Navigator.pop(context),
-        ),
+        builder: (context) {
+          final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+          return SpecializedGameScreen(
+            topicSettings: topicSettings,
+            ageGroup: widget.ageGroup,
+            difficulty: level['difficultyId'] as String,
+            difficultyDisplay: loc.get(level['nameKey'] as String),
+            onBack: () => Navigator.pop(context),
+          );
+        },
       ),
     );
   }
@@ -1336,6 +1348,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showHelpDialog() {
+    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1353,7 +1366,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: _ageTheme['accentColor'] as Color,
+                  color: theme['accentColor'] as Color,
                 ),
               ),
               const SizedBox(height: 15),
@@ -1366,7 +1379,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _ageTheme['accentColor'] as Color,
+                  backgroundColor: theme['accentColor'] as Color,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
@@ -1401,11 +1414,11 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showPowerUps() {
-    // Güçlendirme ekranı göster
+    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Güçlendirme ekranı yakında!'),
-        backgroundColor: _ageTheme['accentColor'] as Color,
+        backgroundColor: theme['accentColor'] as Color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
@@ -1415,11 +1428,11 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showLevelSelection() {
-    // Seviye seçimi
+    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Seviye seçimi ekranı yakında!'),
-        backgroundColor: _ageTheme['accentColor'] as Color,
+        backgroundColor: theme['accentColor'] as Color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/ad_service.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
 /// Sonsuz Mod Ekranı
@@ -385,11 +386,15 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '💀 OYUN BİTTİ 💀',
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '💀 ${loc.get('game_over')} 💀',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -415,15 +420,15 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                 ),
                 child: Column(
                   children: [
-                    _buildStatRow('⭐ Toplam Puan', '$_score'),
+                    _buildStatRow('⭐ ${loc.get('total_score')}', '$_score'),
                     const Divider(color: Colors.white24),
-                    _buildStatRow('📊 Ulaşılan Seviye', '$_level'),
+                    _buildStatRow('📊 ${loc.get('level_reached')}', '$_level'),
                     const Divider(color: Colors.white24),
-                    _buildStatRow('✅ Doğru Cevap', '$_questionsAnswered'),
+                    _buildStatRow('✅ ${loc.get('correct_answer')}', '$_questionsAnswered'),
                     const Divider(color: Colors.white24),
-                    _buildStatRow('🔥 En Yüksek Combo', '$_maxCombo'),
+                    _buildStatRow('🔥 ${loc.get('highest_combo')}', '$_maxCombo'),
                     const Divider(color: Colors.white24),
-                    _buildStatRow('🎬 İzlenen Reklam', '$_totalAdsWatched'),
+                    _buildStatRow('🎬 ${loc.get('ads_watched')}', '$_totalAdsWatched'),
                   ],
                 ),
               ),
@@ -464,14 +469,14 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'REKLAM İZLE +1 CAN KAZAN',
+                                    loc.get('watch_ad_gain_life'),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
-                                    'Kalan hak: $_remainingAds/3',
+                                    '${loc.get('remaining_ads')}: $_remainingAds/3',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.black.withOpacity(0.6),
@@ -505,9 +510,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'TEKRAR DENE',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Text(
+                    loc.get('try_again'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -524,13 +529,15 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                     foregroundColor: Colors.white.withOpacity(0.7),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
-                    'ÇIKIŞ',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Text(
+                    loc.get('exit_game'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -615,90 +622,96 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '⚠️',
-                style: TextStyle(fontSize: 50),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Oyundan Çıkılsın Mı?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'İlerleme kaydedilmeyecek.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _gamePaused = false;
-                        });
-                        _startTimer();
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'HAYIR',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                  const Text(
+                    '⚠️',
+                    style: TextStyle(fontSize: 50),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _timer?.cancel();
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('exit_game_confirm'),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.get('progress_not_saved'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _gamePaused = false;
+                            });
+                            _startTimer();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            loc.get('no'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'EVET',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _timer?.cancel();
+                            Navigator.pop(context);
+                            widget.onBack();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            loc.get('yes'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -707,6 +720,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -800,7 +816,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'Seviye $_level',
+                                  '${loc.get('level')} $_level',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -994,7 +1010,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                               math.sin(_shakeController.value * math.pi * 4),
                           0,
                         ),
-                        child: _buildQuestion(),
+                        child: _buildQuestion(loc),
                       );
                     },
                   ),
@@ -1012,7 +1028,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     );
   }
 
-  Widget _buildQuestion() {
+  Widget _buildQuestion(AppLocalizations loc) {
     final isLowTime = _timeLeft <= 3;
 
     return Container(
@@ -1181,7 +1197,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _isCorrect ? 'DOĞRU!' : 'YANLIŞ!',
+                    _isCorrect ? loc.get('correct_feedback') : loc.get('wrong_feedback'),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

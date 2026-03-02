@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../services/ad_service.dart';
 import 'game_start_screen.dart';
 
@@ -307,22 +309,26 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('💔', style: TextStyle(fontSize: 60)),
-              const SizedBox(height: 16),
-              const Text(
-                'CANLAR BİTTİ!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Boss\'a ${_bossMaxHealth - _bossHealth} hasar verdin',
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💔', style: TextStyle(fontSize: 60)),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('lives_finished'),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Boss\'a ${_bossMaxHealth - _bossHealth} hasar verdin',
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.white70,
@@ -349,12 +355,12 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.play_circle, size: 24),
-                      SizedBox(width: 8),
+                    children: [
+                      const Icon(Icons.play_circle, size: 24),
+                      const SizedBox(width: 8),
                       Text(
-                        'REKLAM İZLE +1 CAN KAZAN',
-                        style: TextStyle(
+                        loc.get('watch_ad_gain_life'),
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -381,7 +387,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text('TEKRAR DENE'),
+                  child: Text(loc.get('try_again')),
                 ),
               ),
 
@@ -396,10 +402,12 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withOpacity(0.7),
                   ),
-                  child: const Text('ÇIKIŞ'),
+                  child: Text(loc.get('exit_game')),
                 ),
               ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -448,6 +456,13 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   void _showResultDialog(bool won) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
+    final bossName = loc.get('boss_${widget.boss.id}');
+    final resultText = won
+        ? '$bossName ${loc.get('boss_defeated')}'
+        : '$bossName ${loc.get('boss_won')}';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -486,9 +501,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                won
-                    ? '${widget.boss.name} yenildi!'
-                    : '${widget.boss.name} kazandı!',
+                resultText,
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.white70,
@@ -619,59 +632,71 @@ class _BossBattleScreenState extends State<BossBattleScreen>
             ),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Oyundan Çıkılsın Mı?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('HAYIR'),
+                  Text(
+                    loc.get('exit_game_confirm'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _timer?.cancel();
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.get('progress_not_saved'),
+                    style: const TextStyle(fontSize: 14, color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.3),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(loc.get('no')),
                         ),
                       ),
-                      child: const Text('EVET'),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _timer?.cancel();
+                            Navigator.pop(context);
+                            widget.onBack();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(loc.get('yes')),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -824,6 +849,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   Widget _buildBossArea() {
     final healthPercent = (_bossHealth / _bossMaxHealth).clamp(0.0, 1.0);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final loc = AppLocalizations(localeProvider.locale);
+    final bossName = loc.get('boss_${widget.boss.id}');
 
     return AnimatedBuilder(
       animation: _bossShakeAnimation,
@@ -842,7 +870,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               children: [
                 // Boss ismi
                 Text(
-                  widget.boss.name,
+                  bossName,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

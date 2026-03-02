@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 class TimeIslandScreen extends StatefulWidget {
   final String ageGroup;
@@ -485,6 +488,9 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   Widget _buildQuestionCard(Map<String, dynamic> question) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -502,7 +508,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
       child: Column(
         children: [
           Text(
-            'Soru ${_currentQuestion + 1}/$_totalQuestions',
+            '${localizations.get('question')} ${_currentQuestion + 1}/$_totalQuestions',
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey[600],

@@ -5,6 +5,7 @@ import '../services/story_service.dart';
 import '../services/ad_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'world_map_screen.dart';
 import 'avatar_creator_screen.dart';
 
@@ -70,9 +71,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
 
     return Scaffold(
       body: Container(
@@ -471,7 +471,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  progress?.avatar.odername ?? localizations.get('hero'),
+                  _getDisplayName(progress?.avatar.odername, localizations),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -521,6 +521,14 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         ],
       ),
     );
+  }
+
+  /// Varsayılan "Kahraman" adı seçili dilde gösterilir
+  String _getDisplayName(String? odername, AppLocalizations localizations) {
+    if (odername == null || odername.isEmpty || odername == 'Kahraman') {
+      return localizations.get('hero');
+    }
+    return odername;
   }
 
   Widget _buildStatItem(String emoji, String value) {

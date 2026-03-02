@@ -6,6 +6,7 @@ import '../services/game_mechanics_service.dart';
 import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
 /// Günlük Meydan Okuma Ekranı - 3 CAN SİSTEMİ VE KARIŞIK SORULAR
@@ -297,84 +298,90 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('💔', style: TextStyle(fontSize: 60)),
-              const SizedBox(height: 16),
-              const Text(
-                'CANLAR BİTTİ!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$_correctAnswers doğru, $_wrongAnswers yanlış',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // REKLAM İLE CAN ALMA BUTONU (ŞİMDİLİK BASİT)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _reviveWithAd();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💔', style: TextStyle(fontSize: 60)),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('lives_finished'),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.play_circle, size: 24),
-                      SizedBox(width: 8),
-                      Text(
-                        'REKLAM İZLE VE DEVAM ET',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_correctAnswers ${loc.get('correct')}, $_wrongAnswers ${loc.get('wrong')}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // REKLAM İLE CAN ALMA BUTONU (ŞİMDİLİK BASİT)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _reviveWithAd();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // NORMAL TEKRAR DENE
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    widget.onBack();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.play_circle, size: 24),
+                          const SizedBox(width: 8),
+                          Text(
+                            loc.get('watch_ad_continue'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  child: const Text('TEKRAR DENE'),
-                ),
-              ),
-            ],
+
+                  // NORMAL TEKRAR DENE
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onBack();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(loc.get('try_again')),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -587,67 +594,73 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('⚠️', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 16),
-              const Text(
-                'Oyundan Çıkılsın Mı?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Oyundan çıkarsan ilerleme kaydedilmez.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Row(
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('HAYIR'),
+                  const Text('⚠️', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 16),
+                  Text(
+                    loc.get('exit_game_confirm'),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _timer?.cancel();
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('EVET'),
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.get('progress_not_saved'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
                     ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(loc.get('no')),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _timer?.cancel();
+                            widget.onBack();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(loc.get('yes')),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -725,91 +738,99 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         ),
 
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Başlık
-                const Text(
-                  '🎯 GÜNÜN GÖREVİ 🎯',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber,
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Challenge kartı
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 2,
+          child: Builder(
+            builder: (context) {
+              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+              final loc = AppLocalizations(localeProvider.locale);
+              final title = _getChallengeTitle(loc, challenge.difficulty);
+              final description = loc.get('challenge_description_format')
+                  .replaceAll('{count}', '${challenge.targetCorrect}')
+                  .replaceAll('{minutes}', '${challenge.timeLimit ~/ 60}');
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Başlık
+                    Text(
+                      '🎯 ${loc.get('daily_task')} 🎯',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        challenge.title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        challenge.description,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
 
-                      // Hedefler
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    const SizedBox(height: 24),
+
+                    // Challenge kartı
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
                         children: [
-                          _buildTargetItem(
-                            '⏱️',
-                            '${challenge.timeLimit ~/ 60}:${(challenge.timeLimit % 60).toString().padLeft(2, '0')}',
-                            'Süre',
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                          _buildTargetItem(
-                            '✅',
-                            '${challenge.targetCorrect}',
-                            'Doğru',
+                          const SizedBox(height: 8),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          _buildTargetItem(
-                            '⭐',
-                            '${challenge.targetScore}',
-                            'Puan',
-                          ),
-                        ],
-                      ),
+                          const SizedBox(height: 24),
 
-                      const SizedBox(height: 24),
+                          // Hedefler
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildTargetItem(
+                                '⏱️',
+                                '${challenge.timeLimit ~/ 60}:${(challenge.timeLimit % 60).toString().padLeft(2, '0')}',
+                                loc.get('duration'),
+                              ),
+                              _buildTargetItem(
+                                '✅',
+                                '${challenge.targetCorrect}',
+                                loc.get('correct'),
+                              ),
+                              _buildTargetItem(
+                                '⭐',
+                                '${challenge.targetScore}',
+                                loc.get('score'),
+                              ),
+                            ],
+                          ),
 
-                      // Ödüller
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('🏆 Ödül: ',
-                                style: TextStyle(color: Colors.white)),
+                          const SizedBox(height: 24),
+
+                          // Ödüller
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('🏆 ${loc.get('reward')}: ',
+                                    style: const TextStyle(color: Colors.white)),
                             const Text('🪙', style: TextStyle(fontSize: 18)),
                             Text(
                               ' ${challenge.rewardCoins}',
@@ -847,9 +868,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                               const Icon(Icons.check_circle,
                                   color: Colors.green, size: 24),
                               const SizedBox(width: 8),
-                              const Text(
-                                'TAMAMLANDI!',
-                                style: TextStyle(
+                              Text(
+                                loc.get('challenge_completed'),
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.green,
@@ -889,7 +910,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                         ],
                       ),
                       child: Text(
-                        challenge.isCompleted ? 'TEKRAR OYNA' : 'BAŞLA!',
+                        challenge.isCompleted ? loc.get('play_again_action') : loc.get('start_exclamation'),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -901,10 +922,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 ),
               ],
             ),
+          );
+            },
           ),
         ),
       ],
     );
+  }
+
+  String _getChallengeTitle(AppLocalizations loc, String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+        return loc.get('challenge_easy_title');
+      case 'medium':
+        return loc.get('challenge_medium_title');
+      case 'hard':
+        return loc.get('challenge_hard_title');
+      default:
+        return loc.get('challenge_default_title');
+    }
   }
 
   Widget _buildTargetItem(String emoji, String value, String label) {

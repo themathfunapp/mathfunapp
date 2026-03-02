@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import 'topic_selection_screen.dart';
 import 'math_regions_screen.dart';
@@ -697,7 +698,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               child: _buildQuickStartCard(
                 emoji: '🎯',
                 title: localizations.get('daily_challenge'),
-                subtitle: 'Sürpriz ödül',
+                subtitle: localizations.get('surprise_reward'),
                 color: const Color(0xFF4ECDC4),
                 onTap: () => _startQuickGame('daily'),
                 // showLives: true,    → kaldırıldı
@@ -715,8 +716,8 @@ class _GameStartScreenState extends State<GameStartScreen>
             Expanded(
               child: _buildQuickStartCard(
                 emoji: '♾️',
-                title: 'Sonsuz Mod',
-                subtitle: 'Yanlış yapana kadar',
+                title: localizations.get('endless_mode'),
+                subtitle: localizations.get('endless_mode_subtitle'),
                 color: const Color(0xFF8E44AD),
                 onTap: () => _startQuickGame('endless'),
               ),
@@ -726,8 +727,8 @@ class _GameStartScreenState extends State<GameStartScreen>
             Expanded(
               child: _buildQuickStartCard(
                 emoji: '👾',
-                title: 'Boss Savaşı',
-                subtitle: 'Canavarları yen',
+                title: localizations.get('boss_battle'),
+                subtitle: localizations.get('boss_battle_subtitle'),
                 color: const Color(0xFFE74C3C),
                 onTap: () => _startQuickGame('boss'),
               ),
@@ -1114,7 +1115,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 const Icon(Icons.explore, color: Colors.white, size: 24),
                 const SizedBox(width: 8),
                 Text(
-                  'Yeni Geliştir',
+                  localizations.get('newly_developed'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1126,7 +1127,7 @@ class _GameStartScreenState extends State<GameStartScreen>
             GestureDetector(
               onTap: _openDiscoverScreen,
               child: Text(
-                'Tümünü Gör',
+                localizations.get('see_all'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.amber.shade300,
@@ -1143,19 +1144,19 @@ class _GameStartScreenState extends State<GameStartScreen>
           children: [
             _buildDiscoverCard(
               emoji: '🧩',
-              title: 'Zeka Oyunları',
-              subtitle: 'Akıl oyunları',
+              title: localizations.get('intelligence_games'),
+              subtitle: localizations.get('brain_games'),
               color: const Color(0xFF00CEC9),
-              onTap: () => _openDiscoverItem('Zeka Oyunları'),
+              onTap: () => _openDiscoverItem('intelligence_games'),
               isPremium: true,
             ),
             const SizedBox(width: 12),
             _buildDiscoverCard(
               emoji: '🎨',
-              title: 'Renkli Matematik',
-              subtitle: 'Eğlenceli tasarım',
+              title: localizations.get('colorful_math'),
+              subtitle: localizations.get('fun_design'),
               color: const Color(0xFF74B9FF),
-              onTap: () => _openDiscoverItem('Renkli Matematik'),
+              onTap: () => _openDiscoverItem('colorful_math'),
               isPremium: true,
             ),
           ],
@@ -1507,6 +1508,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   void _showBossSelection() {
     final bosses = BossBattle.allBosses;
+    final loc = AppLocalizations.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1527,9 +1529,9 @@ class _GameStartScreenState extends State<GameStartScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '👾 BOSS SEÇ 👾',
-              style: TextStyle(
+            Text(
+              '👾 ${loc.get('select_boss')} 👾',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -1541,7 +1543,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: bosses.map((boss) => _buildBossItem(boss)).toList(),
+                  children: bosses.map((boss) => _buildBossItem(boss, loc)).toList(),
                 ),
               ),
             ),
@@ -1552,7 +1554,12 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  Widget _buildBossItem(BossBattle boss) {
+  Widget _buildBossItem(BossBattle boss, AppLocalizations loc) {
+    final bossNameKey = 'boss_${boss.id}';
+    final difficultyKey = 'difficulty_${boss.difficulty}';
+    final bossName = loc.get(bossNameKey);
+    final difficultyLabel = loc.get(difficultyKey);
+
     return GestureDetector(
       onTap: () {
         Navigator.pop(context);
@@ -1586,7 +1593,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    boss.name,
+                    bossName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1594,7 +1601,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                     ),
                   ),
                   Text(
-                    'Zorluk: ${boss.difficulty.toUpperCase()}',
+                    '${loc.get('difficulty')}: $difficultyLabel',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.white70,
@@ -1683,20 +1690,22 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  void _openDiscoverItem(String itemName) {
-    debugPrint('Opening discover item: $itemName');
+  void _openDiscoverItem(String itemKey) {
+    debugPrint('Opening discover item: $itemKey');
 
     final authService = Provider.of<AuthService>(context, listen: false);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final localizations = AppLocalizations(localeProvider.locale);
     
     // Premium kontrol gerektiren özellikler
-    const premiumFeatures = ['Zeka Oyunları', 'Renkli Matematik'];
+    const premiumFeatures = ['intelligence_games', 'colorful_math'];
     
-    if (premiumFeatures.contains(itemName) && !authService.isPremium) {
-      _showPremiumRequiredDialog(itemName);
+    if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
+      _showPremiumRequiredDialog(localizations.get(itemKey));
       return;
     }
 
-    if (itemName == 'Renkli Matematik') {
+    if (itemKey == 'colorful_math') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -1708,7 +1717,7 @@ class _GameStartScreenState extends State<GameStartScreen>
       return;
     }
 
-    if (itemName == 'Zeka Oyunları') {
+    if (itemKey == 'intelligence_games') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -1722,7 +1731,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$itemName özelliği yakında eklenecek!'),
+        content: Text(localizations.get('feature_coming_soon').replaceAll('{name}', localizations.get(itemKey))),
         backgroundColor: Colors.purple,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1733,6 +1742,9 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   // Premium gerektiren özellik için dialog
   void _showPremiumRequiredDialog(String featureName) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final localizations = AppLocalizations(localeProvider.locale);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1744,7 +1756,7 @@ class _GameStartScreenState extends State<GameStartScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Premium Özellik',
+                localizations.get('premium_feature'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -1774,10 +1786,10 @@ class _GameStartScreenState extends State<GameStartScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Bu özellik sadece Premium üyelere özeldir.',
+                  Text(
+                    localizations.get('premium_exclusive_message'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                     ),
@@ -1786,10 +1798,10 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '✨ Premium üye olarak tüm özelliklere erişebilirsiniz!',
+            Text(
+              '✨ ${localizations.get('premium_access_message')}',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
               ),
@@ -1799,9 +1811,9 @@ class _GameStartScreenState extends State<GameStartScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Kapat',
-              style: TextStyle(color: Colors.white70),
+            child: Text(
+              localizations.get('close'),
+              style: const TextStyle(color: Colors.white70),
             ),
           ),
           ElevatedButton(
@@ -1816,14 +1828,14 @@ class _GameStartScreenState extends State<GameStartScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('👑', style: TextStyle(fontSize: 16)),
-                SizedBox(width: 8),
+                const Text('👑', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
                 Text(
-                  "Premium'a Yükselt",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  localizations.get('upgrade_to_premium'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),

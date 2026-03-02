@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'chapter_screen.dart';
 import 'counting_forest_screen.dart'; // Sayı Ormanı için
 
@@ -61,9 +61,8 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+    final localizations = AppLocalizations(localeProvider.locale);
 
     return Scaffold(
       body: Container(
@@ -117,7 +116,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Her dünya yeni bir matematik macerası!',
+                              localizations.get('every_world_adventure'),
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white.withOpacity(0.8),
@@ -306,7 +305,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    'Başla',
+                                    localizations.get('start'),
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: isLocked ? Colors.grey : Colors.white,
@@ -359,7 +358,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                                     ),
                                     Text(
                                       isLocked
-                                          ? 'Kilitli'
+                                          ? localizations.get('world_locked')
                                           : '${((worldProgress?.totalStars ?? 0) / 100 * 100).toInt()}%',
                                       style: TextStyle(
                                         fontSize: 12,
@@ -394,7 +393,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${world.requiredStars} ⭐ gerekiyor',
+                                  '${world.requiredStars} ⭐ ${localizations.get('stars_required')}',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey,
@@ -429,10 +428,10 @@ class _WorldMapScreenState extends State<WorldMapScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem('🏆', 'Başarılar', true),
-          _buildNavItem('🎯', 'Görevler'),
-          _buildNavItem('⚡', 'Enerji'),
-          _buildNavItem('📊', 'İstatistikler'),
+          _buildNavItem('🏆', localizations.get('achievements'), true),
+          _buildNavItem('🎯', localizations.get('quests')),
+          _buildNavItem('⚡', localizations.get('energy')),
+          _buildNavItem('📊', localizations.get('statistics')),
         ],
       ),
     );
@@ -474,7 +473,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Dünya Kilitli',
+                localizations.get('world_locked'),
                 style: const TextStyle(color: Colors.white),
               ),
             ),
@@ -484,7 +483,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Bu dünyayı açmak için ${world.requiredStars} ⭐ toplaman gerekiyor!',
+              localizations.get('unlock_world_stars').replaceAll('{0}', '${world.requiredStars}'),
               style: const TextStyle(color: Colors.white70, fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -521,9 +520,9 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Tamam',
-              style: TextStyle(color: Colors.blue),
+            child: Text(
+              localizations.get('ok'),
+              style: const TextStyle(color: Colors.blue),
             ),
           ),
         ],

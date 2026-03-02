@@ -290,21 +290,21 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   String _getCategoryName(BadgeCategory category, AppLocalizations localizations) {
     switch (category) {
       case BadgeCategory.gameplay:
-        return localizations.get('category_gameplay') ?? 'Oynanış';
+        return localizations.get('badge_cat_gameplay');
       case BadgeCategory.streak:
-        return localizations.get('category_streak') ?? 'Seri';
+        return localizations.get('badge_cat_streak');
       case BadgeCategory.speed:
-        return localizations.get('category_speed') ?? 'Hız';
+        return localizations.get('badge_cat_speed');
       case BadgeCategory.accuracy:
-        return localizations.get('category_accuracy') ?? 'Doğruluk';
+        return localizations.get('badge_cat_accuracy');
       case BadgeCategory.social:
-        return localizations.get('category_social') ?? 'Sosyal';
+        return localizations.get('badge_cat_social');
       case BadgeCategory.loyalty:
-        return localizations.get('category_loyalty') ?? 'Sadakat';
+        return localizations.get('badge_cat_loyalty');
       case BadgeCategory.mastery:
-        return localizations.get('category_mastery') ?? 'Ustalık';
+        return localizations.get('badge_cat_mastery');
       case BadgeCategory.special:
-        return localizations.get('category_special') ?? 'Özel';
+        return localizations.get('badge_cat_special');
     }
   }
 
