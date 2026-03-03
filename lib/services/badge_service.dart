@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/badge.dart';
 import '../models/app_user.dart';
+import '../models/game_mechanics.dart';
 
 class BadgeService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -481,6 +482,31 @@ class BadgeService extends ChangeNotifier {
     
     notifyListeners();
     return newBadges;
+  }
+
+  /// Şans çarkı ödülünü profile ekle (XP, coins vb.)
+  Future<void> addSpinWheelReward(SpinWheelReward reward) async {
+    if (_userId == null || _userId!.isEmpty || _isGuest) return;
+
+    _userStats ??= UserStats(userId: _userId!);
+
+    switch (reward.type) {
+      case 'coins':
+        _userStats = _userStats!.copyWith(
+          coinsEarned: _userStats!.coinsEarned + reward.value,
+        );
+        break;
+      case 'xp':
+        _userStats = _userStats!.copyWith(
+          totalScore: _userStats!.totalScore + reward.value,
+        );
+        break;
+      default:
+        return;
+    }
+
+    await _saveUserStats();
+    notifyListeners();
   }
 
   /// Arkadaş eklendiğinde çağrılır

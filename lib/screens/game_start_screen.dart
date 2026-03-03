@@ -769,7 +769,7 @@ class _GameStartScreenState extends State<GameStartScreen>
           return Transform.scale(
             scale: _pulseAnimation.value,
             child: Container(
-              height: isWide ? 70 : 90,
+              height: isWide ? 80 : 118,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -797,9 +797,12 @@ class _GameStartScreenState extends State<GameStartScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -809,6 +812,8 @@ class _GameStartScreenState extends State<GameStartScreen>
                         const SizedBox(height: 4),
                         Text(
                           subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.white.withOpacity(0.8),

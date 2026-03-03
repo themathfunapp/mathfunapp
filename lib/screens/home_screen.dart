@@ -93,6 +93,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     {'code': 'ru', 'name': 'Русский (Rusça)', 'flag': '🇷🇺'},
     {'code': 'ja', 'name': '日本語 (Japonca)', 'flag': '🇯🇵'},
     {'code': 'ko', 'name': '한국어 (Korece)', 'flag': '🇰🇷'},
+    {'code': 'hi', 'name': 'हिन्दी (Hintçe)', 'flag': '🇮🇳'},
+    {'code': 'ur', 'name': 'اردو (Urduca)', 'flag': '🇵🇰'},
+    {'code': 'pt', 'name': 'Português (Portekizce)', 'flag': '🇧🇷'},
+    {'code': 'it', 'name': 'Italiano (İtalyanca)', 'flag': '🇮🇹'},
+    {'code': 'pl', 'name': 'Polski (Lehçe)', 'flag': '🇵🇱'},
   ];
 
   @override
@@ -244,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   children: [
                     Expanded(
                       child: BottomActionButton(
-                        text: localizations.get('spin_wheel_title'),
+                        text: localizations.spinWheelTitle,
                         emoji: '🎰',
                         onPressed: () => _openSpinWheelScreen(context),
                       ),

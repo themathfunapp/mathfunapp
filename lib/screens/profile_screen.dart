@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/badge_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../models/app_user.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
@@ -340,15 +341,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 24),
 
-          // HIZLI İSTATİSTİKLER - Gerçek verilerle
-          Consumer<BadgeService>(
-            builder: (context, badgeService, _) {
+          // HIZLI İSTATİSTİKLER - Gerçek verilerle (şans çarkı ödülleri dahil)
+          Consumer2<BadgeService, GameMechanicsService>(
+            builder: (context, badgeService, mechanicsService, _) {
               final stats = badgeService.userStats;
+              final coins = mechanicsService.inventory.coins;
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildStatItem('🏆', '${stats?.totalScore ?? 0}', localizations.get('total_score')),
-                  _buildStatItem('🪙', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('coins')),
+                  _buildStatItem('🪙', '$coins', localizations.get('coins')),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
                 ],
               );

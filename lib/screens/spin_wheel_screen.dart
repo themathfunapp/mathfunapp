@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/badge_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 
@@ -86,6 +87,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
     try {
       _reward = mechanicsService.spinWheel();
+      final badgeService = Provider.of<BadgeService>(context, listen: false);
+      badgeService.addSpinWheelReward(_reward!);
       _controller.forward(from: 0);
     } catch (e) {
       setState(() {

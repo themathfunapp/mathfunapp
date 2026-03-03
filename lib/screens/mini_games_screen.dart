@@ -233,7 +233,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
         crossAxisCount: 3,
         mainAxisSpacing: 4,
         crossAxisSpacing: 4,
-        childAspectRatio:4.50, // Kartları daha kısa yap
+        childAspectRatio: 1.12,
       ),
       itemCount: games.length,
       itemBuilder: (context, index) {
@@ -254,6 +254,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
     return GestureDetector(
       onTap: isUnlocked ? () => _openGame(game, localizations) : () => _showLockedDialog(game, localizations),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -293,14 +294,15 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
 
             // Content
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Icon - biraz küçült
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
@@ -308,18 +310,18 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                     child: Center(
                       child: Text(
                         isUnlocked ? game.iconEmoji : '🔒',
-                        style: const TextStyle(fontSize: 20),
+                        style: const TextStyle(fontSize: 18),
                       ),
                     ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: 4),
 
                   // Title - normal boyut
                   Text(
                     localizations.get(game.nameKey),
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: isUnlocked ? Colors.white : Colors.white70,
                     ),
@@ -327,40 +329,40 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
 
                   // Age range - normal boyut
                   Text(
                     '${game.minAge}-${game.maxAge}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: isUnlocked ? Colors.white70 : Colors.white54,
                     ),
                   ),
 
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
 
                   // Stats or unlock requirement - normal boyut
                   if (isUnlocked && stats != null)
                     Row(
                       children: [
-                        const Text('⭐', style: TextStyle(fontSize: 11)),
+                        const Text('⭐', style: TextStyle(fontSize: 10)),
                         const SizedBox(width: 2),
                         Text(
                           '${stats.totalStars}',
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        const Text('🎮', style: TextStyle(fontSize: 11)),
+                        const SizedBox(width: 4),
+                        const Text('🎮', style: TextStyle(fontSize: 10)),
                         const SizedBox(width: 2),
                         Text(
                           '${stats.timesPlayed}',
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -370,23 +372,23 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                   else if (!isUnlocked)
                     Row(
                       children: [
-                        const Icon(Icons.lock, size: 11, color: Colors.white54),
+                        const Icon(Icons.lock, size: 10, color: Colors.white54),
                         const SizedBox(width: 2),
                         Text(
                           '${game.requiredStars}',
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: Colors.white54,
                           ),
                         ),
-                        const Text('⭐', style: TextStyle(fontSize: 11, color: Colors.white54)),
+                        const Text('⭐', style: TextStyle(fontSize: 10, color: Colors.white54)),
                       ],
                     )
                   else
                     Text(
                       localizations.get('tap_to_play'),
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: Colors.white70,
                       ),
                     ),
