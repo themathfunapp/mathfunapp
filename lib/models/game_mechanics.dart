@@ -165,7 +165,7 @@ class LivesSystem {
 
   factory LivesSystem.fromJson(Map<String, dynamic> json) => LivesSystem(
     maxLives: json['maxLives'] ?? 5,
-    currentLives: json['currentLives'] ?? 5,
+    currentLives: (json['currentLives'] ?? 5).clamp(0, 5),
     lastLifeLostAt: json['lastLifeLostAt'] != null
         ? DateTime.parse(json['lastLifeLostAt'])
         : null,

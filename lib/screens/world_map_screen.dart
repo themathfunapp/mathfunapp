@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'chapter_screen.dart';
-import 'counting_forest_screen.dart'; // Sayı Ormanı için
+import 'counting_forest_screen.dart';
+import 'cyber_workshop_screen.dart';
+import 'fraction_bakery_screen.dart';
+import 'fairy_land_screen.dart';
 
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
@@ -200,10 +204,26 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 
+  // Kesir Pastanesi tasarım paleti
+  static const Color _pastelPink = Color(0xFFFAD0C4);
+  static const Color _lightTurquoise = Color(0xFFB2FEFA);
+  static const Color _blueberryPurple = Color(0xFF8E44AD);
+
   List<Widget> _buildWorldCards(AppLocalizations localizations) {
     return widget.worlds.map((world) {
       final worldProgress = widget.progress?.worldProgress[world.id];
       final isLocked = world.requiredStars > (widget.progress?.totalStars ?? 0);
+      final isFractionBakery = world.theme == WorldTheme.fractionBakery;
+
+      // Kesir Pastanesi: Kilitliyken pastel tema (koyu gri yerine)
+      final List<Color> cardColors = isFractionBakery && isLocked
+          ? [_pastelPink.withOpacity(0.85), _blueberryPurple.withOpacity(0.6)]
+          : isLocked
+              ? [Colors.grey.shade700, Colors.grey.shade800]
+              : [
+                  Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
+                  Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
+                ];
 
       return AnimatedBuilder(
         animation: _floatAnimation,
@@ -219,12 +239,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: isLocked
-                  ? [Colors.grey.shade700, Colors.grey.shade800]
-                  : [
-                Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
-                Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
-              ],
+              colors: cardColors,
             ),
             borderRadius: BorderRadius.circular(25),
             boxShadow: [
@@ -255,14 +270,18 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                           child: child,
                         );
                       },
-                      child: Container(
+                        child: Container(
                         width: 70,
                         height: 70,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: isFractionBakery && isLocked
+                              ? _lightTurquoise.withOpacity(0.4)
+                              : Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: isFractionBakery && isLocked
+                                ? _blueberryPurple.withOpacity(0.4)
+                                : Colors.white.withOpacity(0.3),
                             width: 2,
                           ),
                         ),
@@ -287,11 +306,21 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                               Expanded(
                                 child: Text(
                                   localizations.get(world.nameKey),
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: isLocked ? Colors.grey : Colors.white,
-                                  ),
+                                  style: (isFractionBakery
+                                          ? GoogleFonts.quicksand(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: isLocked
+                                                  ? _blueberryPurple
+                                                  : Colors.white,
+                                            )
+                                          : TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: isLocked
+                                                  ? Colors.grey
+                                                  : Colors.white,
+                                            )),
                                 ),
                               ),
                               if (!isLocked)
@@ -320,13 +349,21 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
                           Text(
                             localizations.get(world.descriptionKey),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isLocked
-                                  ? Colors.grey
-                                  : Colors.white.withOpacity(0.9),
-                              height: 1.3,
-                            ),
+                            style: (isFractionBakery
+                                    ? GoogleFonts.quicksand(
+                                        fontSize: 14,
+                                        color: isLocked
+                                            ? _blueberryPurple.withOpacity(0.9)
+                                            : Colors.white.withOpacity(0.9),
+                                        height: 1.3,
+                                      )
+                                    : TextStyle(
+                                        fontSize: 14,
+                                        color: isLocked
+                                            ? Colors.grey
+                                            : Colors.white.withOpacity(0.9),
+                                        height: 1.3,
+                                      )),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -386,18 +423,26 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                           else
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.lock,
-                                  color: Colors.grey,
+                                  color: isFractionBakery
+                                      ? _blueberryPurple
+                                      : Colors.grey,
                                   size: 16,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${world.requiredStars} ⭐ ${localizations.get('stars_required')}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey,
-                                  ),
+                                  style: isFractionBakery
+                                      ? GoogleFonts.quicksand(
+                                          fontSize: 14,
+                                          color: _blueberryPurple,
+                                          fontWeight: FontWeight.w600,
+                                        )
+                                      : const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
                                 ),
                               ],
                             ),
@@ -531,12 +576,44 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   }
 
   void _openWorld(StoryWorld world) {
-    // Eğer Sayı Ormanı ise özel ekrana yönlendir
-    if (world.nameKey == 'number_forest') {
+    // Siber Atölye / Sayı Ormanı teması - özel ekrana yönlendir
+    // NOT: Sadece Matematik Gezginleri (6-8 yaş) için Siber Atölye
+    if ((world.nameKey == 'world_siber_atolye' ||
+         world.nameKey == 'world_number_forest' ||
+         world.theme == WorldTheme.numberForest) &&
+        world.targetAge == AgeGroup.earlyElementary) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CountingForestScreen(
+          builder: (context) => CyberWorkshopScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Periler Diyarı - özel ekrana yönlendir (Sayı Maceraları / 3-5 yaş)
+    if (world.id == 'periler_diyari' ||
+        world.nameKey == 'world_fairy_land') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FairyLandScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Kesir Pastanesi - özel ekrana yönlendir
+    if (world.nameKey == 'world_fraction_bakery' ||
+        world.theme == WorldTheme.fractionBakery) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FractionBakeryScreen(
             onBack: () => Navigator.pop(context),
           ),
         ),

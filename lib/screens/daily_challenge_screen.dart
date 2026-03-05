@@ -9,7 +9,7 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
-/// Günlük Meydan Okuma Ekranı - 3 CAN SİSTEMİ VE KARIŞIK SORULAR
+/// Günlük Meydan Okuma Ekranı - 5 CAN SİSTEMİ (GameMechanicsService ile profil senkron)
 class DailyChallengeScreen extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -31,8 +31,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   int? _selectedAnswer;
   bool _isCorrect = false;
 
-  // CAN SİSTEMİ - 3 CAN
-  int _lives = 3;
+  // CAN SİSTEMİ - GameMechanicsService ile profil senkron (5 can)
   bool _gameOver = false;
 
   // Soru
@@ -89,6 +88,18 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   }
 
   void _startChallenge(DailyChallenge challenge) {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     _generateQuestions(challenge);
     setState(() {
       _isPlaying = true;
@@ -96,7 +107,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _score = 0;
       _correctAnswers = 0;
       _wrongAnswers = 0;
-      _lives = 3; // CAN SİSTEMİ - 3 can ile başla
       _gameOver = false;
       _combo = 0;
       _maxCombo = 0;
@@ -226,10 +236,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       // Her doğru cevap 10 puan
       _score += 10;
     } else {
-      // YANLIŞ CEVAP - 1 CAN GİDER
+      // YANLIŞ CEVAP - 1 CAN GİDER (GameMechanicsService - profil senkron)
       _wrongAnswers++;
       _combo = 0;
-      _lives--;
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanicsService.onWrongAnswer();
 
       // Sallanma animasyonu
       _shakeController.forward().then((_) {
@@ -237,7 +248,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       });
 
       // CAN BİTTİ Mİ?
-      if (_lives <= 0) {
+      if (mechanicsService.currentLives <= 0) {
         _gameOver = true;
         _timer?.cancel();
         _showGameOverDialog();
@@ -388,20 +399,19 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     );
   }
 
-  // REKLAM İLE CAN ALMA
+  // REKLAM İLE CAN ALMA - GameMechanicsService ile profil senkron
   void _reviveWithAd() {
     final adService = AdService();
-    
     adService.watchAdForLife(
       onLifeEarned: () {
         if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          mechanicsService.earnLifeFromAd();
           setState(() {
-            _lives = 1;
             _gameOver = false;
             _isAnswered = false;
             _selectedAnswer = null;
           });
-
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
@@ -410,19 +420,21 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               duration: Duration(seconds: 2),
             ),
           );
-          
           _startTimer();
         }
       },
       onAdClosed: () {
-        if (mounted && _lives <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-              backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          if (mechanicsService.currentLives <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       },
     );
@@ -990,7 +1002,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Geri butonu
               GestureDetector(
@@ -1010,32 +1021,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 ),
               ),
 
-              // CANLAR - 3 KALP
-              AnimatedBuilder(
-                animation: _shakeController,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(_shakeAnimation.value, 0),
-                    child: Row(
-                      children: List.generate(
-                        3,
-                            (index) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: Icon(
-                            index < _lives
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: index < _lives
-                                ? Colors.red
-                                : Colors.white.withOpacity(0.5),
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              const Spacer(),
 
               // Puan
               Container(
@@ -1058,6 +1044,41 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // CANLAR - 5 KALP (GameMechanicsService ile profil senkron)
+              Consumer<GameMechanicsService>(
+                builder: (context, mechanicsService, _) {
+                  final lives = mechanicsService.currentLives;
+                  final maxLives = mechanicsService.maxLives;
+                  return AnimatedBuilder(
+                    animation: _shakeController,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_shakeAnimation.value, 0),
+                        child: Row(
+                          children: List.generate(
+                            maxLives,
+                            (index) => Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 3),
+                              child: Icon(
+                                index < lives
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: index < lives
+                                    ? Colors.red
+                                    : Colors.white.withOpacity(0.5),
+                                size: 26,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
@@ -1224,7 +1245,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered || _lives <= 0 ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 55,

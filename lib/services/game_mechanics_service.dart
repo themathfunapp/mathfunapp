@@ -236,6 +236,31 @@ class GameMechanicsService extends ChangeNotifier {
 
       if (doc.exists) {
         todayChallenge = DailyChallenge.fromJson(doc.data()!);
+        // Eski verilerde targetScore yanlış olabilir (2000 vb.) - düzelt
+        const int pointsPerCorrect = 10;
+        final correctTargetScore = todayChallenge!.targetCorrect * pointsPerCorrect;
+        if (todayChallenge!.targetScore != correctTargetScore) {
+          todayChallenge = DailyChallenge(
+            id: todayChallenge!.id,
+            date: todayChallenge!.date,
+            title: todayChallenge!.title,
+            description: todayChallenge!.description,
+            targetScore: correctTargetScore,
+            targetCorrect: todayChallenge!.targetCorrect,
+            timeLimit: todayChallenge!.timeLimit,
+            difficulty: todayChallenge!.difficulty,
+            topics: todayChallenge!.topics,
+            rewardCoins: todayChallenge!.rewardCoins,
+            rewardXp: todayChallenge!.rewardXp,
+            isCompleted: todayChallenge!.isCompleted,
+            bestScore: todayChallenge!.bestScore,
+          );
+          await _firestore.collection('daily_challenges').doc(dateKey).set(
+            todayChallenge!.toJson(),
+            SetOptions(merge: true),
+          );
+          notifyListeners();
+        }
       } else {
         // Günlük challenge oluştur
         todayChallenge = _generateDailyChallenge(today);
@@ -282,9 +307,11 @@ class GameMechanicsService extends ChangeNotifier {
     int targetScore, targetCorrect, timeLimit, rewardCoins, rewardXp;
     String title, description;
 
+    // Her doğru cevap 10 puan (daily_challenge_screen ile uyumlu)
+    const int pointsPerCorrect = 10;
+
     switch (difficulty) {
       case 'easy':
-        targetScore = 500;
         targetCorrect = 10;
         timeLimit = 180;
         rewardCoins = 50;
@@ -293,7 +320,6 @@ class GameMechanicsService extends ChangeNotifier {
         description = '10 soruyu 3 dakikada çöz!';
         break;
       case 'medium':
-        targetScore = 1000;
         targetCorrect = 15;
         timeLimit = 240;
         rewardCoins = 100;
@@ -302,7 +328,6 @@ class GameMechanicsService extends ChangeNotifier {
         description = '15 soruyu 4 dakikada çöz!';
         break;
       case 'hard':
-        targetScore = 2000;
         targetCorrect = 20;
         timeLimit = 300;
         rewardCoins = 200;
@@ -311,7 +336,6 @@ class GameMechanicsService extends ChangeNotifier {
         description = '20 soruyu 5 dakikada çöz!';
         break;
       default:
-        targetScore = 500;
         targetCorrect = 10;
         timeLimit = 180;
         rewardCoins = 50;
@@ -319,6 +343,7 @@ class GameMechanicsService extends ChangeNotifier {
         title = 'Günlük Meydan Okuma';
         description = 'Bugünün görevini tamamla!';
     }
+    targetScore = targetCorrect * pointsPerCorrect;
 
     return DailyChallenge(
       id: '${date.year}${date.month}${date.day}',

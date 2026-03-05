@@ -4,72 +4,105 @@ import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
-/// Sayı Ormanı - Eğlenceli Sayma Oyunu
-class CountingForestScreen extends StatefulWidget {
+/// Siber Atölye - Robot Laboratuvarı Temalı Sayma Oyunu
+/// Matematik Gezginleri - Tekno-Sincap ile matematik çipleri
+class CyberWorkshopScreen extends StatefulWidget {
   final VoidCallback onBack;
 
-  const CountingForestScreen({super.key, required this.onBack});
+  const CyberWorkshopScreen({super.key, required this.onBack});
 
   @override
-  State<CountingForestScreen> createState() => _CountingForestScreenState();
+  State<CyberWorkshopScreen> createState() => _CyberWorkshopScreenState();
 }
 
-class _CountingForestScreenState extends State<CountingForestScreen>
+class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
     with TickerProviderStateMixin {
-  late AnimationController _swingController;
+  late AnimationController _pulseController;
   late AnimationController _celebrationController;
-  late Animation<double> _swingAnimation;
-  
+  late Animation<double> _pulseAnimation;
+
   int _currentLevel = 1;
   int _score = 0;
   int _stars = 0;
   int _targetNumber = 0;
   List<int> _options = [];
-  String _currentFruit = '🍎'; // Soru değişene kadar sabit kalmalı (flash önleme)
+  String _currentTechObject = '⚙️'; // Soru değişene kadar sabit kalmalı (flash önleme)
   bool _isAnswered = false;
   bool _isCorrect = false;
-  
-  // Orman hayvanları
-  final List<String> _animals = ['🐿️', '🦊', '🦉', '🐻', '🦌', '🐰'];
-  final List<String> _fruits = ['🍎', '🍊', '🍇', '🍓', '🍑', '🍒'];
-  
+
+  // Siber Atölye nesneleri: Flaticon chip teması - dişli, pil, mikroçip, devre, CPU, anten vb.
+  // Her emoji için localization key (siber_atolye_tech_XXX)
+  static const Map<String, String> _techObjectKeys = {
+    '⚙️': 'siber_atolye_tech_disli',
+    '🔋': 'siber_atolye_tech_pil',
+    '🔌': 'siber_atolye_tech_fis',
+    '💾': 'siber_atolye_tech_disket',
+    '📟': 'siber_atolye_tech_cagri',
+    '🖥️': 'siber_atolye_tech_bilgisayar',
+    '🧩': 'siber_atolye_tech_devre',
+    '🎛️': 'siber_atolye_tech_panel',
+    '📡': 'siber_atolye_tech_anten',
+    '🛰️': 'siber_atolye_tech_uydu',
+    '⚡': 'siber_atolye_tech_enerji',
+    '🔧': 'siber_atolye_tech_anahtar',
+    '🔩': 'siber_atolye_tech_vida',
+    '💻': 'siber_atolye_tech_laptop',
+    '📱': 'siber_atolye_tech_telefon',
+    '📀': 'siber_atolye_tech_dvd',
+    '💿': 'siber_atolye_tech_cd',
+    '🎮': 'siber_atolye_tech_oyun_cipl',
+    '🎯': 'siber_atolye_tech_sensor',
+    '📺': 'siber_atolye_tech_monitor',
+  };
+
+  final List<String> _techObjects = _techObjectKeys.keys.toList();
+
+  // Renk paleti: #2C3E50 (Koyu Gri), #3498DB (Neon Mavi), #ECF0F1 (Gümüş)
+  static const Color _darkGray = Color(0xFF2C3E50);
+  static const Color _neonBlue = Color(0xFF3498DB);
+  static const Color _silver = Color(0xFFECF0F1);
+
   @override
   void initState() {
     super.initState();
-    
-    _swingController = AnimationController(
+
+    _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-    
-    _swingAnimation = Tween<double>(begin: -0.05, end: 0.05).animate(
-      CurvedAnimation(parent: _swingController, curve: Curves.easeInOut),
+
+    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     _celebrationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     _generateQuestion();
   }
 
   @override
   void dispose() {
-    _swingController.dispose();
+    _pulseController.dispose();
     _celebrationController.dispose();
     super.dispose();
   }
 
+  /// Tekno-Sincap'ın ağzından görev metni: "Bakalım kahraman! Atölyede kaç tane [nesne] buldun?"
+  String _getQuestionText(AppLocalizations loc) {
+    final objectName = loc.get(_techObjectKeys[_currentTechObject] ?? 'siber_atolye_tech_mikrocipl');
+    final format = loc.get('siber_atolye_how_many_format');
+    return format.replaceAll('{0}', objectName);
+  }
+
   void _generateQuestion() {
     final random = math.Random();
-    
-    // Seviyeye göre zorluk
     final maxNumber = math.min(10, 3 + _currentLevel);
     _targetNumber = random.nextInt(maxNumber) + 1;
-    _currentFruit = _fruits[random.nextInt(_fruits.length)];
-    
-    // Seçenekler oluştur
+    _currentTechObject = _techObjects[random.nextInt(_techObjects.length)];
+
     _options = [_targetNumber];
     while (_options.length < 4) {
       final option = random.nextInt(maxNumber) + 1;
@@ -78,7 +111,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       }
     }
     _options.shuffle();
-    
+
     _isAnswered = false;
     _isCorrect = false;
     if (mounted) setState(() {});
@@ -86,19 +119,16 @@ class _CountingForestScreenState extends State<CountingForestScreen>
 
   void _checkAnswer(int answer) {
     if (_isAnswered) return;
-    
+
     setState(() {
       _isAnswered = true;
       _isCorrect = answer == _targetNumber;
-      
+
       if (_isCorrect) {
         _score += 10;
         _stars++;
         _celebrationController.forward(from: 0);
-        
-        // Ses efekti burada çalacak
-        // AudioService.play('correct');
-        
+
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
@@ -106,9 +136,6 @@ class _CountingForestScreenState extends State<CountingForestScreen>
           }
         });
       } else {
-        // Ses efekti burada çalacak
-        // AudioService.play('wrong');
-        
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) _generateQuestion();
         });
@@ -126,44 +153,34 @@ class _CountingForestScreenState extends State<CountingForestScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF2E7D32), // Koyu yeşil
-              Color(0xFF66BB6A), // Orta yeşil
-              Color(0xFF81C784), // Açık yeşil
+              _darkGray,
+              Color(0xFF34495E),
+              _neonBlue,
             ],
           ),
         ),
         child: SafeArea(
           child: Stack(
             children: [
-              // Arka plan ağaçları
-              ..._buildBackgroundTrees(),
-              
-              // Arka plan animasyonları
-              ..._buildFloatingLeaves(),
-              
+              // Devre çizgileri arka plan
+              ..._buildCircuitBackground(),
+              // Yüzen teknoloji nesneleri
+              ..._buildFloatingTech(),
+
               Column(
                 children: [
-                  // Üst bar
                   _buildTopBar(loc),
-                  
                   const SizedBox(height: 20),
-                  
-                  // Ana oyun alanı
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Seviye ve skor
+                          _buildCharacterMessage(loc),
+                          const SizedBox(height: 20),
                           _buildLevelInfo(loc),
-                          
                           const SizedBox(height: 30),
-                          
-                          // Soru bölümü - Ağaçlar ve meyveler
                           _buildQuestionArea(loc),
-                          
                           const SizedBox(height: 40),
-                          
-                          // Cevap seçenekleri
                           _buildAnswerOptions(loc),
                         ],
                       ),
@@ -171,10 +188,8 @@ class _CountingForestScreenState extends State<CountingForestScreen>
                   ),
                 ],
               ),
-              
-              // Kutlama animasyonu
-              if (_isCorrect && _isAnswered)
-                _buildCelebration(),
+
+              if (_isCorrect && _isAnswered) _buildCelebration(),
             ],
           ),
         ),
@@ -187,64 +202,113 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          // Geri butonu
           GestureDetector(
             onTap: widget.onBack,
             child: Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
+                color: _silver.withOpacity(0.2),
                 shape: BoxShape.circle,
+                border: Border.all(color: _neonBlue.withOpacity(0.5)),
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.white),
+              child: const Icon(Icons.arrow_back, color: _silver),
             ),
           ),
-          
           const SizedBox(width: 16),
-          
-          // Başlık
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🌳 ${loc.get('number_forest')}',
+                  '🤖 ${loc.get('siber_atolye')}',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: _silver,
+                    fontFamily: 'monospace',
                   ),
                 ),
                 Text(
-                  loc.get('count_fruits_subtitle'),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
+                  loc.get('siber_atolye_subtitle'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _neonBlue.withOpacity(0.9),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          
-          // Skor
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: _neonBlue.withOpacity(0.3),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _neonBlue.withOpacity(0.6)),
             ),
             child: Row(
               children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
+                const Text('⚡', style: TextStyle(fontSize: 18)),
                 const SizedBox(width: 4),
                 Text(
                   '$_stars',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: _silver,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharacterMessage(AppLocalizations loc) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _darkGray.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _neonBlue.withOpacity(0.4), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: _neonBlue.withOpacity(0.2),
+            blurRadius: 15,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('🐿️', style: TextStyle(fontSize: 48)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.get('siber_atolye_character_name'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _neonBlue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  loc.get('siber_atolye_character_message'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _silver.withOpacity(0.9),
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -259,15 +323,15 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: _darkGray.withOpacity(0.5),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+        border: Border.all(color: _neonBlue.withOpacity(0.5), width: 2),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
-          _buildStatItem(loc.get('score'), _score.toString(), '🏆'),
+          _buildStatItem(loc.get('score'), _score.toString(), '⚡'),
         ],
       ),
     );
@@ -276,24 +340,21 @@ class _CountingForestScreenState extends State<CountingForestScreen>
   Widget _buildStatItem(String label, String value, String emoji) {
     return Column(
       children: [
-        Text(
-          emoji,
-          style: const TextStyle(fontSize: 24),
-        ),
+        Text(emoji, style: const TextStyle(fontSize: 24)),
         const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: _neonBlue,
           ),
         ),
         Text(
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
+            color: _silver.withOpacity(0.8),
           ),
         ),
       ],
@@ -305,106 +366,53 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(30),
+        color: _darkGray.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _neonBlue, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: _neonBlue.withOpacity(0.3),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         children: [
           Text(
-            loc.get('forest_how_many_fruits'),
+            _getQuestionText(loc),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1B5E20),
+              color: _silver,
             ),
+            textAlign: TextAlign.center,
           ),
-          
-          const SizedBox(height: 20),
-          
-          // Meyveler ve Ağaçlar - Stack ile üst üste
-          SizedBox(
-            height: 200,
-            child: Stack(
-              children: [
-                // Ağaçlar - Orman görünümü
-                // Sol ağaç
-                const Positioned(
-                  left: 20,
-                  bottom: 0,
-                  child: Text('🌲', style: TextStyle(fontSize: 70)),
-                ),
-                // Sol orta ağaç
-                const Positioned(
-                  left: 80,
-                  bottom: 10,
-                  child: Text('🌳', style: TextStyle(fontSize: 60)),
-                ),
-                // Merkez ağaç (büyük)
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: Text('🌳', style: TextStyle(fontSize: 100)),
+          const SizedBox(height: 24),
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _pulseAnimation.value,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: List.generate(
+                    _targetNumber,
+                    (index) => Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _neonBlue.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _neonBlue.withOpacity(0.6)),
+                      ),
+                      child: Text(_currentTechObject, style: const TextStyle(fontSize: 36)),
+                    ),
                   ),
                 ),
-                // Sağ orta ağaç
-                Positioned(
-                  right: 80,
-                  bottom: 10,
-                  child: Transform.scale(
-                    scaleX: -1,
-                    child: const Text('🌳', style: TextStyle(fontSize: 60)),
-                  ),
-                ),
-                // Sağ ağaç
-                Positioned(
-                  right: 20,
-                  bottom: 0,
-                  child: Transform.scale(
-                    scaleX: -1,
-                    child: const Text('🌲', style: TextStyle(fontSize: 70)),
-                  ),
-                ),
-                
-                // Meyveler üstte - Sallanan animasyon
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: AnimatedBuilder(
-                    animation: _swingAnimation,
-                    builder: (context, child) {
-                      return Transform.rotate(
-                        angle: _swingAnimation.value * 0.3,
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: List.generate(
-                            _targetNumber,
-                            (index) => Transform.scale(
-                              scale: 1.0 + (math.sin((index + _swingController.value) * math.pi) * 0.1),
-                              child: Text(
-                                _currentFruit,
-                                style: const TextStyle(fontSize: 32),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -421,17 +429,15 @@ class _CountingForestScreenState extends State<CountingForestScreen>
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: _silver,
             ),
           ),
           const SizedBox(height: 12),
-          // 2x2 Grid daha kompakt
           Column(
             children: [
               Row(
                 children: [
-                  if (_options.length > 0)
-                    Expanded(child: _buildAnswerButton(_options[0])),
+                  if (_options.isNotEmpty) Expanded(child: _buildAnswerButton(_options[0])),
                   if (_options.length > 1) ...[
                     const SizedBox(width: 10),
                     Expanded(child: _buildAnswerButton(_options[1])),
@@ -457,22 +463,16 @@ class _CountingForestScreenState extends State<CountingForestScreen>
   }
 
   Widget _buildAnswerButton(int number) {
-    final random = math.Random();
-    final animal = _animals[random.nextInt(_animals.length)];
     final isCorrectAnswer = number == _targetNumber;
     final isSelected = _isAnswered && number == _targetNumber;
-    
+
     Color buttonColor;
     if (_isAnswered) {
-      if (isCorrectAnswer) {
-        buttonColor = Colors.green;
-      } else {
-        buttonColor = Colors.white.withOpacity(0.3);
-      }
+      buttonColor = isCorrectAnswer ? _neonBlue : _darkGray.withOpacity(0.5);
     } else {
-      buttonColor = Colors.white.withOpacity(0.9);
+      buttonColor = _darkGray.withOpacity(0.6);
     }
-    
+
     return GestureDetector(
       onTap: _isAnswered ? null : () => _checkAnswer(number),
       child: AnimatedContainer(
@@ -482,12 +482,12 @@ class _CountingForestScreenState extends State<CountingForestScreen>
           color: buttonColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Colors.yellow : Colors.white.withOpacity(0.5),
+            color: isSelected ? _neonBlue : _neonBlue.withOpacity(0.5),
             width: isSelected ? 3 : 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: _neonBlue.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -496,17 +496,14 @@ class _CountingForestScreenState extends State<CountingForestScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              animal,
-              style: const TextStyle(fontSize: 24),
-            ),
+            const Text('🔌', style: TextStyle(fontSize: 24)),
             const SizedBox(width: 8),
             Text(
               number.toString(),
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: _isAnswered && isCorrectAnswer ? Colors.white : const Color(0xFF1B5E20),
+                color: _isAnswered && isCorrectAnswer ? _silver : _neonBlue,
               ),
             ),
           ],
@@ -527,7 +524,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
                 final startX = random.nextDouble();
                 final delay = random.nextDouble() * 0.5;
                 final progress = (_celebrationController.value - delay).clamp(0.0, 1.0);
-                
+
                 return Positioned(
                   left: MediaQuery.of(context).size.width * startX,
                   top: -50 + (MediaQuery.of(context).size.height * progress * 1.2),
@@ -536,7 +533,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
                     child: Transform.rotate(
                       angle: progress * 4 * math.pi,
                       child: Text(
-                        ['⭐', '✨', '🎉', '🎊'][random.nextInt(4)],
+                        ['⚡', '✨', '🎉', '🔋'][random.nextInt(4)],
                         style: const TextStyle(fontSize: 30),
                       ),
                     ),
@@ -550,61 +547,44 @@ class _CountingForestScreenState extends State<CountingForestScreen>
     );
   }
 
-  List<Widget> _buildBackgroundTrees() {
-    return List.generate(8, (index) {
-      final random = math.Random(index + 100);
-      final trees = ['🌲', '🌳', '🎄'];
-      final tree = trees[random.nextInt(trees.length)];
-      final size = 30.0 + random.nextDouble() * 40;
-      final screenWidth = MediaQuery.of(context).size.width;
-      
+  List<Widget> _buildCircuitBackground() {
+    return List.generate(6, (index) {
+      final random = math.Random(index);
       return Positioned(
-        left: random.nextDouble() * screenWidth,
-        top: 100 + random.nextDouble() * 200,
-        child: AnimatedBuilder(
-          animation: _swingController,
-          builder: (context, child) {
-            return Transform.translate(
-              offset: Offset(
-                math.sin(_swingController.value * 2 * math.pi + index * 0.5) * 3,
-                0,
-              ),
-              child: Opacity(
-                opacity: 0.3 + random.nextDouble() * 0.3,
-                child: Text(
-                  tree,
-                  style: TextStyle(fontSize: size),
-                ),
-              ),
-            );
-          },
+        left: random.nextDouble() * 400,
+        top: 80 + random.nextDouble() * 500,
+        child: Opacity(
+          opacity: 0.1 + random.nextDouble() * 0.15,
+          child: Icon(
+            Icons.memory,
+            size: 30 + random.nextDouble() * 40,
+            color: _neonBlue,
+          ),
         ),
       );
     });
   }
 
-  List<Widget> _buildFloatingLeaves() {
+  List<Widget> _buildFloatingTech() {
     return List.generate(5, (index) {
       final random = math.Random(index);
+      final objs = ['⚙️', '🔋', '💾', '🔌'];
       return Positioned(
         left: random.nextDouble() * 300,
         top: random.nextDouble() * 600,
         child: AnimatedBuilder(
-          animation: _swingController,
+          animation: _pulseController,
           builder: (context, child) {
             return Transform.translate(
               offset: Offset(
-                math.sin(_swingController.value * 2 * math.pi + index) * 20,
-                math.cos(_swingController.value * 2 * math.pi + index) * 15,
+                math.sin(_pulseController.value * 2 * math.pi + index) * 15,
+                math.cos(_pulseController.value * 2 * math.pi + index) * 10,
               ),
               child: Opacity(
-                opacity: 0.6,
-                child: Transform.rotate(
-                  angle: _swingController.value * 2 * math.pi,
-                  child: Text(
-                    ['🍃', '🍂'][random.nextInt(2)],
-                    style: const TextStyle(fontSize: 24),
-                  ),
+                opacity: 0.4,
+                child: Text(
+                  objs[index % objs.length],
+                  style: const TextStyle(fontSize: 28),
                 ),
               ),
             );

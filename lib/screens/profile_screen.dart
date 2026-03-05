@@ -346,11 +346,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (context, badgeService, mechanicsService, _) {
               final stats = badgeService.userStats;
               final coins = mechanicsService.inventory.coins;
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildStatItem('🏆', '${stats?.totalScore ?? 0}', localizations.get('total_score')),
                   _buildStatItem('🪙', '$coins', localizations.get('coins')),
+                  _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
                 ],
               );

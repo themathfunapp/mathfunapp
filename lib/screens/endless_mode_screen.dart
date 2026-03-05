@@ -9,7 +9,7 @@ import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
 /// Sonsuz Mod Ekranı
-/// Yanlış yapana kadar devam eden sınırsız sorular - REKLAM SİSTEMİ EKLENDİ
+/// Yanlış yapana kadar devam eden sınırsız sorular - 5 CAN (GameMechanicsService ile profil senkron)
 class EndlessModeScreen extends StatefulWidget {
   final AgeGroupSelection ageGroup;
   final VoidCallback onBack;
@@ -29,7 +29,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   // Oyun durumu
   int _score = 0;
   int _questionsAnswered = 0;
-  int _lives = 3;
   int _combo = 0;
   int _maxCombo = 0;
   int _level = 1;
@@ -39,10 +38,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   bool _isGameOver = false;
   bool _gamePaused = false;
 
-  // REKLAM SİSTEMİ - 3 defa reklam izleme hakkı
-  int _remainingAds = 3;
+  // REKLAM SİSTEMİ - GameMechanicsService ile can yönetimi
   int _totalAdsWatched = 0;
-  bool _showAdOption = true;
 
   // Soru
   late _EndlessQuestion _currentQuestion;
@@ -256,11 +253,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   void _loseLife() {
     _heartController.forward().then((_) => _heartController.reset());
 
-    setState(() {
-      _lives--;
-    });
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    mechanicsService.onWrongAnswer();
 
-    if (_lives <= 0) {
+    if (mechanicsService.currentLives <= 0) {
       _gameOver();
     } else {
       _gamePaused = true;
@@ -278,76 +274,44 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     }
   }
 
-  // REKLAM İZLEYEREK CAN KAZANMA
+  // REKLAM İZLEYEREK CAN KAZANMA - GameMechanicsService ile profil senkron
   void _reviveWithAd() {
     final adService = AdService();
-    
     adService.watchAdForLife(
       onLifeEarned: () {
         if (!mounted) return;
-        
+        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+        mechanicsService.earnLifeFromAd();
         setState(() {
-          _lives = 1;
-          _remainingAds--;
           _totalAdsWatched++;
           _isGameOver = false;
           _gamePaused = false;
           _isAnswered = false;
           _selectedAnswer = null;
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.play_circle, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        '🎬 Reklam izlendi!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        '+1 can kazandın! (Kalan: $_remainingAds)',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade700,
+          const SnackBar(
+            content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+            backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            duration: Duration(seconds: 2),
           ),
         );
-
         _generateQuestion();
         _startTimer();
       },
       onAdClosed: () {
-        if (mounted && _lives <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-              backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          if (mechanicsService.currentLives <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       },
     );
@@ -357,7 +321,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     setState(() {
       _isGameOver = true;
       _gamePaused = true;
-      _showAdOption = _remainingAds > 0; // Reklam hakkı varsa göster
     });
     _timer?.cancel();
     _showGameOverDialog();
@@ -435,63 +398,69 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
               const SizedBox(height: 24),
 
-              // REKLAM İZLE BUTONU - Kalan hak varsa göster
-              if (_showAdOption) ...[
-                AnimatedBuilder(
-                  animation: _adAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _adAnimation.value,
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _reviveWithAd();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black87,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 8,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.play_circle, size: 28),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
+              // REKLAM İZLE BUTONU - Can yoksa göster (GameMechanicsService)
+              Builder(
+                builder: (context) {
+                  final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+                  if (!mechanicsService.hasLives) {
+                    return AnimatedBuilder(
+                      animation: _adAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _adAnimation.value,
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _reviveWithAd();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black87,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 8,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    loc.get('watch_ad_gain_life'),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${loc.get('remaining_ads')}: $_remainingAds/3',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black.withOpacity(0.6),
-                                    ),
+                                  const Icon(Icons.play_circle, size: 28),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        loc.get('watch_ad_gain_life'),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${loc.get('lives')}: ${mechanicsService.currentLives}/${mechanicsService.maxLives}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
-                  },
-                ),
-              ],
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
 
               // NORMAL TEKRAR DENE
               Container(
@@ -578,16 +547,26 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   }
 
   void _restartGame() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _score = 0;
       _questionsAnswered = 0;
-      _lives = 3;
       _combo = 0;
       _maxCombo = 0;
       _level = 1;
-      _remainingAds = 3; // REKLAM HAKLARI SIFIRLANIR
       _totalAdsWatched = 0;
-      _showAdOption = true;
       _isAnswered = false;
       _selectedAnswer = null;
       _isGameOver = false;
@@ -893,34 +872,29 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                             width: 1.5,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ...List.generate(
-                              3,
-                                  (index) => Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Icon(
-                                  index < _lives
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: index < _lives
-                                      ? Colors.red.shade400
-                                      : Colors.white.withOpacity(0.3),
-                                  size: 24,
+                        child: Consumer<GameMechanicsService>(
+                          builder: (context, mechanicsService, _) {
+                            final lives = mechanicsService.currentLives;
+                            final maxLives = mechanicsService.maxLives;
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(
+                                maxLives,
+                                (index) => Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: Icon(
+                                    index < lives
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: index < lives
+                                        ? Colors.red.shade400
+                                        : Colors.white.withOpacity(0.3),
+                                    size: 24,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$_lives/3',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -1266,7 +1240,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     }
 
     return GestureDetector(
-      onTap: (_isAnswered || _isGameOver || _gamePaused || _lives <= 0)
+      onTap: (_isAnswered || _isGameOver || _gamePaused || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0)
           ? null
           : () => _checkAnswer(option),
       child: AnimatedContainer(

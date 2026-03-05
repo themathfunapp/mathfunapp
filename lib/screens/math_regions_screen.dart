@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
+import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import 'specialized_game_screen.dart';
 import 'counting_forest_screen.dart';
+import 'cyber_workshop_screen.dart';
 import 'number_river_screen.dart';
 import 'geometry_mountain_screen.dart';
 import 'time_island_screen.dart';
 import 'colorful_math_screen.dart';
+import 'fraction_bakery_screen.dart';
+import 'keloglan_village_screen.dart';
 
 /// Matematik Bölgeleri Ekranı (Dünya Haritası)
 class MathRegionsScreen extends StatefulWidget {
@@ -600,14 +605,14 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
   List<Map<String, dynamic>> _getRegions(AppLocalizations localizations) {
     // SADECE İLK İKİ BÖLGE AÇIK, DİĞERLERİ KİLİTLİ
     return [
-      // 1. Bölge - Sayı Ormanı (AÇIK)
+      // 1. Bölge - Keloğlan'ın Köyü (AÇIK) - Paylaştırma ve Kesir teması
       {
-        'id': 'number_forest',
-        'emoji': '🌲',
-        'shortName': localizations.get('forest'),
-        'name': localizations.get('number_forest'),
-        'description': localizations.get('number_forest_desc'),
-        'color': const Color(0xFF27AE60),
+        'id': 'keloglan_koyu',
+        'emoji': '🧑‍🌾',
+        'shortName': localizations.get('keloglan_village_short'),
+        'name': localizations.get('keloglan_village'),
+        'description': localizations.get('keloglan_village_desc'),
+        'color': const Color(0xFF8BC34A),
         'progress': 45,
         'locked': false,
       },
@@ -632,7 +637,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFF9B59B6),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': 'Sayı Ormanı\'nı tamamla',
+        'unlockRequirement': localizations.get('unlock_keloglan_village'),
       },
       // 4. Bölge - Zaman Adası (KİLİTLİ)
       {
@@ -646,17 +651,17 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'locked': true,
         'unlockRequirement': 'Rakam Nehri\'ni tamamla',
       },
-      // 5. Bölge - Kesir Fırını (KİLİTLİ)
+      // 5. Bölge - Kesir Pastanesi (KİLİTLİ)
       {
         'id': 'fraction_bakery',
         'emoji': '🍰',
         'shortName': localizations.get('bakery'),
         'name': localizations.get('fraction_bakery'),
         'description': localizations.get('fraction_bakery_desc'),
-        'color': const Color(0xFFE91E63),
+        'color': const Color(0xFF8E44AD),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': 'Geometri Dağı\'nı tamamla',
+        'unlockRequirement': localizations.get('unlock_fraction_bakery'),
       },
       // 6. Bölge - Renkli Matematik (KİLİTLİ)
       {
@@ -692,9 +697,28 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       return;
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      _showNoLivesDialog();
+      return;
+    }
+
     debugPrint('Entering region: ${region['id']}');
 
-    // Sayı Ormanı için özel ekran
+    // Keloğlan'ın Köyü için özel ekran (Paylaştırma ve Kesir teması)
+    if (region['id'] == 'keloglan_koyu') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => KeloglanVillageScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Sayı Ormanı (eski bölge - geriye dönük uyumluluk)
     if (region['id'] == 'number_forest') {
       Navigator.push(
         context,
@@ -746,6 +770,19 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       return;
     }
 
+    // Kesir Pastanesi için özel ekran
+    if (region['id'] == 'fraction_bakery') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FractionBakeryScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
     // Renkli Matematik için özel ekran
     if (region['id'] == 'colorful_math') {
       Navigator.push(
@@ -762,6 +799,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
     // Region ID'sine göre TopicType belirle
     GameMechanics.TopicType topicType;
     switch (region['id'] as String) {
+      case 'siber_atolye':
       case 'number_forest':
         topicType = GameMechanics.TopicType.counting;
         break;
@@ -797,6 +835,34 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
           difficulty: 'Orta',
           onBack: () => Navigator.pop(context),
         ),
+      ),
+    );
+  }
+
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.favorite_border, color: Colors.red, size: 32),
+            const SizedBox(width: 12),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(
+          loc.get('no_lives_play'),
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.get('ok')),
+          ),
+        ],
       ),
     );
   }

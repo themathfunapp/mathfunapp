@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
+import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart' as GameMechanics;
 import 'specialized_game_screen.dart';
 import 'game_start_screen.dart';
@@ -33,7 +34,6 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   late Animation<double> _floatAnimation;
   late Animation<double> _particleAnimation;
 
-  GameMechanics.PlayerInventory _inventory = GameMechanics.PlayerInventory();
   final PageController _pageController = PageController(viewportFraction: 0.8);
   int _currentPage = 0;
 
@@ -250,7 +250,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
             children: [
               _buildInventoryBubble(
                 icon: Icons.attach_money,
-                count: _inventory.coins,
+                count: Provider.of<GameMechanicsService>(context, listen: false).inventory.coins,
                 color: Colors.amber,
                 theme: theme,
               ),
@@ -947,7 +947,8 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
       return;
     }
 
-    if (_inventory.lives <= 0) {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
       _showNoLivesDialog();
       return;
     }

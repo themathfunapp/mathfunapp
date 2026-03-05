@@ -493,25 +493,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         Positioned.fill(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child:AspectRatio(
+              padding: const EdgeInsets.fromLTRB(48, 100, 48, 140),
+              child: AspectRatio(
                 aspectRatio: 1.0,
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24), // çok hafif
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.30),
                         blurRadius: 60,
                         spreadRadius: -20,
-                        offset: const Offset(0, 0), // 👈 çok önemli
+                        offset: const Offset(0, 0),
                       ),
                     ],
-
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
-                    child:ShaderMask(
+                    child: ShaderMask(
                       shaderCallback: (Rect rect) {
                         return RadialGradient(
                           center: Alignment.center,
@@ -530,11 +529,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         fit: BoxFit.contain,
                       ),
                     ),
-
                   ),
                 ),
               ),
-
             ),
           ),
         ),
@@ -542,94 +539,111 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         // 3) ÜSTTEKİ YAZILAR + BUTONLAR (senin mevcut content’in)
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
             child: Column(
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.menu_book, color: Colors.white, size: 32),
+                    const Icon(Icons.menu_book, color: Colors.white, size: 28),
                     const SizedBox(width: 8),
-                    Text(
-                      localizations.get('app_name'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                    Flexible(
+                      child: Text(
+                        localizations.get('app_name'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   localizations.get('app_motto'),
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 16,
+                    fontSize: 14,
                     shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
                   ),
+                  textAlign: TextAlign.center,
                 ),
 
                 const Spacer(),
 
-                Text(
-                  localizations.get('welcome_title'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    localizations.get('welcome_title'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.visible,
+                    softWrap: true,
                   ),
-                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    localizations.get('welcome_description'),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height: 1.4,
+                      shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.visible,
+                    softWrap: true,
+                  ),
+                ),
+
+                const Spacer(),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _pageController.animateToPage(
+                          1,
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orangeAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 8,
+                        shadowColor: Colors.black54,
+                      ),
+                      child: Text(
+                        localizations.get('continue_button'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  localizations.get('welcome_description'),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                    height: 1.6,
-                    shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const Spacer(),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _pageController.animateToPage(
-                        1,
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 8,
-                      shadowColor: Colors.black54,
-                    ),
-                    child: Text(
-                      localizations.get('continue_button'),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
               ],
             ),
           ),

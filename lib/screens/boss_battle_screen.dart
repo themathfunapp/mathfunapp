@@ -6,9 +6,10 @@ import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/ad_service.dart';
+import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 
-/// Boss Savaşı Ekranı - 3 CAN SİSTEMİ VE REKLAM EKLENDİ
+/// Boss Savaşı Ekranı - 5 CAN (GameMechanicsService ile profil senkron)
 class BossBattleScreen extends StatefulWidget {
   final BossBattle boss;
   final AgeGroupSelection ageGroup;
@@ -33,9 +34,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   late int _bossHealth;
   late int _bossMaxHealth;
 
-  // OYUNCU CAN SİSTEMİ - 3 CAN
-  int _playerLives = 3;
-  final int _playerMaxLives = 3;
+  // OYUNCU CAN SİSTEMİ - GameMechanicsService ile profil senkron (5 can)
   int _score = 0;
   bool _gameOver = false;
 
@@ -243,15 +242,16 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         return;
       }
     } else {
-      // YANLIŞ CEVAP - 1 CAN GİDER
-      _playerLives--;
+      // YANLIŞ CEVAP - 1 CAN GİDER (GameMechanicsService - profil senkron)
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanicsService.onWrongAnswer();
 
       // Can kaybı animasyonu
       _lifeShakeController.forward().then((_) => _lifeShakeController.reset());
       _playerShakeController.forward().then((_) => _playerShakeController.reset());
 
       // CAN BİTTİ Mİ?
-      if (_playerLives <= 0) {
+      if (mechanicsService.currentLives <= 0) {
         _gameOver = true;
         _defeat();
         return;
@@ -277,7 +277,8 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   void _defeat() {
     _timer?.cancel();
-    if (_playerLives <= 0) {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (mechanicsService.currentLives <= 0) {
       _showGameOverDialog(); // CAN BİTTİĞİNDE ÖZEL DİYALOG
     } else {
       widget.onComplete?.call(false, _score);
@@ -414,21 +415,19 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     );
   }
 
-  // REKLAM İLE 1 CAN ALMA
+  // REKLAM İLE 1 CAN ALMA - GameMechanicsService ile profil senkron
   void _reviveWithAd() {
     final adService = AdService();
-    
     adService.watchAdForLife(
       onLifeEarned: () {
         if (!mounted) return;
-        
+        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+        mechanicsService.earnLifeFromAd();
         setState(() {
-          _playerLives = 1;
           _gameOver = false;
           _isAnswered = false;
           _selectedAnswer = null;
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
@@ -437,19 +436,21 @@ class _BossBattleScreenState extends State<BossBattleScreen>
             duration: Duration(seconds: 2),
           ),
         );
-
         _generateQuestion();
         _startTimer();
       },
       onAdClosed: () {
-        if (mounted && _playerLives <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-              backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          if (mechanicsService.currentLives <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       },
     );
@@ -605,9 +606,21 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   void _restartBattle() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _bossHealth = _bossMaxHealth;
-      _playerLives = 3; // CANLARI TAM DOLDUR
       _score = 0;
       _gameOver = false;
       _isAnswered = false;
@@ -752,7 +765,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          // Geri butonu
+          // Geri butonu - sol köşede
           GestureDetector(
             onTap: _showExitConfirmation,
             child: Container(
@@ -765,9 +778,10 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               child: const Icon(Icons.close, color: Colors.white, size: 20),
             ),
           ),
-          const SizedBox(width: 12),
 
-          // OYUNCU CANLARI - 3 KALP
+          const Spacer(),
+
+          // OYUNCU CANLARI VE YILDIZ - sağ köşede
           AnimatedBuilder(
             animation: _lifeShakeAnimation,
             builder: (context, child) {
@@ -783,35 +797,32 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                       width: 1,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Text('🦸', style: TextStyle(fontSize: 18)),
-                      const SizedBox(width: 8),
-                      ...List.generate(
-                        3,
+                  child: Consumer<GameMechanicsService>(
+                    builder: (context, mechanicsService, _) {
+                      final lives = mechanicsService.currentLives;
+                      final maxLives = mechanicsService.maxLives;
+                      return Row(
+                        children: [
+                          const Text('🦸', style: TextStyle(fontSize: 18)),
+                          const SizedBox(width: 8),
+                          ...List.generate(
+                            maxLives,
                             (index) => Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Icon(
-                            index < _playerLives
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: index < _playerLives
-                                ? Colors.red
-                                : Colors.white.withOpacity(0.5),
-                            size: 20,
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(
+                                index < lives
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: index < lives
+                                    ? Colors.red
+                                    : Colors.white.withOpacity(0.5),
+                                size: 20,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$_playerLives/3',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               );
@@ -820,7 +831,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
           const SizedBox(width: 12),
 
-          // Puan
+          // Puan (yıldız)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -1044,7 +1055,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered || _gameOver || _playerLives <= 0 ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _gameOver || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 45,

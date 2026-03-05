@@ -1056,7 +1056,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildRegionIcon('🌲', localizations.get('number_forest')),
+                    _buildRegionIcon('🧑‍🌾', localizations.get('keloglan_village')),
                     _buildRegionIcon('🔢', localizations.get('digit_river')),
                     _buildRegionIcon('🔺', localizations.get('geometry_mountain')),
                     _buildRegionIcon('🕰', localizations.get('time_island')),
@@ -1448,6 +1448,12 @@ class _GameStartScreenState extends State<GameStartScreen>
   void _startQuickGame(String type) {
     debugPrint('Starting quick game: $type');
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      _showNoLivesDialog();
+      return;
+    }
+
     switch (type) {
       case 'instant':
         Navigator.push(
@@ -1509,6 +1515,34 @@ class _GameStartScreenState extends State<GameStartScreen>
           ),
         );
     }
+  }
+
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.favorite_border, color: Colors.red, size: 32),
+            const SizedBox(width: 12),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(
+          '${loc.get('no_lives_play')}',
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showBossSelection() {

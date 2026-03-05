@@ -7,8 +7,10 @@ import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import '../models/daily_reward.dart';
+import '../services/ad_service.dart';
 import '../services/badge_service.dart';
 import '../services/daily_reward_service.dart';
+import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 
 class SpecializedGameScreen extends StatefulWidget {
@@ -38,7 +40,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   int _score = 0;
   int _correctAnswers = 0;
   int _wrongAnswers = 0;
-  int _lives = 3;
   int _currentStreak = 0;
   int _bestStreak = 0;
   int _totalAnswerTimeSeconds = 0;
@@ -55,9 +56,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
 
-  // REKLAM SİSTEMİ
-  int _remainingAds = 3; // Kalan reklam hakkı
-  int _totalAdsWatched = 0; // İzlenen reklam sayısı
+  // REKLAM SİSTEMİ - GameMechanicsService ile can yönetimi
+  int _totalAdsWatched = 0; // İzlenen reklam sayısı (istatistik)
   bool _isGameOver = false; // Oyun bitti mi?
   bool _gamePaused = false; // Oyun duraklatıldı mı?
   late AnimationController _adController; // Reklam butonu animasyonu
@@ -235,13 +235,13 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   void _loseLife() {
     _heartController.forward().then((_) => _heartController.reset());
 
-    setState(() {
-      _lives--;
-    });
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    mechanicsService.onWrongAnswer();
 
-    if (_lives <= 0) {
+    if (mechanicsService.currentLives <= 0) {
       _gameOver();
     } else {
+      setState(() {});
       _gamePaused = true;
 
       Future.delayed(const Duration(seconds: 1), () {
@@ -273,63 +273,47 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  // REKLAM İZLEYEREK CAN KAZANMA
+  // REKLAM İZLEYEREK CAN KAZANMA - GameMechanicsService ile profil senkron
   void _reviveWithAd() {
-    // TODO: Gerçek reklam entegrasyonu buraya eklenecek
-
-    setState(() {
-      _lives = 1; // 1 CAN KAZANIR
-      _remainingAds--; // Kalan reklam hakkı azalır
-      _totalAdsWatched++; // İzlenen reklam sayısı artar
-      _isGameOver = false;
-      _gamePaused = false;
-      _isAnswered = false;
-      _selectedAnswer = null;
-    });
-
-    // Kullanıcıya bildirim göster
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.play_circle, color: Colors.white, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '🎬 Reklam izlendi!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    '+1 can kazandın! (Kalan: $_remainingAds)',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
+    final adService = AdService();
+    adService.watchAdForLife(
+      onLifeEarned: () {
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          mechanicsService.earnLifeFromAd();
+          setState(() {
+            _totalAdsWatched++;
+            _isGameOver = false;
+            _gamePaused = false;
+            _isAnswered = false;
+            _selectedAnswer = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
             ),
-          ],
-        ),
-        backgroundColor: Colors.green.shade700,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+          );
+          _startTimer();
+        }
+      },
+      onAdClosed: () {
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          if (mechanicsService.currentLives <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      },
     );
-
-    // Yeni soruya geç ve devam et
-    _startTimer();
   }
 
   void _gameOver() {
@@ -379,7 +363,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   void _showGameOverDialog() {
-    final bool showAdOption = _remainingAds > 0; // Reklam hakkı varsa göster
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final bool showAdOption = !mechanicsService.hasLives; // Can yoksa reklam izle seçeneği
 
     showDialog(
       context: context,
@@ -489,7 +474,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                                         ),
                                       ),
                                       Text(
-                                        '${loc.get('remaining_ads')}: $_remainingAds/3',
+                                        '${loc.get('lives')}: ${mechanicsService.currentLives}/${mechanicsService.maxLives}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.black.withOpacity(0.6),
@@ -1567,23 +1552,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             onPressed: _showExitDialog,
             icon: const Icon(Icons.close, color: Colors.white),
           ),
-          const SizedBox(width: 8),
-          // Canlar
-          ScaleTransition(
-            scale: _heartAnimation,
-            child: Row(
-              children: List.generate(3, (index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Icon(
-                    index < _lives ? Icons.favorite : Icons.favorite_border,
-                    color: index < _lives ? Colors.red : Colors.red.withOpacity(0.3),
-                    size: 24,
-                  ),
-                );
-              }),
-            ),
-          ),
           const Spacer(),
           Column(
             children: [
@@ -1605,34 +1573,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
           const Spacer(),
-          // Reklam hakkı göstergesi (kalan hak varsa)
-          if (_remainingAds > 0 && !_isGameOver)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.play_circle, color: Colors.amber, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_remainingAds',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -1652,6 +1592,29 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 8),
+          // Canlar - GameMechanicsService ile profil senkron
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return ScaleTransition(
+                scale: _heartAnimation,
+                child: Row(
+                  children: List.generate(maxLives, (index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        index < lives ? Icons.favorite : Icons.favorite_border,
+                        color: index < lives ? Colors.red : Colors.red.withOpacity(0.3),
+                        size: 24,
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1995,12 +1958,23 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   void _restartGame() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _currentQuestionIndex = 0;
       _score = 0;
       _correctAnswers = 0;
-      _lives = 3;
-      _remainingAds = 3; // REKLAM HAKLARI SIFIRLANIR
       _totalAdsWatched = 0;
       _isGameOver = false;
       _gamePaused = false;

@@ -56,9 +56,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   bool _isCorrect = false;
   int? _selectedAnswer;
 
-  // CAN SİSTEMİ - 3 CAN
-  int _playerLives = 3;
-  final int _playerMaxLives = 3;
+  // CAN SİSTEMİ - GameMechanicsService'ten (profil ile senkron)
   bool _gameOver = false;
 
   // Mevcut soru
@@ -159,7 +157,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   void _startParticles() {
-    _particleTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    _particleTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (!mounted) return;
 
       final random = math.Random();
@@ -167,7 +165,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         x: random.nextDouble() * MediaQuery.of(context).size.width,
         y: -50,
         size: random.nextDouble() * 15 + 5,
-        speed: random.nextDouble() * 2 + 1,
+        speed: random.nextDouble() * 5 + 4,
         color: _getParticleColor(),
         emoji: _getParticleEmoji(random),
       );
@@ -374,11 +372,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _confettiController.forward(from: 0);
     } else {
       _wrongAnswers++;
-      _playerLives--;
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanicsService.onWrongAnswer();
       _shakeController.forward(from: 0);
       _lifeShakeController.forward().then((_) => _lifeShakeController.reset());
 
-      if (_playerLives <= 0) {
+      if (mechanicsService.currentLives <= 0) {
         _gameOver = true;
         _particleTimer?.cancel();
         _showGameOverDialog();
@@ -547,8 +546,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     adService.watchAdForLife(
       onLifeEarned: () {
         if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          mechanicsService.earnLifeFromAd();
           setState(() {
-            _playerLives = 1;
             _gameOver = false;
             _isAnswered = false;
             _selectedAnswer = null;
@@ -567,14 +567,17 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         }
       },
       onAdClosed: () {
-        if (mounted && _playerLives <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-              backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        if (mounted) {
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          if (mechanicsService.currentLives <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       },
     );
@@ -584,7 +587,11 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildTopBar() {
-    return Container(
+    return Consumer<GameMechanicsService>(
+      builder: (context, mechanicsService, _) {
+        final lives = mechanicsService.currentLives;
+        final maxLives = mechanicsService.maxLives;
+        return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -616,54 +623,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
           const Spacer(),
 
-          AnimatedBuilder(
-            animation: _lifeShakeAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(_lifeShakeAnimation.value, 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
-                  ),
-                  child: Row(
-                    children: [
-                      ...List.generate(
-                        _playerMaxLives,
-                            (index) => Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Icon(
-                            index < _playerLives
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: index < _playerLives
-                                ? Colors.red
-                                : Colors.white.withOpacity(0.5),
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$_playerLives/$_playerMaxLives',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(width: 12),
-
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
@@ -694,8 +653,48 @@ class _QuickMathScreenState extends State<QuickMathScreen>
               ],
             ),
           ),
+
+          const SizedBox(width: 12),
+
+          AnimatedBuilder(
+            animation: _lifeShakeAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(_lifeShakeAnimation.value, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      ...List.generate(
+                        maxLives,
+                            (index) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(
+                            index < lives
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: index < lives
+                                ? Colors.red
+                                : Colors.white.withOpacity(0.5),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
+    );
+      },
     );
   }
 
@@ -914,7 +913,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     }
 
     return GestureDetector(
-      onTap: _isAnswered || _gameOver || _playerLives <= 0 ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _gameOver || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 55,
@@ -1076,6 +1075,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildResultsDialog() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final percentage = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions * 100).round() : 0;
     final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
 
@@ -1116,7 +1116,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_playerMaxLives, (index) {
+                children: List.generate(mechanicsService.maxLives, (index) {
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 500 + index * 200),
                     tween: Tween(begin: 0.0, end: 1.0),
@@ -1162,7 +1162,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                     const Divider(color: Colors.white24),
                     _buildResultRow('⏱️ Toplam Süre', '${_totalTime}s'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('❤️ Kalan Can', '$_playerLives/3'),
+                    _buildResultRow('❤️ Kalan Can', '${mechanicsService.currentLives}/${mechanicsService.maxLives}'),
                   ],
                 ),
               ),
@@ -1232,12 +1232,24 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   void _restartGame() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _currentQuestionIndex = 0;
       _score = 0;
       _correctAnswers = 0;
       _wrongAnswers = 0;
-      _playerLives = 3;
       _gameOver = false;
       _totalTime = 0;
       _isAnswered = false;
