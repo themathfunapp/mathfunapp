@@ -15,7 +15,7 @@ import 'services/game_mechanics_service.dart';
 import 'services/offline_service.dart';
 import 'services/ai_storyteller_service.dart';
 import 'services/voice_command_service.dart';
-import 'services/premium_service.dart';
+import 'services/premium_service_export.dart';
 import 'services/ad_service.dart';
 import 'providers/locale_provider.dart';
 import 'screens/home_screen.dart';

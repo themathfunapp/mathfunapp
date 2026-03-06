@@ -16,6 +16,7 @@ enum WorldTheme {
   timeAdventure, // Zaman Macerası - Saat
   moneyMarket, // Para Pazarı - Para kavramı
   measurementLand, // Ölçüm Diyarı - Ölçme/Boyut
+  multipliersTower, // Çarpanlar Kulesi - Çarpım tablosu ve bölünebilme
 }
 
 /// Matematik konuları

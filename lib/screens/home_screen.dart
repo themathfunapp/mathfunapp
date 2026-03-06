@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 const SizedBox(height: 12),
 
-                // İkinci satır - Şans Çarkı
+                // İkinci satır - Şans Çarkı + Ebeveyn Paneli
                 Row(
                   children: [
                     Expanded(
@@ -254,12 +254,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         onPressed: () => _openSpinWheelScreen(context),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: BottomActionButton(
+                        text: localizations.parentPanel,
+                        emoji: '👨‍👩‍👧',
+                        onPressed: () => _openParentPanelScreen(context),
+                      ),
+                    ),
                   ],
                 ),
 
                 // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
                 // İKİNCİ SATIĞA EKLENECEKLER:
-                // - Ebeveyn (👨‍👩‍👧) - _openParentPanelScreen
                 // - Hikaye (📖) - _openAIStorytellerScreen
                 //
                 // ÜÇÜNCÜ SATIR:
@@ -503,29 +510,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _openProfileScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(
+          onBack: () => Navigator.pop(context),
+          onSettings: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SettingsScreen(
+                  onBack: () => Navigator.pop(context),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   // Profil butonu
   Widget _buildProfileButton(BuildContext context, AppLocalizations localizations) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProfileScreen(
-              onBack: () => Navigator.pop(context),
-              onSettings: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(
-                      onBack: () => Navigator.pop(context),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
+      onTap: () => _openProfileScreen(context),
       child: Container(
         width: 48,
         height: 48,
@@ -579,12 +588,59 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _openParentPanelScreen(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.currentUser?.isGuest == true) {
+      _showParentPanelGuestDialog(context);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ParentPanelScreen(
           onBack: () => Navigator.pop(context),
         ),
+      ),
+    );
+  }
+
+  void _showParentPanelGuestDialog(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_outline, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              localizations.parentPanelLoginRequired,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          localizations.parentPanelLoginRequiredDesc,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(localizations.close, style: const TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openProfileScreen(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black87,
+            ),
+            child: Text(localizations.createAccount),
+          ),
+        ],
       ),
     );
   }

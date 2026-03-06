@@ -15,8 +15,8 @@ class PremiumService extends ChangeNotifier {
   factory PremiumService() => _instance;
   PremiumService._internal();
 
-  // In-App Purchase instance
-  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  // In-App Purchase instance (web'de null)
+  InAppPurchase? _inAppPurchase;
   
   // Firestore instance
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -64,8 +64,18 @@ class PremiumService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Web'de In-App Purchase desteklenmez
+      if (kIsWeb) {
+        _isAvailable = false;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      _inAppPurchase ??= InAppPurchase.instance;
+
       // Mağaza bağlantısını kontrol et
-      _isAvailable = await _inAppPurchase.isAvailable();
+      _isAvailable = await _inAppPurchase!.isAvailable();
       
       if (!_isAvailable) {
         debugPrint('PremiumService: Mağaza kullanılamıyor');
@@ -75,12 +85,12 @@ class PremiumService extends ChangeNotifier {
       }
 
       // Platform-specific yapılandırma (iOS delegate)
-      if (!kIsWeb) {
-        await setupIOSDelegate(_inAppPurchase);
+      if (!kIsWeb && _inAppPurchase != null) {
+        await setupIOSDelegate(_inAppPurchase!);
       }
 
       // Purchase stream'i dinle
-      _subscription = _inAppPurchase.purchaseStream.listen(
+      _subscription = _inAppPurchase!.purchaseStream.listen(
         _onPurchaseUpdate,
         onDone: _onPurchaseStreamDone,
         onError: _onPurchaseStreamError,
@@ -109,9 +119,10 @@ class PremiumService extends ChangeNotifier {
 
   /// Ürünleri mağazadan yükle
   Future<void> _loadProducts() async {
+    if (_inAppPurchase == null) return;
     try {
       final ProductDetailsResponse response = 
-          await _inAppPurchase.queryProductDetails(_productIds);
+          await _inAppPurchase!.queryProductDetails(_productIds);
       
       if (response.notFoundIDs.isNotEmpty) {
         debugPrint('Bulunamayan ürünler: ${response.notFoundIDs}');
@@ -251,7 +262,8 @@ class PremiumService extends ChangeNotifier {
       );
 
       // Satın alma işlemini başlat
-      final bool success = await _inAppPurchase.buyNonConsumable(
+      if (_inAppPurchase == null) return false;
+      final bool success = await _inAppPurchase!.buyNonConsumable(
         purchaseParam: purchaseParam,
       );
 
@@ -285,7 +297,8 @@ class PremiumService extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      await _inAppPurchase.restorePurchases();
+      if (_inAppPurchase == null) return false;
+      await _inAppPurchase!.restorePurchases();
       return true;
     } catch (e) {
       debugPrint('Geri yükleme hatası: $e');
@@ -329,8 +342,8 @@ class PremiumService extends ChangeNotifier {
       }
 
       // İşlemi tamamla
-      if (purchaseDetails.pendingCompletePurchase) {
-        _inAppPurchase.completePurchase(purchaseDetails);
+      if (purchaseDetails.pendingCompletePurchase && _inAppPurchase != null) {
+        _inAppPurchase!.completePurchase(purchaseDetails);
       }
     }
   }

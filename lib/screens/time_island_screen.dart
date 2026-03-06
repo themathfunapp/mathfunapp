@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 
 class TimeIslandScreen extends StatefulWidget {
   final String ageGroup;
@@ -20,7 +21,6 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
     with TickerProviderStateMixin {
   int _currentQuestion = 0;
   int _score = 0;
-  int _hearts = 3;
   bool _isAnswering = false;
   String _feedback = '';
   
@@ -46,6 +46,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   // Sürükleme durumu
   bool _isDragging = false;
   String _draggingHand = 'none'; // 'hour' veya 'minute'
+  bool _hasShownNoLivesDialog = false;
 
   @override
   void initState() {
@@ -198,33 +199,36 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
 
   void _checkAnswer() {
     if (_isAnswering) return;
-    
+
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
+
     final question = _questions[_currentQuestion];
     int targetHour = question['hour'];
     int targetMinute = question['minute'];
-    
+
     // Saat ve dakikayı kontrol et (±2 dakika tolerans)
     int adjustedHour = _hourHandValue % 12;
     if (adjustedHour == 0) adjustedHour = 12;
     if (targetHour > 12) targetHour = targetHour - 12;
-    
+
     bool hourCorrect = adjustedHour == targetHour;
     bool minuteCorrect = (_minuteHandValue - targetMinute).abs() <= 2; // 2 dakika tolerans
-    
+
     bool isCorrect = hourCorrect && minuteCorrect;
-    
+
     setState(() {
       _isAnswering = true;
       _characterIsHappy = isCorrect;
-      
+
       if (isCorrect) {
         _score += 10;
         _feedback = '🎉 Harika! Doğru saat!';
         _clockController.forward(from: 0);
       } else {
-        _hearts--;
+        mechanicsService.onWrongAnswer();
         _feedback = '⏰ Tekrar deneyin!';
-        if (_hearts <= 0) {
+        if (!mechanicsService.hasLives) {
           _showGameOver();
           return;
         }
@@ -261,17 +265,58 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
     });
   }
 
-  void _showGameOver() {
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('😢 Oyun Bitti', textAlign: TextAlign.center),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hourglass_empty, color: Colors.amber, size: 32),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hourglass_empty, color: Colors.amber, size: 28),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished'), textAlign: TextAlign.center),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Canların bitti!', textAlign: TextAlign.center),
+            Text(loc.get('no_lives_play'), textAlign: TextAlign.center),
             const SizedBox(height: 10),
             Text('Puanın: $_score', 
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -291,7 +336,6 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
               setState(() {
                 _currentQuestion = 0;
                 _score = 0;
-                _hearts = 3;
                 _isDragging = false;
                 _draggingHand = 'none';
                 _generateQuestions();
@@ -338,7 +382,15 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   @override
   Widget build(BuildContext context) {
     if (_questions.isEmpty) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    
+
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
+
     final question = _questions[_currentQuestion];
     
     return Scaffold(
@@ -392,18 +444,24 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
-          // Kalpler
-          Row(
-            children: List.generate(3, (index) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Icon(
-                  index < _hearts ? Icons.favorite : Icons.favorite_border,
-                  color: Colors.red,
-                  size: 28,
-                ),
+          // Canlar - kum saati şeklinde, profile bağlı (5 can)
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                children: List.generate(maxLives, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(
+                      index < lives ? Icons.hourglass_top : Icons.hourglass_empty,
+                      color: index < lives ? Colors.amber : Colors.white.withOpacity(0.4),
+                      size: 26,
+                    ),
+                  );
+                }),
               );
-            }),
+            },
           ),
           const SizedBox(width: 16),
           // Puan

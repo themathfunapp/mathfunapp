@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/badge_service.dart';
+import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
+import '../models/badge.dart';
 import '../localization/app_localizations.dart';
 
 /// Ebeveyn Paneli Ekranı
-/// Çocuğun ilerlemesini takip etme, süre sınırları, raporlar
+/// Gerçek verilerle çocuğun ilerlemesini takip etme
 class ParentPanelScreen extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -24,24 +28,31 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   bool _soundEnabled = true;
   bool _notificationsEnabled = true;
   bool _safeMode = true;
-  
-  // İstatistikler (örnek veriler)
-  final Map<String, dynamic> _stats = {
-    'totalPlayTime': 245, // dakika
-    'totalQuestions': 432,
-    'correctAnswers': 389,
-    'wrongAnswers': 43,
-    'streakDays': 7,
-    'level': 12,
-    'coins': 1250,
-    'badges': 15,
-    'weeklyProgress': [65, 80, 45, 90, 70, 85, 55], // Son 7 günün doğru oranları
-  };
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  /// Son aktivite metnini formatla (gerçek veri)
+  String _formatLastActivity(DateTime? lastPlayedAt) {
+    if (lastPlayedAt == null) return 'Henüz oynamadı';
+    final diff = DateTime.now().difference(lastPlayedAt);
+    if (diff.inMinutes < 1) return 'Az önce';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} dakika önce';
+    if (diff.inHours < 24) return '${diff.inHours} saat önce';
+    if (diff.inDays == 1) return 'Dün';
+    if (diff.inDays < 7) return '${diff.inDays} gün önce';
+    return '${diff.inDays} gün önce';
+  }
+
+  /// Haftalık ilerleme - consecutiveDays'a göre (gerçek veri)
+  List<int> _getWeeklyProgress(int consecutiveDays) {
+    return List.generate(7, (i) {
+      final daysFromEnd = 6 - i;
+      return (consecutiveDays > daysFromEnd) ? 100 : 0;
+    });
   }
 
   @override
@@ -50,8 +61,32 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     super.dispose();
   }
 
+  void _showGuestBlockedSnackbar(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final localizations = AppLocalizations(locale);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(localizations.parentPanelLoginRequiredDesc),
+        backgroundColor: Colors.orange.shade700,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Misafir kullanıcılar ebeveyn panelini kullanamaz
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.currentUser?.isGuest == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          _showGuestBlockedSnackbar(context);
+        }
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -70,16 +105,27 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               // Üst bar
               _buildTopBar(),
 
+              // Panel giriş - Gerçek kullanıcı bilgisi
+              Consumer4<AuthService, BadgeService, GameMechanicsService, DailyRewardService>(
+                builder: (context, auth, badge, mechanics, reward, _) {
+                  return _buildPanelEntryCard(
+                    childName: auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu',
+                    loginStreak: reward.loginStreak,
+                  );
+                },
+              ),
+
               // Tab bar
               _buildTabBar(),
 
-              // Tab içerikleri
+              // Tab içerikleri - Gerçek verilerle
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildStatsTab(),
+                    _buildStatsTab(), // Consumer içinde gerçek veri
                     _buildReportsTab(),
+                    _buildFamilyGameTab(),
                     _buildSettingsTab(),
                   ],
                 ),
@@ -92,6 +138,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   Widget _buildTopBar() {
+    final now = DateTime.now();
+    final dateStr = '${now.day} ${_getMonthName(now.month)}';
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -102,7 +150,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -113,22 +161,107 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ),
           ),
           const SizedBox(width: 16),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '👨‍👩‍👧 Ebeveyn Paneli',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const Text(
+                  'Çocuğunuzun ilerlemesini takip edin',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Row(
             children: [
+              Icon(Icons.calendar_today, color: Colors.white.withValues(alpha: 0.9), size: 18),
+              const SizedBox(width: 6),
               Text(
-                '👨‍👩‍👧 Ebeveyn Paneli',
+                dateStr,
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPanelEntryCard({required String childName, required int loginStreak}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(child: Text('👧', style: TextStyle(fontSize: 22))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  childName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text('🔥', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$loginStreak gün seri',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              const Text('🌟', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
               Text(
-                'Çocuğunuzun ilerlemesini takip edin',
+                'Aile Modu',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white70,
+                  color: Colors.amber.shade200,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -153,102 +286,386 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         ),
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
         tabs: const [
+          Tab(icon: Icon(Icons.dashboard), text: 'Gelişim'),
           Tab(icon: Icon(Icons.bar_chart), text: 'İstatistik'),
-          Tab(icon: Icon(Icons.analytics), text: 'Raporlar'),
+          Tab(icon: Icon(Icons.groups), text: 'Aile Oyunu'),
           Tab(icon: Icon(Icons.settings), text: 'Ayarlar'),
         ],
       ),
     );
   }
 
-  // ============= İSTATİSTİK TAB =============
-  Widget _buildStatsTab() {
-    final accuracy = _stats['totalQuestions'] > 0
-        ? (_stats['correctAnswers'] / _stats['totalQuestions'] * 100).round()
-        : 0;
-
+  // Aile Oyunu sekmesi - Misafir giriş yapanlar buraya erişemez (tüm panel engelli)
+  Widget _buildFamilyGameTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Özet kartları
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                '⏱️',
-                'Toplam Süre',
-                '${_stats['totalPlayTime']} dk',
-                Colors.blue,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                '🎯',
-                'Başarı Oranı',
-                '%$accuracy',
-                Colors.green,
-              ),
-            ),
-          ],
+        _buildSectionTitle('🎮 Aile Oyun Modu'),
+        const SizedBox(height: 12),
+        _buildFamilyGameCard(
+          '🏁 Birebir Yarış',
+          'Çocuk vs Ebeveyn - Kim daha hızlı?',
+          Icons.emoji_events,
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                '🔥',
-                'Giriş Serisi',
-                '${_stats['streakDays']} gün',
-                Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                '📊',
-                'Seviye',
-                '${_stats['level']}',
-                Colors.purple,
-              ),
-            ),
-          ],
+        _buildFamilyGameCard(
+          '👨‍👩‍👧 Takım Modu',
+          'Aile vs Bilgisayar - Birlikte kazanın!',
+          Icons.groups,
         ),
-
-        const SizedBox(height: 24),
-
-        // Soru istatistikleri
-        _buildSectionTitle('Soru İstatistikleri'),
         const SizedBox(height: 12),
-        _buildQuestionStats(),
-
+        _buildFamilyGameCard(
+          '🔄 Sırayla Oyna',
+          'Herkes sırayla soru çözer',
+          Icons.swap_horiz,
+        ),
         const SizedBox(height: 24),
-
-        // Kazanımlar
-        _buildSectionTitle('Kazanımlar'),
+        _buildSectionTitle('🏆 Aile Turnuvaları'),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildAchievementCard(
-                '🪙',
-                'Altın',
-                '${_stats['coins']}',
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.amber.withOpacity(0.4)),
+          ),
+          child: Column(
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
+              const Text(
+                'Haftalık Aile Ligi',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildAchievementCard(
-                '🏆',
-                'Rozet',
-                '${_stats['badges']}',
+              const SizedBox(height: 8),
+              Text(
+                'Yakında eklenecek',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.8),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
+  }
+
+  Widget _buildFamilyGameCard(String title, String subtitle, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+        ],
+      ),
+    );
+  }
+
+  // ============= GELİŞİM TAB (Gerçek Verilerle) =============
+  Widget _buildStatsTab() {
+    return Consumer4<AuthService, BadgeService, GameMechanicsService, DailyRewardService>(
+      builder: (context, auth, badge, mechanics, reward, _) {
+        final stats = badge.userStats;
+        final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
+        final correctAnswers = stats?.totalCorrectAnswers ?? 0;
+        final wrongAnswers = stats?.totalWrongAnswers ?? 0;
+        final accuracy = totalQuestions > 0
+            ? (correctAnswers / totalQuestions * 100).round()
+            : 0;
+        final childName = auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu';
+        final lastActivity = _formatLastActivity(stats?.lastPlayedAt);
+        final loginStreak = reward.loginStreak;
+        final earnedBadges = badge.earnedBadgesCount;
+        final coins = mechanics.inventory.coins;
+        final level = (stats != null && stats.totalScore > 0)
+            ? ((stats.totalScore / 500).floor() + 1).clamp(1, 999)
+            : 1;
+        final totalPlayTimeMin = (totalQuestions * 25 / 60).round();
+        final weeklyValues = _getWeeklyProgress(loginStreak);
+
+        final solve5Progress = reward.taskProgress['solve_5'];
+        final dailyTarget = 5;
+        final dailySolved = solve5Progress?.currentValue ?? 0;
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildChildSummaryCard(
+              childName: childName,
+              accuracy: accuracy,
+              lastActivity: lastActivity,
+              dailyTarget: dailyTarget,
+              dailySolved: dailySolved,
+              earnedBadges: earnedBadges,
+              weeklyValues: weeklyValues,
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    '⏱️',
+                    'Toplam Süre',
+                    '$totalPlayTimeMin dk',
+                    Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    '🎯',
+                    'Başarı Oranı',
+                    '%$accuracy',
+                    Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    '🔥',
+                    'Giriş Serisi',
+                    '$loginStreak gün',
+                    Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    '📊',
+                    'Seviye',
+                    '$level',
+                    Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+            _buildSectionTitle('Soru İstatistikleri'),
+            const SizedBox(height: 12),
+            _buildQuestionStats(totalQuestions, correctAnswers, wrongAnswers),
+
+            const SizedBox(height: 24),
+            _buildSectionTitle('Kazanımlar'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildAchievementCard('🪙', 'Altın', '$coins'),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildAchievementCard('🏆', 'Rozet', '$earnedBadges'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildChildSummaryCard({
+    required String childName,
+    required int accuracy,
+    required String lastActivity,
+    required int dailyTarget,
+    required int dailySolved,
+    required int earnedBadges,
+    required List<int> weeklyValues,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.2),
+            Colors.white.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '🧒 $childName',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                '📅 ${DateTime.now().day} ${_getMonthName(DateTime.now().month)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Text('⭐', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(
+                'Genel Başarı: %$accuracy',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+              const SizedBox(width: 6),
+              Text(
+                'Son aktivite: $lastActivity',
+                style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.9)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.flag, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+              const SizedBox(width: 6),
+              Text(
+                'Günlük hedef: $dailyTarget soru ($dailySolved çözüldü)',
+                style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.9)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Text('🏆', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Kazanılan rozetler: $earnedBadges',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '📈 Haftalık İlerleme:',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+              final v = weeklyValues[i];
+              return Column(
+                children: [
+                  Container(
+                    width: 24,
+                    height: (v / 100) * 40,
+                    decoration: BoxDecoration(
+                      color: v >= 50 ? Colors.green : (v > 0 ? Colors.orange : Colors.grey.withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    days[i],
+                    style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.8)),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMonthName(int month) {
+    const names = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    return names[month - 1];
   }
 
   Widget _buildStatCard(String emoji, String title, String value, Color color) {
@@ -284,11 +701,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildQuestionStats() {
-    final total = _stats['totalQuestions'];
-    final correct = _stats['correctAnswers'];
-    final wrong = _stats['wrongAnswers'];
-
+  Widget _buildQuestionStats(int total, int correct, int wrong) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -392,33 +805,44 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  // ============= RAPORLAR TAB =============
+  // ============= RAPORLAR TAB (Gerçek Verilerle) =============
   Widget _buildReportsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildSectionTitle('Haftalık İlerleme'),
-        const SizedBox(height: 12),
-        _buildWeeklyChart(),
+    return Consumer2<BadgeService, DailyRewardService>(
+      builder: (context, badge, reward, _) {
+        final weeklyValues = _getWeeklyProgress(reward.loginStreak);
+        final stats = badge.userStats;
+        final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
+        final correctAnswers = stats?.totalCorrectAnswers ?? 0;
+        final accuracy = totalQuestions > 0
+            ? (correctAnswers / totalQuestions * 100).round()
+            : 0;
 
-        const SizedBox(height: 24),
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildSectionTitle('Haftalık İlerleme'),
+            const SizedBox(height: 12),
+            _buildWeeklyChart(weeklyValues),
 
-        _buildSectionTitle('Konu Bazlı Performans'),
-        const SizedBox(height: 12),
-        _buildTopicPerformance(),
+            const SizedBox(height: 24),
 
-        const SizedBox(height: 24),
+            _buildSectionTitle('Konu Bazlı Performans'),
+            const SizedBox(height: 12),
+            _buildTopicPerformance(accuracy),
 
-        _buildSectionTitle('Öneriler'),
-        const SizedBox(height: 12),
-        _buildRecommendations(),
-      ],
+            const SizedBox(height: 24),
+
+            _buildSectionTitle('Öneriler'),
+            const SizedBox(height: 12),
+            _buildRecommendations(stats, accuracy),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildWeeklyChart() {
+  Widget _buildWeeklyChart(List<int> values) {
     final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-    final values = _stats['weeklyProgress'] as List<int>;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -477,13 +901,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildTopicPerformance() {
+  Widget _buildTopicPerformance(int overallAccuracy) {
     final topics = [
-      {'name': 'Toplama', 'emoji': '➕', 'score': 92},
-      {'name': 'Çıkarma', 'emoji': '➖', 'score': 85},
-      {'name': 'Çarpma', 'emoji': '✖️', 'score': 78},
-      {'name': 'Bölme', 'emoji': '➗', 'score': 65},
-      {'name': 'Geometri', 'emoji': '🔺', 'score': 70},
+      {'name': 'Genel Başarı', 'emoji': '📊', 'score': overallAccuracy},
     ];
 
     return Container(
@@ -558,13 +978,29 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildRecommendations() {
+  Widget _buildRecommendations(UserStats? stats, int accuracy) {
+    final items = <String>[];
+    if (accuracy >= 80) {
+      items.add('⭐ Harika gidiyorsun! Başarını korumaya devam et');
+    } else if (accuracy >= 60) {
+      items.add('📚 Daha fazla pratik yaparak başarını artırabilirsin');
+    } else {
+      items.add('🎯 Temel konuları tekrar etmek faydalı olacaktır');
+    }
+    final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
+    if (totalQuestions < 50) {
+      items.add('📝 Daha fazla soru çözerek pratik yap');
+    }
+    if (items.isEmpty) {
+      items.add('🎮 Oyun oynamaya devam et!');
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.2),
+        color: Colors.blue.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,15 +1020,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ],
           ),
           const SizedBox(height: 12),
-          _buildRecommendationItem(
-            '📚 Bölme konusuna daha fazla pratik yapılabilir',
-          ),
-          _buildRecommendationItem(
-            '🎯 Günlük hedef 20 soru olarak ayarlanabilir',
-          ),
-          _buildRecommendationItem(
-            '⭐ Harika gidiyorsun! Serini korumaya devam et',
-          ),
+          ...items.map((text) => _buildRecommendationItem(text)),
         ],
       ),
     );

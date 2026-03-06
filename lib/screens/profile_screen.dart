@@ -7,6 +7,7 @@ import '../models/app_user.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
 import 'badges_screen.dart';
+import 'parent_panel_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -90,6 +91,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         // BAŞARILAR
                         _buildAchievementsCard(localizations),
+                        const SizedBox(height: 24),
+
+                        // EBEVEYN PANELİ (misafir giriş yapanlar erişemez)
+                        _buildParentPanelCard(authService, localizations),
                         const SizedBox(height: 24),
 
                         // ÇIKIŞ BUTONU
@@ -807,6 +812,134 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context) => BadgesScreen(
           onBack: () => Navigator.pop(context),
         ),
+      ),
+    );
+  }
+
+  Widget _buildParentPanelCard(AuthService authService, AppLocalizations localizations) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: InkWell(
+        onTap: () {
+          if (authService.currentUser?.isGuest == true) {
+            _showParentPanelGuestDialog(localizations);
+            return;
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ParentPanelScreen(
+                onBack: () => Navigator.pop(context),
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF2C3E50), Color(0xFF3498DB)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Center(
+                  child: Text('👨‍👩‍👧', style: TextStyle(fontSize: 28)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      localizations.parentPanel,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      localizations.parentPanelDesc,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white.withOpacity(0.8),
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showParentPanelGuestDialog(AppLocalizations localizations) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_outline, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                localizations.parentPanelLoginRequired,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          localizations.parentPanelLoginRequiredDesc,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(localizations.close, style: const TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showConvertToAccountDialog(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black87,
+            ),
+            child: Text(localizations.createAccount),
+          ),
+        ],
       ),
     );
   }

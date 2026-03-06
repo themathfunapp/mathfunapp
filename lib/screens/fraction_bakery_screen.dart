@@ -202,52 +202,27 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   static TextStyle _textStyle(Color color, {double size = 16, bool bold = false}) =>
       GoogleFonts.quicksand(color: color, fontSize: size, fontWeight: bold ? FontWeight.bold : FontWeight.w500);
 
-  /// Şef Sincap - sincap + beyaz aşçı şapkası + önlük
+  /// Şef Sincap - sincap emoji, dairesel arka plan içinde (taşma/clipping düzeltmesi)
   Widget _buildChefSquirrel() {
-    return SizedBox(
-      width: 56,
-      height: 56,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // Sincap
-          const Text('🐿️', style: TextStyle(fontSize: 48)),
-          // Beyaz aşçı şapkası (sincabın üzerinde)
-          Positioned(
-            top: -2,
-            left: 8,
-            right: 8,
-            child: Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: _blueberryPurple.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Önlük (sincabın altında küçük krema rengi)
-          Positioned(
-            bottom: 2,
-            left: 14,
-            right: 14,
-            child: Container(
-              height: 12,
-              decoration: BoxDecoration(
-                color: _cream.withOpacity(0.9),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
-                border: Border.all(color: _blueberryPurple.withOpacity(0.2)),
-              ),
-            ),
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: _cream.withOpacity(0.9),
+        shape: BoxShape.circle,
+        border: Border.all(color: _blueberryPurple.withOpacity(0.4), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: _blueberryPurple.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
+      ),
+      child: ClipOval(
+        child: Center(
+          child: Text('🐿️', style: const TextStyle(fontSize: 40)),
+        ),
       ),
     );
   }

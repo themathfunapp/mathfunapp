@@ -152,7 +152,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     
     // Sihirli Nesneler - Kristal Zemin
     ObjectType.crystal: {'emoji': '💎', 'name': 'kristal', 'color': Color(0xFF00E5FF)},
-    ObjectType.diamond: {'emoji': '💠', 'name': 'elmas', 'color': Color(0xFF2979FF)},
+    ObjectType.diamond: {'emoji': '💎', 'name': 'elmas', 'color': Color(0xFF2979FF)},
     ObjectType.orb: {'emoji': '🔮', 'name': 'sihirli küre', 'color': Color(0xFF9C27B0)},
     ObjectType.mushroom: {'emoji': '🍄', 'name': 'sihirli mantar', 'color': Color(0xFFFF5722)},
     ObjectType.star: {'emoji': '⭐', 'name': 'yıldız', 'color': Color(0xFFFFD700)},
@@ -170,7 +170,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     );
     
     _celebrationController = AnimationController(
-      duration: const Duration(milliseconds: 800), vsync: this,
+      duration: const Duration(milliseconds: 1500), vsync: this,
     );
     
     _shakeController = AnimationController(
@@ -331,7 +331,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
   // SORU TİPİ 3: Genel Sayma (Tümü)
   void _generateGeneralCounting(math.Random random) {
-    final count = 8 + random.nextInt(9); // 8-16 arası
+    final count = 6 + random.nextInt(5); // 6-10 arası (kompakt)
     final allTypes = ObjectType.values.toList();
 
     _objects = [];
@@ -370,20 +370,17 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     final additionalCount = 2 + random.nextInt(4); // 2-5
     final totalCount = initialCount + additionalCount;
 
-    // Başlangıç nesneleri (mavi çerçeveli - var olan)
+    // Sembolik gösterim: 1 nesne + ? (cevabı vermemek için)
     _objects = [];
-    for (int i = 0; i < totalCount; i++) {
-      final def = _objectDefinitions[targetType]!;
-      _objects.add(GameObject(
-        type: targetType,
-        emoji: def['emoji'],
-        name: def['name'],
-        color: def['color'],
-        id: i,
-      ));
-    }
-
     final def = _objectDefinitions[targetType]!;
+    _objects.add(GameObject(
+      type: targetType,
+      emoji: def['emoji'],
+      name: def['name'],
+      color: def['color'],
+      id: 0,
+    ));
+
     final isFlower = targetType == ObjectType.daisy || 
                      targetType == ObjectType.tulip || 
                      targetType == ObjectType.rose ||
@@ -411,19 +408,16 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     final removeCount = 2 + random.nextInt(4); // 2-5
     final remainingCount = initialCount - removeCount;
 
+    // Sembolik gösterim: 1 nesne + ? (cevabı vermemek için)
     _objects = [];
-    for (int i = 0; i < remainingCount; i++) {
-      final def = _objectDefinitions[targetType]!;
-      _objects.add(GameObject(
-        type: targetType,
-        emoji: def['emoji'],
-        name: def['name'],
-        color: def['color'],
-        id: i,
-      ));
-    }
-
     final def = _objectDefinitions[targetType]!;
+    _objects.add(GameObject(
+      type: targetType,
+      emoji: def['emoji'],
+      name: def['name'],
+      color: def['color'],
+      id: 0,
+    ));
     final isFlower = targetType == ObjectType.daisy || 
                      targetType == ObjectType.tulip || 
                      targetType == ObjectType.rose ||
@@ -445,7 +439,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
   List<int> _generateOptions(int correct, math.Random random) {
     final Set<int> opts = {correct};
-    while (opts.length < 3) {
+    while (opts.length < 4) {
       int diff = random.nextInt(4) + 1;
       int opt = random.nextBool() ? correct + diff : correct - diff;
       if (opt >= 1 && opt <= 20 && opt != correct) {
@@ -479,24 +473,11 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       return;
     }
 
-    // Doğru türden bir nesne
+    // Doğru türden bir nesne - sadece say, cevap şıklardan seçilecek
     if (!obj.isCounted) {
       setState(() {
         obj.isCounted = true;
         _currentCount++;
-
-        // Tüm hedef nesneler sayıldı mı?
-        int targetTotal = _objects.where((o) {
-          if (question.targetType != null) {
-            return o.type == question.targetType;
-          }
-          return true;
-        }).length;
-
-        if (_currentCount == targetTotal) {
-          // Cevabı otomatik kontrol et
-          _checkAnswer(_currentCount);
-        }
       });
     }
   }
@@ -551,19 +532,19 @@ class _FairyLandScreenState extends State<FairyLandScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
                           _buildCharacterMessage(loc),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           _buildLevelInfo(loc),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 12),
                           _buildCentralPlayArea(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 12),
                           _buildAnswerSection(),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -621,8 +602,8 @@ class _FairyLandScreenState extends State<FairyLandScreen>
               top: 80 + math.sin(_pulseController.value * 2 * math.pi) * 20,
               right: 30,
               child: Opacity(
-                opacity: 0.6,
-                child: Text('🧚‍♀️', style: TextStyle(fontSize: 45 + _pulseAnimation.value * 5)),
+                opacity: 0.5,
+                child: Text('🧚‍♀️', style: TextStyle(fontSize: 36 + _pulseAnimation.value * 4)),
               ),
             );
           },
@@ -650,48 +631,48 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           GestureDetector(
             onTap: widget.onBack,
             child: Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.8),
                 shape: BoxShape.circle,
                 border: Border.all(color: _fairyPurple.withOpacity(0.5)),
               ),
-              child: Icon(Icons.arrow_back, color: _fairyPurple),
+              child: Icon(Icons.arrow_back, color: _fairyPurple, size: 22),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('🧚 Periler Diyarı', style: _textStyle(_fairyPurple, size: 22, bold: true)),
-                Text(_getGroundLabel(), style: _textStyle(Colors.white, size: 12)),
+                Text('🧚 Periler Diyarı', style: _textStyle(_fairyPurple, size: 18, bold: true)),
+                Text(_getGroundLabel(), style: _textStyle(Colors.white, size: 11)),
               ],
             ),
           ),
           Row(
             children: List.generate(5, (i) {
               return Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: Text(i < _lives ? '🧚' : '💨', style: const TextStyle(fontSize: 22)),
+                padding: const EdgeInsets.only(left: 1),
+                child: Text(i < _lives ? '🧚' : '💨', style: const TextStyle(fontSize: 18)),
               );
             }),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Text('⭐ $_stars', style: _textStyle(Colors.white, size: 18, bold: true)),
+            child: Text('⭐ $_stars', style: _textStyle(Colors.white, size: 16, bold: true)),
           ),
         ],
       ),
@@ -706,33 +687,39 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   Widget _buildCharacterMessage(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10)],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: _fairyPink.withOpacity(0.4),
               shape: BoxShape.circle,
               border: Border.all(color: _fairyPurple, width: 2),
             ),
-            child: const Center(child: Text('🧚‍♀️', style: TextStyle(fontSize: 32))),
+            child: const Center(child: Text('🧚‍♀️', style: TextStyle(fontSize: 28))),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Peri Prenses', style: _textStyle(_fairyPurple, size: 16, bold: true)),
-                const SizedBox(height: 4),
-                Text(_currentQuestion!.questionText, style: _textStyle(Colors.black87, size: 14)),
+                const SizedBox(height: 6),
+                Text(
+                  _currentQuestion!.questionText,
+                  style: _textStyle(Colors.black87, size: 17),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -744,10 +731,10 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white, width: 2),
       ),
       child: Row(
@@ -765,10 +752,11 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
   Widget _buildStatItem(String label, String value, String emoji) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 22)),
-        Text(value, style: _textStyle(_fairyPurple, size: 20, bold: true)),
-        Text(label, style: _textStyle(_fairyPurple.withOpacity(0.8), size: 11)),
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        Text(value, style: _textStyle(_fairyPurple, size: 16, bold: true)),
+        Text(label, style: _textStyle(_fairyPurple.withOpacity(0.8), size: 10)),
       ],
     );
   }
@@ -778,116 +766,141 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   // ============================================================================
 
   Widget _buildCentralPlayArea() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20)],
-      ),
-      child: Column(
-        children: [
-          // Zemin tipi göstergesi
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _currentQuestion!.groundType == GroundType.grass 
-                  ? _grassGreen.withOpacity(0.3) 
-                  : _crystalCyan.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              _currentQuestion!.groundType == GroundType.grass ? '🌱 Çimen Zemin' : '💎 Kristal Zemin',
-              style: _textStyle(_fairyPurple, size: 12, bold: true),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final availableWidth = (constraints.maxWidth.isFinite && constraints.maxWidth > 0) 
+            ? constraints.maxWidth - 8 
+            : screenWidth - 56;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12)],
           ),
-          const SizedBox(height: 16),
-          // Nesnelerin yerleştiği alan
-          _buildObjectGrid(),
-        ],
-      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _currentQuestion!.groundType == GroundType.grass 
+                      ? _grassGreen.withOpacity(0.3) 
+                      : _crystalCyan.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _currentQuestion!.groundType == GroundType.grass ? '🌱 Çimen Zemin' : '💎 Kristal Zemin',
+                  style: _textStyle(_fairyPurple, size: 11, bold: true),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildObjectGrid(availableWidth),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildObjectGrid() {
-    // Nesneleri düzenli grid'e yerleştir (üst üste binmeyecek)
-    final itemCount = _objects.length;
-    final cols = math.sqrt(itemCount).ceil().clamp(3, 5); // 3-5 sütun
-    final rows = (itemCount / cols).ceil();
+  Widget _buildObjectGrid(double availableWidth) {
+    if (_objects.isEmpty) {
+      return const SizedBox(height: 60, child: Center(child: Text('Yükleniyor...')));
+    }
+    const cellSize = 44.0;
+    const spacing = 6.0;
 
-    return Container(
-      height: rows * 70.0,
-      decoration: BoxDecoration(
-        color: _currentQuestion!.groundType == GroundType.grass
-            ? _grassGreen.withOpacity(0.15)
-            : _crystalCyan.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _currentQuestion!.groundType == GroundType.grass
-              ? _grassGreen.withOpacity(0.4)
-              : _crystalCyan.withOpacity(0.4),
-          width: 2,
+    final isMathQuestion = _currentQuestion!.type == QuestionType.additionSameType ||
+        _currentQuestion!.type == QuestionType.subtractionSameType;
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: spacing,
+      runSpacing: spacing,
+      children: [
+        ..._objects.map((obj) => SizedBox(
+          width: cellSize,
+          height: cellSize,
+          child: _buildObjectItem(obj, isMathQuestion),
+        )),
+        if (isMathQuestion) SizedBox(
+          width: cellSize,
+          height: cellSize,
+          child: _buildQuestionMarkCell(),
         ),
+      ],
+    );
+  }
+
+  Widget _buildQuestionMarkCell() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _fairyPurple.withOpacity(0.5), width: 2),
       ),
-      child: GridView.count(
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: cols,
-        padding: const EdgeInsets.all(12),
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        children: _objects.map((obj) => _buildObjectItem(obj)).toList(),
+      child: Center(
+        child: Text('?', style: _textStyle(_fairyPurple, size: 28, bold: true)),
       ),
     );
   }
 
-  Widget _buildObjectItem(GameObject obj) {
+  Widget _buildObjectItem(GameObject obj, [bool disableTap = false]) {
     return GestureDetector(
-      onTap: () => _onObjectTap(obj),
+      onTap: disableTap ? null : () => _onObjectTap(obj),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: obj.isCounted 
-              ? obj.color.withOpacity(0.3)
+              ? obj.color.withOpacity(0.35)
               : obj.isWrong
-                  ? Colors.red.withOpacity(0.2)
-                  : Colors.white.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(12),
+                  ? Colors.red.withOpacity(0.25)
+                  : Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: obj.isCounted
                 ? obj.color
                 : obj.isWrong
                     ? Colors.red
-                    : Colors.grey.withOpacity(0.3),
-            width: obj.isCounted || obj.isWrong ? 3 : 1,
+                    : Colors.grey.withOpacity(0.4),
+            width: obj.isCounted || obj.isWrong ? 2.5 : 1,
           ),
           boxShadow: obj.isCounted
-              ? [BoxShadow(color: obj.color.withOpacity(0.4), blurRadius: 8)]
+              ? [BoxShadow(color: obj.color.withOpacity(0.3), blurRadius: 4)]
               : null,
         ),
-        child: Center(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(obj.emoji, style: const TextStyle(fontSize: 32)),
-              if (obj.isWrong)
-                const Text('❌', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              if (obj.isCounted)
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text('✓', style: TextStyle(fontSize: 10, color: Colors.white)),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(obj.emoji, style: const TextStyle(fontSize: 24)),
+            if (obj.isWrong)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Text('❌', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            if (obj.isCounted)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
                   ),
+                  child: const Center(child: Text('✓', style: TextStyle(fontSize: 9, color: Colors.white))),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -900,30 +913,26 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   Widget _buildAnswerSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white, width: 2),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            _currentQuestion!.type == QuestionType.filteredCounting ||
-                    _currentQuestion!.type == QuestionType.sameTypeCounting
-                ? 'Saymayı bitirince cevap otomatik çıkacak!'
-                : 'Cevabını seç:',
-            style: _textStyle(_fairyPurple, size: 14, bold: true),
+            'Cevabını seç:',
+            style: _textStyle(_fairyPurple, size: 13, bold: true),
           ),
-          const SizedBox(height: 16),
-          if (!(_currentQuestion!.type == QuestionType.filteredCounting ||
-                _currentQuestion!.type == QuestionType.sameTypeCounting))
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _currentQuestion!.options.map((opt) => _buildOptionButton(opt)).toList(),
-            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: _currentQuestion!.options.map((opt) => _buildOptionButton(opt)).toList(),
+          ),
         ],
       ),
     );
@@ -943,8 +952,8 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     return GestureDetector(
       onTap: _isAnswered ? null : () => _checkAnswer(value),
       child: Container(
-        width: 80,
-        height: 60,
+        width: 70,
+        height: 52,
         decoration: BoxDecoration(
           color: buttonColor,
           borderRadius: BorderRadius.circular(16),
@@ -955,7 +964,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
         ),
         child: Center(
-          child: Text('$value', style: _textStyle(_fairyPurple, size: 26, bold: true)),
+          child: Text('$value', style: _textStyle(_fairyPurple, size: 22, bold: true)),
         ),
       ),
     );
@@ -965,23 +974,36 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     return AnimatedBuilder(
       animation: _celebrationController,
       builder: (context, child) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = MediaQuery.of(context).size.height;
+        final centerX = screenWidth / 2;
+        final centerY = screenHeight / 2;
+
         return Positioned.fill(
           child: IgnorePointer(
             child: Stack(
-              children: List.generate(25, (index) {
+              children: List.generate(50, (index) {
                 final random = math.Random(index);
-                final progress = (_celebrationController.value - random.nextDouble() * 0.3).clamp(0.0, 1.0);
+                final angle = random.nextDouble() * 2 * math.pi;
+                final speed = 0.3 + random.nextDouble() * 0.5;
+                final progress = (_celebrationController.value * 1.2 - random.nextDouble() * 0.2).clamp(0.0, 1.0);
+                final distance = progress * screenHeight * speed;
+                final x = centerX + math.cos(angle) * distance;
+                final y = centerY + math.sin(angle) * distance - progress * 100;
 
                 return Positioned(
-                  left: MediaQuery.of(context).size.width * random.nextDouble(),
-                  top: -20 + (MediaQuery.of(context).size.height * progress),
+                  left: x - 20,
+                  top: y - 20,
                   child: Opacity(
-                    opacity: 1.0 - progress,
+                    opacity: (1.0 - progress).clamp(0.0, 1.0),
                     child: Transform.rotate(
-                      angle: progress * 6 * math.pi,
-                      child: Text(
-                        ['🌸', '✨', '⭐', '🧚', '🎉', '💎'][random.nextInt(6)],
-                        style: const TextStyle(fontSize: 26),
+                      angle: progress * 8 * math.pi,
+                      child: Transform.scale(
+                        scale: 0.8 + random.nextDouble() * 0.6,
+                        child: Text(
+                          ['🧚‍♀️', '🧚', '✨', '⭐', '🌸', '💫', '🦋', '💎'][random.nextInt(8)],
+                          style: TextStyle(fontSize: 22.0 + random.nextDouble() * 16),
+                        ),
                       ),
                     ),
                   ),

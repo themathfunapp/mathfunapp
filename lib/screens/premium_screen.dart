@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/premium_service.dart';
+import '../services/premium_service_export.dart';
 import '../localization/app_localizations.dart';
 
 class PremiumScreen extends StatefulWidget {

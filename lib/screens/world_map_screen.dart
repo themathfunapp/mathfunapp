@@ -9,6 +9,12 @@ import 'counting_forest_screen.dart';
 import 'cyber_workshop_screen.dart';
 import 'fraction_bakery_screen.dart';
 import 'fairy_land_screen.dart';
+import 'geometry_castle_screen.dart';
+import 'measurement_land_screen.dart';
+import 'time_adventure_screen.dart';
+import 'money_market_screen.dart';
+import 'multipliers_tower_screen.dart';
+import 'algebra_realm_screen.dart';
 
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
@@ -134,9 +140,6 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       ..._buildWorldCards(localizations),
 
                       const SizedBox(height: 24),
-
-                      // Alt navigasyon
-                      _buildBottomNavigation(localizations),
                     ],
                   ),
                 ),
@@ -226,11 +229,14 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                 ];
 
       return AnimatedBuilder(
-        animation: _floatAnimation,
+        animation: Listenable.merge([_floatAnimation, _pulseAnimation]),
         builder: (context, child) {
           return Transform.translate(
             offset: Offset(0, _floatAnimation.value * 0.5),
-            child: child,
+            child: Transform.scale(
+              scale: !isLocked ? (1.0 + (_pulseAnimation.value - 1) * 0.2) : 1.0,
+              child: child,
+            ),
           );
         },
         child: Container(
@@ -459,53 +465,6 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     }).toList();
   }
 
-  Widget _buildBottomNavigation(AppLocalizations localizations) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem('🏆', localizations.get('achievements'), true),
-          _buildNavItem('🎯', localizations.get('quests')),
-          _buildNavItem('⚡', localizations.get('energy')),
-          _buildNavItem('📊', localizations.get('statistics')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String icon, String label, [bool isActive = false]) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.blue.withOpacity(0.3) : Colors.transparent,
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 20)),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showLockedDialog(AppLocalizations localizations, StoryWorld world) {
     showDialog(
       context: context,
@@ -614,6 +573,87 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         context,
         MaterialPageRoute(
           builder: (context) => FractionBakeryScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Geometri Şatosu - özel ekrana yönlendir
+    if (world.theme == WorldTheme.geometryCastle) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GeometryCastleScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Ölçüm Diyarı - özel ekrana yönlendir
+    if (world.theme == WorldTheme.measurementLand) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MeasurementLandScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Zaman Macerası - özel ekrana yönlendir
+    if (world.theme == WorldTheme.timeAdventure ||
+        world.nameKey == 'world_time_adventure') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TimeAdventureScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Para Pazarı - özel ekrana yönlendir
+    if (world.theme == WorldTheme.moneyMarket ||
+        world.nameKey == 'world_money_market') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MoneyMarketScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Çarpanlar Kulesi - özel ekrana yönlendir
+    if (world.theme == WorldTheme.multipliersTower ||
+        world.nameKey == 'world_multipliers_tower') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MultipliersTowerScreen(
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Cebir Diyarı - özel ekrana yönlendir
+    if (world.id == 'algebra_realm' || world.nameKey == 'world_algebra_realm') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AlgebraRealmScreen(
             onBack: () => Navigator.pop(context),
           ),
         ),

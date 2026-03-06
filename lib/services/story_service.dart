@@ -447,7 +447,7 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.shapes],
         targetAge: AgeGroup.preschool,
         chapters: _generateGeometryCastleChapters(AgeGroup.preschool),
-        requiredStars: 15,
+        requiredStars: 0, // Şimdilik açık
       ),
       StoryWorld(
         id: 'measurement_land_preschool',
@@ -459,12 +459,13 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.measurement],
         targetAge: AgeGroup.preschool,
         chapters: [],
-        requiredStars: 30,
+        requiredStars: 0, // Şimdilik açık
       ),
     ];
   }
 
-  /// 6-8 Yaş Dünyaları
+  /// 6-8 Yaş Dünyaları (Matematik Gezginleri)
+  /// NOT: Geometri Şatosu ve Ölçüm Diyarı sadece Sayı Maceraları (3-5 yaş) içinde
   List<StoryWorld> _generateEarlyElementaryWorlds() {
     return [
       StoryWorld(
@@ -477,6 +478,7 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.addition, MathTopic.subtraction, MathTopic.multiplication],
         targetAge: AgeGroup.earlyElementary,
         chapters: _generateNumberForestChapters(AgeGroup.earlyElementary),
+        requiredStars: 0,
       ),
       StoryWorld(
         id: 'fraction_bakery',
@@ -488,7 +490,7 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.fractions],
         targetAge: AgeGroup.earlyElementary,
         chapters: [],
-        requiredStars: 20,
+        requiredStars: 0, // Şimdilik açık - sınıfları görmek için
       ),
       StoryWorld(
         id: 'time_adventure',
@@ -500,7 +502,7 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.time],
         targetAge: AgeGroup.earlyElementary,
         chapters: [],
-        requiredStars: 40,
+        requiredStars: 0, // Şimdilik açık - sınıfları görmek için
       ),
       StoryWorld(
         id: 'money_market',
@@ -512,36 +514,26 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.money],
         targetAge: AgeGroup.earlyElementary,
         chapters: [],
-        requiredStars: 60,
+        requiredStars: 0, // Şimdilik açık - sınıfları görmek için
       ),
     ];
   }
 
-  /// 9-11 Yaş Dünyaları
+  /// 9-11 Yaş Dünyaları (Matematik Krallığı)
+  /// NOT: Geometri Şatosu ve Kesir Pastanesi sadece Sayı Maceraları / Matematik Gezginleri içinde
   List<StoryWorld> _generateLateElementaryWorlds() {
     return [
       StoryWorld(
-        id: 'geometry_castle_late',
-        theme: WorldTheme.geometryCastle,
-        nameKey: 'world_geometry_castle',
-        descriptionKey: 'world_geometry_castle_desc_late',
-        iconEmoji: '🏰',
-        colors: ['#9C27B0', '#E91E63'],
-        topics: [MathTopic.shapes, MathTopic.angles],
-        targetAge: AgeGroup.lateElementary,
-        chapters: _generateGeometryCastleChapters(AgeGroup.lateElementary),
-      ),
-      StoryWorld(
-        id: 'fraction_bakery_late',
-        theme: WorldTheme.fractionBakery,
-        nameKey: 'world_fraction_bakery',
-        descriptionKey: 'world_fraction_bakery_desc_late',
-        iconEmoji: '🧁',
-        colors: ['#FAD0C4', '#8E44AD'],
-        topics: [MathTopic.fractions, MathTopic.decimals],
+        id: 'multipliers_tower',
+        theme: WorldTheme.multipliersTower,
+        nameKey: 'world_multipliers_tower',
+        descriptionKey: 'world_multipliers_tower_desc',
+        iconEmoji: '🏯',
+        colors: ['#7B1FA2', '#E91E63'],
+        topics: [MathTopic.multiplication, MathTopic.division],
         targetAge: AgeGroup.lateElementary,
         chapters: [],
-        requiredStars: 25,
+        requiredStars: 0,
       ),
       StoryWorld(
         id: 'algebra_realm',
@@ -553,7 +545,7 @@ class StoryService extends ChangeNotifier {
         topics: [MathTopic.algebra, MathTopic.patterns],
         targetAge: AgeGroup.lateElementary,
         chapters: [],
-        requiredStars: 50,
+        requiredStars: 0, // Açık - 50 yaparak kilitleyebilirsiniz
       ),
     ];
   }
@@ -600,12 +592,15 @@ class StoryService extends ChangeNotifier {
     ];
   }
 
-  /// Geometri Şatosu Bölümleri
+  /// Geometri Şatosu Bölümleri (sadece Sayı Maceraları ve Matematik Krallığı)
   List<StoryChapter> _generateGeometryCastleChapters(AgeGroup age) {
+    final worldId = age == AgeGroup.preschool
+        ? 'geometry_castle_preschool'
+        : 'geometry_castle_late';
     return [
       StoryChapter(
         id: 'gc_chapter_1',
-        worldId: age == AgeGroup.preschool ? 'geometry_castle_preschool' : 'geometry_castle_late',
+        worldId: worldId,
         orderIndex: 0,
         nameKey: 'chapter_secret_doors',
         descriptionKey: 'chapter_secret_doors_desc',

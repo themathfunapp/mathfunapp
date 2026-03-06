@@ -26,6 +26,9 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
   late TabController _tabController;
   GameCategory _selectedCategory = GameCategory.counting;
 
+  static const Set<String> _playableGameIds = {'balloon_pop', 'fruit_collect', 'puzzle_piece'};
+  bool _isComingSoon(MiniGame game) => !_playableGameIds.contains(game.id);
+
   @override
   void initState() {
     super.initState();
@@ -248,23 +251,26 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
       MiniGameService service,
       MiniGameProgress? progress,
       ) {
+    final isComingSoon = _isComingSoon(game);
     final isUnlocked = progress?.unlockedGames.contains(game.id) ?? game.requiredStars == 0;
     final stats = progress?.gameStats[game.id];
 
     return GestureDetector(
-      onTap: isUnlocked ? () => _openGame(game, localizations) : () => _showLockedDialog(game, localizations),
+      onTap: isComingSoon
+          ? () => _showComingSoonDialog(localizations)
+          : (isUnlocked ? () => _openGame(game, localizations) : () => _showLockedDialog(game, localizations)),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isUnlocked
-                ? [
+            colors: !isUnlocked && !isComingSoon
+                ? [Colors.grey.shade600, Colors.grey.shade700]
+                : [
               Color(int.parse(game.colors[0].replaceFirst('#', '0xFF'))),
               Color(int.parse(game.colors[1].replaceFirst('#', '0xFF'))),
-            ]
-                : [Colors.grey.shade600, Colors.grey.shade700],
+            ],
           ),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
@@ -279,6 +285,32 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
         ),
         child: Stack(
           children: [
+            // Yakında eklenecek overlay
+            if (isComingSoon)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Text(
+                        localizations.get('coming_soon_short'),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // Background pattern - daha küçük
             Positioned(
               right: -10,

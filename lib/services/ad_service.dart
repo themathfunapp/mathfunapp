@@ -63,6 +63,13 @@ class AdService extends ChangeNotifier {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
+    // Web'de AdMob desteklenmez
+    if (kIsWeb) {
+      _isInitialized = true;
+      debugPrint('AdService: Web platformu - reklamlar devre dışı');
+      return;
+    }
+
     try {
       debugPrint('AdService: MobileAds başlatılıyor...');
       await MobileAds.instance.initialize();
@@ -293,8 +300,9 @@ class AdService extends ChangeNotifier {
     Function(Ad)? onAdLoaded,
     Function(Ad, LoadAdError)? onAdFailedToLoad,
   }) {
-    if (_isPremiumUser) {
-      debugPrint('AdService: Premium kullanıcı, banner oluşturulmuyor');
+    if (kIsWeb || _isPremiumUser) {
+      if (kIsWeb) debugPrint('AdService: Web platformu, banner oluşturulmuyor');
+      else debugPrint('AdService: Premium kullanıcı, banner oluşturulmuyor');
       return null;
     }
 
@@ -369,6 +377,8 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _loadAd() {
+    if (kIsWeb) return;
+
     final adService = AdService();
     
     if (!adService.shouldShowAds()) {
@@ -394,7 +404,11 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   void dispose() {
-    _bannerAd?.dispose();
+    if (!kIsWeb && _bannerAd != null) {
+      try {
+        _bannerAd!.dispose();
+      } catch (_) {}
+    }
     super.dispose();
   }
 

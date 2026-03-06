@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../services/ad_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
@@ -556,40 +557,78 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   }
 
   Widget _buildBottomNav(AppLocalizations localizations, StoryService storyService) {
+    final progress = storyService.progress;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+
+    // Gerçek veriler
+    final totalStars = progress?.totalStars ?? 0;
+    final totalCoins = (progress?.totalCoins ?? 0) > mechanicsService.inventory.coins
+        ? (progress?.totalCoins ?? 0) : mechanicsService.inventory.coins;
+    final totalGems = (progress?.totalGems ?? 0) > mechanicsService.inventory.gems
+        ? (progress?.totalGems ?? 0) : mechanicsService.inventory.gems;
+    final earnedBadges = progress?.earnedBadges.length ?? 0;
+    final completedQuests = storyService.activeQuests.where((q) => q.currentValue >= q.targetValue).length;
+    final totalQuests = storyService.activeQuests.length;
+    final completedWorlds = progress?.worldProgress.values.where((w) => w.totalStars > 0).length ?? 0;
+    final totalWorlds = storyService.worlds.isEmpty ? 1 : storyService.worlds.length;
+    final currentLives = mechanicsService.currentLives;
+    final maxLives = mechanicsService.maxLives;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(
-            icon: '🗺️',
-            label: localizations.get('worlds'),
-            isSelected: true,
-            onTap: () {},
-          ),
-          _buildNavItem(
-            icon: '📋',
-            label: localizations.get('quests'),
-            isSelected: false,
-            onTap: () => _showQuestsSheet(localizations, storyService),
-          ),
-          _buildNavItem(
-            icon: '🎒',
-            label: localizations.get('inventory'),
-            isSelected: false,
-            onTap: () {},
-          ),
-          _buildNavItem(
-            icon: '🏆',
-            label: localizations.get('achievements'),
-            isSelected: false,
-            onTap: () {},
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildNavItem(
+              icon: '🏆',
+              label: localizations.get('achievements'),
+              value: '$earnedBadges',
+              isSelected: false,
+              onTap: () {},
+            ),
+            _buildNavItem(
+              icon: '📋',
+              label: localizations.get('quests'),
+              value: '$completedQuests/$totalQuests',
+              isSelected: false,
+              onTap: () => _showQuestsSheet(localizations, storyService),
+            ),
+            _buildNavItem(
+              icon: '🎒',
+              label: localizations.get('inventory'),
+              value: '$totalCoins',
+              isSelected: false,
+              onTap: () {},
+            ),
+            _buildNavItem(
+              icon: '🗺️',
+              label: localizations.get('worlds'),
+              value: '$completedWorlds/$totalWorlds',
+              isSelected: true,
+              onTap: () {},
+            ),
+            _buildNavItem(
+              icon: '⚡',
+              label: localizations.get('energy'),
+              value: '$currentLives/$maxLives',
+              isSelected: false,
+              onTap: () {},
+            ),
+            _buildNavItem(
+              icon: '📊',
+              label: localizations.get('statistics'),
+              value: '⭐$totalStars',
+              isSelected: false,
+              onTap: () {},
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -597,34 +636,54 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   Widget _buildNavItem({
     required String icon,
     required String label,
+    required String value,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFF4CAF50)
-                  : Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Text(icon, style: const TextStyle(fontSize: 24)),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF4CAF50).withOpacity(0.7)
+              : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.white24,
+            width: isSelected ? 1.5 : 0.5,
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? Colors.white : Colors.white70,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(icon, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade200,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: isSelected ? Colors.white : Colors.white70,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
