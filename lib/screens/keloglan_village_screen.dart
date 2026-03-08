@@ -82,6 +82,7 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   bool _isCorrect = false;
   int _lives = 5;
   Question? _currentQuestion;
+  String? _lastLocale;
 
   // Renk paleti
   static const Color _villageGreen = Color(0xFF8BC34A);
@@ -96,33 +97,36 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     'İrem', 'Burak', 'Cemre', 'Oğuz'
   ];
 
-  // Mekanlar Havuzu
-  final List<String> _locations = [
-    'Köy meydanı', 'Okul bahçesi', 'Tarla', 'Bağ', 'Bahçe', 'Pazar yeri',
-    'Ev', 'Ahır', 'Kümes', 'Orman kenarı', 'Dere kenarı', 'Teyze evi',
-    'Amca çiftliği'
+  // Mekanlar Havuzu (lokalizasyon anahtarları)
+  static const List<String> _locationKeys = [
+    'keloglan_location_village_square', 'keloglan_location_school_garden',
+    'keloglan_location_field', 'keloglan_location_vineyard', 'keloglan_location_garden',
+    'keloglan_location_marketplace', 'keloglan_location_house', 'keloglan_location_barn',
+    'keloglan_location_coop_place', 'keloglan_location_forest_edge',
+    'keloglan_location_stream_edge', 'keloglan_location_aunt_house',
+    'keloglan_location_uncle_farm',
   ];
 
-  // Yiyecek ve Nesneler Havuzu
+  // Yiyecek ve Nesneler Havuzu (nameKey ile lokalizasyon)
   final List<Map<String, dynamic>> _items = [
-    {'emoji': '🍎', 'name': 'elma', 'type': 'food'},
-    {'emoji': '🍐', 'name': 'armut', 'type': 'food'},
-    {'emoji': '🍪', 'name': 'kurabiye', 'type': 'food'},
-    {'emoji': '🥚', 'name': 'yumurta', 'type': 'food'},
-    {'emoji': '🥧', 'name': 'börek', 'type': 'food'},
-    {'emoji': '🥜', 'name': 'ceviz', 'type': 'food'},
-    {'emoji': '🍇', 'name': 'üzüm', 'type': 'food'},
-    {'emoji': '🍉', 'name': 'karpuz', 'type': 'food'},
-    {'emoji': '🍞', 'name': 'ekmek', 'type': 'food'},
-    {'emoji': '🧀', 'name': 'peynir', 'type': 'food'},
-    {'emoji': '🍯', 'name': 'bal', 'type': 'food'},
-    {'emoji': '🍬', 'name': 'şeker', 'type': 'food'},
-    {'emoji': '🥩', 'name': 'köfte', 'type': 'food'},
-    {'emoji': '⚽', 'name': 'top', 'type': 'object'},
-    {'emoji': '✏️', 'name': 'kalem', 'type': 'object'},
-    {'emoji': '📒', 'name': 'defter', 'type': 'object'},
-    {'emoji': '🧺', 'name': 'sepet', 'type': 'object'},
-    {'emoji': '🌻', 'name': 'çiçek', 'type': 'object'},
+    {'emoji': '🍎', 'nameKey': 'keloglan_food_apple', 'type': 'food'},
+    {'emoji': '🍐', 'nameKey': 'keloglan_food_pear', 'type': 'food'},
+    {'emoji': '🍪', 'nameKey': 'keloglan_food_cookie', 'type': 'food'},
+    {'emoji': '🥚', 'nameKey': 'keloglan_food_egg', 'type': 'food'},
+    {'emoji': '🥧', 'nameKey': 'keloglan_food_pastry', 'type': 'food'},
+    {'emoji': '🥜', 'nameKey': 'keloglan_food_walnut', 'type': 'food'},
+    {'emoji': '🍇', 'nameKey': 'keloglan_food_grape', 'type': 'food'},
+    {'emoji': '🍉', 'nameKey': 'keloglan_food_watermelon', 'type': 'food'},
+    {'emoji': '🍞', 'nameKey': 'keloglan_food_bread', 'type': 'food'},
+    {'emoji': '🧀', 'nameKey': 'keloglan_food_cheese', 'type': 'food'},
+    {'emoji': '🍯', 'nameKey': 'keloglan_food_honey', 'type': 'food'},
+    {'emoji': '🍬', 'nameKey': 'keloglan_food_candy', 'type': 'food'},
+    {'emoji': '🥩', 'nameKey': 'keloglan_food_meatball', 'type': 'food'},
+    {'emoji': '⚽', 'nameKey': 'keloglan_object_ball', 'type': 'object'},
+    {'emoji': '✏️', 'nameKey': 'keloglan_object_pencil', 'type': 'object'},
+    {'emoji': '📒', 'nameKey': 'keloglan_object_notebook', 'type': 'object'},
+    {'emoji': '🧺', 'nameKey': 'keloglan_object_basket', 'type': 'object'},
+    {'emoji': '🌻', 'nameKey': 'keloglan_object_flower', 'type': 'object'},
   ];
 
   @override
@@ -151,8 +155,18 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+  }
 
-    _generateQuestion();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    if (_lastLocale != locale.languageCode) {
+      _lastLocale = locale.languageCode;
+      if (mounted) {
+        _generateQuestion(AppLocalizations(locale));
+      }
+    }
   }
 
   @override
@@ -167,65 +181,65 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   // SORU ÜRETİM MOTORU - 18 FARKLI TİP
   // ============================================================================
 
-  void _generateQuestion() {
+  void _generateQuestion(AppLocalizations loc) {
     final random = math.Random();
     final type = QuestionType.values[random.nextInt(QuestionType.values.length)];
     
     Question question;
     switch (type) {
       case QuestionType.equalSharing:
-        question = _generateEqualSharingQuestion(random);
+        question = _generateEqualSharingQuestion(random, loc);
         break;
       case QuestionType.groupDivision:
-        question = _generateGroupDivisionQuestion(random);
+        question = _generateGroupDivisionQuestion(random, loc);
         break;
       case QuestionType.remainderDivision:
-        question = _generateRemainderQuestion(random);
+        question = _generateRemainderQuestion(random, loc);
         break;
       case QuestionType.multiples:
-        question = _generateMultiplesQuestion(random);
+        question = _generateMultiplesQuestion(random, loc);
         break;
       case QuestionType.fractions:
-        question = _generateFractionsQuestion(random);
+        question = _generateFractionsQuestion(random, loc);
         break;
       case QuestionType.twoStepMix:
-        question = _generateTwoStepMixQuestion(random);
+        question = _generateTwoStepMixQuestion(random, loc);
         break;
       case QuestionType.comparison:
-        question = _generateComparisonQuestion(random);
+        question = _generateComparisonQuestion(random, loc);
         break;
       case QuestionType.addThenDivide:
-        question = _generateAddThenDivideQuestion(random);
+        question = _generateAddThenDivideQuestion(random, loc);
         break;
       case QuestionType.multiplyThenDivide:
-        question = _generateMultiplyThenDivideQuestion(random);
+        question = _generateMultiplyThenDivideQuestion(random, loc);
         break;
       case QuestionType.missingShare:
-        question = _generateMissingShareQuestion(random);
+        question = _generateMissingShareQuestion(random, loc);
         break;
       case QuestionType.measurement:
-        question = _generateMeasurementQuestion(random);
+        question = _generateMeasurementQuestion(random, loc);
         break;
       case QuestionType.time:
-        question = _generateTimeQuestion(random);
+        question = _generateTimeQuestion(random, loc);
         break;
       case QuestionType.money:
-        question = _generateMoneyQuestion(random);
+        question = _generateMoneyQuestion(random, loc);
         break;
       case QuestionType.ratio:
-        question = _generateRatioQuestion(random);
+        question = _generateRatioQuestion(random, loc);
         break;
       case QuestionType.pattern:
-        question = _generatePatternQuestion(random);
+        question = _generatePatternQuestion(random, loc);
         break;
       case QuestionType.shapeDivision:
-        question = _generateShapeDivisionQuestion(random);
+        question = _generateShapeDivisionQuestion(random, loc);
         break;
       case QuestionType.twoStageSharing:
-        question = _generateTwoStageSharingQuestion(random);
+        question = _generateTwoStageSharingQuestion(random, loc);
         break;
       case QuestionType.reverseOperation:
-        question = _generateReverseOperationQuestion(random);
+        question = _generateReverseOperationQuestion(random, loc);
         break;
     }
 
@@ -236,23 +250,30 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     });
   }
 
+  String _itemName(AppLocalizations loc, Map<String, dynamic> item) =>
+      loc.get(item['nameKey'] as String);
+
   // TİP 1: Eşit Paylaştırma
-  Question _generateEqualSharingQuestion(math.Random random) {
+  Question _generateEqualSharingQuestion(math.Random random, AppLocalizations loc) {
     final peopleCount = 2 + random.nextInt(4); // 2-5 kişi
     final itemPerPerson = 2 + random.nextInt(5); // Kişi başı 2-6
     final total = peopleCount * itemPerPerson;
     final item = _items[random.nextInt(_items.length)];
-    final location = _locations[random.nextInt(_locations.length)];
+    final locationKey = _locationKeys[random.nextInt(_locationKeys.length)];
+    final location = loc.get(locationKey);
+    final itemName = _itemName(loc, item);
     final friends = _getRandomCharacters(random, peopleCount - 1);
 
     return Question(
       type: QuestionType.equalSharing,
-      questionText: '$total tane ${item['name']} var. $peopleCount kişi eşit paylaştırsa herkese kaç ${item['name']} düşer?',
-      keloglanMessage: '$location\'nde $total tane ${item['name']} topladım. ${friends.join(', ')} ve ben paylaşacağız. Bakalım her birimize kaç düşecek!',
+      questionText: loc.get('keloglan_q_equal_sharing')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', '$peopleCount'),
+      keloglanMessage: loc.get('keloglan_s_equal_sharing')
+          .replaceAll('{0}', location).replaceAll('{1}', '$total').replaceAll('{2}', itemName).replaceAll('{3}', friends.join(', ')),
       correctAnswer: itemPerPerson,
       options: _generateOptions(itemPerPerson, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: location,
       characters: friends,
       explanation: '$total ÷ $peopleCount = $itemPerPerson',
@@ -261,21 +282,25 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 2: Gruplara Ayırma
-  Question _generateGroupDivisionQuestion(math.Random random) {
+  Question _generateGroupDivisionQuestion(math.Random random, AppLocalizations loc) {
     final groupSize = 2 + random.nextInt(4); // Her grupta 2-5
     final groupCount = 2 + random.nextInt(4); // 2-5 grup
     final total = groupSize * groupCount;
     final item = _items[random.nextInt(_items.length)];
-    final location = _locations[random.nextInt(_locations.length)];
+    final locationKey = _locationKeys[random.nextInt(_locationKeys.length)];
+    final location = loc.get(locationKey);
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.groupDivision,
-      questionText: '$total tane ${item['name']}\'yi ${groupSize}\'şerli gruplara ayırırsak kaç grup olur?',
-      keloglanMessage: '$location\'nde $total tane ${item['name']} birikti. Bunları ${groupSize}\'şerli kolilere koymam gerekiyor.',
+      questionText: loc.get('keloglan_q_group_division')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', '$groupSize'),
+      keloglanMessage: loc.get('keloglan_s_group_division')
+          .replaceAll('{0}', location).replaceAll('{1}', '$total').replaceAll('{2}', itemName).replaceAll('{3}', '$groupSize'),
       correctAnswer: groupCount,
       options: _generateOptions(groupCount, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: location,
       characters: [],
       explanation: '$total ÷ $groupSize = $groupCount',
@@ -284,22 +309,25 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 3: Kalanlı Bölme
-  Question _generateRemainderQuestion(math.Random random) {
+  Question _generateRemainderQuestion(math.Random random, AppLocalizations loc) {
     final divisor = 3 + random.nextInt(3); // 3-5
     final quotient = 2 + random.nextInt(4); // 2-5
     final remainder = 1 + random.nextInt(divisor - 1); // 1'den büyük, bölene eşit değil
     final total = divisor * quotient + remainder;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
     final friends = _getRandomCharacters(random, divisor - 1);
 
     return Question(
       type: QuestionType.remainderDivision,
-      questionText: '$total tane ${item['name']} $divisor kişiye eşit paylaştırılınca kaç ${item['name']} artar?',
-      keloglanMessage: '$total tane ${item['name']} topladım. ${friends.join(', ')} ve ben paylaşacağız. Eşit bölününce kaç tane artacak acaba?',
+      questionText: loc.get('keloglan_q_remainder')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', '$divisor'),
+      keloglanMessage: loc.get('keloglan_s_remainder')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', friends.join(', ')),
       correctAnswer: remainder,
       options: _generateOptions(remainder, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: friends,
       explanation: '$total = $divisor × $quotient + $remainder, artan: $remainder',
@@ -308,20 +336,23 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 4: Kat Kavramı
-  Question _generateMultiplesQuestion(math.Random random) {
+  Question _generateMultiplesQuestion(math.Random random, AppLocalizations loc) {
     final dailyAmount = 2 + random.nextInt(4); // Günde 2-5
     final days = 2 + random.nextInt(5); // 2-6 gün
     final total = dailyAmount * days;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.multiples,
-      questionText: 'Her gün $dailyAmount tane ${item['name']} yenilirse $days günde toplam kaç ${item['name']} yenilir?',
-      keloglanMessage: 'Her gün $dailyAmount tane ${item['name']} yiyorum. $days gün sonra toplam kaç yemiş olacağımı hesaplamam gerekiyor.',
+      questionText: loc.get('keloglan_q_multiples')
+          .replaceAll('{0}', '$dailyAmount').replaceAll('{1}', itemName).replaceAll('{2}', '$days'),
+      keloglanMessage: loc.get('keloglan_s_multiples')
+          .replaceAll('{0}', '$dailyAmount').replaceAll('{1}', itemName).replaceAll('{2}', '$days'),
       correctAnswer: total,
       options: _generateOptions(total, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [],
       explanation: '$dailyAmount × $days = $total',
@@ -330,22 +361,25 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 5: Kesirler (Yarım - Çeyrek)
-  Question _generateFractionsQuestion(math.Random random) {
+  Question _generateFractionsQuestion(math.Random random, AppLocalizations loc) {
     final wholeCount = 2 + random.nextInt(3); // 2-4 bütün
     final isQuarter = random.nextBool();
-    final fractionName = isQuarter ? 'çeyrek' : 'yarım';
+    final fractionName = isQuarter ? loc.get('keloglan_fraction_quarter') : loc.get('keloglan_fraction_half');
     final multiplier = isQuarter ? 4 : 2;
     final total = wholeCount * multiplier;
     final item = _items.where((i) => i['type'] == 'food').toList()[random.nextInt(6)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.fractions,
-      questionText: '$wholeCount bütün ${item['name']} kaç $fractionName ${item['name']} eder?',
-      keloglanMessage: 'Annem ${item['name']}yi $fractionName dilimlere bölmek istiyor. Elimizde $wholeCount bütün var.',
+      questionText: loc.get('keloglan_q_fractions')
+          .replaceAll('{0}', '$wholeCount').replaceAll('{1}', itemName).replaceAll('{2}', fractionName),
+      keloglanMessage: loc.get('keloglan_s_fractions')
+          .replaceAll('{0}', '$wholeCount').replaceAll('{1}', itemName).replaceAll('{2}', fractionName),
       correctAnswer: total,
       options: _generateOptions(total, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [],
       explanation: '$wholeCount × $multiplier = $total $fractionName',
@@ -354,21 +388,24 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 6: Karıştırma (İki İşlemli)
-  Question _generateTwoStepMixQuestion(math.Random random) {
+  Question _generateTwoStepMixQuestion(math.Random random, AppLocalizations loc) {
     final chicken = 3 + random.nextInt(4); // 3-6 tavuk
     final eggsPerDay = 2 + random.nextInt(3); // Günde 2-4 yumurta
     final days = 3 + random.nextInt(3); // 3-5 gün
     final total = chicken * eggsPerDay * days;
+    final eggName = loc.get('keloglan_food_egg');
 
     return Question(
       type: QuestionType.twoStepMix,
-      questionText: '$chicken tane tavuk her gün $eggsPerDay\'şer yumurta veriyorsa $days günde toplam kaç yumurta olur?',
-      keloglanMessage: 'Kümesimizde $chicken tane tavuk var. Her gün $eggsPerDay\'şer yumurta veriyorlar. $days gün sonunda toplam kaç yumurta toplamış olurum?',
+      questionText: loc.get('keloglan_q_two_step_mix')
+          .replaceAll('{0}', '$chicken').replaceAll('{1}', '$eggsPerDay').replaceAll('{2}', '$days'),
+      keloglanMessage: loc.get('keloglan_s_two_step_mix')
+          .replaceAll('{0}', '$chicken').replaceAll('{1}', '$eggsPerDay').replaceAll('{2}', '$days'),
       correctAnswer: total,
       options: _generateOptions(total, random),
       itemEmoji: '🥚',
-      itemName: 'yumurta',
-      location: 'Kümes',
+      itemName: eggName,
+      location: loc.get('keloglan_location_coop'),
       characters: [],
       explanation: '$chicken × $eggsPerDay × $days = $total',
       metadata: {'chicken': chicken, 'eggsPerDay': eggsPerDay, 'days': days},
@@ -376,7 +413,7 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 7: Karşılaştırma
-  Question _generateComparisonQuestion(math.Random random) {
+  Question _generateComparisonQuestion(math.Random random, AppLocalizations loc) {
     final char1 = _characters[random.nextInt(_characters.length)];
     String char2;
     do {
@@ -388,15 +425,18 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     final diff = (count1 - count2).abs();
     final hasMore = count1 > count2 ? char1 : char2;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.comparison,
-      questionText: '$char1\'nin $count1, $char2\'nin $count2 tane ${item['name']} var. Aradaki fark kaç?',
-      keloglanMessage: '$char1 $count1 tane, $char2 ise $count2 tane ${item['name']} topladı. İkisinin topladığı arasındaki farkı bulmam lazım.',
+      questionText: loc.get('keloglan_q_comparison')
+          .replaceAll('{0}', char1).replaceAll('{1}', '$count1').replaceAll('{2}', char2).replaceAll('{3}', '$count2').replaceAll('{4}', itemName),
+      keloglanMessage: loc.get('keloglan_s_comparison')
+          .replaceAll('{0}', char1).replaceAll('{1}', '$count1').replaceAll('{2}', char2).replaceAll('{3}', '$count2').replaceAll('{4}', itemName),
       correctAnswer: diff,
       options: _generateOptions(diff, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [char1, char2],
       explanation: '$hasMore daha fazla. Fark: $diff',
@@ -405,8 +445,8 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 8: Toplama + Bölme
-  Question _generateAddThenDivideQuestion(math.Random random) {
-    final char1 = 'Keloğlan';
+  Question _generateAddThenDivideQuestion(math.Random random, AppLocalizations loc) {
+    final char1 = loc.get('keloglan_character_name');
     final char2 = _characters[random.nextInt(_characters.length)];
     final char3 = _characters[random.nextInt(_characters.length)];
     
@@ -417,15 +457,20 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     final divisor = 3; // Her zaman 3 kişi
     final share = total ~/ divisor;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.addThenDivide,
-      questionText: '$char1\'ın $count1, $char2\'nin $count2, $char3\'nin $count3 tane ${item['name']} var. Hepsini birleştirip $divisor kişiye eşit paylaştırırsak herkese kaç ${item['name']} düşer?',
-      keloglanMessage: '$char2 $count2 tane, $char3 ise $count3 tane topladı. Ben de $count1 tane topladım. Hepsini birleştirip paylaşacağız.',
+      questionText: loc.get('keloglan_q_add_then_divide')
+          .replaceAll('{0}', '$count1').replaceAll('{1}', char2).replaceAll('{2}', '$count2')
+          .replaceAll('{3}', char3).replaceAll('{4}', '$count3').replaceAll('{5}', itemName).replaceAll('{6}', '$divisor'),
+      keloglanMessage: loc.get('keloglan_s_add_then_divide')
+          .replaceAll('{0}', '$count1').replaceAll('{1}', char2).replaceAll('{2}', '$count2')
+          .replaceAll('{3}', char3).replaceAll('{4}', '$count3'),
       correctAnswer: share,
       options: _generateOptions(share, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [char2, char3],
       explanation: '$count1 + $count2 + $count3 = $total, $total ÷ $divisor = $share',
@@ -434,22 +479,25 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 9: Çarpma + Bölme
-  Question _generateMultiplyThenDivideQuestion(math.Random random) {
+  Question _generateMultiplyThenDivideQuestion(math.Random random, AppLocalizations loc) {
     final baskets = 2 + random.nextInt(3); // 2-4 sepet
     final itemsPerBasket = 3 + random.nextInt(4); // Sepette 3-6
     final total = baskets * itemsPerBasket;
     final friends = 2 + random.nextInt(3); // 2-4 arkadaş
     final share = total ~/ friends;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.multiplyThenDivide,
-      questionText: '$baskets sepette $itemsPerBasket\'şer ${item['name']} var. Bunları $friends kişiye eşit paylaştırırsak herkese kaç ${item['name']} düşer?',
-      keloglanMessage: '$baskets sepet ${item['name']} dolu. Her sepette $itemsPerBasket tane var. Arkadaşlarımla paylaşacağız.',
+      questionText: loc.get('keloglan_q_multiply_then_divide')
+          .replaceAll('{0}', '$baskets').replaceAll('{1}', '$itemsPerBasket').replaceAll('{2}', itemName).replaceAll('{3}', '$friends'),
+      keloglanMessage: loc.get('keloglan_s_multiply_then_divide')
+          .replaceAll('{0}', '$baskets').replaceAll('{1}', '$itemsPerBasket').replaceAll('{2}', itemName),
       correctAnswer: share,
       options: _generateOptions(share, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: _getRandomCharacters(random, friends - 1),
       explanation: '$baskets × $itemsPerBasket = $total, $total ÷ $friends = $share',
@@ -458,23 +506,26 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 10: Eksik - Fazla Bulmaca
-  Question _generateMissingShareQuestion(math.Random random) {
+  Question _generateMissingShareQuestion(math.Random random, AppLocalizations loc) {
     final initial = 15 + random.nextInt(10); // Başlangıç 15-24
     final eaten = 3 + random.nextInt(8); // Yenen 3-10
     final remaining = initial - eaten;
     final friends = 2 + random.nextInt(3); // 2-4 kişi
     final share = remaining ~/ friends;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.missingShare,
-      questionText: '$initial tane ${item['name']} vardı. $eaten tane yenildi. Kalan $friends kişiye eşit paylaştırılırsa herkese kaç ${item['name']} düşer?',
-      keloglanMessage: 'Elimizde $initial tane ${item['name']} var. $eaten tanesi yendi. Kalanı arkadaşlarımla paylaşacağız.',
+      questionText: loc.get('keloglan_q_missing_share')
+          .replaceAll('{0}', '$initial').replaceAll('{1}', itemName).replaceAll('{2}', '$eaten').replaceAll('{3}', '$friends'),
+      keloglanMessage: loc.get('keloglan_s_missing_share')
+          .replaceAll('{0}', '$initial').replaceAll('{1}', itemName).replaceAll('{2}', '$eaten'),
       correctAnswer: share,
       options: _generateOptions(share, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
-      location: 'Köy',
+      itemName: itemName,
+      location: loc.get('keloglan_location_village'),
       characters: _getRandomCharacters(random, friends - 1),
       explanation: '$initial - $eaten = $remaining, $remaining ÷ $friends = $share',
       metadata: {'initial': initial, 'eaten': eaten, 'remaining': remaining},
@@ -482,19 +533,21 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 11: Ölçme
-  Question _generateMeasurementQuestion(math.Random random) {
+  Question _generateMeasurementQuestion(math.Random random, AppLocalizations loc) {
     final totalLength = 12 + random.nextInt(13); // 12-24 metre
     final pieces = 2 + random.nextInt(5); // 2-6 parça
     final pieceLength = totalLength ~/ pieces;
     final isRope = random.nextBool();
-    final item = isRope ? 'ip' : 'karpuz';
+    final item = isRope ? loc.get('keloglan_object_rope') : loc.get('keloglan_food_watermelon');
     final emoji = isRope ? '🧶' : '🍉';
-    final unit = isRope ? 'metre' : 'kg';
+    final unit = isRope ? loc.get('keloglan_unit_meter') : loc.get('keloglan_unit_kg');
 
     return Question(
       type: QuestionType.measurement,
-      questionText: '$totalLength $unit uzunluğundaki $item $pieces eşit parçaya bölünürse her parça kaç $unit olur?',
-      keloglanMessage: 'Annem $totalLength $unit\'lik $item\'yi $pieces parçaya bölmek istiyor. Her parça ne kadar olacak?',
+      questionText: loc.get('keloglan_q_measurement')
+          .replaceAll('{0}', '$totalLength').replaceAll('{1}', unit).replaceAll('{2}', item).replaceAll('{3}', '$pieces'),
+      keloglanMessage: loc.get('keloglan_s_measurement')
+          .replaceAll('{0}', '$totalLength').replaceAll('{1}', unit).replaceAll('{2}', item).replaceAll('{3}', '$pieces'),
       correctAnswer: pieceLength,
       options: _generateOptions(pieceLength, random),
       itemEmoji: emoji,
@@ -507,28 +560,31 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 12: Zaman
-  Question _generateTimeQuestion(math.Random random) {
+  Question _generateTimeQuestion(math.Random random, AppLocalizations loc) {
     final hoursPerDay = 2 + random.nextInt(4); // Günde 2-5 saat
     final days = 2 + random.nextInt(5); // 2-6 gün
     final total = hoursPerDay * days;
+    final hourName = loc.get('keloglan_unit_hour');
 
     return Question(
       type: QuestionType.time,
-      questionText: 'Günde $hoursPerDay saat çalışılırsa $days günde toplam kaç saat çalışılmış olur?',
-      keloglanMessage: 'Her gün $hoursPerDay saat matematik çalışıyorum. $days gün sonunda toplam kaç saat ettiğini hesaplamam lazım.',
+      questionText: loc.get('keloglan_q_time')
+          .replaceAll('{0}', '$hoursPerDay').replaceAll('{1}', '$days'),
+      keloglanMessage: loc.get('keloglan_s_time')
+          .replaceAll('{0}', '$hoursPerDay').replaceAll('{1}', '$days'),
       correctAnswer: total,
       options: _generateOptions(total, random),
       itemEmoji: '⏰',
-      itemName: 'saat',
+      itemName: hourName,
       location: '',
       characters: [],
-      explanation: '$hoursPerDay × $days = $total saat',
+      explanation: '$hoursPerDay × $days = $total $hourName',
       metadata: {'hoursPerDay': hoursPerDay, 'days': days},
     );
   }
 
   // TİP 13: Para Hesabı
-  Question _generateMoneyQuestion(math.Random random) {
+  Question _generateMoneyQuestion(math.Random random, AppLocalizations loc) {
     final items = 3 + random.nextInt(5); // 3-7 tane
     final price = 5 + random.nextInt(10) * 5; // 5, 10, 15... kuruş
     final total = items * price;
@@ -536,17 +592,21 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     final money = 50 + random.nextInt(5) * 10; // 50-90 lira
     final canBuy = money ~/ price;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
+    final marketName = loc.get('keloglan_location_market');
 
     if (isBuying) {
       return Question(
         type: QuestionType.money,
-        questionText: '$money lira ile tanesi $price lira olan ${item['name']}\'lerden kaç tane alınabilir?',
-        keloglanMessage: 'Pazara $money lira ile gittim. ${item['name']} tanesi $price lira. Kaç tane alabileceğimi hesaplıyorum.',
+        questionText: loc.get('keloglan_q_money_buy')
+            .replaceAll('{0}', '$money').replaceAll('{1}', '$price').replaceAll('{2}', itemName),
+        keloglanMessage: loc.get('keloglan_s_money_buy')
+            .replaceAll('{0}', '$money').replaceAll('{1}', '$price').replaceAll('{2}', itemName),
         correctAnswer: canBuy,
         options: _generateOptions(canBuy, random),
         itemEmoji: '💰',
-        itemName: item['name'] as String,
-        location: 'Pazar',
+        itemName: itemName,
+        location: marketName,
         characters: [],
         explanation: '$money ÷ $price = $canBuy tane',
         metadata: {'money': money, 'price': price},
@@ -554,13 +614,15 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     } else {
       return Question(
         type: QuestionType.money,
-        questionText: '$items tane ${item['name']} tanesi $price liradan satılırsa toplam kaç lira kazanılır?',
-        keloglanMessage: '$items tane ${item['name']} satacağım. Tanesini $price liradan satarsam toplam ne kadar kazanırım?',
+        questionText: loc.get('keloglan_q_money_sell')
+            .replaceAll('{0}', '$items').replaceAll('{1}', itemName).replaceAll('{2}', '$price'),
+        keloglanMessage: loc.get('keloglan_s_money_sell')
+            .replaceAll('{0}', '$items').replaceAll('{1}', itemName).replaceAll('{2}', '$price'),
         correctAnswer: total,
         options: _generateOptions(total, random),
         itemEmoji: '💵',
         itemName: 'lira',
-        location: 'Pazar',
+        location: marketName,
         characters: [],
         explanation: '$items × $price = $total lira',
         metadata: {'items': items, 'price': price},
@@ -569,20 +631,23 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 14: Kat Sayısı
-  Question _generateRatioQuestion(math.Random random) {
+  Question _generateRatioQuestion(math.Random random, AppLocalizations loc) {
     final keloglanCount = 3 + random.nextInt(5); // Keloğlan'ın 3-7
     final multiplier = 2 + random.nextInt(3); // 2-4 katı
     final aliCount = keloglanCount * multiplier;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.ratio,
-      questionText: 'Keloğlan\'ın $keloglanCount, Ali\'nin $aliCount tane ${item['name']} var. Ali\'nin topladığı Keloğlan\'ınkinin kaç katıdır?',
-      keloglanMessage: 'Ben $keloglanCount tane ${item['name']} topladım. Ali ise $aliCount tane topladı. Kaç kat fazla toplamış hesaplıyorum.',
+      questionText: loc.get('keloglan_q_ratio')
+          .replaceAll('{0}', '$keloglanCount').replaceAll('{1}', '$aliCount').replaceAll('{2}', itemName),
+      keloglanMessage: loc.get('keloglan_s_ratio')
+          .replaceAll('{0}', '$keloglanCount').replaceAll('{1}', '$aliCount').replaceAll('{2}', itemName),
       correctAnswer: multiplier,
       options: _generateOptions(multiplier, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: ['Ali'],
       explanation: '$aliCount ÷ $keloglanCount = $multiplier katı',
@@ -591,21 +656,24 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 15: Sıralama / Örüntü
-  Question _generatePatternQuestion(math.Random random) {
+  Question _generatePatternQuestion(math.Random random, AppLocalizations loc) {
     final start = 2 + random.nextInt(4); // İlk gün 2-5
     final increment = 2; // Her gün +2
     final targetDay = 4 + random.nextInt(3); // 4-6. gün
     final result = start + (targetDay - 1) * increment;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
 
     return Question(
       type: QuestionType.pattern,
-      questionText: 'Her gün bir önceki günden $increment fazla ${item['name']} yeniyor. İlk gün $start ise $targetDay. gün kaç ${item['name']} yenilir?',
-      keloglanMessage: 'Her gün bir önceki günden $increment fazla ${item['name']} yiyorum. İlk gün $start yedim. $targetDay. gün kaç yemiş olurum acaba?',
+      questionText: loc.get('keloglan_q_pattern')
+          .replaceAll('{0}', '$increment').replaceAll('{1}', itemName).replaceAll('{2}', '$start').replaceAll('{3}', '$targetDay'),
+      keloglanMessage: loc.get('keloglan_s_pattern')
+          .replaceAll('{0}', '$increment').replaceAll('{1}', itemName).replaceAll('{2}', '$start').replaceAll('{3}', '$targetDay'),
       correctAnswer: result,
       options: _generateOptions(result, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [],
       explanation: '$start, ${start + increment}, ${start + 2 * increment}, ..., $targetDay. gün: $result',
@@ -614,16 +682,19 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 16: Şekillerle Bölme
-  Question _generateShapeDivisionQuestion(math.Random random) {
+  Question _generateShapeDivisionQuestion(math.Random random, AppLocalizations loc) {
     final people = 2 + random.nextInt(6); // 2-7 kişi
     final cuts = people; // Kesim sayısı = kişi sayısı
-    final item = random.nextBool() ? 'pasta' : 'tarla';
-    final emoji = item == 'pasta' ? '🎂' : '🌾';
+    final isCake = random.nextBool();
+    final item = isCake ? loc.get('keloglan_object_cake') : loc.get('keloglan_object_field');
+    final emoji = isCake ? '🎂' : '🌾';
 
     return Question(
       type: QuestionType.shapeDivision,
-      questionText: '$people kişiye eşit paylaştırmak için bir $item kaç parçaya bölünmeli?',
-      keloglanMessage: 'Annem ${item} yaptı. $people arkadaşla paylaşacağız. Kaç eşit parça yapmamız gerekiyor?',
+      questionText: loc.get('keloglan_q_shape_division')
+          .replaceAll('{0}', '$people').replaceAll('{1}', item),
+      keloglanMessage: loc.get('keloglan_s_shape_division')
+          .replaceAll('{0}', '$people').replaceAll('{1}', item),
       correctAnswer: cuts,
       options: _generateOptions(cuts, random),
       itemEmoji: emoji,
@@ -636,23 +707,27 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 17: İki Aşamalı Paylaştırma
-  Question _generateTwoStageSharingQuestion(math.Random random) {
+  Question _generateTwoStageSharingQuestion(math.Random random, AppLocalizations loc) {
     final total = 24 + random.nextInt(12); // 24-35
     final firstFriends = 2; // İlk aşamada 2 kişi
     final secondFriends = 2 + random.nextInt(2); // 2-3 yeni misafir
     final totalFriends = firstFriends + secondFriends;
     final finalShare = total ~/ totalFriends;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
     final firstChar = _characters[random.nextInt(_characters.length)];
 
     return Question(
       type: QuestionType.twoStageSharing,
-      questionText: '$total tane ${item['name']} $totalFriends kişiye eşit paylaştırılırsa herkese kaç ${item['name']} düşer?',
-      keloglanMessage: '$total tane ${item['name']} ve $firstChar ile paylaşacaktık. Sonra $secondFriends misafir daha geldi. Şimdi toplam $totalFriends kişi olduk.',
+      questionText: loc.get('keloglan_q_two_stage')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', '$totalFriends'),
+      keloglanMessage: loc.get('keloglan_s_two_stage')
+          .replaceAll('{0}', '$total').replaceAll('{1}', itemName).replaceAll('{2}', '$totalFriends')
+          .replaceAll('{3}', firstChar).replaceAll('{4}', '$secondFriends'),
       correctAnswer: finalShare,
       options: _generateOptions(finalShare, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: [firstChar],
       explanation: '$total ÷ $totalFriends = $finalShare',
@@ -661,21 +736,24 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   // TİP 18: Ters İşlem
-  Question _generateReverseOperationQuestion(math.Random random) {
+  Question _generateReverseOperationQuestion(math.Random random, AppLocalizations loc) {
     final share = 3 + random.nextInt(5); // Kişi başı 3-7
     final friends = 2 + random.nextInt(4); // 2-5 kişi
     final total = share * friends;
     final item = _items[random.nextInt(_items.length)];
+    final itemName = _itemName(loc, item);
     final chars = _getRandomCharacters(random, friends - 1);
 
     return Question(
       type: QuestionType.reverseOperation,
-      questionText: 'Her kişiye $share tane ${item['name']} düşüyorsa ve $friends kişi varsa toplam kaç ${item['name']} vardı?',
-      keloglanMessage: '${chars.join(', ')} ve ben ${item['name']} paylaştık. Her birimize $share tane düştüğünü söylediler. Başlangıçta kaç vardı acaba?',
+      questionText: loc.get('keloglan_q_reverse')
+          .replaceAll('{0}', '$share').replaceAll('{1}', itemName).replaceAll('{2}', '$friends'),
+      keloglanMessage: loc.get('keloglan_s_reverse')
+          .replaceAll('{0}', chars.join(', ')).replaceAll('{1}', itemName).replaceAll('{2}', '$share'),
       correctAnswer: total,
       options: _generateOptions(total, random),
       itemEmoji: item['emoji'] as String,
-      itemName: item['name'] as String,
+      itemName: itemName,
       location: '',
       characters: chars,
       explanation: '$share × $friends = $total',
@@ -732,13 +810,17 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
-            _generateQuestion();
+            final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+            _generateQuestion(loc);
           }
         });
       } else {
         _lives = (_lives - 1).clamp(0, 5);
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion();
+          if (mounted) {
+            final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+            _generateQuestion(loc);
+          }
         });
       }
     });
@@ -826,7 +908,7 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('🧑‍🌾 ${loc.get('keloglan_village')}', style: _textStyle(_earthBrown, size: 22, bold: true)),
-                Text(q.location.isNotEmpty ? '📍 ${q.location}' : 'Soru ${_currentLevel}', 
+                Text(q.location.isNotEmpty ? '📍 ${q.location}' : loc.get('question_label_format').replaceAll('{0}', '$_currentLevel'), 
                   style: _textStyle(_earthBrown.withOpacity(0.8), size: 12)),
               ],
             ),
@@ -930,8 +1012,8 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatItem('Seviye', '$_currentLevel', '🎯'),
-              _buildStatItem('Puan', '$_score', '⭐'),
+              _buildStatItem(loc.get('level'), '$_currentLevel', '🎯'),
+              _buildStatItem(loc.get('score'), '$_score', '⭐'),
             ],
           ),
           const SizedBox(height: 12),

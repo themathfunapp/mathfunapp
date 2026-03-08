@@ -56,12 +56,12 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     AlgebraRegion.hazineKalesi: '🏰',
   };
 
-  static const Map<AlgebraRegion, String> _regionNames = {
-    AlgebraRegion.bilinmeyenOrmani: 'Bilinmeyen Ormanı',
-    AlgebraRegion.islemVadisi: 'İşlem Vadisi',
-    AlgebraRegion.carpanDaglari: 'Çarpan Dağları',
-    AlgebraRegion.denklemKoprusu: 'Denklem Köprüsü',
-    AlgebraRegion.hazineKalesi: 'Hazine Kalesi',
+  static const Map<AlgebraRegion, String> _regionNameKeys = {
+    AlgebraRegion.bilinmeyenOrmani: 'algebra_region_bilinmeyen',
+    AlgebraRegion.islemVadisi: 'algebra_region_islem',
+    AlgebraRegion.carpanDaglari: 'algebra_region_carpan',
+    AlgebraRegion.denklemKoprusu: 'algebra_region_denklem',
+    AlgebraRegion.hazineKalesi: 'algebra_region_hazine',
   };
 
   @override
@@ -288,13 +288,13 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _buildRegionBadge(),
+                      _buildRegionBadge(loc),
                       const SizedBox(height: 24),
                       _buildQuestionCard(loc),
                       const SizedBox(height: 24),
-                      _buildZiki(),
+                      _buildZiki(loc),
                       const SizedBox(height: 16),
-                      _buildKeysDisplay(),
+                      _buildKeysDisplay(loc),
                     ],
                   ),
                 ),
@@ -329,7 +329,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('⚗️ Cebir Diyarı', style: _textStyle(Colors.white, size: 18, bold: true)),
+                Text('⚗️ ${loc.get('world_algebra_realm')}', style: _textStyle(Colors.white, size: 18, bold: true)),
                 Text(loc.get('world_algebra_realm_desc'), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
               ],
             ),
@@ -349,7 +349,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     );
   }
 
-  Widget _buildRegionBadge() {
+  Widget _buildRegionBadge(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -363,7 +363,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         children: [
           Text(_regionEmojis[_currentRegion]!, style: const TextStyle(fontSize: 28)),
           const SizedBox(width: 12),
-          Text(_regionNames[_currentRegion]!, style: _textStyle(Colors.white, size: 18, bold: true)),
+          Text(loc.get(_regionNameKeys[_currentRegion]!), style: _textStyle(Colors.white, size: 18, bold: true)),
           const SizedBox(width: 8),
           Text('${_currentQuestionInRegion + 1}/$_questionsPerRegion', style: TextStyle(color: Colors.white70, fontSize: 14)),
         ],
@@ -393,11 +393,11 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Text('👑', style: TextStyle(fontSize: 20)),
                 const SizedBox(width: 8),
-                Text('Boss sorusu!', style: _textStyle(Colors.brown, size: 14, bold: true)),
+                Text(loc.get('algebra_boss_question'), style: _textStyle(Colors.brown, size: 14, bold: true)),
               ]),
             ),
           if (_isBossQuestion) const SizedBox(height: 16),
-          Text('x kaçtır?', style: _textStyle(_purple, size: 16, bold: true)),
+          Text(loc.get('algebra_what_is_x'), style: _textStyle(_purple, size: 16, bold: true)),
           const SizedBox(height: 16),
           Text(_questionDisplay, style: GoogleFonts.quicksand(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
           const SizedBox(height: 24),
@@ -447,7 +447,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     );
   }
 
-  Widget _buildZiki() {
+  Widget _buildZiki(AppLocalizations loc) {
     return AnimatedBuilder(
       animation: _jumpAnimation,
       builder: (context, child) {
@@ -470,7 +470,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Ziki', style: _textStyle(Colors.white, size: 18, bold: true)),
-                    Text('Bilinmeyeni bulalım!', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(loc.get('algebra_find_unknown'), style: TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 ),
               ],
@@ -481,7 +481,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     );
   }
 
-  Widget _buildKeysDisplay() {
+  Widget _buildKeysDisplay(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -495,7 +495,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         children: [
           const Text('🔑', style: TextStyle(fontSize: 24)),
           const SizedBox(width: 8),
-          Text('Anahtarlar: $_keysCollected / 5', style: _textStyle(Colors.white, size: 18, bold: true)),
+          Text(loc.get('algebra_keys_format').replaceAll('{0}', '$_keysCollected'), style: _textStyle(Colors.white, size: 18, bold: true)),
         ],
       ),
     );

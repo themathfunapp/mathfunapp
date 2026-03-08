@@ -38,37 +38,37 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   bool _isCorrect = false;
   bool _isBonusLevel = false;
 
-  // Şekil tanımları: type, isim, köşe sayısı, kenar eşitliği
-  // Flaticon / Icons8 polygon stillerine uygun geniş çeşitlilik
+  // Şekil tanımları: type, nameKey (lokalizasyon), köşe sayısı, kenar eşitliği
   final List<Map<String, dynamic>> _shapes = [
-    {'type': ShapeType.circle, 'name': 'daire', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFE91E63)},
-    {'type': ShapeType.oval, 'name': 'oval', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFE040FB)},
-    {'type': ShapeType.semicircle, 'name': 'yarım daire', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFAB47BC)},
-    {'type': ShapeType.square, 'name': 'kare', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF2196F3)},
-    {'type': ShapeType.rectangle, 'name': 'dikdörtgen', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFFFF9800)},
-    {'type': ShapeType.roundedRect, 'name': 'yuvarlatılmış dikdörtgen', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF42A5F5)},
-    {'type': ShapeType.triangle, 'name': 'üçgen', 'vertices': 3, 'equalEdges': true, 'color': Color(0xFF4CAF50)},
-    {'type': ShapeType.rightTriangle, 'name': 'dik üçgen', 'vertices': 3, 'equalEdges': false, 'color': Color(0xFF81C784)},
-    {'type': ShapeType.diamond, 'name': 'elmas', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF26A69A)},
-    {'type': ShapeType.kite, 'name': 'uçurtma', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF8D6E63)},
-    {'type': ShapeType.trapezoid, 'name': 'yamuk', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFFA1887F)},
-    {'type': ShapeType.parallelogram, 'name': 'paralelkenar', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF7E57C2)},
-    {'type': ShapeType.pentagon, 'name': 'beşgen', 'vertices': 5, 'equalEdges': true, 'color': Color(0xFF9C27B0)},
-    {'type': ShapeType.hexagon, 'name': 'altıgen', 'vertices': 6, 'equalEdges': true, 'color': Color(0xFF00BCD4)},
-    {'type': ShapeType.heptagon, 'name': 'yedigen', 'vertices': 7, 'equalEdges': true, 'color': Color(0xFFEF5350)},
-    {'type': ShapeType.octagon, 'name': 'sekizgen', 'vertices': 8, 'equalEdges': true, 'color': Color(0xFF795548)},
-    {'type': ShapeType.nonagon, 'name': 'dokuzgen', 'vertices': 9, 'equalEdges': true, 'color': Color(0xFF5C6BC0)},
-    {'type': ShapeType.decagon, 'name': 'ongen', 'vertices': 10, 'equalEdges': true, 'color': Color(0xFF66BB6A)},
-    {'type': ShapeType.hendecagon, 'name': 'onbirgen', 'vertices': 11, 'equalEdges': true, 'color': Color(0xFFEC407A)},
-    {'type': ShapeType.dodecagon, 'name': 'onikigen', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFF26C6DA)},
-    {'type': ShapeType.star, 'name': 'beş köşeli yıldız', 'vertices': 10, 'equalEdges': true, 'color': Color(0xFFFFC107)},
-    {'type': ShapeType.star6, 'name': 'altı köşeli yıldız', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFFFF7043)},
-    {'type': ShapeType.cross, 'name': 'artı', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFFBDBDBD)},
+    {'type': ShapeType.circle, 'nameKey': 'geometry_castle_shape_circle', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFE91E63)},
+    {'type': ShapeType.oval, 'nameKey': 'geometry_castle_shape_oval', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFE040FB)},
+    {'type': ShapeType.semicircle, 'nameKey': 'geometry_castle_shape_semicircle', 'vertices': 0, 'equalEdges': false, 'color': Color(0xFFAB47BC)},
+    {'type': ShapeType.square, 'nameKey': 'geometry_castle_shape_square', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF2196F3)},
+    {'type': ShapeType.rectangle, 'nameKey': 'geometry_castle_shape_rectangle', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFFFF9800)},
+    {'type': ShapeType.roundedRect, 'nameKey': 'geometry_castle_shape_rounded_rect', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF42A5F5)},
+    {'type': ShapeType.triangle, 'nameKey': 'geometry_castle_shape_triangle', 'vertices': 3, 'equalEdges': true, 'color': Color(0xFF4CAF50)},
+    {'type': ShapeType.rightTriangle, 'nameKey': 'geometry_castle_shape_right_triangle', 'vertices': 3, 'equalEdges': false, 'color': Color(0xFF81C784)},
+    {'type': ShapeType.diamond, 'nameKey': 'geometry_castle_shape_diamond', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF26A69A)},
+    {'type': ShapeType.kite, 'nameKey': 'geometry_castle_shape_kite', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF8D6E63)},
+    {'type': ShapeType.trapezoid, 'nameKey': 'geometry_castle_shape_trapezoid', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFFA1887F)},
+    {'type': ShapeType.parallelogram, 'nameKey': 'geometry_castle_shape_parallelogram', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF7E57C2)},
+    {'type': ShapeType.pentagon, 'nameKey': 'geometry_castle_shape_pentagon', 'vertices': 5, 'equalEdges': true, 'color': Color(0xFF9C27B0)},
+    {'type': ShapeType.hexagon, 'nameKey': 'geometry_castle_shape_hexagon', 'vertices': 6, 'equalEdges': true, 'color': Color(0xFF00BCD4)},
+    {'type': ShapeType.heptagon, 'nameKey': 'geometry_castle_shape_heptagon', 'vertices': 7, 'equalEdges': true, 'color': Color(0xFFEF5350)},
+    {'type': ShapeType.octagon, 'nameKey': 'geometry_castle_shape_octagon', 'vertices': 8, 'equalEdges': true, 'color': Color(0xFF795548)},
+    {'type': ShapeType.nonagon, 'nameKey': 'geometry_castle_shape_nonagon', 'vertices': 9, 'equalEdges': true, 'color': Color(0xFF5C6BC0)},
+    {'type': ShapeType.decagon, 'nameKey': 'geometry_castle_shape_decagon', 'vertices': 10, 'equalEdges': true, 'color': Color(0xFF66BB6A)},
+    {'type': ShapeType.hendecagon, 'nameKey': 'geometry_castle_shape_hendecagon', 'vertices': 11, 'equalEdges': true, 'color': Color(0xFFEC407A)},
+    {'type': ShapeType.dodecagon, 'nameKey': 'geometry_castle_shape_dodecagon', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFF26C6DA)},
+    {'type': ShapeType.star, 'nameKey': 'geometry_castle_shape_star', 'vertices': 10, 'equalEdges': true, 'color': Color(0xFFFFC107)},
+    {'type': ShapeType.star6, 'nameKey': 'geometry_castle_shape_star6', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFFFF7043)},
+    {'type': ShapeType.cross, 'nameKey': 'geometry_castle_shape_cross', 'vertices': 12, 'equalEdges': true, 'color': Color(0xFFBDBDBD)},
   ];
 
   ShapeType _targetShapeType = ShapeType.circle;
-  String _targetShapeName = '';
+  String _targetShapeNameKey = '';
   Color _targetColor = Colors.blue;
+  String? _lastLocale;
   String _questionText = '';
   QuestionType _questionType = QuestionType.shapeName;
   List<Map<String, dynamic>> _options = [];
@@ -118,7 +118,23 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
       CurvedAnimation(parent: _bgController, curve: Curves.easeOut),
     );
 
-    _generateQuestion();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    _lastLocale = locale.toString();
+    _generateQuestion(AppLocalizations(locale));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final localeStr = locale.toString();
+    // Dil değiştiğinde soruyu her zaman yeniden oluştur (karışık dil sorununu önler)
+    if (_lastLocale != null && _lastLocale != localeStr) {
+      _lastLocale = localeStr;
+      _generateQuestion(AppLocalizations(locale));
+    } else {
+      _lastLocale = localeStr;
+    }
   }
 
   @override
@@ -143,23 +159,23 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     return _shapes;
   }
 
-  void _generateQuestion() {
+  void _generateQuestion(AppLocalizations loc) {
     final random = math.Random();
     final available = _getAvailableShapes();
 
     _isBonusLevel = _currentLevel % 5 == 0 && _currentLevel > 0;
 
     if (_isBonusLevel) {
-      _generateBonusLevel();
+      _generateBonusLevel(loc);
       return;
     }
 
     final target = available[random.nextInt(available.length)];
     _targetShapeType = target['type'] as ShapeType;
-    _targetShapeName = target['name'] as String;
+    _targetShapeNameKey = target['nameKey'] as String;
     _targetColor = target['color'] as Color;
 
-    final wrongShapes = available.where((s) => s['name'] != _targetShapeName).toList();
+    final wrongShapes = available.where((s) => s['nameKey'] != _targetShapeNameKey).toList();
     wrongShapes.shuffle(random);
     _options = [target, wrongShapes[0], wrongShapes[1]];
     _options.shuffle(random);
@@ -167,28 +183,28 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
 
     if (_currentLevel >= 4 && (target['vertices'] as int) > 0 && random.nextBool()) {
       _questionType = QuestionType.vertexCount;
-      _questionText = '${target['vertices']} köşesi olan şekli bul!';
+      _questionText = loc.get('geometry_castle_find_vertices').replaceAll('{0}', '${target['vertices']}');
     } else if (_currentLevel >= 6) {
       final equalEdgesShapes = available.where((s) => s['equalEdges'] == true).toList();
       final eqWrong = available.where((s) => s['equalEdges'] != true).toList();
       if (equalEdgesShapes.isNotEmpty && eqWrong.length >= 2 && random.nextBool()) {
         final eqTarget = equalEdgesShapes[random.nextInt(equalEdgesShapes.length)];
         _targetShapeType = eqTarget['type'] as ShapeType;
-        _targetShapeName = eqTarget['name'] as String;
+        _targetShapeNameKey = eqTarget['nameKey'] as String;
         _targetColor = eqTarget['color'] as Color;
         _questionType = QuestionType.equalEdges;
-        _questionText = 'Kenarları eşit olan şekli bul!';
+        _questionText = loc.get('geometry_castle_find_equal_edges');
         eqWrong.shuffle(random);
         _options = [eqTarget, eqWrong[0], eqWrong[1]];
         _options.shuffle(random);
         _correctOption = eqTarget;
       } else {
         _questionType = QuestionType.shapeName;
-        _questionText = '$_targetShapeName şeklini bul!';
+        _questionText = loc.get('geometry_castle_find_shape_format').replaceAll('{0}', loc.get(_targetShapeNameKey));
       }
     } else {
       _questionType = QuestionType.shapeName;
-      _questionText = '$_targetShapeName şeklini bul!';
+      _questionText = loc.get('geometry_castle_find_shape_format').replaceAll('{0}', loc.get(_targetShapeNameKey));
     }
 
     setState(() {
@@ -197,14 +213,14 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     });
   }
 
-  void _generateBonusLevel() {
+  void _generateBonusLevel(AppLocalizations loc) {
     final random = math.Random();
     final target = _shapes[random.nextInt(_shapes.length)];
     _targetShapeType = target['type'] as ShapeType;
-    _targetShapeName = target['name'] as String;
+    _targetShapeNameKey = target['nameKey'] as String;
     _targetColor = target['color'] as Color;
-    _questionText = '$_targetShapeName şeklini bul! Bonus yıldız kazan!';
-    final wrongShapes = _shapes.where((s) => s['name'] != _targetShapeName).toList();
+    _questionText = loc.get('geometry_castle_bonus_find').replaceAll('{0}', loc.get(_targetShapeNameKey));
+    final wrongShapes = _shapes.where((s) => s['nameKey'] != _targetShapeNameKey).toList();
     wrongShapes.shuffle(random);
     _options = [target, wrongShapes[0], wrongShapes[1]];
     _options.shuffle(random);
@@ -231,13 +247,13 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
-            _generateQuestion();
+            _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
           }
         });
       } else {
         _lives = (_lives - 1).clamp(0, 5);
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion();
+          if (mounted) _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
         });
       }
     });
@@ -276,7 +292,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                   Column(
                     children: [
                       _buildTopBar(loc),
-                      _buildProgressPath(),
+                      _buildProgressPath(loc),
                       const SizedBox(height: 8),
                       Expanded(
                         child: SingleChildScrollView(
@@ -298,7 +314,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     );
   }
 
-  Widget _buildProgressPath() {
+  Widget _buildProgressPath(AppLocalizations loc) {
     final totalFloors = 10;
     final currentFloor = (_currentLevel - 1) % totalFloors;
     return Container(
@@ -333,7 +349,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Text('Kat ${currentFloor + 1}/$totalFloors', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(loc.get('geometry_castle_floor').replaceAll('{0}', '${currentFloor + 1}').replaceAll('{1}', '$totalFloors'), style: TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );
@@ -395,8 +411,8 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('🏰 Geometri Şatosu', style: _textStyle(Colors.white, size: 20, bold: true)),
-                Text(_getLocalized('world_geometry_castle_desc'), style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text('🏰 ${loc.get('world_geometry_castle')}', style: _textStyle(Colors.white, size: 20, bold: true)),
+                Text(loc.get('world_geometry_castle_desc'), style: TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
@@ -418,10 +434,6 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
         ],
       ),
     );
-  }
-
-  String _getLocalized(String key) {
-    return AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get(key);
   }
 
   /// Tek bir kapı kartı: soru + hedef şekil + anahtarlar (her anahtarda küçük geometrik şekil)
@@ -478,10 +490,10 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Şekil Ustası Baykuş', style: _textStyle(_castlePurple, size: 14, bold: true)),
+                          Text(loc.get('helper_owl_name'), style: _textStyle(_castlePurple, size: 14, bold: true)),
                           const SizedBox(height: 2),
                           Text(
-                            _isBonusLevel ? '⭐ BONUS: $_questionText' : 'Bu kapıyı aç! $_questionText',
+                            _isBonusLevel ? '⭐ BONUS: $_questionText' : '${loc.get('geometry_castle_open_door')}$_questionText',
                             style: _textStyle(Colors.black87, size: 14),
                             maxLines: 2,
                           ),
@@ -506,9 +518,9 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                         children: [
                           Text('🔐', style: const TextStyle(fontSize: 20)),
                           const SizedBox(width: 6),
-                          Text('Gizli kapı', style: _textStyle(_castlePurple, size: 15, bold: true)),
+                          Text(loc.get('geometry_castle_secret_door'), style: _textStyle(_castlePurple, size: 15, bold: true)),
                           const SizedBox(width: 6),
-                          Text('(${_currentDoorType.displayName})', style: _textStyle(_castlePurple.withOpacity(0.7), size: 12)),
+                          Text('(${loc.get(_currentDoorType.localizationKey)})', style: _textStyle(_castlePurple.withOpacity(0.7), size: 12)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -520,13 +532,13 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                         frameColor: const Color(0xFF3E2723),
                       ),
                       const SizedBox(height: 8),
-                      Text('Doğru anahtarı seç', style: _textStyle(_castlePurple.withOpacity(0.8), size: 13)),
+                      Text(loc.get('geometry_castle_choose_key'), style: _textStyle(_castlePurple.withOpacity(0.8), size: 13)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
                 // Anahtarlar - her birinde küçük geometrik şekil
-                Text('Anahtarlar:', style: _textStyle(_castlePurple, size: 14, bold: true)),
+                Text(loc.get('geometry_castle_keys'), style: _textStyle(_castlePurple, size: 14, bold: true)),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,

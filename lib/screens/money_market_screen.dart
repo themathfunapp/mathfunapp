@@ -197,22 +197,22 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
   }
 
   static const List<Map<String, dynamic>> _marketItems = [
-    {'emoji': '🍎', 'name': 'Elma', 'possessive': 'Elmanın'},
-    {'emoji': '🥕', 'name': 'Havuç', 'possessive': 'Havucun'},
-    {'emoji': '🍇', 'name': 'Üzüm', 'possessive': 'Üzümün'},
-    {'emoji': '🍅', 'name': 'Domates', 'possessive': 'Domatesin'},
-    {'emoji': '🥒', 'name': 'Salatalık', 'possessive': 'Salatalığın'},
-    {'emoji': '🥔', 'name': 'Patates', 'possessive': 'Patatesin'},
-    {'emoji': '🧅', 'name': 'Soğan', 'possessive': 'Soğanın'},
-    {'emoji': '🍌', 'name': 'Muz', 'possessive': 'Muzun'},
-    {'emoji': '🍊', 'name': 'Portakal', 'possessive': 'Portakalın'},
-    {'emoji': '🥬', 'name': 'Lahana', 'possessive': 'Lahananın'},
-    {'emoji': '🥦', 'name': 'Brokoli', 'possessive': 'Brokolinin'},
-    {'emoji': '🍐', 'name': 'Armut', 'possessive': 'Armudun'},
+    {'emoji': '🍎', 'nameKey': 'money_market_item_apple', 'possessiveKey': 'money_market_item_apple_possessive'},
+    {'emoji': '🥕', 'nameKey': 'money_market_item_carrot', 'possessiveKey': 'money_market_item_carrot_possessive'},
+    {'emoji': '🍇', 'nameKey': 'money_market_item_grape', 'possessiveKey': 'money_market_item_grape_possessive'},
+    {'emoji': '🍅', 'nameKey': 'money_market_item_tomato', 'possessiveKey': 'money_market_item_tomato_possessive'},
+    {'emoji': '🥒', 'nameKey': 'money_market_item_cucumber', 'possessiveKey': 'money_market_item_cucumber_possessive'},
+    {'emoji': '🥔', 'nameKey': 'money_market_item_potato', 'possessiveKey': 'money_market_item_potato_possessive'},
+    {'emoji': '🧅', 'nameKey': 'money_market_item_onion', 'possessiveKey': 'money_market_item_onion_possessive'},
+    {'emoji': '🍌', 'nameKey': 'money_market_item_banana', 'possessiveKey': 'money_market_item_banana_possessive'},
+    {'emoji': '🍊', 'nameKey': 'money_market_item_orange', 'possessiveKey': 'money_market_item_orange_possessive'},
+    {'emoji': '🥬', 'nameKey': 'money_market_item_cabbage', 'possessiveKey': 'money_market_item_cabbage_possessive'},
+    {'emoji': '🥦', 'nameKey': 'money_market_item_broccoli', 'possessiveKey': 'money_market_item_broccoli_possessive'},
+    {'emoji': '🍐', 'nameKey': 'money_market_item_pear', 'possessiveKey': 'money_market_item_pear_possessive'},
   ];
 
-  String _amountText(double amount) {
-    if (amount == 0.5) return 'yarım';
+  String _amountText(AppLocalizations loc, double amount) {
+    if (amount == 0.5) return loc.get('money_market_amount_half');
     return amount.toString().replaceAll('.', ',');
   }
 
@@ -249,14 +249,17 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
                   _buildTopBar(loc),
                   Expanded(
                     child: SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).padding.bottom + 16,
+                      ),
                       child: Column(
                         children: [
                           _buildQuestionCard(loc, _currentItem),
                           const SizedBox(height: 24),
-                          _buildItemDisplay(_currentItem),
+                          _buildItemDisplay(loc, _currentItem),
                           const SizedBox(height: 24),
                           _buildCoinOptions(loc),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
@@ -322,7 +325,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('🏪 Para Pazarı', style: _textStyle(Colors.white, size: 20, bold: true)),
+                Text('🏪 ${loc.get('world_money_market')}', style: _textStyle(Colors.white, size: 20, bold: true)),
                 Text(loc.get('world_money_market_desc'), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
               ],
             ),
@@ -391,10 +394,15 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Pazar Tüccarı', style: _textStyle(_orange, size: 16, bold: true)),
+                Text(loc.get('money_market_merchant'), style: _textStyle(_orange, size: 16, bold: true)),
                 const SizedBox(height: 6),
                 Text(
-                  '${item['emoji'] ?? '🥕'} ${item['possessive'] ?? item['name'] ?? ''} kilosu $_pricePerKg TL. Pazardan ${_amountText(_amount)} kilo ${'${item['name'] ?? ''}'.toLowerCase()} alırsak kaç TL olur?',
+                  '${item['emoji'] ?? '🥕'} ${loc.get('money_market_question_format')
+                      .replaceAll('{0}', loc.get(item['possessiveKey'] as String))
+                      .replaceAll('{1}', '$_pricePerKg')
+                      .replaceAll('{2}', _amountText(loc, _amount))
+                      .replaceAll('{3}', loc.get(item['nameKey'] as String).toLowerCase())
+                      .replaceAll('{4}', loc.get('money_market_currency'))}',
                   style: _textStyle(Colors.black87, size: 16),
                   maxLines: 3,
                 ),
@@ -406,7 +414,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
     );
   }
 
-  Widget _buildItemDisplay(Map<String, dynamic> item) {
+  Widget _buildItemDisplay(AppLocalizations loc, Map<String, dynamic> item) {
     return AnimatedBuilder(
       animation: _floatAnimation,
       builder: (context, child) {
@@ -423,7 +431,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
             ),
             child: Column(
               children: [
-                Text('🛍️ Alışveriş sepeti', style: _textStyle(_orange, size: 16, bold: true)),
+                Text('🛍️ ${loc.get('money_market_shopping_cart')}', style: _textStyle(_orange, size: 16, bold: true)),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -435,7 +443,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
                   child: Text(item['emoji'], style: const TextStyle(fontSize: 64)),
                 ),
                 const SizedBox(height: 8),
-                Text('${item['name']}', style: _textStyle(Colors.black87, size: 18, bold: true)),
+                Text(loc.get(item['nameKey'] as String), style: _textStyle(Colors.black87, size: 18, bold: true)),
               ],
             ),
           ),
@@ -455,20 +463,20 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
       ),
       child: Column(
         children: [
-          Text('Toplam fiyatı seç:', style: _textStyle(_orange, size: 16, bold: true)),
+          Text(loc.get('money_market_select_total'), style: _textStyle(_orange, size: 16, bold: true)),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             alignment: WrapAlignment.center,
-            children: _coinOptions.map((amount) => _buildCoinButton(amount)).toList(),
+            children: _coinOptions.map((opt) => _buildCoinButton(loc, opt)).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCoinButton(int amount) {
+  Widget _buildCoinButton(AppLocalizations loc, int amount) {
     final isCorrect = amount == _correctAnswer;
     final isSelected = _isAnswered && isCorrect;
 
@@ -495,16 +503,25 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
           ),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('💰', style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 4),
-            Text(
-              '$amount TL',
-              style: _textStyle(Colors.black87, size: 16, bold: true),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('🪙', style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '$amount ${loc.get('money_market_currency')}',
+                  style: _textStyle(Colors.black87, size: 14, bold: true),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

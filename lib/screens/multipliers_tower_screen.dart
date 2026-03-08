@@ -263,14 +263,14 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     ));
   }
 
-  String _getLevelName() {
+  String _getLevelName(AppLocalizations loc) {
     switch (_level) {
-      case TowerLevel.katlarKoyu: return 'Katlar Köyü';
-      case TowerLevel.ormanDerinlik: return 'Ormanın Derinlikleri';
-      case TowerLevel.bolenlerMagara: return 'Bölenler Mağarası';
-      case TowerLevel.ikizlerZirve: return 'İkizler Zirvesi';
-      case TowerLevel.kardeslerVadi: return 'Kardeşler Vadisi';
-      case TowerLevel.carpanlarAdasi: return 'Çarpanlar Adası';
+      case TowerLevel.katlarKoyu: return loc.get('ziki_level_katlar');
+      case TowerLevel.ormanDerinlik: return loc.get('ziki_level_orman');
+      case TowerLevel.bolenlerMagara: return loc.get('ziki_level_bolenler');
+      case TowerLevel.ikizlerZirve: return loc.get('ziki_level_ortak_kat');
+      case TowerLevel.kardeslerVadi: return loc.get('ziki_level_ortak_bolen');
+      case TowerLevel.carpanlarAdasi: return loc.get('ziki_level_carpanlar');
     }
   }
 
@@ -312,13 +312,13 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                         children: [
                           _buildMagicCrystal(loc),
                           const SizedBox(height: 16),
-                          _buildLevelBadge(),
+                          _buildLevelBadge(loc),
                           const SizedBox(height: 20),
                           _buildStepOptions(loc),
                           const SizedBox(height: 24),
-                          _buildZiki(),
+                          _buildZiki(loc),
                           const SizedBox(height: 16),
-                          _buildMuzAdasi(),
+                          _buildMuzAdasi(loc),
                         ],
                       ),
                     ),
@@ -356,8 +356,8 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('🏝️ Çarpanlar Kulesi', style: _textStyle(Colors.white, size: 18, bold: true)),
-              Text('Ziki Muz Adası\'na gidiyor!', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
+              Text('🏝️ ${loc.get('world_multipliers_tower')}', style: _textStyle(Colors.white, size: 18, bold: true)),
+              Text(loc.get('ziki_going_to_island'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
             ]),
           ),
           Consumer<GameMechanicsService?>(builder: (context, m, _) {
@@ -412,11 +412,11 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     );
   }
 
-  Widget _buildLevelBadge() {
+  Widget _buildLevelBadge(AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(color: _purple.withOpacity(0.6), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white)),
-      child: Text('⭐ ${_getLevelName()}', style: _textStyle(Colors.white, size: 14, bold: true)),
+      child: Text('⭐ ${_getLevelName(loc)}', style: _textStyle(Colors.white, size: 14, bold: true)),
     );
   }
 
@@ -438,10 +438,10 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    _questionType == 1 ? '$_targetNumber\'ın böleni hangisi?'
-                        : _questionType == 2 ? '$_targetNumber ve $_targetB\'nin ortak katı?'
-                        : _questionType == 3 ? '$_targetNumber ve $_targetB\'nin ortak böleni?'
-                        : '$_targetNumber\'ın katı hangisi?',
+                    _questionType == 1 ? loc.get('ziki_hint_divisors').replaceAll('{0}', '$_targetNumber')
+                        : _questionType == 2 ? loc.get('ziki_hint_lcm').replaceAll('{0}', '$_targetNumber').replaceAll('{1}', '$_targetB')
+                        : _questionType == 3 ? loc.get('ziki_hint_gcd').replaceAll('{0}', '$_targetNumber').replaceAll('{1}', '$_targetB')
+                        : loc.get('ziki_hint_multiples').replaceAll('{0}', '$_targetNumber'),
                     style: _textStyle(Colors.brown, size: 12),
                     textAlign: TextAlign.center,
                   ),
@@ -450,18 +450,18 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
             ),
           ],
           const SizedBox(height: 16),
-          Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center, children: _stepOptions.map((n) => _buildStepCard(n)).toList()),
+          Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center, children: _stepOptions.map((n) => _buildStepCard(loc, n)).toList()),
         ],
       ),
     );
   }
 
-  Widget _buildStepCard(int number) {
+  Widget _buildStepCard(AppLocalizations loc, int number) {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final canTap = !_isAnswered && mechanicsService.hasLives;
     final isCorrect = number == _correctAnswer;
     final isSelected = _isAnswered && isCorrect;
-    final obj = stepObjects[number] ?? {'emoji': '🔢', 'name': '$number'};
+    final obj = stepObjects[number] ?? {'emoji': '🔢', 'nameKey': null};
 
     Color bgColor = Colors.white;
     if (_isAnswered) bgColor = isCorrect ? Colors.green.shade100 : Colors.red.shade50;
@@ -491,7 +491,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                     Text(obj['emoji'] as String, style: const TextStyle(fontSize: 36)),
                     const SizedBox(height: 4),
                     Text('$number', style: _textStyle(Colors.black87, size: 22, bold: true)),
-                    Text(obj['name'] as String, style: TextStyle(fontSize: 10, color: Colors.grey.shade700), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(obj['nameKey'] != null ? loc.get(obj['nameKey'] as String) : '$number', style: TextStyle(fontSize: 10, color: Colors.grey.shade700), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -502,7 +502,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     );
   }
 
-  Widget _buildZiki() {
+  Widget _buildZiki(AppLocalizations loc) {
     return AnimatedBuilder(
       animation: Listenable.merge([_jumpAnimation, _bounceAnimation]),
       builder: (context, child) {
@@ -533,7 +533,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('🎒 Çanta', style: _textStyle(Colors.white, size: 12)),
+                    Text('🎒 ${loc.get('ziki_bag')}', style: _textStyle(Colors.white, size: 12)),
                     Text('$_bananas 🍌', style: _textStyle(_gold, size: 20, bold: true)),
                   ],
                 ),
@@ -545,7 +545,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     );
   }
 
-  Widget _buildMuzAdasi() {
+  Widget _buildMuzAdasi(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -560,7 +560,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
         children: [
           Text('🏝️', style: TextStyle(fontSize: (56 + _bananas).clamp(56, 72).toDouble())),
           const SizedBox(width: 12),
-          Text('Muz Adası', style: _textStyle(Colors.white, size: 24, bold: true)),
+          Text(loc.get('ziki_banana_island'), style: _textStyle(Colors.white, size: 24, bold: true)),
         ],
       ),
     );
