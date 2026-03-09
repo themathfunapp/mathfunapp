@@ -17,15 +17,11 @@ import 'services/ai_storyteller_service.dart';
 import 'services/voice_command_service.dart';
 import 'services/premium_service_export.dart';
 import 'services/ad_service.dart';
+import 'services/family_service.dart';
+import 'services/parent_pin_service.dart';
 import 'providers/locale_provider.dart';
-import 'screens/home_screen.dart';
-import 'screens/mini_games_screen.dart';
+import 'screens/app_screen_wrappers.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/friends_screen.dart';
-import 'screens/badges_screen.dart';
-import 'screens/daily_rewards_screen.dart';
-import 'screens/story_mode_screen.dart';
-import 'screens/premium_screen.dart';
 import 'localization/app_localizations.dart';
 
 Future<void> main() async {
@@ -40,8 +36,8 @@ Future<void> main() async {
   // Performans için debugPrint ayarları
   debugPrint = (String? message, {int? wrapWidth}) {
     if (message != null) {
-      // Sadece debug modda log göster
       assert(() {
+        // ignore: avoid_print
         print(message);
         return true;
       }());
@@ -124,6 +120,29 @@ Future<void> main() async {
             // Premium durumunu AdService ile senkronize et
             adService!.setPremiumUser(premiumService.isPremium);
             return adService;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, FamilyService>(
+          create: (_) => FamilyService(),
+          update: (_, authService, familyService) {
+            if (authService.currentUser != null && !authService.currentUser!.isGuest) {
+              familyService!.initialize(
+                authService.currentUser!.uid,
+                parentDisplayName: authService.currentUser!.displayName ?? authService.currentUser!.username,
+              );
+            } else {
+              familyService!.initialize(null);
+            }
+            return familyService;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, ParentPinService>(
+          create: (_) => ParentPinService(),
+          update: (_, authService, pinService) {
+            pinService!.initialize(
+              authService.currentUser?.isGuest == true ? null : authService.currentUser?.uid,
+            );
+            return pinService;
           },
         ),
       ],
@@ -249,59 +268,59 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-
-    return StreamBuilder<AppUser?>(
-      stream: authService.userStream,
-      initialData: authService.currentUser, // İlk veriyi kullan
-      builder: (context, snapshot) {
-        // İlk veri varsa hemen göster
-        if (snapshot.hasData && snapshot.data != null) {
-          return const HomeScreenWrapper();
-        }
-
-        // Bağlantı durumu
-        // Bağlantı durumu
-        switch (snapshot.connectionState) {
-          case ConnectionState.waiting:
-            return _buildLoadingScreen();
-
-          case ConnectionState.active:
-          case ConnectionState.done:
-            if (snapshot.hasData && snapshot.data != null) {
+    return Consumer<AuthService>(
+      builder: (context, authService, _) {
+        return StreamBuilder<AppUser?>(
+          stream: authService.userStream,
+          initialData: authService.currentUser,
+          builder: (context, snapshot) {
+            // currentUser öncelikli: misafir çıkışında stream güncellenmediği için
+            // snapshot.data eski kalabilir; signOut sonrası WelcomeScreen göstermek için
+            // currentUser tek kaynak (snapshot sadece stream'in çalışması için)
+            final user = authService.currentUser;
+            if (user != null) {
               return const HomeScreenWrapper();
-            } else {
-              return WelcomeScreen(
-                onSignInComplete: () {
-                  // giriş tamamlandıktan sonra ana ekrana geç
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HomeScreenWrapper(),
-                    ),
-                  );
-                },
-                onSkip: () {
-                  // misafir / atla
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HomeScreenWrapper(),
-                    ),
-                  );
-                },
-              );
             }
 
-          default:
-            return _buildLoadingScreen();
-        }
+            switch (snapshot.connectionState) {
+              case ConnectionState.waiting:
+                return _AuthWrapperLoadingScreen();
 
+              case ConnectionState.active:
+              case ConnectionState.done:
+                return WelcomeScreen(
+                  initialPageIsLoginOptions: authService.showLoginOptionsOnWelcome,
+                  onSignInComplete: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HomeScreenWrapper(),
+                      ),
+                    );
+                  },
+                  onSkip: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HomeScreenWrapper(),
+                      ),
+                    );
+                  },
+                );
+
+              default:
+                return _AuthWrapperLoadingScreen();
+            }
+          },
+        );
       },
     );
   }
+}
 
-  Widget _buildLoadingScreen() {
+class _AuthWrapperLoadingScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -331,75 +350,6 @@ class AuthWrapper extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class HomeScreenWrapper extends StatelessWidget {
-  const HomeScreenWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return HomeScreen(
-      onGameSelection: () {},
-      onDailyRewards: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DailyRewardsScreen(
-              onBack: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      },
-      onBadges: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BadgesScreen(
-              onBack: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      },
-      onFriends: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FriendsScreen(
-              onBack: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      },
-      onStoryMode: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const StoryModeScreen(),
-          ),
-        );
-      },
-      onMiniGames: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MiniGamesScreen(
-              onBack: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      },
-      onPremium: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PremiumScreen(
-              onBack: () => Navigator.pop(context),
-            ),
-          ),
-        );
-      },
     );
   }
 }

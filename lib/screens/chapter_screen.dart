@@ -156,7 +156,7 @@ class _ChapterScreenState extends State<ChapterScreen> {
         itemBuilder: (context, index) {
           final chapter = widget.world.chapters[index];
           final isSelected = index == _selectedChapterIndex;
-          final chapterProgress = progress
+          final _ = progress
               ?.worldProgress[widget.world.id]
               ?.chapterProgress[chapter.id];
           final isLocked = chapter.requiredStars >

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 
 // ============================================================================
 // NESNE TANIMLARI (GameObject Sistemi)
@@ -123,14 +124,16 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   int _currentLevel = 1;
   int _score = 0;
   int _stars = 0;
-  int _lives = 5;
   bool _isAnswered = false;
   bool _isCorrect = false;
+  bool _gameOver = false;
+  bool _hasShownNoLivesDialog = false;
   int _currentCount = 0; // Şu ana kadar sayılan
 
   // Nesne ve soru verileri
   List<GameObject> _objects = [];
   FairyLandQuestion? _currentQuestion;
+  String? _lastLocale; // Dil değiştiğinde soruyu yeniden oluşturmak için
 
   // Renkler
   static const Color _fairyPurple = Color(0xFF9C27B0);
@@ -140,22 +143,19 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   static const Color _crystalCyan = Color(0xFF00E5FF);
   static const Color _earthBrown = Color(0xFF795548);
 
-  // Nesne tanımları
+  // Nesne tanımları (nameKey localization'da kullanılır)
   final Map<ObjectType, Map<String, dynamic>> _objectDefinitions = {
-    // Çiçekler - Çimen Zemin
-    ObjectType.daisy: {'emoji': '🌼', 'name': 'papatya', 'color': Color(0xFFFFEB3B)},
-    ObjectType.tulip: {'emoji': '🌷', 'name': 'lale', 'color': Color(0xFFE91E63)},
-    ObjectType.rose: {'emoji': '🌹', 'name': 'gül', 'color': Color(0xFFF44336)},
-    ObjectType.sunflower: {'emoji': '🌻', 'name': 'ayçiçeği', 'color': Color(0xFFFFC107)},
-    ObjectType.hibiscus: {'emoji': '🌺', 'name': 'hibiskus', 'color': Color(0xFFFF4081)},
-    ObjectType.cherry: {'emoji': '🌸', 'name': 'kiraz çiçeği', 'color': Color(0xFFFFCDD2)},
-    
-    // Sihirli Nesneler - Kristal Zemin
-    ObjectType.crystal: {'emoji': '💎', 'name': 'kristal', 'color': Color(0xFF00E5FF)},
-    ObjectType.diamond: {'emoji': '💎', 'name': 'elmas', 'color': Color(0xFF2979FF)},
-    ObjectType.orb: {'emoji': '🔮', 'name': 'sihirli küre', 'color': Color(0xFF9C27B0)},
-    ObjectType.mushroom: {'emoji': '🍄', 'name': 'sihirli mantar', 'color': Color(0xFFFF5722)},
-    ObjectType.star: {'emoji': '⭐', 'name': 'yıldız', 'color': Color(0xFFFFD700)},
+    ObjectType.daisy: {'emoji': '🌼', 'nameKey': 'fairy_obj_daisy', 'color': Color(0xFFFFEB3B)},
+    ObjectType.tulip: {'emoji': '🌷', 'nameKey': 'fairy_obj_tulip', 'color': Color(0xFFE91E63)},
+    ObjectType.rose: {'emoji': '🌹', 'nameKey': 'fairy_obj_rose', 'color': Color(0xFFF44336)},
+    ObjectType.sunflower: {'emoji': '🌻', 'nameKey': 'fairy_obj_sunflower', 'color': Color(0xFFFFC107)},
+    ObjectType.hibiscus: {'emoji': '🌺', 'nameKey': 'fairy_obj_hibiscus', 'color': Color(0xFFFF4081)},
+    ObjectType.cherry: {'emoji': '🌸', 'nameKey': 'fairy_obj_cherry', 'color': Color(0xFFFFCDD2)},
+    ObjectType.crystal: {'emoji': '💎', 'nameKey': 'fairy_obj_crystal', 'color': Color(0xFF00E5FF)},
+    ObjectType.diamond: {'emoji': '💎', 'nameKey': 'fairy_obj_diamond', 'color': Color(0xFF2979FF)},
+    ObjectType.orb: {'emoji': '🔮', 'nameKey': 'fairy_obj_orb', 'color': Color(0xFF9C27B0)},
+    ObjectType.mushroom: {'emoji': '🍄', 'nameKey': 'fairy_obj_mushroom', 'color': Color(0xFFFF5722)},
+    ObjectType.star: {'emoji': '⭐', 'nameKey': 'fairy_obj_star', 'color': Color(0xFFFFD700)},
   };
 
   @override
@@ -177,7 +177,22 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       duration: const Duration(milliseconds: 300), vsync: this,
     );
 
-    _generateNewQuestion();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    _lastLocale = locale.toString();
+    _generateNewQuestion(AppLocalizations(locale));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final localeStr = locale.toString();
+    if (_lastLocale != null && _lastLocale != localeStr && _currentQuestion != null) {
+      _lastLocale = localeStr;
+      _generateNewQuestion(AppLocalizations(locale));
+    } else {
+      _lastLocale = localeStr;
+    }
   }
 
   @override
@@ -192,26 +207,26 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   // SORU ÜRETİM MOTORU (QuestionGenerator)
   // ============================================================================
 
-  void _generateNewQuestion() {
+  void _generateNewQuestion(AppLocalizations loc) {
     final random = math.Random();
     final questionTypes = QuestionType.values;
     final selectedType = questionTypes[random.nextInt(questionTypes.length)];
 
     switch (selectedType) {
       case QuestionType.sameTypeCounting:
-        _generateSameTypeCounting(random);
+        _generateSameTypeCounting(random, loc);
         break;
       case QuestionType.filteredCounting:
-        _generateFilteredCounting(random);
+        _generateFilteredCounting(random, loc);
         break;
       case QuestionType.generalCounting:
-        _generateGeneralCounting(random);
+        _generateGeneralCounting(random, loc);
         break;
       case QuestionType.additionSameType:
-        _generateAdditionSameType(random);
+        _generateAdditionSameType(random, loc);
         break;
       case QuestionType.subtractionSameType:
-        _generateSubtractionSameType(random);
+        _generateSubtractionSameType(random, loc);
         break;
     }
 
@@ -227,7 +242,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   }
 
   // SORU TİPİ 1: Tek Tür Sayma (Sadece aynı tür nesneler)
-  void _generateSameTypeCounting(math.Random random) {
+  void _generateSameTypeCounting(math.Random random, AppLocalizations loc) {
     // Rastgele bir tür seç
     final allTypes = ObjectType.values;
     final targetType = allTypes[random.nextInt(allTypes.length)];
@@ -237,16 +252,18 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     _objects = [];
     for (int i = 0; i < count; i++) {
       final def = _objectDefinitions[targetType]!;
-      _objects.add(GameObject(
+      final name = loc.get(def['nameKey'] as String);
+    _objects.add(GameObject(
         type: targetType,
         emoji: def['emoji'],
-        name: def['name'],
+        name: name,
         color: def['color'],
         id: i,
       ));
     }
 
     final def = _objectDefinitions[targetType]!;
+    final name = loc.get(def['nameKey'] as String);
     final isFlower = targetType == ObjectType.daisy || 
                      targetType == ObjectType.tulip || 
                      targetType == ObjectType.rose ||
@@ -256,18 +273,18 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.sameTypeCounting,
-      questionText: 'Bahçede kaç tane ${def['name']} var? Say bakalım!',
-      targetTypeName: def['name'],
+      questionText: loc.get('fairy_question_same_type').replaceAll('{0}', name),
+      targetTypeName: name,
       targetType: targetType,
       correctAnswer: count,
       options: _generateOptions(count, random),
       groundType: isFlower ? GroundType.grass : GroundType.crystal,
-      feedbackMessage: 'Harika! Hepsini doğru saydın.',
+      feedbackMessage: loc.get('fairy_feedback_same'),
     );
   }
 
   // SORU TİPİ 2: Filtreli Sayma (Karışık içinden spesifik)
-  void _generateFilteredCounting(math.Random random) {
+  void _generateFilteredCounting(math.Random random, AppLocalizations loc) {
     // Hedef tür ve diğer türleri karıştır
     final allTypes = ObjectType.values.toList();
     final targetType = allTypes[random.nextInt(allTypes.length)];
@@ -283,7 +300,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       _objects.add(GameObject(
         type: targetType,
         emoji: def['emoji'],
-        name: def['name'],
+        name: loc.get(def['nameKey'] as String),
         color: def['color'],
         id: id++,
       ));
@@ -300,7 +317,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       _objects.add(GameObject(
         type: otherType,
         emoji: def['emoji'],
-        name: def['name'],
+        name: loc.get(def['nameKey'] as String),
         color: def['color'],
         id: id++,
       ));
@@ -310,6 +327,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     _objects.shuffle(random);
 
     final def = _objectDefinitions[targetType]!;
+    final name = loc.get(def['nameKey'] as String);
     final isFlower = targetType == ObjectType.daisy || 
                      targetType == ObjectType.tulip || 
                      targetType == ObjectType.rose ||
@@ -319,18 +337,18 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.filteredCounting,
-      questionText: 'Sadece ${def['name']} olanları say! Diğerlerine dokunma.',
-      targetTypeName: def['name'],
+      questionText: loc.get('fairy_question_filtered').replaceAll('{0}', name),
+      targetTypeName: name,
       targetType: targetType,
       correctAnswer: targetCount,
       options: _generateOptions(targetCount, random),
       groundType: isFlower ? GroundType.grass : GroundType.crystal,
-      feedbackMessage: 'Çok dikkatlisin! Sadece ${def['name']} olanları saydın.',
+      feedbackMessage: loc.get('fairy_question_filtered_feedback').replaceAll('{0}', name),
     );
   }
 
   // SORU TİPİ 3: Genel Sayma (Tümü)
-  void _generateGeneralCounting(math.Random random) {
+  void _generateGeneralCounting(math.Random random, AppLocalizations loc) {
     final count = 6 + random.nextInt(5); // 6-10 arası (kompakt)
     final allTypes = ObjectType.values.toList();
 
@@ -341,7 +359,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       _objects.add(GameObject(
         type: type,
         emoji: def['emoji'],
-        name: def['name'],
+        name: loc.get(def['nameKey'] as String),
         color: def['color'],
         id: i,
       ));
@@ -353,17 +371,17 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.generalCounting,
-      questionText: 'Bahçedeki tüm sihirli nesnelerin sayısı kaç?',
-      targetTypeName: 'tüm nesneler',
+      questionText: loc.get('fairy_question_general'),
+      targetTypeName: loc.get('fairy_all_objects'),
       correctAnswer: count,
       options: _generateOptions(count, random),
       groundType: groundType,
-      feedbackMessage: 'Harika! Hepsini saydın.',
+      feedbackMessage: loc.get('fairy_question_general_feedback'),
     );
   }
 
   // SORU TİPİ 4: Toplama (Aynı tür)
-  void _generateAdditionSameType(math.Random random) {
+  void _generateAdditionSameType(math.Random random, AppLocalizations loc) {
     final allTypes = ObjectType.values.toList();
     final targetType = allTypes[random.nextInt(allTypes.length)];
     final initialCount = 4 + random.nextInt(6); // 4-9
@@ -373,10 +391,11 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     // Sembolik gösterim: 1 nesne + ? (cevabı vermemek için)
     _objects = [];
     final def = _objectDefinitions[targetType]!;
+    final name = loc.get(def['nameKey'] as String);
     _objects.add(GameObject(
       type: targetType,
       emoji: def['emoji'],
-      name: def['name'],
+      name: name,
       color: def['color'],
       id: 0,
     ));
@@ -390,18 +409,21 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.additionSameType,
-      questionText: 'Bahçede $initialCount tane ${def['name']} var. $additionalCount tane daha ekersek toplam kaç ${def['name']} olur?',
-      targetTypeName: def['name'],
+      questionText: loc.get('fairy_question_addition')
+          .replaceAll('{0}', '$initialCount')
+          .replaceAll('{1}', name)
+          .replaceAll('{2}', '$additionalCount'),
+      targetTypeName: name,
       targetType: targetType,
       correctAnswer: totalCount,
       options: _generateOptions(totalCount, random),
       groundType: isFlower ? GroundType.grass : GroundType.crystal,
-      feedbackMessage: 'Süper! Toplam ${def['name']} sayısını buldun.',
+      feedbackMessage: loc.get('fairy_feedback_addition').replaceAll('{0}', name),
     );
   }
 
   // SORU TİPİ 5: Eksiltme (Aynı tür)
-  void _generateSubtractionSameType(math.Random random) {
+  void _generateSubtractionSameType(math.Random random, AppLocalizations loc) {
     final allTypes = ObjectType.values.toList();
     final targetType = allTypes[random.nextInt(allTypes.length)];
     final initialCount = 6 + random.nextInt(6); // 6-11
@@ -411,10 +433,11 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     // Sembolik gösterim: 1 nesne + ? (cevabı vermemek için)
     _objects = [];
     final def = _objectDefinitions[targetType]!;
+    final name = loc.get(def['nameKey'] as String);
     _objects.add(GameObject(
       type: targetType,
       emoji: def['emoji'],
-      name: def['name'],
+      name: name,
       color: def['color'],
       id: 0,
     ));
@@ -427,13 +450,16 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.subtractionSameType,
-      questionText: '$initialCount tane ${def['name']} vardı. Periler $removeCount tanesini tozuna dönüştürdü. Geriye kaç ${def['name']} kaldı?',
-      targetTypeName: def['name'],
+      questionText: loc.get('fairy_question_subtraction')
+          .replaceAll('{0}', '$initialCount')
+          .replaceAll('{1}', name)
+          .replaceAll('{2}', '$removeCount'),
+      targetTypeName: name,
       targetType: targetType,
       correctAnswer: remainingCount,
       options: _generateOptions(remainingCount, random),
       groundType: isFlower ? GroundType.grass : GroundType.crystal,
-      feedbackMessage: 'Doğru! Perilerin tozuna dönüştürdükten sonra kalanları saydın.',
+      feedbackMessage: loc.get('fairy_feedback_subtraction'),
     );
   }
 
@@ -483,7 +509,9 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   }
 
   void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
 
     final isCorrect = answer == _currentQuestion!.correctAnswer;
 
@@ -498,16 +526,87 @@ class _FairyLandScreenState extends State<FairyLandScreen>
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
-            _generateNewQuestion();
+            final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+            _generateNewQuestion(AppLocalizations(locale));
           }
         });
       } else {
-        _lives = (_lives - 1).clamp(0, 5);
+        mechanicsService.onWrongAnswer();
+        if (!mechanicsService.hasLives) {
+          _gameOver = true;
+          _showGameOver();
+          return;
+        }
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateNewQuestion();
+          if (mounted && !_gameOver) {
+            final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+            _generateNewQuestion(AppLocalizations(locale));
+          }
         });
       }
     });
+  }
+
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🧚', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🧚', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('lives_finished'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
   }
 
   // ============================================================================
@@ -517,7 +616,14 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
-    
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
+
     if (_currentQuestion == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -541,9 +647,9 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                           const SizedBox(height: 8),
                           _buildLevelInfo(loc),
                           const SizedBox(height: 12),
-                          _buildCentralPlayArea(),
+                          _buildCentralPlayArea(loc),
                           const SizedBox(height: 12),
-                          _buildAnswerSection(),
+                          _buildAnswerSection(loc),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -630,58 +736,64 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   }
 
   Widget _buildTopBar(AppLocalizations loc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.8),
-                shape: BoxShape.circle,
-                border: Border.all(color: _fairyPurple.withOpacity(0.5)),
+    return Consumer<GameMechanicsService>(
+      builder: (context, mechanicsService, _) {
+        final lives = mechanicsService.currentLives;
+        final maxLives = mechanicsService.maxLives;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _fairyPurple.withOpacity(0.5)),
+                  ),
+                  child: Icon(Icons.arrow_back, color: _fairyPurple, size: 22),
+                ),
               ),
-              child: Icon(Icons.arrow_back, color: _fairyPurple, size: 22),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('🧚 ${loc.get('world_fairy_land')}', style: _textStyle(_fairyPurple, size: 18, bold: true)),
+                    Text(_getGroundLabel(loc), style: _textStyle(Colors.white, size: 11)),
+                  ],
+                ),
+              ),
+              Row(
+                children: List.generate(maxLives, (i) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 1),
+                    child: Text(i < lives ? '🧚' : '💨', style: const TextStyle(fontSize: 18)),
+                  );
+                }),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text('⭐ $_stars', style: _textStyle(Colors.white, size: 16, bold: true)),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('🧚 Periler Diyarı', style: _textStyle(_fairyPurple, size: 18, bold: true)),
-                Text(_getGroundLabel(), style: _textStyle(Colors.white, size: 11)),
-              ],
-            ),
-          ),
-          Row(
-            children: List.generate(5, (i) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 1),
-                child: Text(i < _lives ? '🧚' : '💨', style: const TextStyle(fontSize: 18)),
-              );
-            }),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text('⭐ $_stars', style: _textStyle(Colors.white, size: 16, bold: true)),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  String _getGroundLabel() {
+  String _getGroundLabel(AppLocalizations loc) {
     final groundType = _currentQuestion!.groundType;
-    return groundType == GroundType.grass ? '🌱 Sihirli Bahçe' : '💎 Kristal Mağara';
+    return groundType == GroundType.grass ? loc.get('fairy_ground_magic_garden') : loc.get('fairy_ground_crystal_cave');
   }
 
   Widget _buildCharacterMessage(AppLocalizations loc) {
@@ -712,7 +824,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Peri Prenses', style: _textStyle(_fairyPurple, size: 16, bold: true)),
+                Text(loc.get('fairy_character_name'), style: _textStyle(_fairyPurple, size: 16, bold: true)),
                 const SizedBox(height: 6),
                 Text(
                   _currentQuestion!.questionText,
@@ -740,11 +852,11 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Seviye', '$_currentLevel', '🎯'),
-          _buildStatItem('Puan', '$_score', '⭐'),
+          _buildStatItem(loc.get('level_label'), '$_currentLevel', '🎯'),
+          _buildStatItem(loc.get('score'), '$_score', '⭐'),
           if (_currentQuestion!.type == QuestionType.filteredCounting ||
               _currentQuestion!.type == QuestionType.sameTypeCounting)
-            _buildStatItem('Sayılan', '$_currentCount', '🔢'),
+            _buildStatItem(loc.get('fairy_counted'), '$_currentCount', '🔢'),
         ],
       ),
     );
@@ -765,7 +877,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   // MERKEZİ OYUN ALANI (Central Play Area)
   // ============================================================================
 
-  Widget _buildCentralPlayArea() {
+  Widget _buildCentralPlayArea(AppLocalizations loc) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
@@ -793,12 +905,12 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _currentQuestion!.groundType == GroundType.grass ? '🌱 Çimen Zemin' : '💎 Kristal Zemin',
+                  _currentQuestion!.groundType == GroundType.grass ? loc.get('fairy_ground_grass') : loc.get('fairy_ground_crystal'),
                   style: _textStyle(_fairyPurple, size: 11, bold: true),
                 ),
               ),
               const SizedBox(height: 12),
-              _buildObjectGrid(availableWidth),
+              _buildObjectGrid(loc, availableWidth),
             ],
           ),
         );
@@ -806,15 +918,17 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     );
   }
 
-  Widget _buildObjectGrid(double availableWidth) {
+  Widget _buildObjectGrid(AppLocalizations loc, double availableWidth) {
     if (_objects.isEmpty) {
-      return const SizedBox(height: 60, child: Center(child: Text('Yükleniyor...')));
+      return SizedBox(height: 60, child: Center(child: Text(loc.get('fairy_loading'))));
     }
     const cellSize = 44.0;
     const spacing = 6.0;
 
     final isMathQuestion = _currentQuestion!.type == QuestionType.additionSameType ||
         _currentQuestion!.type == QuestionType.subtractionSameType;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final disableObjectTap = isMathQuestion || _gameOver || !mechanicsService.hasLives;
 
     return Wrap(
       alignment: WrapAlignment.center,
@@ -824,7 +938,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
         ..._objects.map((obj) => SizedBox(
           width: cellSize,
           height: cellSize,
-          child: _buildObjectItem(obj, isMathQuestion),
+          child: _buildObjectItem(obj, disableObjectTap),
         )),
         if (isMathQuestion) SizedBox(
           width: cellSize,
@@ -910,7 +1024,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   // CEVAP BÖLMESİ
   // ============================================================================
 
-  Widget _buildAnswerSection() {
+  Widget _buildAnswerSection(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(14),
@@ -923,7 +1037,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Cevabını seç:',
+            loc.get('choose_answer'),
             style: _textStyle(_fairyPurple, size: 13, bold: true),
           ),
           const SizedBox(height: 12),
@@ -949,8 +1063,10 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       buttonColor = Colors.white.withOpacity(0.9);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(value),
+      onTap: canTap ? () => _checkAnswer(value) : null,
       child: Container(
         width: 70,
         height: 52,

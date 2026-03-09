@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Ebeveyn paneline erişim için Face ID kullanılır</string>
 </dict>
 </plist>

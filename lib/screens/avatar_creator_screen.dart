@@ -147,11 +147,13 @@ class _AvatarCreatorScreenState extends State<AvatarCreatorScreen>
     super.dispose();
   }
 
-  // DOSYA YOLU FONKSİYONLARI
+  // DOSYA YOLU FONKSİYONLARI (gelecekte kullanım için)
+  // ignore: unused_element
   String _getSkinPath() {
     return 'assets/avatar/skin/${_skinTints[_selectedSkinIndex]}.png';
   }
 
+  // ignore: unused_element
   String _getHairPath() {
     final color = _hairColors[_selectedHairColorIndex].toLowerCase().replaceAll(' ', '');
     final style = _selectedHairStyleIndex + 1;
@@ -163,17 +165,20 @@ class _AvatarCreatorScreenState extends State<AvatarCreatorScreen>
     return 'assets/avatar/face/face${_selectedFaceIndex + 1}.png';
   }
 
+  // ignore: unused_element
   String _getShirtPath() {
     final color = _shirtColors[_selectedShirtIndex].toLowerCase();
     final style = _selectedShirtIndex + 1;
     return 'assets/avatar/shirts/${color}shirt$style.png';
   }
 
+  // ignore: unused_element
   String _getPantsPath() {
     final color = _pantsColors[_selectedPantsIndex].toLowerCase().replaceAll(' ', '');
     return 'assets/avatar/pants/${color}_pants.png';
   }
 
+  // ignore: unused_element
   String _getShoesPath() {
     final color = _shoesColors[_selectedShoesColorIndex].toLowerCase().replaceAll(' ', '');
     final style = _selectedShoesStyleIndex + 1;

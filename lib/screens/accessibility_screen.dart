@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../localization/app_localizations.dart';
 
 /// Erişilebilirlik Ayarları Ekranı
 /// Karanlık mod, sesli okuma, büyük yazı

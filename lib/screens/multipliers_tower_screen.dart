@@ -395,14 +395,14 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('✨ Sihirli Sayı', style: _textStyle(Colors.white, size: 12)),
+                  Text('✨ ${loc.get('multipliers_tower_target')}', style: _textStyle(Colors.white, size: 12)),
                   if (_targetB > 0)
                     Text('$_targetNumber & $_targetB', style: _textStyle(_gold, size: 28, bold: true))
                   else
                     Text('$_targetNumber', style: _textStyle(_gold, size: 36, bold: true)),
-                  if (_questionType == 1) Text('Bölenlerini bul!', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-                  if (_questionType == 2) Text('Ortak katını bul!', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-                  if (_questionType == 3) Text('Ortak bölenini bul!', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
+                  if (_questionType == 1) Text(loc.get('multipliers_tower_find_divisors'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
+                  if (_questionType == 2) Text(loc.get('multipliers_tower_find_lcm'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
+                  if (_questionType == 3) Text(loc.get('multipliers_tower_find_gcd'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
                 ],
               ),
             ],

@@ -346,21 +346,26 @@ class _BalloonPopGameState extends State<BalloonPopGame>
               // Clouds background
               ..._buildClouds(),
 
-              // Main content
+              // Main content - RepaintBoundary prevents header/target from repainting on balloon updates
               Column(
                 children: [
-                  // Header
-                  _buildHeader(localizations),
-
-                  // Target number
-                  _buildTargetSection(localizations),
-
-                  // Game area
+                  RepaintBoundary(
+                    child: _buildHeader(localizations),
+                  ),
+                  RepaintBoundary(
+                    child: _buildTargetSection(localizations),
+                  ),
                   Expanded(
-                    child: Stack(
-                      children: _balloons.map((balloon) {
-                        return _buildBalloon(balloon);
-                      }).toList(),
+                    child: RepaintBoundary(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Stack(
+                            children: _balloons.map((balloon) {
+                              return _buildBalloon(balloon, constraints.biggest);
+                            }).toList(),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -490,12 +495,25 @@ class _BalloonPopGameState extends State<BalloonPopGame>
               color: const Color(0xFFFF6B6B),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Text(
-              '$_targetNumber',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: animation,
+                  child: child,
+                ),
+              ),
+              child: Text(
+                '$_targetNumber',
+                key: ValueKey<int>(_targetNumber),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -504,13 +522,13 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     );
   }
 
-  Widget _buildBalloon(Balloon balloon) {
+  Widget _buildBalloon(Balloon balloon, Size gameAreaSize) {
     if (balloon.isPopped) return const SizedBox.shrink();
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 50),
-      left: MediaQuery.of(context).size.width * balloon.x - 40,
-      bottom: MediaQuery.of(context).size.height * balloon.y - 100,
+    return Positioned(
+      key: ValueKey(balloon.id),
+      left: gameAreaSize.width * balloon.x - 40,
+      bottom: gameAreaSize.height * balloon.y - 100,
       child: GestureDetector(
         onTap: () => _popBalloon(balloon),
         child: Transform.scale(

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 
 /// Siber Atölye - Robot Laboratuvarı Temalı Sayma Oyunu
 /// Matematik Gezginleri - Tekno-Sincap ile matematik çipleri
@@ -29,6 +30,8 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
   String _currentTechObject = '⚙️'; // Soru değişene kadar sabit kalmalı (flash önleme)
   bool _isAnswered = false;
   bool _isCorrect = false;
+  bool _gameOver = false;
+  bool _hasShownNoLivesDialog = false;
 
   // Siber Atölye nesneleri: Flaticon chip teması - dişli, pil, mikroçip, devre, CPU, anten vb.
   // Her emoji için localization key (siber_atolye_tech_XXX)
@@ -118,7 +121,9 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
   }
 
   void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
 
     setState(() {
       _isAnswered = true;
@@ -136,16 +141,92 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
           }
         });
       } else {
+        mechanicsService.onWrongAnswer();
+        if (!mechanicsService.hasLives) {
+          _gameOver = true;
+          _showGameOver();
+          return;
+        }
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion();
+          if (mounted && !_gameOver) _generateQuestion();
         });
       }
     });
   }
 
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🤖', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🤖', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('lives_finished'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -241,6 +322,20 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
               ],
             ),
           ),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(maxLives, (i) => Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(i < lives ? '🧩' : '🔌', style: const TextStyle(fontSize: 20)),
+                )),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -473,8 +568,10 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
       buttonColor = _darkGray.withOpacity(0.6);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(number),
+      onTap: canTap ? () => _checkAnswer(number) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         height: 70,

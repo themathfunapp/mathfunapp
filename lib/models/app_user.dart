@@ -174,11 +174,6 @@ class AppUser {
     return '$prefix$numbers';
   }
 
-  // Eski guest ID uyumluluğu için
-  static String _generateGuestId() {
-    return _generateUserCode();
-  }
-
   // =========================
   // Getter'lar
   // =========================

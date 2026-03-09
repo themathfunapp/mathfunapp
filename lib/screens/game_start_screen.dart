@@ -1148,21 +1148,23 @@ class _GameStartScreenState extends State<GameStartScreen>
         Row(
           children: [
             _buildDiscoverCard(
+              localizations: localizations,
               emoji: '🧩',
               title: localizations.get('intelligence_games'),
               subtitle: localizations.get('brain_games'),
               color: const Color(0xFF00CEC9),
               onTap: () => _openDiscoverItem('intelligence_games'),
-              isPremium: true,
+              isPremium: false, // TODO: Test için geçici kapatıldı
             ),
             const SizedBox(width: 12),
             _buildDiscoverCard(
+              localizations: localizations,
               emoji: '🎨',
               title: localizations.get('colorful_math'),
               subtitle: localizations.get('fun_design'),
               color: const Color(0xFF74B9FF),
               onTap: () => _openDiscoverItem('colorful_math'),
-              isPremium: true,
+              isPremium: false, // TODO: Test için geçici kapatıldı
             ),
           ],
         ),
@@ -1177,6 +1179,7 @@ class _GameStartScreenState extends State<GameStartScreen>
   }
 
   Widget _buildDiscoverCard({
+    required AppLocalizations localizations,
     required String emoji,
     required String title,
     required String subtitle,
@@ -1261,14 +1264,14 @@ class _GameStartScreenState extends State<GameStartScreen>
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('👑', style: TextStyle(fontSize: 10)),
-                      SizedBox(width: 2),
+                      const Text('👑', style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 2),
                       Text(
-                        'PRO',
-                        style: TextStyle(
+                        localizations.get('premium_badge'),
+                        style: const TextStyle(
                           fontSize: 8,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF8B4513),
@@ -1736,13 +1739,12 @@ class _GameStartScreenState extends State<GameStartScreen>
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     final localizations = AppLocalizations(localeProvider.locale);
     
-    // Premium kontrol gerektiren özellikler
-    const premiumFeatures = ['intelligence_games', 'colorful_math'];
-    
-    if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
-      _showPremiumRequiredDialog(localizations.get(itemKey));
-      return;
-    }
+    // Premium kontrol gerektiren özellikler - TODO: Test için geçici devre dışı
+    // const premiumFeatures = ['intelligence_games', 'colorful_math'];
+    // if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
+    //   _showPremiumRequiredDialog(localizations.get(itemKey));
+    //   return;
+    // }
 
     if (itemKey == 'colorful_math') {
       Navigator.push(
@@ -1887,9 +1889,10 @@ class _GameStartScreenState extends State<GameStartScreen>
   // Premium ekranına yönlendir
   void _navigateToPremiumScreen() {
     // TODO: Premium satın alma ekranına yönlendir
+    final localizations = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Premium üyelik yakında aktif olacak! 👑'),
+        content: Text(localizations.get('premium_coming_soon')),
         backgroundColor: Colors.amber.shade700,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

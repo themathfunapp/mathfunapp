@@ -7,7 +7,6 @@ import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import 'game_start_screen.dart';
 
 /// Günlük Meydan Okuma Ekranı - 5 CAN SİSTEMİ (GameMechanicsService ile profil senkron)
 class DailyChallengeScreen extends StatefulWidget {
@@ -292,9 +291,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       barrierDismissible: false,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 64, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF2C3E50), Color(0xFFE74C3C)],
               begin: Alignment.topCenter,
@@ -395,6 +397,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             },
           ),
         ),
+        ),
       ),
     );
   }
@@ -451,28 +454,32 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     final adService = AdService();
     adService.showInterstitialAd();
 
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isSuccess
-                  ? [const Color(0xFF11998e), const Color(0xFF38ef7d)]
-                  : [const Color(0xFF667eea), const Color(0xFF764ba2)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 64, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isSuccess
+                    ? [const Color(0xFF11998e), const Color(0xFF38ef7d)]
+                    : [const Color(0xFF667eea), const Color(0xFF764ba2)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(24),
             ),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isSuccess ? '🎉 BAŞARILI! 🎉' : '💪 GÜZEL DENEME!',
+                isSuccess ? '🎉 ${loc.get('challenge_success')} 🎉' : '💪 ${loc.get('challenge_try_again')}',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -490,13 +497,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                 ),
                 child: Column(
                   children: [
-                    _buildResultRow('⭐ Puan', '$_score'),
+                    _buildResultRow('⭐ ${loc.get('score')}', '$_score'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('✅ Doğru', '$_correctAnswers'),
+                    _buildResultRow('✅ ${loc.get('correct')}', '$_correctAnswers'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('❌ Yanlış', '$_wrongAnswers'),
+                    _buildResultRow('❌ ${loc.get('wrong')}', '$_wrongAnswers'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('🔥 Max Combo', '$_maxCombo'),
+                    _buildResultRow('🔥 ${loc.get('max_combo')}', '$_maxCombo'),
                   ],
                 ),
               ),
@@ -515,7 +522,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                       const Text('🪙', style: TextStyle(fontSize: 24)),
                       const SizedBox(width: 8),
                       Text(
-                        '+${challenge.rewardCoins} Altın',
+                        '+${challenge.rewardCoins} ${loc.get('money_market_currency')}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -545,8 +552,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'TAMAM',
+                child: Text(
+                  loc.get('ok'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -555,6 +562,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -855,7 +863,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                             const SizedBox(width: 16),
                             const Text('⭐', style: TextStyle(fontSize: 18)),
                             Text(
-                              ' ${challenge.rewardXp} XP',
+                              ' ${challenge.rewardXp} ${loc.get('xp')}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -982,6 +990,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   // OYUN EKRANI - CAN GÖSTERGESİ EKLENDİ
   Widget _buildPlayingView() {
     final isLowTime = _timeLeft <= 30;
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
 
     return Column(
       children: [
@@ -1096,7 +1105,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '🔥 COMBO x$_combo',
+              '🔥 ${loc.get('combo_format').replaceAll('{0}', '$_combo')}',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -1194,27 +1203,32 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
         const SizedBox(height: 30),
 
-        // Seçenekler
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            children: [
-              Row(
+        // Seçenekler - ekran genişliğinin %80'i ile sınırlandırıldı
+        Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              child: Column(
                 children: [
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                  Row(
+                    children: [
+                      Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ],

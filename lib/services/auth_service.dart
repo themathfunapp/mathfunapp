@@ -55,6 +55,16 @@ class AuthService extends ChangeNotifier {
     return _userStream!;
   }
 
+  /// Profilde "Hesap Oluştur" tıklandığında true yapılır; WelcomeScreen giriş sayfasına (index 1) başlar
+  bool showLoginOptionsOnWelcome = false;
+
+  void setShowLoginOptionsOnWelcome(bool value) {
+    if (showLoginOptionsOnWelcome != value) {
+      showLoginOptionsOnWelcome = value;
+      notifyListeners();
+    }
+  }
+
   // Constructor
   AuthService() {
     _initializeGuestUser();

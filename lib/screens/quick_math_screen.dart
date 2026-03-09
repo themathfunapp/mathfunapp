@@ -1076,21 +1076,24 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   Widget _buildResultsDialog() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     final percentage = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions * 100).round() : 0;
     final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
 
+    final screenWidth = MediaQuery.of(context).size.width;
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.24),
       child: SingleChildScrollView(
         child: Container(
-          padding: const EdgeInsets.all(30),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [Colors.purple.shade400, Colors.blue.shade400],
             ),
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -1102,17 +1105,17 @@ class _QuickMathScreenState extends State<QuickMathScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '🎉 OYUN BİTTİ 🎉',
-                style: TextStyle(
-                  fontSize: 28,
+              Text(
+                '🎉 ${loc.get('game_over')} 🎉',
+                style: const TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   shadows: [Shadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 3))],
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1126,7 +1129,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                         child: Icon(
                           index < stars ? Icons.star : Icons.star_border,
                           color: Colors.amber,
-                          size: 60,
+                          size: 36,
                           shadows: [
                             Shadow(
                               color: Colors.black.withOpacity(0.3),
@@ -1141,33 +1144,33 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 }),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 12),
 
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
                 child: Column(
                   children: [
-                    _buildResultRow('📊 Doğru Cevaplar', '$_correctAnswers / $_totalQuestions'),
+                    _buildResultRow('📊 ${loc.get('correct_answers')}', '$_correctAnswers / $_totalQuestions'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('❌ Yanlış Cevaplar', '$_wrongAnswers'),
+                    _buildResultRow('❌ ${loc.get('wrong_answers')}', '$_wrongAnswers'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('⭐ Toplam Puan', '$_score'),
+                    _buildResultRow('⭐ ${loc.get('total_score')}', '$_score'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('🎯 Başarı Oranı', '%$percentage'),
+                    _buildResultRow('🎯 ${loc.get('success_rate')}', '%$percentage'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('⏱️ Toplam Süre', '${_totalTime}s'),
+                    _buildResultRow('⏱️ ${loc.get('total_time')}', '${_totalTime}s'),
                     const Divider(color: Colors.white24),
-                    _buildResultRow('❤️ Kalan Can', '${mechanicsService.currentLives}/${mechanicsService.maxLives}'),
+                    _buildResultRow('❤️ ${loc.get('lives_remaining')}', '${mechanicsService.currentLives}/${mechanicsService.maxLives}'),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 12),
 
               Row(
                 children: [
@@ -1180,16 +1183,16 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white.withOpacity(0.2),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [Icon(Icons.home), SizedBox(width: 8), Text('Ana Menü', style: TextStyle(fontSize: 16))],
+                        children: [const Icon(Icons.home, size: 16), const SizedBox(width: 4), Text(loc.get('main_menu'), style: const TextStyle(fontSize: 12))],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
@@ -1199,13 +1202,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         elevation: 8,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [Icon(Icons.refresh), SizedBox(width: 8), Text('Tekrar Oyna', style: TextStyle(fontSize: 16))],
+                        children: [const Icon(Icons.refresh, size: 16), const SizedBox(width: 4), Text(loc.get('play_again'), style: const TextStyle(fontSize: 12))],
                       ),
                     ),
                   ),
@@ -1220,12 +1223,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   Widget _buildResultRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 16, color: Colors.white70)),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
         ],
       ),
     );

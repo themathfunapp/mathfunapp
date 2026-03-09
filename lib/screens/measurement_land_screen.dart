@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 
 /// Ölçüm Diyarı - Büyük-küçük, uzun-kısa kavramlarını öğren!
 class MeasurementLandScreen extends StatefulWidget {
@@ -26,10 +27,12 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
   int _currentLevel = 1;
   int _score = 0;
   int _stars = 0;
-  int _lives = 5;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _isBonusLevel = false;
+  bool _gameOver = false;
+  bool _hasShownNoLivesDialog = false;
+  String? _lastLocale;
 
   String _questionType = 'bigSmall';
   String _questionText = '';
@@ -39,23 +42,22 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
   static const Color _orange = Color(0xFFFF9800);
   static const Color _yellow = Color(0xFFFFC107);
 
-  /// Soru tipleri: Sadece doğal boyutları net olan nesneler (cetvel, kalem gibi
-  /// belirsiz ölçülebilir nesneler hariç - gerçek dünyada boyutları kesin)
+  /// Soru tipleri: questionKey ile lokalizasyon
   static final List<Map<String, dynamic>> _questionSets = [
-    {'question': 'Hangisi daha BÜYÜK?', 'correctPool': ['🐘', '🦣', '🦛', '🐫', '🦒', '🐋'], 'wrongPool': ['🐜', '🐛', '🦗', '🐝', '🐞', '🦟']},
-    {'question': 'Hangisi daha KÜÇÜK?', 'correctPool': ['🐜', '🐛', '🦗', '🐝', '🐞', '🦟'], 'wrongPool': ['🐘', '🦣', '🦛', '🐫', '🦒']},
-    {'question': 'Hangisi daha UZUN?', 'correctPool': ['🦒', '🐍', '🦎', '🐘'], 'wrongPool': ['🐢', '🐁', '🐹', '🐸', '🐌']},
-    {'question': 'Hangisi daha KISA?', 'correctPool': ['🐢', '🐁', '🐹', '🐸', '🐌'], 'wrongPool': ['🦒', '🐍', '🦎', '🐘']},
-    {'question': 'Hangisi daha AĞIR?', 'correctPool': ['🐘', '🦣', '🦛', '🚗', '🏔️', '🐋'], 'wrongPool': ['🪶', '🪁', '🍃', '🦋', '🪺', '🪹']},
-    {'question': 'Hangisi daha HAFİF?', 'correctPool': ['🪶', '🪁', '🍃', '🦋', '🪺'], 'wrongPool': ['🐘', '🦣', '🦛', '🚗', '🐋']},
-    {'question': 'Hangisi daha UZUN BOYLU?', 'correctPool': ['🦒', '🌳', '🏢', '🐘'], 'wrongPool': ['🐜', '🐁', '🌱', '🐌', '🐹']},
-    {'question': 'Hangisi daha KISA BOYLU?', 'correctPool': ['🐜', '🐁', '🌱', '🐌', '🐹'], 'wrongPool': ['🦒', '🌳', '🏢', '🐘']},
-    {'question': 'Hangisi daha GENİŞ?', 'correctPool': ['🐘', '🦣', '🦛', '🐋', '🦭', '🐫'], 'wrongPool': ['🦒', '🐍', '🪶', '🐸', '🐌']},
-    {'question': 'Hangisi daha DAR?', 'correctPool': ['🦒', '🐍', '🪶', '🐸', '🐌'], 'wrongPool': ['🐘', '🦣', '🦛', '🐋']},
-    {'question': 'Hangisi daha BÜYÜK meyve?', 'correctPool': ['🍎', '🍐', '🍊', '🍉', '🍈'], 'wrongPool': ['🍒', '🍇', '🫐', '🍓', '🫒']},
-    {'question': 'Hangisi daha KÜÇÜK meyve?', 'correctPool': ['🍒', '🍇', '🫐', '🍓', '🫒'], 'wrongPool': ['🍎', '🍐', '🍊', '🍉']},
-    {'question': 'Hangisi daha BÜYÜK bina?', 'correctPool': ['🏰', '🏢', '🏛️', '🏗️'], 'wrongPool': ['🏠', '🏚️', '🏕️', '⛺']},
-    {'question': 'Hangisi daha KÜÇÜK ev?', 'correctPool': ['🏠', '🏚️', '🏕️', '⛺'], 'wrongPool': ['🏰', '🏢', '🏛️']},
+    {'questionKey': 'measurement_q_bigger', 'correctPool': ['🐘', '🦣', '🦛', '🐫', '🦒', '🐋'], 'wrongPool': ['🐜', '🐛', '🦗', '🐝', '🐞', '🦟']},
+    {'questionKey': 'measurement_q_smaller', 'correctPool': ['🐜', '🐛', '🦗', '🐝', '🐞', '🦟'], 'wrongPool': ['🐘', '🦣', '🦛', '🐫', '🦒']},
+    {'questionKey': 'measurement_q_longer', 'correctPool': ['🦒', '🐍', '🦎', '🐘'], 'wrongPool': ['🐢', '🐁', '🐹', '🐸', '🐌']},
+    {'questionKey': 'measurement_q_shorter', 'correctPool': ['🐢', '🐁', '🐹', '🐸', '🐌'], 'wrongPool': ['🦒', '🐍', '🦎', '🐘']},
+    {'questionKey': 'measurement_q_heavier', 'correctPool': ['🐘', '🦣', '🦛', '🚗', '🏔️', '🐋'], 'wrongPool': ['🪶', '🪁', '🍃', '🦋', '🪺', '🪹']},
+    {'questionKey': 'measurement_q_lighter', 'correctPool': ['🪶', '🪁', '🍃', '🦋', '🪺'], 'wrongPool': ['🐘', '🦣', '🦛', '🚗', '🐋']},
+    {'questionKey': 'measurement_q_taller', 'correctPool': ['🦒', '🌳', '🏢', '🐘'], 'wrongPool': ['🐜', '🐁', '🌱', '🐌', '🐹']},
+    {'questionKey': 'measurement_q_shorter_height', 'correctPool': ['🐜', '🐁', '🌱', '🐌', '🐹'], 'wrongPool': ['🦒', '🌳', '🏢', '🐘']},
+    {'questionKey': 'measurement_q_wider', 'correctPool': ['🐘', '🦣', '🦛', '🐋', '🦭', '🐫'], 'wrongPool': ['🦒', '🐍', '🪶', '🐸', '🐌']},
+    {'questionKey': 'measurement_q_narrower', 'correctPool': ['🦒', '🐍', '🪶', '🐸', '🐌'], 'wrongPool': ['🐘', '🦣', '🦛', '🐋']},
+    {'questionKey': 'measurement_q_bigger_fruit', 'correctPool': ['🍎', '🍐', '🍊', '🍉', '🍈'], 'wrongPool': ['🍒', '🍇', '🫐', '🍓', '🫒']},
+    {'questionKey': 'measurement_q_smaller_fruit', 'correctPool': ['🍒', '🍇', '🫐', '🍓', '🫒'], 'wrongPool': ['🍎', '🍐', '🍊', '🍉']},
+    {'questionKey': 'measurement_q_bigger_building', 'correctPool': ['🏰', '🏢', '🏛️', '🏗️'], 'wrongPool': ['🏠', '🏚️', '🏕️', '⛺']},
+    {'questionKey': 'measurement_q_smaller_house', 'correctPool': ['🏠', '🏚️', '🏕️', '⛺'], 'wrongPool': ['🏰', '🏢', '🏛️']},
   ];
 
   @override
@@ -84,7 +86,22 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       vsync: this,
     );
 
-    _generateQuestion();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    _lastLocale = locale.toString();
+    _generateQuestion(AppLocalizations(locale));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final localeStr = locale.toString();
+    if (_lastLocale != null && _lastLocale != localeStr) {
+      _lastLocale = localeStr;
+      _generateQuestion(AppLocalizations(locale));
+    } else {
+      _lastLocale = localeStr;
+    }
   }
 
   @override
@@ -102,12 +119,12 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     return _questionSets;
   }
 
-  void _generateQuestion() {
+  void _generateQuestion(AppLocalizations loc) {
     final random = math.Random();
     _isBonusLevel = _currentLevel % 5 == 0 && _currentLevel > 0;
 
     if (_isBonusLevel) {
-      _generateBonusQuestion();
+      _generateBonusQuestion(loc);
       return;
     }
 
@@ -116,7 +133,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     final correctPool = (set['correctPool'] as List).cast<String>();
     final wrongPool = (set['wrongPool'] as List).cast<String>();
 
-    _questionText = set['question'] as String;
+    _questionText = loc.get(set['questionKey'] as String);
     _correctAnswer = correctPool[random.nextInt(correctPool.length)];
     final wrongOptions = wrongPool.toList()..shuffle(random);
     _options = [_correctAnswer, wrongOptions[0], wrongOptions[1]];
@@ -128,13 +145,13 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     });
   }
 
-  void _generateBonusQuestion() {
+  void _generateBonusQuestion(AppLocalizations loc) {
     final random = math.Random();
     final set = _questionSets[random.nextInt(_questionSets.length)];
     final correctPool = (set['correctPool'] as List).cast<String>();
     final wrongPool = (set['wrongPool'] as List).cast<String>();
 
-    _questionText = '⭐ BONUS: ${set['question']}';
+    _questionText = '⭐ BONUS: ${loc.get(set['questionKey'] as String)}';
     _correctAnswer = correctPool[random.nextInt(correctPool.length)];
     final wrongOptions = wrongPool.toList()..shuffle(random);
     _options = [_correctAnswer, wrongOptions[0], wrongOptions[1]];
@@ -147,7 +164,10 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
   }
 
   void _checkAnswer(String selected) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
+
     final correct = selected == _correctAnswer;
 
     setState(() {
@@ -160,21 +180,95 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
-            _generateQuestion();
+            _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
           }
         });
       } else {
-        _lives = (_lives - 1).clamp(0, 5);
+        mechanicsService.onWrongAnswer();
+        if (!mechanicsService.hasLives) {
+          _gameOver = true;
+          _showGameOver();
+          return;
+        }
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion();
+          if (mounted && !_gameOver) _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
         });
       }
     });
   }
 
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('📏', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('📏', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('lives_finished'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
 
     return Scaffold(
       body: Container(
@@ -196,7 +290,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
-                  _buildProgressPath(),
+                  _buildProgressPath(loc),
                   const SizedBox(height: 12),
                   Expanded(
                     child: SingleChildScrollView(
@@ -204,9 +298,9 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                         children: [
                           _buildQuestionCard(loc),
                           const SizedBox(height: 24),
-                          _buildVisualDisplay(),
+                          _buildVisualDisplay(loc),
                           const SizedBox(height: 24),
-                          _buildOptionsGrid(),
+                          _buildOptionsGrid(loc),
                           const SizedBox(height: 24),
                         ],
                       ),
@@ -222,7 +316,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildProgressPath() {
+  Widget _buildProgressPath(AppLocalizations loc) {
     const totalFloors = 10;
     final currentFloor = (_currentLevel - 1) % totalFloors;
     return Container(
@@ -257,7 +351,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Text('Seviye ${currentFloor + 1}/$totalFloors', style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 12)),
+          Text(loc.get('measurement_level_format').replaceAll('{0}', '${currentFloor + 1}').replaceAll('{1}', '$totalFloors'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 12)),
         ],
       ),
     );
@@ -319,16 +413,22 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('📏 Ölçüm Diyarı', style: _textStyle(Colors.white, size: 20, bold: true)),
+                Text('📏 ${loc.get('world_measurement_land')}', style: _textStyle(Colors.white, size: 20, bold: true)),
                 Text(loc.get('world_measurement_land_desc'), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
               ],
             ),
           ),
-          Row(
-            children: List.generate(5, (i) => Padding(
-              padding: const EdgeInsets.only(left: 2),
-              child: Text(i < _lives ? '❤️' : '🖤', style: const TextStyle(fontSize: 20)),
-            )),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                children: List.generate(maxLives, (i) => Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(i < lives ? '🐢' : '🐚', style: const TextStyle(fontSize: 20)),
+                )),
+              );
+            },
           ),
           const SizedBox(width: 8),
           Container(
@@ -379,7 +479,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Zaman Kaplumbağası', style: _textStyle(_orange, size: 16, bold: true)),
+                Text(loc.get('helper_turtle_name'), style: _textStyle(_orange, size: 16, bold: true)),
                 const SizedBox(height: 6),
                 Text(
                   _questionText,
@@ -394,7 +494,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildVisualDisplay() {
+  Widget _buildVisualDisplay(AppLocalizations loc) {
     return AnimatedBuilder(
       animation: _bounceAnimation,
       builder: (context, child) {
@@ -411,7 +511,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             ),
             child: Column(
               children: [
-                Text('🔍 Dikkatli bak!', style: _textStyle(_orange, size: 16, bold: true)),
+                Text('🔍 ${loc.get('measurement_look_carefully')}', style: _textStyle(_orange, size: 16, bold: true)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -435,7 +535,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildOptionsGrid() {
+  Widget _buildOptionsGrid(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -446,7 +546,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       ),
       child: Column(
         children: [
-          Text('Cevabını seç:', style: _textStyle(_orange, size: 16, bold: true)),
+          Text(loc.get('choose_answer'), style: _textStyle(_orange, size: 16, bold: true)),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
@@ -468,8 +568,10 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       bgColor = isCorrect ? Colors.green.withOpacity(0.8) : Colors.red.withOpacity(0.2);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(emoji),
+      onTap: canTap ? () => _checkAnswer(emoji) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 90,

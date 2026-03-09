@@ -1,0 +1,259 @@
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/family_member.dart';
+import '../models/badge.dart' show UserStats;
+
+/// Aile üyeleri ve liderlik tablosu servisi
+class FamilyService extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  String? _parentUid;
+  String? _parentDisplayName;
+  List<FamilyMember> _members = [];
+  List<LeaderboardEntry> _leaderboard = [];
+  LeaderboardFilter _currentFilter = LeaderboardFilter.allTime;
+  bool _isLoading = false;
+
+  List<FamilyMember> get members => _members;
+  List<LeaderboardEntry> get leaderboard => _leaderboard;
+  LeaderboardFilter get currentFilter => _currentFilter;
+  bool get isLoading => _isLoading;
+
+  /// Ebeveyn (mevcut kullanıcı) ile başlat
+  void initialize(String? parentUid, {String? parentDisplayName}) {
+    _parentUid = parentUid;
+    _parentDisplayName = parentDisplayName ?? 'Oyuncu';
+    if (parentUid != null && parentUid.isNotEmpty) {
+      loadMembers();
+    } else {
+      _members = [];
+      _leaderboard = [];
+      notifyListeners();
+    }
+  }
+
+  /// Aile üyelerini yükle (mevcut kullanıcı + Firestore'dan eklenen çocuklar)
+  Future<void> loadMembers() async {
+    if (_parentUid == null || _parentUid!.isEmpty) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _members = [];
+
+      // 1. Ebeveyn (mevcut kullanıcı) her zaman ilk üye
+      _members.add(FamilyMember(
+        userId: _parentUid!,
+        displayName: _parentDisplayName ?? 'Oyuncu',
+        isParent: true,
+      ));
+
+      // 2. Firestore'dan eklenen çocukları yükle
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(_parentUid)
+          .collection('family')
+          .doc('members')
+          .get();
+
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        final list = data['members'] as List<dynamic>? ?? [];
+        for (final item in list) {
+          if (item is Map<String, dynamic>) {
+            final member = FamilyMember.fromMap(item);
+            if (member.userId.isNotEmpty && member.userId != _parentUid) {
+              _members.add(member);
+            }
+          }
+        }
+      }
+
+      await _loadLeaderboard();
+    } catch (e) {
+      debugPrint('FamilyService loadMembers error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Liderlik tablosu verilerini yükle
+  Future<void> _loadLeaderboard() async {
+    _leaderboard = [];
+
+    for (final member in _members) {
+      final entry = await _fetchMemberStats(member);
+      if (entry != null) {
+        _leaderboard.add(entry);
+      }
+    }
+
+    // Puana göre sırala (yüksekten düşüğe)
+    _leaderboard.sort((a, b) => b.score.compareTo(a.score));
+
+    // Sıra numarası ata
+    _leaderboard = _leaderboard.asMap().entries.map((e) {
+      return LeaderboardEntry(
+        rank: e.key + 1,
+        userId: e.value.userId,
+        displayName: e.value.displayName,
+        score: e.value.score,
+        accuracy: e.value.accuracy,
+        lastPlayedAt: e.value.lastPlayedAt,
+        isParent: e.value.isParent,
+        earnedBadges: e.value.earnedBadges,
+        weeklyValues: e.value.weeklyValues,
+      );
+    }).toList();
+  }
+
+  Future<LeaderboardEntry?> _fetchMemberStats(FamilyMember member) async {
+    try {
+      final statsDoc = await _firestore
+          .collection('users')
+          .doc(member.userId)
+          .collection('stats')
+          .doc('gameStats')
+          .get();
+
+      int score = 0;
+      int accuracy = 0;
+      DateTime? lastPlayedAt;
+      int consecutiveDays = 0;
+
+      if (statsDoc.exists && statsDoc.data() != null) {
+        final data = statsDoc.data()!;
+        final stats = UserStats.fromMap(data, member.userId);
+        score = _getScoreForFilter(stats);
+        final total = stats.totalQuestionsAnswered;
+        accuracy = total > 0
+            ? (stats.totalCorrectAnswers / total * 100).round()
+            : 0;
+        lastPlayedAt = stats.lastPlayedAt;
+        consecutiveDays = stats.consecutiveDays;
+      }
+
+      // Rozet sayısı
+      int earnedBadges = 0;
+      try {
+        final badgesSnap = await _firestore
+            .collection('users')
+            .doc(member.userId)
+            .collection('badges')
+            .get();
+        earnedBadges = badgesSnap.docs.length;
+      } catch (_) {}
+
+      final weeklyValues = _getWeeklyProgress(consecutiveDays);
+
+      return LeaderboardEntry(
+        rank: 0,
+        userId: member.userId,
+        displayName: member.displayName,
+        score: score,
+        accuracy: accuracy,
+        lastPlayedAt: lastPlayedAt,
+        isParent: member.isParent,
+        earnedBadges: earnedBadges,
+        weeklyValues: weeklyValues,
+      );
+    } catch (e) {
+      debugPrint('FamilyService fetch stats error for ${member.userId}: $e');
+      return LeaderboardEntry(
+        rank: 0,
+        userId: member.userId,
+        displayName: member.displayName,
+        score: 0,
+        accuracy: 0,
+        lastPlayedAt: null,
+        isParent: member.isParent,
+      );
+    }
+  }
+
+  List<int> _getWeeklyProgress(int consecutiveDays) {
+    return List.generate(7, (i) {
+      final daysFromEnd = 6 - i;
+      return (consecutiveDays > daysFromEnd) ? 100 : 0;
+    });
+  }
+
+  /// Filtreye göre puan (şimdilik hepsi totalScore)
+  int _getScoreForFilter(UserStats stats) {
+    switch (_currentFilter) {
+      case LeaderboardFilter.weekly:
+      case LeaderboardFilter.monthly:
+        // Haftalık/aylık için ayrı veri yok - totalScore kullan
+        return stats.totalScore;
+      case LeaderboardFilter.allTime:
+        return stats.totalScore;
+    }
+  }
+
+  /// Filtre değiştir
+  Future<void> setFilter(LeaderboardFilter filter) async {
+    if (_currentFilter == filter) return;
+    _currentFilter = filter;
+    await _loadLeaderboard();
+    notifyListeners();
+  }
+
+  /// Çocuk üye ekle (userCode ile)
+  Future<bool> addChildByUserCode(String userCode, String displayName) async {
+    if (_parentUid == null || userCode.isEmpty) return false;
+
+    try {
+      final normalized = userCode.trim().toUpperCase();
+      final snapshot = await _firestore
+          .collection('users')
+          .where('userCode', isEqualTo: normalized)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return false;
+
+      final childDoc = snapshot.docs.first;
+      final childUid = childDoc.id;
+      final childData = childDoc.data();
+      final name = childData['displayName'] ?? childData['email']?.toString().split('@').first ?? displayName;
+
+      if (childUid == _parentUid) return false;
+
+      final membersRef = _firestore
+          .collection('users')
+          .doc(_parentUid)
+          .collection('family')
+          .doc('members');
+
+      final doc = await membersRef.get();
+      final list = <Map<String, dynamic>>[];
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        list.addAll((data['members'] as List<dynamic>? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map)));
+      }
+
+      if (list.any((m) => m['userId'] == childUid)) return false;
+
+      list.add({
+        'userId': childUid,
+        'displayName': name,
+        'isParent': false,
+      });
+
+      await membersRef.set({'members': list});
+      await loadMembers();
+      return true;
+    } catch (e) {
+      debugPrint('FamilyService addChild error: $e');
+      return false;
+    }
+  }
+
+  /// Verileri yenile
+  Future<void> refresh() async {
+    await loadMembers();
+  }
+}

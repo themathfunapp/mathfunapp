@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +35,7 @@ class GameManager extends ChangeNotifier {
 
   // === ZAMANLAMA ve CAN ===
   int _lives = 3;
+  DateTime? get lastPlayDate => _lastPlayDate;
   DateTime? _lastPlayDate;
   int _dailyStreak = 0;
   bool _dailyRewardClaimed = false;

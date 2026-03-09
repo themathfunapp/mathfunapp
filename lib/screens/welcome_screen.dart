@@ -14,11 +14,14 @@ import 'dart:ui';
 class WelcomeScreen extends StatefulWidget {
   final VoidCallback onSignInComplete;
   final VoidCallback onSkip;
+  /// Profilde "Hesap Oluştur" tıklandığında true; giriş seçenekleri sayfasına (index 1) başlar
+  final bool initialPageIsLoginOptions;
 
   const WelcomeScreen({
     super.key,
     required this.onSignInComplete,
     required this.onSkip,
+    this.initialPageIsLoginOptions = false,
   });
 
   @override
@@ -26,9 +29,9 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   bool _initialized = false;
-  int _currentPage = 0;
+  late int _currentPage;
   bool _isLoading = false;
   String _selectedOption = '';
   Locale _currentLocale = const Locale('tr');
@@ -66,6 +69,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+    final initialPage = widget.initialPageIsLoginOptions ? 1 : 0;
+    _currentPage = initialPage;
+    _pageController = PageController(initialPage: initialPage);
     _initFirebase();
   }
 
@@ -139,7 +145,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           user = await authService.signInWithGoogle();
           break;
         case 'email':
-          _showEmailDialog();
+          await _showEmailDialog();
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _selectedOption = '';
+            });
+          }
           return;
       }
 
@@ -194,13 +206,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  void _showEmailDialog() {
+  Future<void> _showEmailDialog() async {
     final localizations = AppLocalizations(_currentLocale);
     final TextEditingController emailController = TextEditingController();
     final TextEditingController passwordController = TextEditingController();
     bool isSignUp = false;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(

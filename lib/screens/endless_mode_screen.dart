@@ -948,7 +948,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'COMBO x$_combo',
+                                loc.get('combo_format').replaceAll('{0}', '$_combo'),
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,

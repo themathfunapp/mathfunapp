@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import '../models/avatar_customization.dart';
-import '../localization/app_localizations.dart';
 
 /// Avatar Özelleştirme Ekranı
 class AvatarCustomizationScreen extends StatefulWidget {

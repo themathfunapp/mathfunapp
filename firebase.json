@@ -1,1 +1,31 @@
-{"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"mathfunapp-1460b","appId":"1:728773599076:android:bdd27f3f8529c5f36c6471","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"mathfunapp-1460b","configurations":{"android":"1:728773599076:android:bdd27f3f8529c5f36c6471","web":"1:728773599076:web:154ca5d8b68dacde6c6471","windows":"1:728773599076:web:2f9e1ec223f01a986c6471"}}}}}}
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{"source": "**", "destination": "/index.html"}]
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mathfunapp-1460b",
+          "appId": "1:728773599076:android:bdd27f3f8529c5f36c6471",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mathfunapp-1460b",
+          "configurations": {
+            "android": "1:728773599076:android:bdd27f3f8529c5f36c6471",
+            "web": "1:728773599076:web:154ca5d8b68dacde6c6471",
+            "windows": "1:728773599076:web:2f9e1ec223f01a986c6471"
+          }
+        }
+      }
+    }
+  }
+}

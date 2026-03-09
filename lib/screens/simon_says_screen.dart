@@ -79,7 +79,7 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
       _currentFlash = index;
     });
     
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 800));
     
     setState(() {
       _currentFlash = -1;
@@ -217,6 +217,67 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
     );
   }
 
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Text('🎮 ', style: TextStyle(fontSize: 28)),
+            Text('Nasıl Oynanır?'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHelpItem('1️⃣', 'Oyun sana renkli butonların yanıp sönme dizisini gösterecek.'),
+              _buildHelpItem('2️⃣', 'Diziyi dikkatle izle ve sırayı aklında tut.'),
+              _buildHelpItem('3️⃣', '"Şimdi senin sıran!" yazısı gelince, gördüğün sırayla aynı butonlara dokun.'),
+              _buildHelpItem('4️⃣', 'Her seviyede dizinin sonuna yeni bir adım eklenir.'),
+              _buildHelpItem('5️⃣', 'Yanlış sıra girersen oyun biter. Doğru girersen bir sonraki seviyeye geçersin.'),
+              const Divider(),
+              const Text(
+                '💡 İpucu:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text('Dikkatini topla ve hafızanı kullan! Her seviye biraz daha zorlaşır.'),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anladım!', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHelpItem(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -261,6 +322,10 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: _showHelpDialog,
           ),
         ],
       ),
@@ -325,26 +390,41 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
             bool isFlashing = _currentFlash == index;
             return GestureDetector(
               onTap: () => _onButtonTap(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: isFlashing
-                      ? _colors[index]
-                      : _colors[index].withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 4,
+              child: AnimatedScale(
+                scale: isFlashing ? 1.08 : 1.0,
+                duration: const Duration(milliseconds: 150),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  decoration: BoxDecoration(
+                    color: isFlashing
+                        ? _colors[index]
+                        : _colors[index].withOpacity(0.22),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isFlashing ? Colors.white : Colors.white70,
+                      width: isFlashing ? 5 : 3,
+                    ),
+                    boxShadow: isFlashing
+                        ? [
+                            BoxShadow(
+                              color: _colors[index].withOpacity(0.9),
+                              blurRadius: 25,
+                              spreadRadius: 8,
+                            ),
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.6),
+                              blurRadius: 15,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
-                  boxShadow: isFlashing
-                      ? [
-                          BoxShadow(
-                            color: _colors[index].withOpacity(0.6),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ]
-                      : null,
                 ),
               ),
             );

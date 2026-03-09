@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import 'game_start_screen.dart'; // AgeGroupSelection için
 
@@ -28,7 +29,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Beyin jimnastiği yap, matematiksel düşünme becerilerini geliştir!',
       color: Color(0xFF00CEC9),
       isNew: true,
-      isPremium: true,
+      isPremium: false, // TODO: Test için geçici kapatıldı
     ),
     DiscoverItem(
       emoji: '🎨',
@@ -37,7 +38,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Renklerle matematik öğren, görsel hafızana hitap eden oyunlar!',
       color: Color(0xFF74B9FF),
       isNew: true,
-      isPremium: true,
+      isPremium: false, // TODO: Test için geçici kapatıldı
     ),
     DiscoverItem(
       emoji: '🎵',
@@ -96,8 +97,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -349,6 +348,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _buildDiscoverItemCard(DiscoverItem item) {
     final authService = Provider.of<AuthService>(context, listen: false);
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     final isLocked = item.isPremium && !authService.isPremium;
 
     return GestureDetector(
@@ -414,7 +414,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                   Text('👑', style: TextStyle(fontSize: 8)),
                                   SizedBox(width: 2),
                                   Text(
-                                    'PRO',
+                                    loc.get('premium_badge'),
                                     style: TextStyle(
                                       fontSize: 8,
                                       color: Color(0xFF8B4513),
@@ -739,9 +739,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Premium üyelik yakında aktif olacak! 👑'),
+                  content: Text(loc.get('premium_coming_soon')),
                   backgroundColor: Colors.amber.shade700,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

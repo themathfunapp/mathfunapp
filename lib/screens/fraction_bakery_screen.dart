@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 
 /// Kesir Pastanesi - Şef Sincap ile Pastane Temalı Kesir Oyunu
 /// Pastaları eşit parçalara böl, partiyi hazırla!
@@ -32,7 +33,8 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   String _currentPastryKey = 'fraction_bakery_tech_pasta';
   bool _isAnswered = false;
   bool _isCorrect = false;
-  int _lives = 5;
+  bool _gameOver = false;
+  bool _hasShownNoLivesDialog = false;
   
   // Soru verileri
   int _totalItems = 8; // Başlangıçtaki toplam
@@ -93,9 +95,14 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     }[_fractionType] ?? 'fraction_bakery_frac_type_half';
     final fracType = loc.get(fracTypeKey);
     
-    // Yeni format: "X tane vardı, Y tane yenildi, kalan Z parçaya bölünürse..."
     if (_eatenItems > 0) {
-      return '$_totalItems tane $objectName vardı. $_eatenItems tanesi yenildi. Kalan $_fractionType $fracType parçaya bölünürse her parçada kaç $objectName olur?';
+      final format = loc.get('fraction_bakery_question_format_eaten');
+      return format
+          .replaceAll('{0}', '$_totalItems')
+          .replaceAll('{1}', objectName)
+          .replaceAll('{2}', '$_eatenItems')
+          .replaceAll('{3}', '$_fractionType')
+          .replaceAll('{4}', fracType);
     }
     
     final format = loc.get('fraction_bakery_how_many_format');
@@ -111,9 +118,14 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     }[_fractionType] ?? 'fraction_bakery_frac_type_half';
     final fracType = loc.get(fracTypeKey);
     
-    // Karakter mesajında da yeni mantığı kullan
     if (_eatenItems > 0) {
-      return 'Parti için $_totalItems tane $objectName hazırladım. $_eatenItems tanesi yenildi, geriye $_remainingItems kaldı. Bunları $fracType parçalara bölebilir misin?';
+      final format = loc.get('fraction_bakery_character_format_eaten');
+      return format
+          .replaceAll('{0}', '$_totalItems')
+          .replaceAll('{1}', objectName)
+          .replaceAll('{2}', '$_eatenItems')
+          .replaceAll('{3}', '$_remainingItems')
+          .replaceAll('{4}', fracType);
     }
     
     final format = loc.get('fraction_bakery_character_message_format');
@@ -173,7 +185,9 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   void _checkAnswer(int answer) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
 
     setState(() {
       _isAnswered = true;
@@ -191,12 +205,79 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
           }
         });
       } else {
-        _lives = (_lives - 1).clamp(0, 5);
+        mechanicsService.onWrongAnswer();
+        if (!mechanicsService.hasLives) {
+          _gameOver = true;
+          _showGameOver();
+          return;
+        }
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion();
+          if (mounted && !_gameOver) _generateQuestion();
         });
       }
     });
+  }
+
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🍰', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🍰', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('lives_finished'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
   }
 
   static TextStyle _textStyle(Color color, {double size = 16, bool bold = false}) =>
@@ -205,8 +286,8 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   /// Şef Sincap - sincap emoji, dairesel arka plan içinde (taşma/clipping düzeltmesi)
   Widget _buildChefSquirrel() {
     return Container(
-      width: 64,
-      height: 64,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
         color: _cream.withOpacity(0.9),
         shape: BoxShape.circle,
@@ -241,6 +322,14 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -260,19 +349,20 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
               ..._buildPastryBackground(),
               Column(
                 children: [
-                  _buildTopBar(loc),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildCharacterMessage(loc),
-                          const SizedBox(height: 16),
-                          _buildLevelInfo(loc),
-                          const SizedBox(height: 24),
-                          _buildQuestionArea(loc),
-                          const SizedBox(height: 32),
-                          _buildAnswerOptions(loc),
+            _buildTopBar(loc),
+            const SizedBox(height: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildCharacterMessage(loc),
+                    const SizedBox(height: 8),
+                    _buildLevelInfo(loc),
+                    const SizedBox(height: 12),
+                    _buildQuestionArea(loc),
+                    const SizedBox(height: 12),
+                    _buildAnswerOptions(loc),
+                    const SizedBox(height: 16),
                         ],
                       ),
                     ),
@@ -289,7 +379,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
 
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           GestureDetector(
@@ -330,17 +420,23 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
               ],
             ),
           ),
-          // Can göstergesi - Cupcake (5 can, hata yapınca sadece kağıt = yenmiş)
-          Row(
-            children: List.generate(5, (i) {
-              final hasLife = i < _lives;
-              return Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: hasLife
-                    ? const Text('🧁', style: TextStyle(fontSize: 24))
-                    : _buildCupcakeWrapper(),
+          // Can göstergesi - Cupcake (profil ile senkron)
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                children: List.generate(maxLives, (i) {
+                  final hasLife = i < lives;
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: hasLife
+                        ? const Text('🧁', style: TextStyle(fontSize: 24))
+                        : _buildCupcakeWrapper(),
+                  );
+                }),
               );
-            }),
+            },
           ),
           const SizedBox(width: 12),
           Container(
@@ -374,7 +470,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   Widget _buildCharacterMessage(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _cream.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
@@ -417,7 +513,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _cream.withOpacity(0.8),
         borderRadius: BorderRadius.circular(20),
@@ -432,7 +528,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
               _buildStatItem(loc.get('score'), _score.toString(), '⭐'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // İlerleme çubuğu - Pembe/krema rengi, üzerinde renkli şekerlemeler (krema dolgusu)
           Stack(
             clipBehavior: Clip.none,
@@ -484,7 +580,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   Widget _buildQuestionArea(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: _cream.withOpacity(0.95),
         borderRadius: BorderRadius.circular(24),
@@ -504,10 +600,9 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
             style: _textStyle(_blueberryPurple, size: 17, bold: true),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
-          // Kalan öğeleri göster (_remainingItems)
-          _buildRemainingItemsVisual(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          _buildRemainingItemsVisual(loc),
+          const SizedBox(height: 10),
           // Kesir dilimleri görseli
           AnimatedBuilder(
             animation: _pulseAnimation,
@@ -523,18 +618,18 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     );
   }
 
-  Widget _buildRemainingItemsVisual() {
-    // Kalan öğeleri göster (örn: 8 kurabiye)
+  Widget _buildRemainingItemsVisual(AppLocalizations loc) {
     final items = List.generate(
-      _remainingItems.clamp(4, 16), // En fazla 16 öğe göster
+      _remainingItems.clamp(4, 16),
       (i) => Padding(
         padding: const EdgeInsets.all(4),
         child: Text(_currentPastry, style: const TextStyle(fontSize: 24)),
       ),
     );
+    final remainingText = loc.get('fraction_bakery_remaining_format').replaceAll('{0}', '$_remainingItems');
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: _pastelPink.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
@@ -543,10 +638,10 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
       child: Column(
         children: [
           Text(
-            'Kalan: $_remainingItems tane',
+            remainingText,
             style: _textStyle(_blueberryPurple, size: 14, bold: true),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 4,
@@ -560,7 +655,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
 
   Widget _buildFractionVisual() {
     return SizedBox(
-      height: 120,
+      height: 100,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -569,7 +664,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
               parts: _fractionType, // Parça sayısı (1, 2, 4)
               color: _blueberryPurple,
             ),
-            size: const Size(120, 120),
+            size: const Size(100, 100),
           ),
           Container(
             padding: const EdgeInsets.all(8),
@@ -585,18 +680,18 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   Widget _buildAnswerOptions(AppLocalizations loc) {
-    // Şık etiketleri artık "Her parçada X tane" formatında
     final objectName = loc.get(_currentPastryKey);
+    final questionText = loc.get('fraction_bakery_how_many_per_part').replaceAll('{0}', objectName);
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
           Text(
-            'Her parçada kaç $objectName olur?',
+            questionText,
             style: _textStyle(_blueberryPurple, size: 16, bold: true),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -621,12 +716,14 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
       buttonColor = _cream.withOpacity(0.9);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(value),
+      onTap: canTap ? () => _checkAnswer(value) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: 100,
-        height: 80,
+        width: 88,
+        height: 68,
         decoration: BoxDecoration(
           color: buttonColor,
           borderRadius: BorderRadius.circular(16),

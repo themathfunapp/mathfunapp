@@ -73,7 +73,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     super.dispose();
   }
 
-  void _spin() {
+  Future<void> _spin() async {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     
     if (!mechanicsService.canSpin) {
@@ -86,11 +86,14 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     });
 
     try {
-      _reward = mechanicsService.spinWheel();
+      _reward = await mechanicsService.spinWheel();
+      if (!mounted) return;
       final badgeService = Provider.of<BadgeService>(context, listen: false);
-      badgeService.addSpinWheelReward(_reward!);
+      await badgeService.addSpinWheelReward(_reward!);
+      if (!mounted) return;
       _controller.forward(from: 0);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSpinning = false;
       });

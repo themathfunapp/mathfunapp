@@ -15,7 +15,7 @@ class MemoryCardsScreen extends StatefulWidget {
 
 class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   int _level = 1;
-  int _score = 0;
+  int _section = 1; // Her seviyede 10 bölüm
   int _moves = 0;
   int _totalScore = 0;
   
@@ -27,99 +27,15 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   bool _isProcessing = false;
   bool _canTap = true;
 
-  // Her seviye için farklı matematik eşleştirmeleri (her sonuç benzersiz)
-  final Map<int, List<List<String>>> _levelPairs = {
-    // Seviye 1: Basit toplama (4 çift)
-    1: [
-      ['1+1', '2'],
-      ['2+1', '3'],
-      ['2+2', '4'],
-      ['3+2', '5'],
-    ],
-    // Seviye 2: Toplama (5 çift)
-    2: [
-      ['4+2', '6'],
-      ['4+3', '7'],
-      ['5+3', '8'],
-      ['6+3', '9'],
-      ['5+5', '10'],
-    ],
-    // Seviye 3: Çıkarma (5 çift)
-    3: [
-      ['5-3', '2'],
-      ['6-3', '3'],
-      ['8-4', '4'],
-      ['10-5', '5'],
-      ['12-6', '6'],
-    ],
-    // Seviye 4: Karışık toplama/çıkarma (6 çift)
-    4: [
-      ['5+2', '7'],
-      ['10-2', '8'],
-      ['6+3', '9'],
-      ['15-5', '10'],
-      ['8+3', '11'],
-      ['20-8', '12'],
-    ],
-    // Seviye 5: Basit çarpma (6 çift)
-    5: [
-      ['2×2', '4'],
-      ['2×3', '6'],
-      ['2×4', '8'],
-      ['3×3', '9'],
-      ['2×5', '10'],
-      ['3×4', '12'],
-    ],
-    // Seviye 6: Çarpma ileri (6 çift)
-    6: [
-      ['4×4', '16'],
-      ['3×6', '18'],
-      ['4×5', '20'],
-      ['3×8', '24'],
-      ['5×5', '25'],
-      ['4×7', '28'],
-    ],
-    // Seviye 7: Basit bölme (6 çift)
-    7: [
-      ['6÷2', '3'],
-      ['8÷2', '4'],
-      ['10÷2', '5'],
-      ['12÷2', '6'],
-      ['21÷3', '7'],
-      ['24÷3', '8'],
-    ],
-    // Seviye 8: Karışık işlemler (7 çift)
-    8: [
-      ['5×4', '20'],
-      ['7×3', '21'],
-      ['11×2', '22'],
-      ['8×3', '24'],
-      ['5×5', '25'],
-      ['9×3', '27'],
-      ['7×4', '28'],
-    ],
-    // Seviye 9: Emoji sayma (7 çift)
-    9: [
-      ['🍎🍎🍎', '3'],
-      ['⭐⭐⭐⭐', '4'],
-      ['🎈🎈🎈🎈🎈', '5'],
-      ['🌟🌟🌟🌟🌟🌟', '6'],
-      ['🎯🎯🎯🎯🎯🎯🎯', '7'],
-      ['🎪🎪🎪🎪🎪🎪🎪🎪', '8'],
-      ['🎲🎲🎲🎲🎲🎲🎲🎲🎲', '9'],
-    ],
-    // Seviye 10: Zor karışık (8 çift)
-    10: [
-      ['6×6', '36'],
-      ['7×6', '42'],
-      ['8×6', '48'],
-      ['7×7', '49'],
-      ['8×7', '56'],
-      ['9×7', '63'],
-      ['8×8', '64'],
-      ['9×8', '72'],
-    ],
-  };
+  // Her sonuç benzersiz - aynı bölümde tekrar eden sonuç yok (2'den 100'e kadar)
+  static final List<List<String>> _pairPool = [
+    ['1+1', '2'], ['2+1', '3'], ['2+2', '4'], ['3+2', '5'], ['4+2', '6'],
+    ['4+3', '7'], ['5+3', '8'], ['6+3', '9'], ['5+5', '10'], ['6+5', '11'],
+    ['6+6', '12'], ['7+6', '13'], ['8+6', '14'], ['10+5', '15'], ['10+6', '16'],
+    ['10+7', '17'], ['10+8', '18'], ['10+9', '19'], ['10+10', '20'],
+    ['15+10', '25'], ['20+10', '30'], ['25+15', '40'], ['30+20', '50'],
+    ['40+20', '60'], ['50+20', '70'], ['60+20', '80'], ['70+30', '100'],
+  ];
 
   @override
   void initState() {
@@ -127,12 +43,18 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     _initializeGame();
   }
 
+  /// Seviye 1: 10 kart (5 çift), Seviye 2: 12 kart (6 çift), her seviyede +2 kart
   int _getPairCount() {
-    return _levelPairs[_level]?.length ?? 4;
+    return 5 + (_level - 1);
+  }
+
+  List<List<String>> _getPairsForLevel() {
+    int pairCount = _getPairCount();
+    return _pairPool.take(pairCount).toList();
   }
 
   void _initializeGame() {
-    final pairs = _levelPairs[_level] ?? _levelPairs[1]!;
+    final pairs = _getPairsForLevel();
     int pairCount = pairs.length;
     
     _cards = [];
@@ -169,7 +91,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   void _resetGame() {
     setState(() {
       _level = 1;
-      _score = 0;
+      _section = 1;
       _totalScore = 0;
       _initializeGame();
     });
@@ -259,16 +181,17 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
               _buildHelpItem('2️⃣', 'İki kart seç ve eşleştir'),
               _buildHelpItem('3️⃣', 'Matematik işlemi ile sonucunu bul'),
               _buildHelpItem('4️⃣', 'Örnek: "3+2" kartı ile "5" kartı eşleşir'),
-              _buildHelpItem('5️⃣', 'Tüm çiftleri bul ve seviyeyi geç'),
+              _buildHelpItem('5️⃣', 'Her seviyede 10 bölüm var'),
+              _buildHelpItem('6️⃣', '10 bölümü tamamla = 1 seviye geç'),
               const Divider(),
               const Text(
                 '💡 İpuçları:',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text('• Daha az hamle = Daha yüksek puan'),
-              const Text('• Her seviyede işlemler zorlaşır'),
-              const Text('• 10 seviyeyi tamamla ve şampiyon ol!'),
+              const Text('• Seviye 1: 10 kart, her seviyede +2 kart'),
+              const Text('• Kartlar fazlalaşınca kare grid olur'),
+              const Text('• Her seviye tamamlandığında 10 puan!'),
             ],
           ),
         ),
@@ -334,7 +257,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Seviye', '$_level/10', Colors.purple),
+          _buildStatItem('Seviye', '$_level - $_section/10', Colors.purple),
           _buildStatItem('Eşleşme', '$matchedPairs/$totalPairs', Colors.teal),
           _buildStatItem('Hamle', '$_moves', Colors.blue),
           _buildStatItem('Puan', '$_totalScore', Colors.orange),
@@ -367,12 +290,13 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   Widget _buildLevelIndicator() {
+    // Mevcut seviyedeki 10 bölümün ilerlemesi
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: List.generate(10, (index) {
-          bool isCompleted = index + 1 < _level;
-          bool isCurrent = index + 1 == _level;
+          bool isCompleted = index + 1 < _section;
+          bool isCurrent = index + 1 == _section;
           return Expanded(
             child: Container(
               height: 6,
@@ -394,7 +318,8 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
 
   Widget _buildCardGrid() {
     int cardCount = _cards.length;
-    int columns = cardCount <= 8 ? 4 : (cardCount <= 12 ? 4 : 4);
+    // Kare şekil: kartlar fazla olduğunda yan yana dizilir (cols ≈ sqrt(n))
+    int columns = math.max(2, math.sqrt(cardCount).ceil());
     int rows = (cardCount / columns).ceil();
     
     return LayoutBuilder(
@@ -408,15 +333,26 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         cardSize = math.min(cardSize, 90);
         
         return Center(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: List.generate(_cards.length, (index) {
-              return SizedBox(
-                width: cardSize,
-                height: cardSize,
-                child: _buildCard(index),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(rows, (row) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: row < rows - 1 ? 8 : 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(columns, (col) {
+                    int index = row * columns + col;
+                    if (index >= cardCount) return const SizedBox.shrink();
+                    return Padding(
+                      padding: EdgeInsets.only(right: col < columns - 1 ? 8 : 0),
+                      child: SizedBox(
+                        width: cardSize,
+                        height: cardSize,
+                        child: _buildCard(index),
+                      ),
+                    );
+                  }),
+                ),
               );
             }),
           ),
@@ -518,7 +454,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
           if (isMatch) {
             _matched[firstIndex] = true;
             _matched[secondIndex] = true;
-            _score += 15;
           } else {
             _revealed[firstIndex] = false;
             _revealed[secondIndex] = false;
@@ -541,20 +476,46 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _onLevelComplete() {
-    // Bonus puan hesapla (daha az hamle = daha çok bonus)
-    int pairCount = _getPairCount();
-    int perfectMoves = pairCount;
-    int bonusPoints = math.max(0, (perfectMoves * 2 - _moves) * 5);
-    int levelScore = _score + bonusPoints;
-    _totalScore += levelScore;
-    
-    // Son seviye değilse otomatik ilerle
-    if (_level < 10) {
-      _showLevelUpAnimation();
+    // Bölüm tamamlandı
+    if (_section < 10) {
+      _showSectionCompleteAnimation();
     } else {
-      // Son seviye - final dialog göster
-      _showFinalDialog(bonusPoints);
+      // Seviye tamamlandı - 10 puan
+      _totalScore += 10;
+      if (_level < 10) {
+        _showLevelUpAnimation();
+      } else {
+        _showFinalDialog();
+      }
     }
+  }
+
+  void _showSectionCompleteAnimation() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('✅ ', style: TextStyle(fontSize: 20)),
+            Text(
+              'Bölüm $_section/10 tamamlandı!',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.teal,
+        duration: const Duration(milliseconds: 800),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() {
+        _section++;
+        _initializeGame();
+      });
+    });
   }
 
   void _showLevelUpAnimation() {
@@ -566,7 +527,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
           children: [
             const Text('🎉 ', style: TextStyle(fontSize: 20)),
             Text(
-              'Seviye $_level Tamamlandı! Sonraki seviyeye geçiliyor...',
+              'Seviye $_level tamamlandı! Seviye ${_level + 1} başlıyor...',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
@@ -583,13 +544,13 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
       if (!mounted) return;
       setState(() {
         _level++;
-        _score = 0;
+        _section = 1;
         _initializeGame();
       });
     });
   }
 
-  void _showFinalDialog(int bonusPoints) {
+  void _showFinalDialog() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       
@@ -621,7 +582,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
                 child: Column(
                   children: [
                     _buildResultRow('Toplam Hamle', '$_moves'),
-                    _buildResultRow('Bonus Puan', '+$bonusPoints'),
                     const Divider(),
                     _buildResultRow('TOPLAM PUAN', '$_totalScore', isBold: true),
                   ],

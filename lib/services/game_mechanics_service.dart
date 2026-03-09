@@ -502,8 +502,8 @@ class GameMechanicsService extends ChangeNotifier {
 
   // ============= ŞANS ÇARKI =============
   
-  /// Çarkı döndür
-  SpinWheelReward spinWheel() {
+  /// Çarkı döndür - ödülü uygular ve kalıcı olarak kaydeder
+  Future<SpinWheelReward> spinWheel() async {
     if (!canSpin) {
       throw Exception('Bugün zaten çarkı döndürdünüz!');
     }
@@ -523,11 +523,11 @@ class GameMechanicsService extends ChangeNotifier {
       }
     }
 
-    // Ödülü uygula
+    // Ödülü uygula (coins, xp, hint, life, powerup)
     _applyReward(selectedReward);
     
     lastSpinTime = DateTime.now();
-    _saveUserData();
+    await _saveUserData();
     notifyListeners();
 
     return selectedReward;

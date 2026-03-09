@@ -96,7 +96,6 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
       _questions.add({
         'hour': hour,
         'minute': minute,
-        'text': 'Saati ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} ayarlayın',
       });
     }
   }
@@ -318,7 +317,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
           children: [
             Text(loc.get('no_lives_play'), textAlign: TextAlign.center),
             const SizedBox(height: 10),
-            Text('Puanın: $_score', 
+            Text(loc.get('time_score_label').replaceAll('{0}', '$_score'), 
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -328,7 +327,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Çıkış'),
+            child: Text(loc.get('time_exit')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -341,7 +340,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
                 _generateQuestions();
               });
             },
-            child: const Text('Tekrar Dene'),
+            child: Text(loc.get('time_try_again')),
           ),
         ],
       ),
@@ -349,21 +348,22 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   void _showVictory() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('🎉 Tebrikler!', textAlign: TextAlign.center),
+        title: Text(loc.get('time_congratulations'), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Zaman Adası\'nı tamamladın!', textAlign: TextAlign.center),
+            Text(loc.get('time_island_completed'), textAlign: TextAlign.center),
             const SizedBox(height: 10),
-            Text('Toplam Puan: $_score', 
+            Text(loc.get('time_total_score').replaceAll('{0}', '$_score'), 
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            const Text('🏆 Zaman Ustası Rozetini Kazandın!'),
+            Text(loc.get('time_master_badge')),
           ],
         ),
         actions: [
@@ -372,7 +372,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Tamamla'),
+            child: Text(loc.get('time_complete')),
           ),
         ],
       ),
@@ -583,7 +583,9 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
           ),
           const SizedBox(height: 10),
           Text(
-            question['text'],
+            localizations.get('time_set_clock_format')
+                .replaceAll('{0}', (question['hour'] as int).toString().padLeft(2, '0'))
+                .replaceAll('{1}', (question['minute'] as int).toString().padLeft(2, '0')),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -597,6 +599,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   Widget _buildInstructions() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     String instruction = '';
     Color bgColor = Colors.amber.withOpacity(0.2);
     Color borderColor = Colors.amber.withOpacity(0.5);
@@ -604,19 +607,19 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
     Color iconColor = Colors.amber;
     
     if (_isDragging && _draggingHand == 'hour') {
-      instruction = '🔴 Saat akrebi sürükleniyor...';
+      instruction = loc.get('time_dragging_hour');
       bgColor = Colors.red.withOpacity(0.2);
       borderColor = Colors.red.withOpacity(0.5);
       icon = Icons.pan_tool;
       iconColor = Colors.red;
     } else if (_isDragging && _draggingHand == 'minute') {
-      instruction = '🔵 Dakika ibresi sürükleniyor...';
+      instruction = loc.get('time_dragging_minute');
       bgColor = Colors.blue.withOpacity(0.2);
       borderColor = Colors.blue.withOpacity(0.5);
       icon = Icons.pan_tool;
       iconColor = Colors.blue;
     } else {
-      instruction = 'İbreleri tutup sürükleyerek saati ayarlayın';
+      instruction = loc.get('time_drag_hint');
     }
     
     return Container(
@@ -769,6 +772,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   Widget _buildCheckButton() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -782,14 +786,14 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
           ),
           elevation: 5,
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, size: 24),
-            SizedBox(width: 8),
+            const Icon(Icons.check_circle, size: 24),
+            const SizedBox(width: 8),
             Text(
-              'Kontrol Et ✓',
-              style: TextStyle(
+              loc.get('time_check_button'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),

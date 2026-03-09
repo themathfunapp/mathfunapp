@@ -1029,6 +1029,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1056,19 +1057,19 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Canın Kalmadı!',
-                style: TextStyle(
+              Text(
+                loc.get('no_lives_title'),
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Yeni canlar için beklemeli veya can satın almalısın.',
+              Text(
+                loc.get('no_lives_message'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
                 ),
@@ -1087,7 +1088,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
-                      child: const Text('TAMAM'),
+                      child: Text(loc.get('ok')),
                     ),
                   ),
                 ],

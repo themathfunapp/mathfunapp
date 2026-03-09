@@ -141,7 +141,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
           Column(
             children: [
               Text(
-                localizations.get('badges_title') ?? 'Rozetlerim',
+                localizations.get('badges_title'),
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -178,10 +178,10 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('🎮', '${stats?.totalGamesPlayed ?? 0}', localizations.get('total_games') ?? 'Toplam Oyun'),
-          _buildStatItem('✅', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('correct') ?? 'Doğru'),
-          _buildStatItem('🔥', '${stats?.bestStreak ?? 0}', localizations.get('best_streak') ?? 'En İyi Seri'),
-          _buildStatItem('⭐', '${stats?.totalScore ?? 0}', localizations.get('score') ?? 'Puan'),
+          _buildStatItem('🎮', '${stats?.totalGamesPlayed ?? 0}', localizations.get('total_games')),
+          _buildStatItem('✅', '${stats?.totalCorrectAnswers ?? 0}', localizations.get('correct')),
+          _buildStatItem('🔥', '${stats?.bestStreak ?? 0}', localizations.get('best_streak')),
+          _buildStatItem('⭐', '${stats?.totalScore ?? 0}', localizations.get('score')),
         ],
       ),
     );
@@ -232,8 +232,8 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
         tabs: [
-          Tab(text: localizations.get('all_badges') ?? 'Tüm Rozetler'),
-          Tab(text: localizations.get('earned_badges') ?? 'Kazanılanlar'),
+          Tab(text: localizations.get('all_badges')),
+          Tab(text: localizations.get('earned_badges')),
         ],
       ),
     );
@@ -277,7 +277,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           // TÜMÜ
-          _buildCategoryChip(null, localizations.get('all') ?? 'Tümü'),
+          _buildCategoryChip(null, localizations.get('all')),
           ..._categories.map((cat) => _buildCategoryChip(
             cat,
             '${_categoryEmojis[cat] ?? ''} ${_getCategoryName(cat, localizations)}',
@@ -357,7 +357,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               const Text('🏆', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 12),
               Text(
-                localizations.get('no_badges_in_category') ?? 'Bu kategoride rozet bulunmuyor',
+                localizations.get('no_badges_in_category'),
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF2d3436),
@@ -447,7 +447,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    localizations.get(badge.nameKey) ?? '',
+                    localizations.get(badge.nameKey),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -559,7 +559,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               const Text('🎯', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 12),
               Text(
-                localizations.get('no_earned_badges_title') ?? 'Henüz rozet kazanılmamış',
+                localizations.get('no_earned_badges_title'),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -569,7 +569,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 8),
               Text(
-                localizations.get('no_earned_badges_desc') ?? 'Oyun oynayarak rozetler kazanabilirsin!',
+                localizations.get('no_earned_badges_desc'),
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey.shade600,
@@ -646,7 +646,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  localizations.get(badge.nameKey) ?? '',
+                  localizations.get(badge.nameKey),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -655,7 +655,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  localizations.get(badge.descriptionKey) ?? '',
+                  localizations.get(badge.descriptionKey),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade600,
@@ -758,7 +758,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 16),
               Text(
-                localizations.get(badge.nameKey) ?? '',
+                localizations.get(badge.nameKey),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -781,7 +781,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 16),
               Text(
-                localizations.get(badge.descriptionKey) ?? '',
+                localizations.get(badge.descriptionKey),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -794,7 +794,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      localizations.get('progress') ?? 'İlerleme',
+                      localizations.get('progress'),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -824,7 +824,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${(progress * 100).toInt()}% ${localizations.get("completed") ?? "tamamlandı"}',
+                  '${(progress * 100).toInt()}% ${localizations.get("completed")}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade500,
@@ -844,7 +844,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
                       Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        localizations.get('badge_earned') ?? 'Kazanıldı!',
+                        localizations.get('badge_earned'),
                         style: TextStyle(
                           color: Colors.green.shade700,
                           fontWeight: FontWeight.bold,
@@ -868,17 +868,17 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     final difference = now.difference(dateTime);
 
     if (difference.inDays > 365) {
-      return '${(difference.inDays / 365).floor()} ${localizations.get("years_ago") ?? "yıl önce"}';
+      return '${(difference.inDays / 365).floor()} ${localizations.get("years_ago")}';
     } else if (difference.inDays > 30) {
-      return '${(difference.inDays / 30).floor()} ${localizations.get("months_ago") ?? "ay önce"}';
+      return '${(difference.inDays / 30).floor()} ${localizations.get("months_ago")}';
     } else if (difference.inDays > 0) {
-      return '${difference.inDays} ${localizations.get("days_ago") ?? "gün önce"}';
+      return '${difference.inDays} ${localizations.get("days_ago")}';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${localizations.get("hours_ago") ?? "saat önce"}';
+      return '${difference.inHours} ${localizations.get("hours_ago")}';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${localizations.get("minutes_ago") ?? "dakika önce"}';
+      return '${difference.inMinutes} ${localizations.get("minutes_ago")}';
     } else {
-      return localizations.get("just_now") ?? "şimdi";
+      return localizations.get("just_now");
     }
   }
 }

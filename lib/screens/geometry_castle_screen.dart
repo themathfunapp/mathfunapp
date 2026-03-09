@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../models/castle_door.dart';
 import '../providers/locale_provider.dart';
+import '../services/game_mechanics_service.dart';
 import '../widgets/castle_door_widget.dart';
 import '../widgets/shape_painter.dart';
 
@@ -33,10 +34,11 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   int _currentLevel = 1;
   int _score = 0;
   int _stars = 0;
-  int _lives = 5;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _isBonusLevel = false;
+  bool _gameOver = false;
+  bool _hasShownNoLivesDialog = false;
 
   // Şekil tanımları: type, nameKey (lokalizasyon), köşe sayısı, kenar eşitliği
   final List<Map<String, dynamic>> _shapes = [
@@ -233,7 +235,10 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   void _checkAnswer(Map<String, dynamic> selected) {
-    if (_isAnswered) return;
+    if (_isAnswered || _gameOver) return;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) return;
+
     final correct = selected == _correctOption;
 
     setState(() {
@@ -251,17 +256,91 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
           }
         });
       } else {
-        _lives = (_lives - 1).clamp(0, 5);
+        mechanicsService.onWrongAnswer();
+        if (!mechanicsService.hasLives) {
+          _gameOver = true;
+          _showGameOver();
+          return;
+        }
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
+          if (mounted && !_gameOver) _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
         });
       }
     });
   }
 
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🏰', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 8),
+            Text(loc.get('lives_finished')),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(loc.get('ok')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGameOver() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🏰', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('lives_finished'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Text(loc.get('no_lives_play')),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
+    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    }
 
     return Scaffold(
       body: AnimatedBuilder(
@@ -389,50 +468,56 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   Widget _buildTopBar(AppLocalizations loc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-                border: Border.all(color: _castlePurple.withOpacity(0.5)),
+    return Consumer<GameMechanicsService>(
+      builder: (context, mechanicsService, _) {
+        final lives = mechanicsService.currentLives;
+        final maxLives = mechanicsService.maxLives;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _castlePurple.withOpacity(0.5)),
+                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                ),
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('🏰 ${loc.get('world_geometry_castle')}', style: _textStyle(Colors.white, size: 20, bold: true)),
+                    Text(loc.get('world_geometry_castle_desc'), style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Row(
+                children: List.generate(maxLives, (i) => Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(i < lives ? '🛡️' : '💨', style: const TextStyle(fontSize: 20)),
+                )),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text('⭐ $_stars', style: _textStyle(Colors.amber, size: 16, bold: true)),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('🏰 ${loc.get('world_geometry_castle')}', style: _textStyle(Colors.white, size: 20, bold: true)),
-                Text(loc.get('world_geometry_castle_desc'), style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ],
-            ),
-          ),
-          Row(
-            children: List.generate(5, (i) => Padding(
-              padding: const EdgeInsets.only(left: 2),
-              child: Text(i < _lives ? '🛡️' : '💨', style: const TextStyle(fontSize: 20)),
-            )),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text('⭐ $_stars', style: _textStyle(Colors.amber, size: 16, bold: true)),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -569,8 +654,10 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
       borderColor = isCorrect ? const Color(0xFF1B5E20) : const Color(0xFF654321);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
     return GestureDetector(
-      onTap: _isAnswered ? null : () => _checkAnswer(shape),
+      onTap: canTap ? () => _checkAnswer(shape) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 88,

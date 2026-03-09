@@ -8,6 +8,8 @@ import '../models/badge.dart';
 import '../localization/app_localizations.dart';
 import 'badges_screen.dart';
 import 'parent_panel_screen.dart';
+import 'welcome_screen.dart';
+import 'app_screen_wrappers.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -82,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         // MİSAFİR BİLGİSİ
                         if (user.isGuest)
-                          _buildGuestInfoCard(user, localizations),
+                          _buildGuestInfoCard(user, localizations, authService),
                         const SizedBox(height: 24),
 
                         // İSTATİSTİKLER
@@ -353,12 +355,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final coins = mechanicsService.inventory.coins;
               final lives = mechanicsService.currentLives;
               final maxLives = mechanicsService.maxLives;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              final hints = mechanicsService.hintSystem.availableHints;
+              return Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 16,
                 children: [
                   _buildStatItem('🏆', '${stats?.totalScore ?? 0}', localizations.get('total_score')),
                   _buildStatItem('🪙', '$coins', localizations.get('coins')),
                   _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
+                  _buildStatItem('💡', '$hints', localizations.get('hints')),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
                 ],
               );
@@ -412,7 +418,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildGuestInfoCard(AppUser user, AppLocalizations localizations) {
+  Widget _buildGuestInfoCard(AppUser user, AppLocalizations localizations, AuthService authService) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -459,7 +465,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : () => _showConvertToAccountDialog(context),
+                  onPressed: _isLoading ? null : () => _navigateToLoginScreen(authService),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
@@ -468,16 +474,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                      : Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.person_add, size: 18),
@@ -822,7 +819,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: InkWell(
         onTap: () {
           if (authService.currentUser?.isGuest == true) {
-            _showParentPanelGuestDialog(localizations);
+            _showParentPanelGuestDialog(localizations, authService);
             return;
           }
           Navigator.push(
@@ -901,7 +898,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showParentPanelGuestDialog(AppLocalizations localizations) {
+  void _showParentPanelGuestDialog(AppLocalizations localizations, AuthService authService) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -931,7 +928,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _showConvertToAccountDialog(context);
+              _navigateToLoginScreen(authService);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.amber,
@@ -973,6 +970,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// Oturum açma sayfasına yönlendir (Matematiğe Hoş Geldiniz! - Google/E-posta/Misafir)
+  Future<void> _navigateToLoginScreen(AuthService authService) async {
+    if (_isLoading) return;
+    try {
+      await authService.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => WelcomeScreen(
+            initialPageIsLoginOptions: true,
+            onSignInComplete: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+            onSkip: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bir hata oluştu: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showConvertToAccountDialog(BuildContext context) {
@@ -1134,13 +1166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await authService.signOut();
-
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/welcome',
-                      (route) => false,
-                );
+                await _navigateToLoginScreen(authService);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,

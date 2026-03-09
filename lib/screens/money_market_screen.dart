@@ -454,8 +454,8 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
 
   Widget _buildCoinOptions(AppLocalizations loc) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
@@ -466,7 +466,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
           Text(loc.get('money_market_select_total'), style: _textStyle(_orange, size: 16, bold: true)),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 12,
+            spacing: 16,
             runSpacing: 12,
             alignment: WrapAlignment.center,
             children: _coinOptions.map((opt) => _buildCoinButton(loc, opt)).toList(),
@@ -492,7 +492,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
       onTap: canTap ? () => _checkAnswer(amount) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 90,
+        width: 118,
         height: 90,
         decoration: BoxDecoration(
           color: bgColor,

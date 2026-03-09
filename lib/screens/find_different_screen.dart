@@ -136,7 +136,7 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
 
   Widget _buildTitle() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 32),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -177,12 +177,12 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
 
   Widget _buildItemsGrid() {
     return GridView.builder(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 15,
-        mainAxisSpacing: 15,
-        childAspectRatio: 1,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        mainAxisExtent: 55,
       ),
       itemCount: _items.length,
       itemBuilder: (context, index) {
@@ -191,7 +191,7 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: Colors.orange.shade300,
                 width: 3,
@@ -208,7 +208,7 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
               child: Text(
                 _items[index],
                 style: const TextStyle(
-                  fontSize: 40,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
