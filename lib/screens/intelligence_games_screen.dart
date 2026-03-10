@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'memory_cards_screen.dart';
 import 'find_different_screen.dart';
 import 'pattern_completion_screen.dart';
 import 'simon_says_screen.dart';
 import 'true_false_math_screen.dart';
-import 'tangram_screen.dart';
 
 class IntelligenceGamesScreen extends StatelessWidget {
   final String ageGroup;
@@ -16,6 +18,7 @@ class IntelligenceGamesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -31,15 +34,15 @@ class IntelligenceGamesScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              _buildTopBar(context),
+              _buildTopBar(context, loc),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      _buildHeader(),
+                      _buildHeader(loc),
                       const SizedBox(height: 30),
-                      _buildGameGrid(context),
+                      _buildGameGrid(context, loc),
                     ],
                   ),
                 ),
@@ -51,7 +54,7 @@ class IntelligenceGamesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar(BuildContext context, AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -61,9 +64,9 @@ class IntelligenceGamesScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
-          const Text(
-            '🧠 Zeka Oyunları',
-            style: TextStyle(
+          Text(
+            '🧠 ${loc.intelligenceGames}',
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -76,7 +79,7 @@ class IntelligenceGamesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -97,7 +100,7 @@ class IntelligenceGamesScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Beynini Geliştir!',
+            loc.brainDevelopTitle,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -106,7 +109,7 @@ class IntelligenceGamesScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Eğlenceli oyunlarla zekânı test et',
+            loc.brainDevelopSubtitle,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -117,49 +120,42 @@ class IntelligenceGamesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGameGrid(BuildContext context) {
+  Widget _buildGameGrid(BuildContext context, AppLocalizations loc) {
     final games = [
       {
-        'name': 'Hafıza Kartları',
-        'subtitle': 'Eşleştir ve hatırla',
+        'name': loc.gameMemoryCards,
+        'subtitle': loc.gameMemoryCardsSubtitle,
         'icon': '🃏',
         'color': Colors.purple,
         'screen': MemoryCardsScreen(ageGroup: ageGroup),
       },
       {
-        'name': 'Farklı Olanı Bul',
-        'subtitle': 'Dikkatini test et',
+        'name': loc.gameFindDifferent,
+        'subtitle': loc.gameFindDifferentSubtitle,
         'icon': '🔍',
         'color': Colors.orange,
         'screen': FindDifferentScreen(ageGroup: ageGroup),
       },
       {
-        'name': 'Desen Tamamlama',
-        'subtitle': 'Mantık yürüt',
+        'name': loc.gamePatternCompletion,
+        'subtitle': loc.gamePatternCompletionSubtitle,
         'icon': '🧩',
         'color': Colors.green,
         'screen': PatternCompletionScreen(ageGroup: ageGroup),
       },
       {
-        'name': 'Simon Says',
-        'subtitle': 'Diziyi hatırla',
+        'name': loc.gameSimonSays,
+        'subtitle': loc.gameSimonSaysSubtitle,
         'icon': '🎯',
         'color': Colors.blue,
         'screen': SimonSaysScreen(ageGroup: ageGroup),
       },
       {
-        'name': 'Hızlı Matematik',
-        'subtitle': 'Doğru mu Yanlış mı?',
+        'name': loc.gameFastMath,
+        'subtitle': loc.gameFastMathSubtitle,
         'icon': '⚡',
         'color': Colors.red,
         'screen': TrueFalseMathScreen(ageGroup: ageGroup),
-      },
-      {
-        'name': 'Tangram',
-        'subtitle': 'Şekilleri birleştir',
-        'icon': '🔺',
-        'color': Colors.teal,
-        'screen': TangramScreen(ageGroup: ageGroup),
       },
     ];
 

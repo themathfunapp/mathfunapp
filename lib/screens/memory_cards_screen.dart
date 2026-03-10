@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
+import '../services/ad_service.dart';
+import '../services/game_mechanics_service.dart';
+import '../widgets/child_exit_dialog.dart';
 
 class MemoryCardsScreen extends StatefulWidget {
   final String ageGroup;
@@ -14,11 +22,16 @@ class MemoryCardsScreen extends StatefulWidget {
 }
 
 class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
-  int _level = 1;
-  int _section = 1; // Her seviyede 10 bölüm
+  static const String _highScoreKey = 'memory_cards_high_score';
+  static const String _completedSectionsKey = 'memory_cards_sections';
+
+  bool _showLevelSelect = true;
+  Set<int> _completedSections = {};
+  int _currentSection = 1; // 1-100 (bölüm 1-10, her bölümde 10 seviye)
+  int _score = 0;
+  int _highScore = 0;
   int _moves = 0;
-  int _totalScore = 0;
-  
+
   List<String> _cards = [];
   List<int> _cardPairIds = [];
   List<bool> _revealed = [];
@@ -27,7 +40,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   bool _isProcessing = false;
   bool _canTap = true;
 
-  // Her sonuç benzersiz - aynı bölümde tekrar eden sonuç yok (2'den 100'e kadar)
   static final List<List<String>> _pairPool = [
     ['1+1', '2'], ['2+1', '3'], ['2+2', '4'], ['3+2', '5'], ['4+2', '6'],
     ['4+3', '7'], ['5+3', '8'], ['6+3', '9'], ['5+5', '10'], ['6+5', '11'],
@@ -40,37 +52,61 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeGame();
+    _loadHighScore();
   }
 
-  /// Seviye 1: 10 kart (5 çift), Seviye 2: 12 kart (6 çift), her seviyede +2 kart
+  Future<void> _loadHighScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _highScore = prefs.getInt(_highScoreKey) ?? 0;
+      _completedSections = (prefs.getStringList(_completedSectionsKey) ?? [])
+          .map((e) => int.tryParse(e) ?? 0)
+          .where((e) => e > 0)
+          .toSet();
+    });
+  }
+
+  Future<void> _saveCompletedSection(int section) async {
+    _completedSections.add(section);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+        _completedSectionsKey, _completedSections.map((e) => e.toString()).toList());
+  }
+
+  Future<void> _saveHighScore(int s) async {
+    if (s > _highScore) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_highScoreKey, s);
+      setState(() => _highScore = s);
+    }
+  }
+
   int _getPairCount() {
-    return 5 + (_level - 1);
+    return 5 + ((_currentSection - 1) ~/ 10);
   }
 
-  List<List<String>> _getPairsForLevel() {
+  List<List<String>> _getPairsForSection() {
     int pairCount = _getPairCount();
     return _pairPool.take(pairCount).toList();
   }
 
   void _initializeGame() {
-    final pairs = _getPairsForLevel();
+    final pairs = _getPairsForSection();
     int pairCount = pairs.length;
-    
+
     _cards = [];
     _cardPairIds = [];
-    
+
     for (int i = 0; i < pairCount; i++) {
       _cards.add(pairs[i][0]);
       _cardPairIds.add(i);
       _cards.add(pairs[i][1]);
       _cardPairIds.add(i);
     }
-    
-    // Kartları karıştır
+
     final indices = List.generate(_cards.length, (i) => i);
     indices.shuffle();
-    
+
     final shuffledCards = <String>[];
     final shuffledPairIds = <int>[];
     for (int i in indices) {
@@ -79,7 +115,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     }
     _cards = shuffledCards;
     _cardPairIds = shuffledPairIds;
-    
+
     _revealed = List.filled(_cards.length, false);
     _matched = List.filled(_cards.length, false);
     _moves = 0;
@@ -88,17 +124,159 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     _canTap = true;
   }
 
-  void _resetGame() {
+  void _loadSection(int section) {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(loc.get('no_lives_play')),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.pop(context);
+      });
+      return;
+    }
     setState(() {
-      _level = 1;
-      _section = 1;
-      _totalScore = 0;
+      _currentSection = section;
       _initializeGame();
     });
   }
 
+  void _startGame(int bolum) {
+    setState(() {
+      _showLevelSelect = false;
+      _score = 0;
+      _currentSection = (bolum - 1) * 10 + 1;
+    });
+    _loadSection(_currentSection);
+  }
+
+  void _gameOver() {
+    _saveHighScore(_score);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    if (!mechanicsService.hasLives) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Text('💔', style: GoogleFonts.quicksand(fontSize: 32)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(loc.get('lives_finished'),
+                      style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          content: Text(
+              '${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10',
+              style: GoogleFonts.quicksand()),
+          actions: [
+            TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                },
+                child: Text(loc.menu, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black87,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _reviveWithAd();
+              },
+              child: Text(loc.get('watch_ad_gain_life'),
+                  style: GoogleFonts.quicksand(fontSize: 11)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Text(loc.get('game_over'), style: GoogleFonts.quicksand()),
+          content: Text(
+              '${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10',
+              style: GoogleFonts.quicksand()),
+          actions: [
+            TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  setState(() => _showLevelSelect = true);
+                },
+                child: Text(loc.sectionSelect,
+                    style: GoogleFonts.quicksand(color: Colors.red.shade700))),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
+                setState(() {
+                  _currentSection = firstOfBolum;
+                  _score = 0;
+                });
+                _loadSection(_currentSection);
+              },
+              child: Text(loc.repeat, style: GoogleFonts.quicksand()),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _reviveWithAd() {
+    AdService().watchAdForLife(
+      onLifeEarned: () {
+        if (!mounted) return;
+        Provider.of<GameMechanicsService>(context, listen: false).earnLifeFromAd();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('🎬 +1 can!', style: GoogleFonts.quicksand()),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ));
+        _initializeGame();
+      },
+      onAdClosed: () {},
+    );
+  }
+
+  Widget _buildBackButton(VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: Colors.purple.withOpacity(0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
+          ],
+          border: Border.all(color: Colors.purple.shade200, width: 2),
+        ),
+        child: Center(
+            child: Icon(Icons.keyboard_arrow_left_rounded,
+                color: Colors.purple.shade700, size: 30)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_showLevelSelect) return _buildLevelSelect();
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -118,8 +296,129 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
               _buildScoreBar(),
               _buildLevelIndicator(),
               Expanded(
-                child: Center(
-                  child: _buildCardGrid(),
+                child: Center(child: _buildCardGrid()),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelSelect() {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade400, Colors.purple.shade100],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    _buildBackButton(() => Navigator.pop(context)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Builder(
+                        builder: (ctx) {
+                          final loc = AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(loc.gameMemoryCards,
+                                  style: GoogleFonts.quicksand(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.purple.shade800)),
+                              Text(
+                                  '${loc.sectionsInfo} $_highScore',
+                              style: GoogleFonts.quicksand(
+                                  fontSize: 12, color: Colors.purple.shade600)),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    Builder(
+                      builder: (ctx) {
+                        final loc = AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale);
+                        return IconButton(
+                          icon: Icon(Icons.help_outline, color: Colors.purple.shade800, size: 28),
+                          onPressed: _showHelpDialog,
+                          tooltip: loc.howToPlay,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(20),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.of(context).size.width > 500 ? 5 : 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: 10,
+                  itemBuilder: (context, i) {
+                    final bolum = i + 1;
+                    final lastSectionOfPrevBolum = (bolum - 1) * 10;
+                    final lastSectionOfBolum = bolum * 10;
+                    final completed =
+                        _completedSections.contains(lastSectionOfBolum);
+                    final locked = bolum > 1 &&
+                        !_completedSections.contains(lastSectionOfPrevBolum);
+                    return GestureDetector(
+                      onTap: locked ? null : () => _startGame(bolum),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: locked
+                              ? Colors.grey.shade300
+                              : (completed ? Colors.amber.shade100 : Colors.white),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: locked
+                                  ? Colors.grey
+                                  : Colors.purple.shade200,
+                              width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 6),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (locked)
+                              Icon(Icons.lock,
+                                  color: Colors.grey.shade600, size: 28)
+                            else if (completed)
+                              Text('⭐', style: GoogleFonts.quicksand(fontSize: 32))
+                            else
+                              Builder(
+                                builder: (ctx) {
+                                  final loc = AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale);
+                                  return Text('${loc.section} $bolum',
+                                    style: GoogleFonts.quicksand(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.purple.shade800));
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -131,30 +430,88 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+          _buildBackButton(() {
+            ChildExitDialog.show(
+              context,
+              themeColor: Colors.purple,
+              onStay: () {},
+              onSectionSelect: () => setState(() => _showLevelSelect = true),
+              onExit: () => Navigator.pop(context),
+            );
+          }),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.1), blurRadius: 6),
+                ]),
+            child: Text(
+                '${((_currentSection - 1) % 10) + 1}/10',
+                style: GoogleFonts.quicksand(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade800)),
           ),
           const Spacer(),
-          const Text(
-            '🃏 Hafıza Kartları',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.amber.withOpacity(0.3), blurRadius: 6),
+                ]),
+            child: Row(
+              children: [
+                Text('⭐', style: GoogleFonts.quicksand(fontSize: 18)),
+                const SizedBox(width: 6),
+                Text('$_score',
+                    style: GoogleFonts.quicksand(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
             ),
           ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: _showHelpDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _resetGame,
+          const SizedBox(width: 12),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.purple.withOpacity(0.3),
+                          blurRadius: 6),
+                    ]),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    maxLives,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.favorite,
+                        color: i < lives
+                            ? Colors.purple.shade600
+                            : Colors.grey.shade300,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -162,6 +519,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _showHelpDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -169,7 +527,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         title: Row(
           children: [
             const Text('🎮 '),
-            const Text('Nasıl Oynanır?'),
+            Text(loc.howToPlay, style: GoogleFonts.quicksand()),
           ],
         ),
         content: SingleChildScrollView(
@@ -177,21 +535,12 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHelpItem('1️⃣', 'Kartlara tıklayarak çevir'),
-              _buildHelpItem('2️⃣', 'İki kart seç ve eşleştir'),
-              _buildHelpItem('3️⃣', 'Matematik işlemi ile sonucunu bul'),
-              _buildHelpItem('4️⃣', 'Örnek: "3+2" kartı ile "5" kartı eşleşir'),
-              _buildHelpItem('5️⃣', 'Her seviyede 10 bölüm var'),
-              _buildHelpItem('6️⃣', '10 bölümü tamamla = 1 seviye geç'),
-              const Divider(),
-              const Text(
-                '💡 İpuçları:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text('• Seviye 1: 10 kart, her seviyede +2 kart'),
-              const Text('• Kartlar fazlalaşınca kare grid olur'),
-              const Text('• Her seviye tamamlandığında 10 puan!'),
+              _buildHelpItem('1️⃣', loc.get('help_memory_1')),
+              _buildHelpItem('2️⃣', loc.get('help_memory_2')),
+              _buildHelpItem('3️⃣', loc.get('help_memory_3')),
+              _buildHelpItem('4️⃣', loc.get('help_memory_4')),
+              _buildHelpItem('5️⃣', loc.get('help_memory_5')),
+              _buildHelpItem('6️⃣', loc.get('help_memory_6')),
             ],
           ),
         ),
@@ -204,7 +553,8 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
               ),
             ),
             onPressed: () => Navigator.pop(context),
-            child: const Text('Anladım!', style: TextStyle(color: Colors.white)),
+            child: Text(loc.gotIt,
+                style: GoogleFonts.quicksand(color: Colors.white)),
           ),
         ],
       ),
@@ -219,27 +569,20 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         children: [
           Text(emoji, style: const TextStyle(fontSize: 16)),
           const SizedBox(width: 8),
-          Expanded(child: Text(text)),
+          Expanded(child: Text(text, style: GoogleFonts.quicksand())),
         ],
       ),
     );
   }
 
   int _getMatchedPairCount() {
-    int count = 0;
-    for (int i = 0; i < _matched.length; i += 2) {
-      if (i + 1 < _matched.length && _matched[i] && _matched[i + 1]) {
-        count++;
-      }
-    }
-    // Daha doğru hesaplama
     return _matched.where((m) => m).length ~/ 2;
   }
 
   Widget _buildScoreBar() {
     int totalPairs = _getPairCount();
     int matchedPairs = _getMatchedPairCount();
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -254,14 +597,19 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('Seviye', '$_level - $_section/10', Colors.purple),
-          _buildStatItem('Eşleşme', '$matchedPairs/$totalPairs', Colors.teal),
-          _buildStatItem('Hamle', '$_moves', Colors.blue),
-          _buildStatItem('Puan', '$_totalScore', Colors.orange),
-        ],
+      child: Builder(
+        builder: (ctx) {
+          final loc = AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale);
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(loc.level, '${((_currentSection - 1) % 10) + 1}/10', Colors.purple),
+              _buildStatItem(loc.match, '$matchedPairs/$totalPairs', Colors.teal),
+              _buildStatItem(loc.moves, '$_moves', Colors.blue),
+              _buildStatItem(loc.score, '$_score', Colors.orange),
+            ],
+          );
+        },
       ),
     );
   }
@@ -271,32 +619,26 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-          ),
+          style: GoogleFonts.quicksand(fontSize: 11, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: GoogleFonts.quicksand(
+              fontSize: 16, fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
   }
 
   Widget _buildLevelIndicator() {
-    // Mevcut seviyedeki 10 bölümün ilerlemesi
+    final levelInBolum = ((_currentSection - 1) % 10) + 1;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: List.generate(10, (index) {
-          bool isCompleted = index + 1 < _section;
-          bool isCurrent = index + 1 == _section;
+          bool isCompleted = index + 1 < levelInBolum;
+          bool isCurrent = index + 1 == levelInBolum;
           return Expanded(
             child: Container(
               height: 6,
@@ -318,20 +660,19 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
 
   Widget _buildCardGrid() {
     int cardCount = _cards.length;
-    // Kare şekil: kartlar fazla olduğunda yan yana dizilir (cols ≈ sqrt(n))
     int columns = math.max(2, math.sqrt(cardCount).ceil());
     int rows = (cardCount / columns).ceil();
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         double maxWidth = constraints.maxWidth - 32;
         double maxHeight = constraints.maxHeight - 16;
-        
+
         double cardWidth = (maxWidth - (columns - 1) * 8) / columns;
         double cardHeight = (maxHeight - (rows - 1) * 8) / rows;
         double cardSize = math.min(cardWidth, cardHeight);
         cardSize = math.min(cardSize, 90);
-        
+
         return Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -364,7 +705,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   Widget _buildCard(int index) {
     bool isRevealed = _revealed[index];
     bool isMatched = _matched[index];
-    
+
     return GestureDetector(
       onTap: () => _onCardTap(index),
       child: AnimatedContainer(
@@ -400,7 +741,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
                     padding: const EdgeInsets.all(4),
                     child: Text(
                       _cards[index],
-                      style: TextStyle(
+                      style: GoogleFonts.quicksand(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: isMatched ? Colors.green.shade800 : Colors.black87,
@@ -420,36 +761,37 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _onCardTap(int index) {
-    // Tıklama engellerini kontrol et
     if (!_canTap) return;
     if (_isProcessing) return;
     if (_revealed[index]) return;
     if (_matched[index]) return;
-    
+
     if (_firstCardIndex == null) {
-      // İlk kart seçildi
       setState(() {
         _revealed[index] = true;
         _firstCardIndex = index;
       });
     } else {
-      // İkinci kart seçildi - hemen kilitle
       final firstIndex = _firstCardIndex!;
       final secondIndex = index;
-      
+
       setState(() {
         _revealed[index] = true;
         _moves++;
         _isProcessing = true;
         _canTap = false;
       });
-      
-      // Eşleşme kontrolü
+
       Future.delayed(const Duration(milliseconds: 700), () {
         if (!mounted) return;
-        
+
         bool isMatch = _cardPairIds[firstIndex] == _cardPairIds[secondIndex];
-        
+        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+
+        if (!isMatch) {
+          mechanicsService.onWrongAnswer();
+        }
+
         setState(() {
           if (isMatch) {
             _matched[firstIndex] = true;
@@ -458,13 +800,24 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
             _revealed[firstIndex] = false;
             _revealed[secondIndex] = false;
           }
-          
+
           _firstCardIndex = null;
           _isProcessing = false;
           _canTap = true;
         });
-        
-        // Seviye tamamlandı mı? - setState sonrası kontrol
+
+        if (!isMatch && !mechanicsService.hasLives) {
+          _gameOver();
+        } else if (!isMatch) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Yanlış eşleşme!', style: GoogleFonts.quicksand()),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+
         Future.microtask(() {
           if (!mounted) return;
           if (_matched.isNotEmpty && _matched.every((m) => m)) {
@@ -476,152 +829,117 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _onLevelComplete() {
-    // Bölüm tamamlandı
-    if (_section < 10) {
-      _showSectionCompleteAnimation();
+    final levelInBolum = ((_currentSection - 1) % 10) + 1;
+    final bolumComplete = levelInBolum == 10;
+    const int points = 10;
+
+    if (bolumComplete) {
+      setState(() => _score += points);
+      _saveHighScore(_score);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('🎉 Bölüm tamamlandı! +$points puan',
+              style: GoogleFonts.quicksand(fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
     } else {
-      // Seviye tamamlandı - 10 puan
-      _totalScore += 10;
-      if (_level < 10) {
-        _showLevelUpAnimation();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Builder(
+            builder: (ctx) => Text('✅ ${AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale).levelCompleted}',
+              style: GoogleFonts.quicksand(fontWeight: FontWeight.bold))),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
+
+    _saveCompletedSection(_currentSection);
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      if (_currentSection < 100) {
+        setState(() => _currentSection++);
+        _initializeGame();
       } else {
         _showFinalDialog();
       }
-    }
-  }
-
-  void _showSectionCompleteAnimation() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('✅ ', style: TextStyle(fontSize: 20)),
-            Text(
-              'Bölüm $_section/10 tamamlandı!',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.teal,
-        duration: const Duration(milliseconds: 800),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() {
-        _section++;
-        _initializeGame();
-      });
-    });
-  }
-
-  void _showLevelUpAnimation() {
-    // Kısa bir kutlama göster ve otomatik ilerle
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🎉 ', style: TextStyle(fontSize: 20)),
-            Text(
-              'Seviye $_level tamamlandı! Seviye ${_level + 1} başlıyor...',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-    
-    // 1.2 saniye sonra otomatik sonraki seviyeye geç
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      setState(() {
-        _level++;
-        _section = 1;
-        _initializeGame();
-      });
     });
   }
 
   void _showFinalDialog() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            '🏆 TEBRİKLER!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 24, color: Colors.purple),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '🎊 Tüm 10 seviyeyi tamamladın!\nHafıza Şampiyonusun! 🎊',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _buildResultRow('Toplam Hamle', '$_moves'),
-                    const Divider(),
-                    _buildResultRow('TOPLAM PUAN', '$_totalScore', isBold: true),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                _resetGame();
-              },
-              icon: const Icon(Icons.replay, color: Colors.white),
-              label: const Text('Tekrar Oyna', style: TextStyle(color: Colors.white)),
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '🏆 ${loc.get('congratulations')}',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.quicksand(fontSize: 24, color: Colors.purple),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '🎊 ${loc.memoryChampion}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.quicksand(fontSize: 16),
             ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(12),
               ),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.home, color: Colors.white),
-              label: const Text('Ana Menü', style: TextStyle(color: Colors.white)),
+              child: Column(
+                children: [
+                  _buildResultRow(loc.totalMoves, '$_moves'),
+                  const Divider(),
+                  _buildResultRow(loc.totalScore, '$_score', isBold: true),
+                ],
+              ),
             ),
           ],
         ),
-      );
-    });
+        actions: [
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _showLevelSelect = true);
+            },
+            icon: const Icon(Icons.replay, color: Colors.white),
+            label: Text(loc.get('play_again'), style: GoogleFonts.quicksand(color: Colors.white)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.home, color: Colors.white),
+            label: Text(loc.get('main_menu'), style: GoogleFonts.quicksand(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildResultRow(String label, String value, {bool isBold = false}) {
@@ -630,10 +948,12 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(label,
+              style: GoogleFonts.quicksand(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
           Text(
             value,
-            style: TextStyle(
+            style: GoogleFonts.quicksand(
               fontWeight: FontWeight.bold,
               color: isBold ? Colors.purple : Colors.black87,
               fontSize: isBold ? 18 : 14,
