@@ -15,22 +15,17 @@ class BottomActionButton extends StatelessWidget {
     required this.emoji,
     required this.onPressed,
     this.width,
-    this.height = 60,
-    this.fontSize = 14,
+    this.height = 76,
+    this.fontSize = 13,
     this.textColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
+      width: width ?? double.infinity,
       height: height,
-      constraints: width == null
-          ? const BoxConstraints(
-        minWidth: 60,
-        maxWidth: 200,
-      )
-          : null,
+      constraints: const BoxConstraints(minWidth: 60),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(16),
@@ -41,33 +36,38 @@ class BottomActionButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      emoji,
-                      style: TextStyle(fontSize: fontSize + 6),
-                    ),
-                  ),
+                Text(
+                  emoji,
+                  style: TextStyle(fontSize: fontSize + 4),
                 ),
-                const SizedBox(width: 8),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w500,
-                      color: textColor,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    maxLines: 1,
-                  ),
+                const SizedBox(height: 4),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                        child: Text(
+                          text,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          softWrap: true,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                            height: 1.15,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
