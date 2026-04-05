@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
+import '../services/game_mechanics_service.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
+import '../widgets/child_exit_dialog.dart';
 
 class NumberColoringScreen extends StatefulWidget {
   final String ageGroup;
+  /// 1=Tek Basamaklı (0-9), 2=İki Basamaklı (10-99), 3=Üç Basamaklı (100-999)
+  final int levelMode;
+  final int totalLevels;
 
   const NumberColoringScreen({
     Key? key,
     required this.ageGroup,
+    this.levelMode = 1,
+    this.totalLevels = 30,
   }) : super(key: key);
 
   @override
@@ -49,17 +60,19 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
       _selectedDigitIndex = null;
       _digitColors.clear();
       
-      // Seviyeye göre başlangıç sayısını belirle
-      if (_currentLevel == 1) {
-        // Seviye 1: 0-9 (10 rakam)
+      final mode = widget.levelMode;
+      final totalLevels = widget.totalLevels;
+      
+      if (mode == 1) {
+        // Tek Basamaklı: 0-9
         _currentNumber = 0;
-      } else if (_currentLevel <= 10) {
-        // Seviye 2-10: İki basamaklı 10-99 (her seviye 10 sayı)
-        int groupIndex = _currentLevel - 2;
+      } else if (mode == 2) {
+        // İki Basamaklı: 10-99, her seviye 10 sayı
+        int groupIndex = (_currentLevel - 1).clamp(0, 8);
         _currentNumber = 10 + (groupIndex * 10);
       } else {
-        // Seviye 11-30: Üç basamaklı 100-299 (her seviye 10 sayı)
-        int groupIndex = _currentLevel - 11;
+        // Üç Basamaklı: 100-999, her seviye 10 sayı
+        int groupIndex = (_currentLevel - 1).clamp(0, 89);
         _currentNumber = 100 + (groupIndex * 10);
       }
     });
@@ -112,21 +125,76 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildTopBar() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Spacer(),
-          Text(
-            'Seviye $_currentLevel/30',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          GestureDetector(
+            onTap: () {
+              ChildExitDialog.show(
+                context,
+                themeColor: Colors.orange,
+                onStay: () {},
+                onSectionSelect: () => Navigator.pop(context),
+                onExit: () => Navigator.pop(context),
+              );
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.orange),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+              ),
+              child: Text(
+                '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    maxLives,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.bolt,
+                        color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -134,22 +202,24 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildLevelInfo() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     String levelType = '';
     String rangeInfo = '';
+    final mode = widget.levelMode;
     
-    if (_currentLevel == 1) {
-      levelType = 'Tek Basamaklı';
-      rangeInfo = '0-9 arası rakamları boya';
-    } else if (_currentLevel <= 10) {
-      levelType = 'İki Basamaklı';
-      int start = 10 + ((_currentLevel - 2) * 10);
-      int end = start + 9;
-      rangeInfo = '$start-$end arası sayıları boya';
+    if (mode == 1) {
+      levelType = loc.get('number_mode_single');
+      rangeInfo = loc.get('number_mode_single_desc');
+    } else if (mode == 2) {
+      levelType = loc.get('number_mode_double');
+      int start = 10 + (((_currentLevel - 1).clamp(0, 8)) * 10);
+      int end = (start + 9).clamp(10, 99);
+      rangeInfo = loc.get('number_coloring_range').replaceAll('%1', '$start').replaceAll('%2', '$end');
     } else {
-      levelType = 'Üç Basamaklı';
-      int start = 100 + ((_currentLevel - 11) * 10);
-      int end = start + 9;
-      rangeInfo = '$start-$end arası sayıları boya';
+      levelType = loc.get('number_mode_triple');
+      int start = 100 + (((_currentLevel - 1).clamp(0, 89)) * 10);
+      int end = (start + 9).clamp(100, 999);
+      rangeInfo = loc.get('number_coloring_range').replaceAll('%1', '$start').replaceAll('%2', '$end');
     }
 
     return Container(
@@ -183,7 +253,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Sayıyı Boya: $_currentNumber',
+            loc.get('color_the_number').replaceAll('%1', '$_currentNumber'),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -259,6 +329,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildColorPalette() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -270,9 +341,9 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                '🎨 Renk Seç',
-                style: TextStyle(
+              Text(
+                '🎨 ${loc.get('select_color')}',
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -286,7 +357,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Basamak ${_selectedDigitIndex! + 1}',
+                    loc.get('digit_n').replaceAll('%1', '${_selectedDigitIndex! + 1}'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -312,9 +383,9 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
                   } else {
                     // Basamak seçili değilse uyarı göster
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Önce boyamak istediğiniz basamağa dokunun!'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        content: Text(loc.get('tap_digit_first')),
+                        duration: const Duration(seconds: 2),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -353,6 +424,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildActionButtons() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     // Tüm basamaklar boyandıysa butonu aktif et
     List<int> digits = _getDigits();
     bool allDigitsColored = digits.asMap().keys.every((index) => _digitColors.containsKey(index));
@@ -375,7 +447,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
             ),
           ),
           child: Text(
-            allDigitsColored ? 'Tamamla ✓' : 'Tüm basamakları boyayın',
+            allDigitsColored ? loc.get('complete_check') : loc.get('color_all_digits'),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
@@ -392,7 +464,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
     
     if (_numberIndexInLevel >= numbersInLevel) {
       // Seviye tamamlandı!
-      if (_currentLevel < 30) {
+      if (_currentLevel < widget.totalLevels) {
         // Bir sonraki seviyeye geç
         _showLevelCompleteDialog();
       } else {
@@ -411,12 +483,13 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
   
   void _showLevelCompleteDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🎉 Tebrikler!'),
-        content: Text('Seviye $_currentLevel tamamlandı!'),
+        title: Text('🎉 ${loc.get('congratulations')}'),
+        content: Text(loc.get('level_completed_with_num').replaceAll('%1', '$_currentLevel')),
         actions: [
           ElevatedButton(
             onPressed: () {
@@ -429,7 +502,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
             ),
-            child: const Text('Sonraki Seviye'),
+            child: Text(loc.get('next_level')),
           ),
         ],
       ),
@@ -437,12 +510,13 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
   
   void _showGameCompleteDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🏆 Harika!'),
-        content: const Text('Tüm seviyeleri tamamladın!'),
+        title: Text('🏆 ${loc.get('great')}'),
+        content: Text(loc.get('all_levels_completed')),
         actions: [
           ElevatedButton(
             onPressed: () {
@@ -452,7 +526,7 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
             ),
-            child: const Text('Bitir'),
+            child: Text(loc.get('finish')),
           ),
         ],
       ),

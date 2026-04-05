@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
+import '../services/game_mechanics_service.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
+import '../widgets/child_exit_dialog.dart';
 
 class ColorLabScreen extends StatefulWidget {
   final String ageGroup;
+  /// 1=Kolay (1-5), 2=Orta (1-9), 3=Zor (5-15)
+  final int levelMode;
+  final int totalLevels;
 
   const ColorLabScreen({
     Key? key,
     required this.ageGroup,
+    this.levelMode = 1,
+    this.totalLevels = 15,
   }) : super(key: key);
 
   @override
@@ -48,16 +60,29 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   void _loadLevel() {
-    // Seviyeye göre soru oluştur
     final random = math.Random();
+    final mode = widget.levelMode;
+    int maxVal1, maxVal2, minVal;
+    if (mode == 1) {
+      minVal = 1;
+      maxVal1 = 5;
+      maxVal2 = 5;
+    } else if (mode == 2) {
+      minVal = 1;
+      maxVal1 = 9;
+      maxVal2 = 9;
+    } else {
+      minVal = 5;
+      maxVal1 = 15;
+      maxVal2 = 15;
+    }
     
     setState(() {
       _hasAnswered = false;
       _resultColor = null;
       
-      // Rastgele miktarlar oluştur (1-9 arası)
-      _amount1 = random.nextInt(5) + 1;
-      _amount2 = random.nextInt(5) + 1;
+      _amount1 = minVal + random.nextInt(maxVal1 - minVal + 1);
+      _amount2 = minVal + random.nextInt(maxVal2 - minVal + 1);
       _correctAnswer = _amount1 + _amount2;
       
       // Rastgele renkler seç (beyaz arka planda görünür renkler)
@@ -80,10 +105,11 @@ class _ColorLabScreenState extends State<ColorLabScreen>
 
   void _mixColors() {
     if (!_hasAnswered) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Önce soruyu cevapla!'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(loc.get('color_lab_answer_question_first')),
+          duration: const Duration(seconds: 2),
           backgroundColor: Colors.orange,
         ),
       );
@@ -103,7 +129,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
       
       // 2 saniye sonra bir sonraki seviyeye geç
       Future.delayed(const Duration(seconds: 2), () {
-        if (_currentLevel < 15) {
+        if (mounted && _currentLevel < widget.totalLevels) {
           setState(() {
             _currentLevel++;
             _loadLevel();
@@ -142,22 +168,19 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
   
   void _showCompleteDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    Provider.of<GameMechanicsService>(context, listen: false).addCoins(10);
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('🏆 Tebrikler!'),
-        content: Text('Tüm renk karışımlarını tamamladın!\nToplam Puan: $_score'),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-            child: const Text('Bitir'),
-          ),
-        ],
+      barrierColor: Colors.black54,
+      builder: (context) => _ColorLabCompleteDialog(
+        coinsEarned: 10,
+        loc: loc,
+        onFinish: () {
+          Navigator.pop(context);
+          Navigator.pop(context);
+        },
       ),
     );
   }
@@ -203,49 +226,95 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildTopBar() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+          GestureDetector(
+            onTap: () {
+              ChildExitDialog.show(
+                context,
+                themeColor: Colors.purple,
+                onStay: () {},
+                onSectionSelect: () => Navigator.pop(context),
+                onExit: () => Navigator.pop(context),
+              );
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.purple),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber),
-                const SizedBox(width: 8),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$_score',
+                    style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Seviye $_currentLevel/15',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                ],
               ),
             ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+            ),
+            child: Text(
+              '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+              style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    maxLives,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.bolt,
+                        color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -253,6 +322,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildCharacter() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Column(
       children: [
         Text(
@@ -272,8 +342,8 @@ class _ColorLabScreenState extends State<ColorLabScreen>
               ),
             ],
           ),
-          child: const Text(
-            '"Renkleri karıştıralım!"',
+          child: Text(
+            '"${loc.get('color_lab_mix_colors')}"',
             style: TextStyle(
               fontSize: 14,
               fontStyle: FontStyle.italic,
@@ -285,6 +355,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildQuestion() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -299,9 +370,9 @@ class _ColorLabScreenState extends State<ColorLabScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            'Soru',
-            style: TextStyle(
+          Text(
+            loc.get('color_lab_question'),
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
             ),
@@ -320,20 +391,21 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildLabSetup() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _buildTestTube(_color1, _amount1, 'Sol'),
+            _buildTestTube(_color1, _amount1, loc.get('color_lab_left')),
             const SizedBox(width: 15),
             const Text(
               '+',
               style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 15),
-            _buildTestTube(_color2, _amount2, 'Sağ'),
+            _buildTestTube(_color2, _amount2, loc.get('color_lab_right')),
           ],
         ),
         if (_resultColor != null) ...[
@@ -347,11 +419,12 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
   
   Widget _buildResultTube(Color color, int amount) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Column(
       children: [
-        const Text(
-          'Sonuç',
-          style: TextStyle(
+        Text(
+          loc.get('color_lab_result'),
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: Colors.purple,
@@ -462,6 +535,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildMixButton() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     bool canMix = _hasAnswered && !_isMixing;
     
     return ElevatedButton(
@@ -485,10 +559,10 @@ class _ColorLabScreenState extends State<ColorLabScreen>
           const SizedBox(width: 8),
           Text(
             _isMixing
-                ? 'Karıştırılıyor...'
+                ? loc.get('color_lab_mixing')
                 : _hasAnswered
-                    ? 'Karıştır'
-                    : 'Önce cevapla',
+                    ? loc.get('color_lab_mix')
+                    : loc.get('color_lab_answer_first'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -501,6 +575,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   }
 
   Widget _buildAnswerOptions() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     List<int> options = [
       _correctAnswer - 1,
       _correctAnswer,
@@ -516,9 +591,9 @@ class _ColorLabScreenState extends State<ColorLabScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            'Sonuç Kaç?',
-            style: TextStyle(
+          Text(
+            loc.get('color_lab_what_result'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -566,34 +641,319 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   
   void _checkAnswer(int selectedAnswer) {
     if (selectedAnswer == _correctAnswer) {
-      // Doğru cevap!
       setState(() {
         _hasAnswered = true;
-        _score += 10;
       });
       
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Doğru! Şimdi renkleri karıştıralım!'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(loc.get('color_lab_correct_mix')),
+          duration: const Duration(seconds: 2),
           backgroundColor: Colors.green,
         ),
       );
       
-      // Otomatik olarak karıştır
       Future.delayed(const Duration(milliseconds: 500), () {
-        _mixColors();
+        if (mounted) _mixColors();
       });
     } else {
-      // Yanlış cevap!
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanicsService.onWrongAnswer();
+      
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Hatalı cevap! Doğru cevap: $_correctAnswer. Tekrar dene!'),
+          content: Text(loc.get('color_lab_wrong_answer').replaceAll('%1', '$_correctAnswer')),
           duration: const Duration(seconds: 2),
           backgroundColor: Colors.red,
         ),
       );
+      
+      if (!mechanicsService.hasLives) {
+        _showNoLivesDialog();
+      }
     }
+  }
+  
+  void _showNoLivesDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(loc.get('lives_finished')),
+        content: Text(loc.get('no_lives_message')),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: Text(loc.get('simon_back_to_menu')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Çocuklara yönelik animasyonlu tamamlanma diyaloğu
+class _ColorLabCompleteDialog extends StatefulWidget {
+  final int coinsEarned;
+  final AppLocalizations loc;
+  final VoidCallback onFinish;
+
+  const _ColorLabCompleteDialog({
+    required this.coinsEarned,
+    required this.loc,
+    required this.onFinish,
+  });
+
+  @override
+  State<_ColorLabCompleteDialog> createState() => _ColorLabCompleteDialogState();
+}
+
+class _ColorLabCompleteDialogState extends State<_ColorLabCompleteDialog>
+    with SingleTickerProviderStateMixin {
+  late ConfettiController _confettiController;
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _confettiController.play();
+      _scaleController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Konfeti - arka planda
+        Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              emissionFrequency: 0.05,
+              numberOfParticles: 25,
+              gravity: 0.2,
+              colors: const [
+                Colors.purple,
+                Colors.pink,
+                Colors.amber,
+                Colors.blue,
+                Colors.green,
+                Colors.orange,
+              ],
+            ),
+          ),
+        ),
+        // Diyalog içeriği - animasyonlu giriş
+        ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 48),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  Colors.purple.shade50,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withOpacity(0.3),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Bilim insanı emoji - büyük ve neşeli
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.8, end: 1.0),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.4),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Text('👨‍🔬', style: TextStyle(fontSize: 56)),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                // Başlık - kupa ve tebrikler
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('🏆', style: TextStyle(fontSize: 32)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        widget.loc.get('congratulations'),
+                        style: GoogleFonts.quicksand(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade800,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Mesaj
+                Text(
+                  widget.loc.get('color_lab_all_complete').replaceAll('%1', '${widget.coinsEarned}'),
+                  style: GoogleFonts.quicksand(
+                    fontSize: 16,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                // Kazanılan koin kutusu
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.amber.shade400, Colors.orange.shade400],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🪙', style: TextStyle(fontSize: 24)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+${widget.coinsEarned}',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              offset: const Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                // Bitir butonu - gradient ve yuvarlak
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onFinish,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.purple.shade500,
+                            Colors.pink.shade400,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.purple.withOpacity(0.5),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            widget.loc.get('finish'),
+                            style: GoogleFonts.quicksand(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.celebration, color: Colors.white, size: 22),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

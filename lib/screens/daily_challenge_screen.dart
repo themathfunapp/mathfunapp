@@ -7,6 +7,7 @@ import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../widgets/game_exit_confirm_dialog.dart';
 
 /// Günlük Meydan Okuma Ekranı - 5 CAN SİSTEMİ (GameMechanicsService ile profil senkron)
 class DailyChallengeScreen extends StatefulWidget {
@@ -595,95 +596,14 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   }
 
   void _showExitConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.red.shade400, Colors.orange.shade400],
-            ),
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Builder(
-            builder: (context) {
-              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-              final loc = AppLocalizations(localeProvider.locale);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('⚠️', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 16),
-                  Text(
-                    loc.get('exit_game_confirm'),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    loc.get('progress_not_saved'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(loc.get('no')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _timer?.cancel();
-                            widget.onBack();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.red,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(loc.get('yes')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+    GameExitConfirmDialog.show(
+      context,
+      themeColor: Colors.orange.shade400,
+      onStay: () {},
+      onExit: () {
+        _timer?.cancel();
+        widget.onBack();
+      },
     );
   }
 

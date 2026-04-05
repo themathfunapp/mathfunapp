@@ -12,7 +12,7 @@ import 'daily_challenge_screen.dart';
 import 'boss_battle_screen.dart';
 import 'live_duel_screen.dart';
 import '../models/game_mechanics.dart';
-import 'discover_screen.dart';
+import 'coming_soon_screen.dart';
 import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
 import 'package:mathfun/services/game_mechanics_service.dart';
@@ -550,8 +550,13 @@ class _GameStartScreenState extends State<GameStartScreen>
 
         const SizedBox(height: 24),
 
-        // YENİ GELİŞTİR/KEŞFET BÖLÜMÜ
+        // YENİ GELİŞTİR BÖLÜMÜ
         _buildDiscoverSection(localizations),
+
+        const SizedBox(height: 24),
+
+        // YAKINDA BÖLÜMÜ - Yakında gelecek özellikler
+        _buildComingSoonSection(localizations),
 
         const SizedBox(height: 24),
 
@@ -1107,8 +1112,72 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  // YENİ GELİŞTİR/KEŞFET BÖLÜMÜ
+  // YENİ GELİŞTİR BÖLÜMÜ - Sadece Zeka Oyunları ve Renkli Matematik
   Widget _buildDiscoverSection(AppLocalizations localizations) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.explore, color: Colors.white, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              localizations.get('newly_developed'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Aktif özellikler - sadece Zeka Oyunları ve Renkli Matematik (bitişik yan yana)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 155,
+              child: _buildDiscoverCard(
+                localizations: localizations,
+                emoji: '🧩',
+                title: localizations.get('intelligence_games'),
+                subtitle: localizations.get('brain_games'),
+                color: const Color(0xFF00CEC9),
+                onTap: () => _openDiscoverItem('intelligence_games'),
+                isPremium: false, // TODO: Test için geçici kapatıldı
+              ),
+            ),
+            Transform.translate(
+              offset: const Offset(-45, 0),
+              child: SizedBox(
+                width: 155,
+                child: _buildDiscoverCard(
+                localizations: localizations,
+                emoji: '🎨',
+                title: localizations.get('colorful_math'),
+                subtitle: localizations.get('fun_design'),
+                color: const Color(0xFF74B9FF),
+                onTap: () => _openDiscoverItem('colorful_math'),
+                isPremium: false, // TODO: Test için geçici kapatıldı
+              ),
+            ),
+            ),
+          ],
+        ),
+
+        // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
+        // - Zaman Atölyesi (🎭)
+        // - Hesap Makinesi (🧮)
+        // - İstatistik (📊)
+        // - Başarılar (🏆)
+      ],
+    );
+  }
+
+  // YAKINDA BÖLÜMÜ - Yakında gelecek özellikler (Yeni Geliştir'den ayrı)
+  Widget _buildComingSoonSection(AppLocalizations localizations) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1117,10 +1186,10 @@ class _GameStartScreenState extends State<GameStartScreen>
           children: [
             Row(
               children: [
-                const Icon(Icons.explore, color: Colors.white, size: 24),
+                const Icon(Icons.schedule, color: Colors.white, size: 24),
                 const SizedBox(width: 8),
                 Text(
-                  localizations.get('newly_developed'),
+                  localizations.get('coming_soon_section'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1130,9 +1199,9 @@ class _GameStartScreenState extends State<GameStartScreen>
               ],
             ),
             GestureDetector(
-              onTap: _openDiscoverScreen,
+              onTap: _openComingSoonScreen,
               child: Text(
-                localizations.get('see_all'),
+                localizations.get('explore'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.amber.shade300,
@@ -1143,37 +1212,64 @@ class _GameStartScreenState extends State<GameStartScreen>
           ],
         ),
         const SizedBox(height: 12),
-
-        // Keşfet kartları - sadece aktif özellikler
-        Row(
-          children: [
-            _buildDiscoverCard(
-              localizations: localizations,
-              emoji: '🧩',
-              title: localizations.get('intelligence_games'),
-              subtitle: localizations.get('brain_games'),
-              color: const Color(0xFF00CEC9),
-              onTap: () => _openDiscoverItem('intelligence_games'),
-              isPremium: false, // TODO: Test için geçici kapatıldı
+        GestureDetector(
+          onTap: _openComingSoonScreen,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+              ),
             ),
-            const SizedBox(width: 12),
-            _buildDiscoverCard(
-              localizations: localizations,
-              emoji: '🎨',
-              title: localizations.get('colorful_math'),
-              subtitle: localizations.get('fun_design'),
-              color: const Color(0xFF74B9FF),
-              onTap: () => _openDiscoverItem('colorful_math'),
-              isPremium: false, // TODO: Test için geçici kapatıldı
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text('⏳', style: TextStyle(fontSize: 28)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        localizations.get('coming_soon_preview'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        localizations.get('coming_soon_preview_desc'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Colors.amber.shade300,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-
-        // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
-        // - Zaman Atölyesi (🎭)
-        // - Hesap Makinesi (🧮)
-        // - İstatistik (📊)
-        // - Başarılar (🏆)
       ],
     );
   }
@@ -1190,8 +1286,7 @@ class _GameStartScreenState extends State<GameStartScreen>
     final authService = Provider.of<AuthService>(context, listen: false);
     final isLocked = isPremium && !authService.isPremium;
 
-    return Expanded(
-      child: GestureDetector(
+    return GestureDetector(
         onTap: onTap,
         child: Stack(
           children: [
@@ -1283,7 +1378,6 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
           ],
         ),
-      ),
     );
   }
 
@@ -1720,12 +1814,11 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  void _openDiscoverScreen() {
+  void _openComingSoonScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => DiscoverScreen(
-          ageGroup: _selectedAgeGroup,
+        builder: (context) => ComingSoonScreen(
           onBack: () => Navigator.pop(context),
         ),
       ),

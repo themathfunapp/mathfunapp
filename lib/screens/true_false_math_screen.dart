@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
@@ -340,22 +339,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _reviveWithAd();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
-                            foregroundColor: Colors.black87,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                          child: Text(loc.get('watch_ad_gain_life'), style: GoogleFonts.quicksand(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
-                        ),
-                      ),
+                      // Reklamsız akış: sadece tekrar dene ve menü
                     ],
                   ),
                 ],
@@ -364,39 +348,6 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  void _reviveWithAd() {
-    AdService().watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        Provider.of<GameMechanicsService>(context, listen: false).earnLifeFromAd();
-        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('🎬 ${loc.get('fast_math_ad_watched')}', style: GoogleFonts.quicksand()),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        _loadSection(_currentSection);
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (!mechanicsService.hasLives) {
-            final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loc.get('fast_math_ad_failed'), style: GoogleFonts.quicksand()),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      },
     );
   }
 

@@ -1,5 +1,11 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Uygulamanın desteklediği dil kodları (main.dart supportedLocales ile uyumlu)
+const List<String> kSupportedLanguageCodes = [
+  'tr', 'en', 'de', 'ar', 'fa', 'zh', 'id', 'ku', 'es', 'fr', 'ru', 'ja', 'ko', 'hi', 'ur', 'pt', 'it', 'pl',
+];
 
 class LocaleProvider extends ChangeNotifier {
   Locale _locale = const Locale('tr');
@@ -15,10 +21,24 @@ class LocaleProvider extends ChangeNotifier {
   Future<void> _loadSavedLocale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedLanguage = prefs.getString('user_language') ?? 'tr';
-      _locale = Locale(savedLanguage);
+      String? savedLanguage = prefs.getString('user_language');
+
+      if (savedLanguage != null && kSupportedLanguageCodes.contains(savedLanguage)) {
+        _locale = Locale(savedLanguage);
+      } else {
+        // İlk açılış: cihaz dilini algıla
+        final deviceLocale = ui.PlatformDispatcher.instance.locale;
+        final deviceCode = deviceLocale.languageCode.toLowerCase();
+        if (kSupportedLanguageCodes.contains(deviceCode)) {
+          _locale = Locale(deviceCode);
+          await prefs.setString('user_language', deviceCode);
+        } else {
+          _locale = const Locale('en');
+          await prefs.setString('user_language', 'en');
+        }
+      }
     } catch (e) {
-      _locale = const Locale('tr');
+      _locale = const Locale('en');
     }
     _isLoading = false;
     notifyListeners();

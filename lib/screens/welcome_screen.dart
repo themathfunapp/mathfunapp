@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../widgets/shiny_button.dart';
 import '../localization/app_localizations.dart';
 import '../models/app_user.dart';
+import '../providers/locale_provider.dart';
 import 'home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:ui';
@@ -34,7 +35,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   late int _currentPage;
   bool _isLoading = false;
   String _selectedOption = '';
-  Locale _currentLocale = const Locale('tr');
 
   // Platform kontrol fonksiyonları
   bool get _isIOS => defaultTargetPlatform == TargetPlatform.iOS;
@@ -44,8 +44,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool get _isLinux => defaultTargetPlatform == TargetPlatform.linux;
   bool get _isWeb => kIsWeb;
 
-  // Desteklenen diller listesi
-  final List<Map<String, dynamic>> _supportedLanguages = [
+  // Desteklenen diller listesi (LocaleProvider.kSupportedLanguageCodes ile uyumlu)
+  static final List<Map<String, dynamic>> _supportedLanguages = [
     {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
     {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
     {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
@@ -82,49 +82,35 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
   }
 
-  // Platforma göre başlık ve açıklama
-  String get _platformTitle {
-    if (_isIOS || _isMacOS) {
-      return AppLocalizations(_currentLocale).get('apple_signin_title');
-    }
-    if (_isAndroid) {
-      return AppLocalizations(_currentLocale).get('google_signin_title');
-    }
-    return AppLocalizations(_currentLocale).get('welcome_title');
+  String _platformTitle(Locale locale) {
+    if (_isIOS || _isMacOS) return AppLocalizations(locale).get('apple_signin_title');
+    if (_isAndroid) return AppLocalizations(locale).get('google_signin_title');
+    return AppLocalizations(locale).get('welcome_title');
   }
 
-  String get _platformDescription {
-    if (_isIOS || _isMacOS) {
-      return AppLocalizations(_currentLocale).get('apple_signin_desc');
-    }
-    if (_isAndroid) {
-      return AppLocalizations(_currentLocale).get('google_signin_desc');
-    }
-    return AppLocalizations(_currentLocale).get('welcome_subtitle');
+  String _platformDescription(Locale locale) {
+    if (_isIOS || _isMacOS) return AppLocalizations(locale).get('apple_signin_desc');
+    if (_isAndroid) return AppLocalizations(locale).get('google_signin_desc');
+    return AppLocalizations(locale).get('welcome_subtitle');
   }
 
-  List<Map<String, dynamic>> get _loginOptions {
-    List<Map<String, dynamic>> options = [];
-
-    // Google tüm platformlar için
-    options.add({
-      'id': 'google',
-      'title': AppLocalizations(_currentLocale).get('sign_in_google'),
-      'icon': 'G',
-      'color': Colors.red,
-      'description': AppLocalizations(_currentLocale).get('google_signin_desc'),
-    });
-
-    // E-posta ile kayıt
-    options.add({
-      'id': 'email',
-      'title': AppLocalizations(_currentLocale).get('sign_in_email'),
-      'icon': '✉️',
-      'color': Colors.blue,
-      'description': AppLocalizations(_currentLocale).get('email_signup_desc'),
-    });
-
-    return options;
+  List<Map<String, dynamic>> _loginOptions(Locale locale) {
+    return [
+      {
+        'id': 'google',
+        'title': AppLocalizations(locale).get('sign_in_google'),
+        'icon': 'G',
+        'color': Colors.red,
+        'description': AppLocalizations(locale).get('google_signin_desc'),
+      },
+      {
+        'id': 'email',
+        'title': AppLocalizations(locale).get('sign_in_email'),
+        'icon': '✉️',
+        'color': Colors.blue,
+        'description': AppLocalizations(locale).get('email_signup_desc'),
+      },
+    ];
   }
 
 // WelcomeScreen.dart içindeki _handleLogin metodunu güncelle
@@ -157,7 +143,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       if (user != null) {
         // Dil tercihini kaydet
-        await authService.updateUserLanguage(_currentLocale.languageCode);
+        await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
 
         // Kullanıcı tipine göre yönlendirme
         if (user.isGuest) {
@@ -173,7 +159,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         });
       }
     } catch (e) {
-      _showErrorSnackbar('${AppLocalizations(_currentLocale).get('login_error')}: $e');
+      _showErrorSnackbar('${AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('login_error')}: $e');
       setState(() {
         _isLoading = false;
         _selectedOption = '';
@@ -207,7 +193,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Future<void> _showEmailDialog() async {
-    final localizations = AppLocalizations(_currentLocale);
+    final localizations = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     final TextEditingController emailController = TextEditingController();
     final TextEditingController passwordController = TextEditingController();
     bool isSignUp = false;
@@ -310,7 +296,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       }
 
                       if (user != null) {
-                        await authService.updateUserLanguage(_currentLocale.languageCode);
+                        await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
                         Navigator.pop(context);
 
                         if (user.isGuest) {
@@ -366,17 +352,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   void _changeLanguage(String languageCode) async {
-    setState(() {
-      _currentLocale = Locale(languageCode);
-    });
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    await localeProvider.changeLanguage(Locale(languageCode));
 
     final authService = Provider.of<AuthService>(context, listen: false);
     await authService.updateUserLanguage(languageCode);
 
+    if (!mounted) return;
+    final name = _supportedLanguages.firstWhere((lang) => lang['code'] == languageCode)['name'] as String;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Dil değiştirildi: ${_supportedLanguages.firstWhere((lang) => lang['code'] == languageCode)['name']}',
+          '${AppLocalizations(localeProvider.locale).get('language_changed')} $name',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.green,
@@ -404,7 +391,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             final guestUser = await authService.signInAsGuest();
 
             if (guestUser != null) {
-              await authService.updateUserLanguage(_currentLocale.languageCode);
+              await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
               _navigateToHomeScreen();
             }
           } catch (e) {
@@ -432,7 +419,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                AppLocalizations(_currentLocale).get('continue_as_guest'),
+                AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('continue_as_guest'),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -666,13 +653,112 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
 
 
-  Widget _buildLoginOptions(AppLocalizations localizations) {
+  Widget _buildLanguageSelector(Locale currentLocale) {
+    final current = _supportedLanguages.firstWhere(
+      (l) => l['code'] == currentLocale.languageCode,
+      orElse: () => _supportedLanguages.first,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: InkWell(
+        onTap: () => _showLanguageSheet(currentLocale),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[400]!),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.language, color: Colors.grey, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                current['flag'] as String,
+                style: const TextStyle(fontSize: 20),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                current['name'] as String,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down, color: Colors.grey[700], size: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageSheet(Locale currentLocale) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  AppLocalizations(currentLocale).get('language_setting'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _supportedLanguages.length,
+                  itemBuilder: (context, index) {
+                    final lang = _supportedLanguages[index];
+                    final code = lang['code'] as String;
+                    final isSelected = currentLocale.languageCode == code;
+                    return ListTile(
+                      leading: Text(lang['flag'] as String, style: const TextStyle(fontSize: 24)),
+                      title: Text(
+                        lang['name'] as String,
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _changeLanguage(code);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginOptions(AppLocalizations localizations, Locale locale) {
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          _buildLanguageSelector(locale),
           Text(
-            _platformTitle,
+            _platformTitle(locale),
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -682,7 +768,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _platformDescription,
+            _platformDescription(locale),
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -690,7 +776,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          ..._loginOptions.map((option) {
+          ..._loginOptions(locale).map((option) {
             final bool isSelected = _selectedOption == option['id'];
 
             return Padding(
@@ -819,7 +905,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Hemen başlamak için:',
+                  localizations.get('to_start_now'),
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14,
@@ -846,8 +932,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Misafir modunda, geçici bir hesap ile uygulamayı kullanabilirsiniz. '
-                      'Daha sonra hesap oluşturarak verilerinizi kaydedebilirsiniz.',
+                  localizations.get('guest_mode_info'),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey[400],
@@ -873,22 +958,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       );
     }
 
-    final localizations = AppLocalizations(_currentLocale);
+    return Consumer<LocaleProvider>(
+      builder: (context, localeProvider, _) {
+        final currentLocale = localeProvider.locale;
+        final localizations = AppLocalizations(currentLocale);
 
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        physics: const ClampingScrollPhysics(),
-        onPageChanged: (index) {
-          setState(() {
-            _currentPage = index;
-          });
-        },
-        children: [
-          _buildWelcomePage(localizations), // 🔥 TAM EKRAN GÖRSEL
-          _buildLoginOptions(localizations),
-        ],
-      ),
+        return Scaffold(
+          body: PageView(
+            controller: _pageController,
+            physics: const ClampingScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            children: [
+              _buildWelcomePage(localizations),
+              _buildLoginOptions(localizations, currentLocale),
+            ],
+          ),
+        );
+      },
     );
   }
 

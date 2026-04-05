@@ -185,8 +185,6 @@ class MyApp extends StatelessWidget {
               brightness: Brightness.light,
             ),
             useMaterial3: true,
-            fontFamily: 'Noto Sans',
-            fontFamilyFallback: const ['Noto Sans Arabic', 'Roboto'],
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -194,8 +192,6 @@ class MyApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
             useMaterial3: true,
-            fontFamily: 'Noto Sans',
-            fontFamilyFallback: const ['Noto Sans Arabic', 'Roboto'],
           ),
           themeMode: ThemeMode.light,
           locale: localeProvider.locale,

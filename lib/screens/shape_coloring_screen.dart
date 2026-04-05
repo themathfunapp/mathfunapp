@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
+import '../services/game_mechanics_service.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
+import '../widgets/child_exit_dialog.dart';
 
 class ShapeColoringScreen extends StatefulWidget {
   final String ageGroup;
+  /// 1=Temel, 2=Karışık, 3=Gelişmiş, 4=Karmaşık
+  final int levelMode;
+  final int totalLevels;
 
   const ShapeColoringScreen({
     Key? key,
     required this.ageGroup,
+    this.levelMode = 1,
+    this.totalLevels = 20,
   }) : super(key: key);
 
   @override
@@ -37,22 +48,47 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
     _loadLevel();
   }
 
+  static const List<String> _allShapes = [
+    'Daire', 'Kare', 'Üçgen', 'Dikdörtgen', 'Yıldız', // 1-5: Temel
+    'Kalp', 'Altıgen', 'Oval', 'Paralel', 'Yamuk', // 6-10: Karışık
+    'Beşgen', 'Sekizgen', 'Çember', 'Eşkenar Üçgen', 'Dikdörtgen Üçgen', // 11-15: Gelişmiş
+    'Elips', 'Trapez', 'Baklava', 'Pentagon', 'Hexagon', // 16-20: Karmaşık
+  ];
+
+  static const Map<String, String> _shapeToKey = {
+    'Daire': 'shape_circle', 'Çember': 'shape_circle',
+    'Kare': 'shape_square',
+    'Üçgen': 'shape_triangle', 'Eşkenar Üçgen': 'shape_equilateral_triangle', 'Dikdörtgen Üçgen': 'shape_right_triangle',
+    'Dikdörtgen': 'shape_rectangle',
+    'Yıldız': 'shape_star',
+    'Kalp': 'shape_heart',
+    'Altıgen': 'shape_hexagon', 'Hexagon': 'shape_hexagon',
+    'Oval': 'shape_oval', 'Elips': 'shape_ellipse',
+    'Paralel': 'shape_parallelogram',
+    'Yamuk': 'shape_trapezoid', 'Trapez': 'shape_trapezoid',
+    'Beşgen': 'shape_pentagon', 'Pentagon': 'shape_pentagon',
+    'Sekizgen': 'shape_octagon',
+    'Baklava': 'shape_baklava',
+  };
+
   void _loadLevel() {
     setState(() {
       _shapeColor = null;
       _selectedColor = null;
       
-      // Seviyeye göre şekil belirle
-      List<String> shapes = [
-        'Daire', 'Kare', 'Üçgen', 'Dikdörtgen', 'Yıldız', // 1-5: Temel
-        'Kalp', 'Altıgen', 'Oval', 'Paralel', 'Yamuk', // 6-10: Karışık
-        'Beşgen', 'Sekizgen', 'Çember', 'Eşkenar Üçgen', 'Dikdörtgen Üçgen', // 11-15: Gelişmiş
-        'Elips', 'Trapez', 'Baklava', 'Pentagon', 'Hexagon', // 16-20: Karmaşık
-      ];
-      
-      if (_currentLevel <= shapes.length) {
-        _currentShape = shapes[_currentLevel - 1];
+      final mode = widget.levelMode;
+      final totalLevels = widget.totalLevels;
+      int shapeIndex;
+      if (mode == 1) {
+        shapeIndex = (_currentLevel - 1).clamp(0, 4);
+      } else if (mode == 2) {
+        shapeIndex = 5 + (_currentLevel - 1).clamp(0, 4);
+      } else if (mode == 3) {
+        shapeIndex = 10 + (_currentLevel - 1).clamp(0, 4);
+      } else {
+        shapeIndex = 15 + (_currentLevel - 1).clamp(0, 4);
       }
+      _currentShape = _allShapes[shapeIndex.clamp(0, _allShapes.length - 1)];
     });
   }
 
@@ -98,21 +134,76 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
   }
 
   Widget _buildTopBar() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Spacer(),
-          Text(
-            'Seviye $_currentLevel/20',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          GestureDetector(
+            onTap: () {
+              ChildExitDialog.show(
+                context,
+                themeColor: Colors.green,
+                onStay: () {},
+                onSectionSelect: () => Navigator.pop(context),
+                onExit: () => Navigator.pop(context),
+              );
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.green),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+              ),
+              child: Text(
+                '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    maxLives,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.bolt,
+                        color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -120,16 +211,16 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
   }
 
   Widget _buildLevelInfo() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     String levelType = '';
-    if (_currentLevel <= 5) {
-      levelType = 'Temel Şekiller';
-    } else if (_currentLevel <= 10) {
-      levelType = 'Karışık Şekiller';
-    } else if (_currentLevel <= 15) {
-      levelType = 'Kompozisyonlar';
-    } else {
-      levelType = 'Karmaşık Desenler';
-    }
+    final mode = widget.levelMode;
+    if (mode == 1) levelType = loc.get('shape_mode_basic');
+    else if (mode == 2) levelType = loc.get('shape_mode_mixed');
+    else if (mode == 3) levelType = loc.get('shape_mode_advanced');
+    else levelType = loc.get('shape_mode_complex');
+
+    final shapeKey = _shapeToKey[_currentShape] ?? 'shape_circle';
+    final shapeName = loc.get(shapeKey);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -154,7 +245,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Şekil: $_currentShape',
+            loc.get('shape_label').replaceAll('%1', shapeName),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -190,10 +281,11 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
                     _shapeColor = _selectedColor;
                   });
                 } else {
+                  final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Önce bir renk seçin!'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Text(loc.get('select_color_first')),
+                      duration: const Duration(seconds: 2),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -211,12 +303,18 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              _currentShape,
-              style: const TextStyle(
+            Builder(
+              builder: (context) {
+                final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+                final shapeKey = _shapeToKey[_currentShape] ?? 'shape_circle';
+                return Text(
+                  loc.get(shapeKey),
+                  style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
+                );
+              },
             ),
           ],
         ),
@@ -226,6 +324,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
 
 
   Widget _buildColorPalette() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -234,9 +333,9 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
       ),
       child: Column(
         children: [
-          const Text(
-            '🎨 Renk Paleti',
-            style: TextStyle(
+          Text(
+            '🎨 ${loc.get('color_palette')}',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -286,6 +385,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
   }
 
   Widget _buildActionButtons() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     bool isShapeColored = _shapeColor != null;
     
     return Center(
@@ -295,7 +395,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
           onPressed: isShapeColored
               ? () {
                   // Sonraki seviyeye geç
-                  if (_currentLevel < 20) {
+                  if (_currentLevel < widget.totalLevels) {
                     setState(() {
                       _currentLevel++;
                       _loadLevel();
@@ -307,8 +407,8 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('🏆 Tebrikler!'),
-                        content: const Text('Tüm şekilleri boyadınız!'),
+                        title: Text('🏆 ${loc.get('congratulations')}'),
+                        content: Text(loc.get('all_shapes_colored')),
                         actions: [
                           ElevatedButton(
                             onPressed: () {
@@ -318,7 +418,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                             ),
-                            child: const Text('Bitir'),
+                            child: Text(loc.get('finish')),
                           ),
                         ],
                       ),
@@ -335,7 +435,7 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
             ),
           ),
           child: Text(
-            isShapeColored ? 'Tamamla ✓' : 'Önce şekli boyayın',
+            isShapeColored ? loc.get('complete_check') : loc.get('color_shape_first'),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),

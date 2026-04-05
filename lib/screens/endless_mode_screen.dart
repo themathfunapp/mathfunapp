@@ -3,10 +3,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../services/game_mechanics_service.dart';
-import '../services/ad_service.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
+import '../widgets/game_exit_confirm_dialog.dart';
 
 /// Sonsuz Mod Ekranı
 /// Yanlış yapana kadar devam eden sınırsız sorular - 5 CAN (GameMechanicsService ile profil senkron)
@@ -38,9 +38,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   bool _isGameOver = false;
   bool _gamePaused = false;
 
-  // REKLAM SİSTEMİ - GameMechanicsService ile can yönetimi
-  int _totalAdsWatched = 0;
-
   // Soru
   late _EndlessQuestion _currentQuestion;
 
@@ -53,11 +50,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   late AnimationController _shakeController;
   late AnimationController _heartController;
   late AnimationController _levelUpController;
-  late AnimationController _adController;
   late Animation<double> _shakeAnimation;
   late Animation<double> _heartAnimation;
   late Animation<double> _levelUpAnimation;
-  late Animation<double> _adAnimation;
 
   final math.Random _random = math.Random();
 
@@ -89,14 +84,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       CurvedAnimation(parent: _levelUpController, curve: Curves.elasticOut),
     );
 
-    _adController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    )..repeat(reverse: true);
-    _adAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _adController, curve: Curves.easeInOut),
-    );
-
     _generateQuestion();
     _startTimer();
   }
@@ -107,7 +94,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     _shakeController.dispose();
     _heartController.dispose();
     _levelUpController.dispose();
-    _adController.dispose();
     super.dispose();
   }
 
@@ -274,49 +260,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     }
   }
 
-  // REKLAM İZLEYEREK CAN KAZANMA - GameMechanicsService ile profil senkron
-  void _reviveWithAd() {
-    final adService = AdService();
-    adService.watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-        mechanicsService.earnLifeFromAd();
-        setState(() {
-          _totalAdsWatched++;
-          _isGameOver = false;
-          _gamePaused = false;
-          _isAnswered = false;
-          _selectedAnswer = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        _generateQuestion();
-        _startTimer();
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (mechanicsService.currentLives <= 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      },
-    );
-  }
-
   void _gameOver() {
     setState(() {
       _isGameOver = true;
@@ -390,79 +333,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                     _buildStatRow('✅ ${loc.get('correct_answer')}', '$_questionsAnswered'),
                     const Divider(color: Colors.white24),
                     _buildStatRow('🔥 ${loc.get('highest_combo')}', '$_maxCombo'),
-                    const Divider(color: Colors.white24),
-                    _buildStatRow('🎬 ${loc.get('ads_watched')}', '$_totalAdsWatched'),
                   ],
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // REKLAM İZLE BUTONU - Can yoksa göster (GameMechanicsService)
-              Builder(
-                builder: (context) {
-                  final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-                  if (!mechanicsService.hasLives) {
-                    return AnimatedBuilder(
-                      animation: _adAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _adAnimation.value,
-                          child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _reviveWithAd();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
-                                foregroundColor: Colors.black87,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 8,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.play_circle, size: 28),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        loc.get('watch_ad_gain_life'),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${loc.get('lives')}: ${mechanicsService.currentLives}/${mechanicsService.maxLives}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-
-              // NORMAL TEKRAR DENE
+              // TEKRAR DENE
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
@@ -566,7 +443,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       _combo = 0;
       _maxCombo = 0;
       _level = 1;
-      _totalAdsWatched = 0;
       _isAnswered = false;
       _selectedAnswer = null;
       _isGameOver = false;
@@ -580,120 +456,17 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     _timer?.cancel();
     _gamePaused = true;
 
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.purple.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Builder(
-            builder: (context) {
-              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-              final loc = AppLocalizations(localeProvider.locale);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '⚠️',
-                    style: TextStyle(fontSize: 50),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    loc.get('exit_game_confirm'),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    loc.get('progress_not_saved'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _gamePaused = false;
-                            });
-                            _startTimer();
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            loc.get('no'),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _timer?.cancel();
-                            Navigator.pop(context);
-                            widget.onBack();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.red,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            loc.get('yes'),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+    GameExitConfirmDialog.show(
+      context,
+      themeColor: const Color(0xFF667eea),
+      onStay: () {
+        setState(() => _gamePaused = false);
+        _startTimer();
+      },
+      onExit: () {
+        _timer?.cancel();
+        widget.onBack();
+      },
     );
   }
 

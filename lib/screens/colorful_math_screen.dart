@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'number_coloring_screen.dart';
 import 'shape_coloring_screen.dart';
 import 'color_lab_screen.dart';
+import '../services/game_mechanics_service.dart';
+import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 class ColorfulMathScreen extends StatefulWidget {
   final String ageGroup;
@@ -36,6 +41,7 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -58,63 +64,36 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      _buildTitle(),
+                      _buildTitle(loc),
                       const SizedBox(height: 30),
                       _buildModuleCard(
-                        title: 'Rakam Boyama',
-                        subtitle: '0-999 arası sayıları boya',
+                        title: loc.get('number_coloring'),
+                        subtitle: loc.get('number_coloring_subtitle'),
                         icon: '🔢',
                         color: Colors.orange,
                         progress: 0,
                         totalLevels: 30,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NumberColoringScreen(
-                                ageGroup: widget.ageGroup,
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: () => _showNumberColoringModeDialog(),
                       ),
                       const SizedBox(height: 20),
                       _buildModuleCard(
-                        title: 'Şekil Boyama',
-                        subtitle: 'Geometrik şekilleri boya',
+                        title: loc.get('shape_coloring'),
+                        subtitle: loc.get('shape_coloring_subtitle'),
                         icon: '🔺',
                         color: Colors.green,
                         progress: 0,
                         totalLevels: 20,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ShapeColoringScreen(
-                                ageGroup: widget.ageGroup,
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: () => _showShapeColoringModeDialog(),
                       ),
                       const SizedBox(height: 20),
                       _buildModuleCard(
-                        title: 'Renk Laboratuvarı',
-                        subtitle: 'Renkleri karıştır & öğren',
+                        title: loc.get('color_lab'),
+                        subtitle: loc.get('color_lab_subtitle'),
                         icon: '🧪',
                         color: Colors.purple,
                         progress: 0,
                         totalLevels: 15,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ColorLabScreen(
-                                ageGroup: widget.ageGroup,
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: () => _showColorLabModeDialog(),
                       ),
                     ],
                   ),
@@ -128,6 +107,7 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
   }
 
   Widget _buildTopBar() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -144,6 +124,37 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${loc.get('lives')}: ', style: GoogleFonts.quicksand(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600)),
+                    ...List.generate(
+                      maxLives,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          Icons.bolt,
+                          color: i < lives ? Colors.amber : Colors.white.withOpacity(0.4),
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -170,7 +181,7 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(AppLocalizations loc) {
     return Column(
       children: [
         Text(
@@ -179,7 +190,7 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
         ),
         const SizedBox(height: 16),
         Text(
-          'Renkli Matematik',
+          loc.get('colorful_math'),
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
@@ -195,13 +206,345 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Renklerle öğren, eğlen!',
+          loc.get('colorful_math_slogan'),
           style: TextStyle(
             fontSize: 18,
             color: Colors.white.withOpacity(0.9),
           ),
         ),
       ],
+    );
+  }
+
+  void _showColorLabModeDialog() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20)],
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Text(
+              loc.get('select_level_mode'),
+              style: GoogleFonts.quicksand(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            _buildColorLabModeOption(loc, loc.get('color_lab_mode_easy'), loc.get('color_lab_mode_easy_desc'), 1, 5),
+            const SizedBox(height: 8),
+            _buildColorLabModeOption(loc, loc.get('color_lab_mode_medium'), loc.get('color_lab_mode_medium_desc'), 2, 5),
+            const SizedBox(height: 8),
+            _buildColorLabModeOption(loc, loc.get('color_lab_mode_hard'), loc.get('color_lab_mode_hard_desc'), 3, 5),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorLabModeOption(AppLocalizations loc, String title, String subtitle, int mode, int totalLevels) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ColorLabScreen(
+                ageGroup: widget.ageGroup,
+                levelMode: mode,
+                totalLevels: totalLevels,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.purple.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    mode == 1 ? '🧪' : mode == 2 ? '🔬' : '⚗️',
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.purple.shade800)),
+                    Text(subtitle, style: GoogleFonts.quicksand(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 4),
+                    Text(loc.get('levels_count').replaceAll('%1', '$totalLevels'), style: GoogleFonts.quicksand(fontSize: 11, color: Colors.purple.shade700, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.purple.shade700),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showShapeColoringModeDialog() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20)],
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Text(
+              loc.get('select_level_mode'),
+              style: GoogleFonts.quicksand(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            _buildShapeModeOption(loc, loc.get('shape_mode_basic'), loc.get('shape_mode_basic_desc'), 1, 5),
+            const SizedBox(height: 12),
+            _buildShapeModeOption(loc, loc.get('shape_mode_mixed'), loc.get('shape_mode_mixed_desc'), 2, 5),
+            const SizedBox(height: 12),
+            _buildShapeModeOption(loc, loc.get('shape_mode_advanced'), loc.get('shape_mode_advanced_desc'), 3, 5),
+            const SizedBox(height: 12),
+            _buildShapeModeOption(loc, loc.get('shape_mode_complex'), loc.get('shape_mode_complex_desc'), 4, 5),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShapeModeOption(AppLocalizations loc, String title, String subtitle, int mode, int totalLevels) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ShapeColoringScreen(
+                ageGroup: widget.ageGroup,
+                levelMode: mode,
+                totalLevels: totalLevels,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.green.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    mode == 1 ? '🔵' : mode == 2 ? '🔺' : mode == 3 ? '⬡' : '◆',
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                    Text(subtitle, style: GoogleFonts.quicksand(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 4),
+                    Text(loc.get('levels_count').replaceAll('%1', '$totalLevels'), style: GoogleFonts.quicksand(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.green.shade700),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showNumberColoringModeDialog() {
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.65,
+        ),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20)],
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Text(
+              loc.get('select_level_mode'),
+              style: GoogleFonts.quicksand(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            _buildModeOption(loc, loc.get('number_mode_single'), loc.get('number_mode_single_desc'), 1, 1),
+            const SizedBox(height: 12),
+            _buildModeOption(loc, loc.get('number_mode_double'), loc.get('number_mode_double_desc'), 9, 2),
+            const SizedBox(height: 12),
+            _buildModeOption(loc, loc.get('number_mode_triple'), loc.get('number_mode_triple_desc'), 20, 3),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeOption(AppLocalizations loc, String title, String subtitle, int totalLevels, int mode) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NumberColoringScreen(
+                ageGroup: widget.ageGroup,
+                levelMode: mode,
+                totalLevels: totalLevels,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    mode == 1 ? '0-9' : mode == 2 ? '10-99' : '100+',
+                    style: GoogleFonts.quicksand(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
+                    Text(subtitle, style: GoogleFonts.quicksand(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 4),
+                    Text(loc.get('levels_count').replaceAll('%1', '$totalLevels'), style: GoogleFonts.quicksand(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.orange.shade700),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

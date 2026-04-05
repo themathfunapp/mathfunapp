@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
+import '../widgets/game_exit_confirm_dialog.dart';
 
 /// Hızlı Matematik Oyunu Ekranı - 3 CAN SİSTEMİ VE REKLAM EKLENDİ
 class QuickMathScreen extends StatefulWidget {
@@ -373,11 +374,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     } else {
       _wrongAnswers++;
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-      mechanicsService.onWrongAnswer();
+      if (!kDebugMode) {
+        mechanicsService.onWrongAnswer();
+      }
       _shakeController.forward(from: 0);
       _lifeShakeController.forward().then((_) => _lifeShakeController.reset());
 
-      if (mechanicsService.currentLives <= 0) {
+      if (!kDebugMode && mechanicsService.currentLives <= 0) {
         _gameOver = true;
         _particleTimer?.cancel();
         _showGameOverDialog();
@@ -422,168 +425,162 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2C3E50), Color(0xFFE74C3C)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      builder: (context) {
+        final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
+        final loc = AppLocalizations(localeProvider.locale);
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.7, end: 1),
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.elasticOut,
+          builder: (context, scale, child) => Opacity(
+            opacity: scale.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: scale,
+              child: child,
             ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
-          child: Builder(
-            builder: (context) {
-              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-              final loc = AppLocalizations(localeProvider.locale);
-              return Column(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05, vertical: 40),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.red.shade400,
+                    Colors.deepOrange.shade300,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 30,
+                    offset: const Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('💔', style: TextStyle(fontSize: 60)),
-                  const SizedBox(height: 16),
+                  // Üstte kalp animasyonu
+                  AnimatedBuilder(
+                    animation: _emojiFloatAnimation,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(0, _emojiFloatAnimation.value),
+                        child: child,
+                      );
+                    },
+                    child: const Text('💔', style: TextStyle(fontSize: 70)),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     loc.get('lives_finished'),
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     '$_correctAnswers ${loc.get('correct')}, $_wrongAnswers ${loc.get('wrong')}',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.white70,
                     ),
                   ),
-              const SizedBox(height: 24),
-
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _reviveWithAd();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          loc.get('no_lives_play'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          loc.get('try_again'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 22),
+                  // Butonlar
+                  Row(
                     children: [
-                      const Icon(Icons.play_circle, size: 24),
-                      const SizedBox(width: 8),
-                      Text(
-                        loc.get('watch_ad_gain_life'),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _restartGame();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.red.shade500,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          child: Text(
+                            loc.get('try_again'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            widget.onBack();
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            loc.get('exit_game'),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _restartGame();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(loc.get('try_again')),
-                ),
-              ),
-
-              Container(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    widget.onBack();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white.withOpacity(0.7),
-                  ),
-                  child: Text(loc.get('exit_game')),
-                ),
-              ),
                 ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _reviveWithAd() {
-    final adService = AdService();
-    
-    adService.watchAdForLife(
-      onLifeEarned: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          mechanicsService.earnLifeFromAd();
-          setState(() {
-            _gameOver = false;
-            _isAnswered = false;
-            _selectedAnswer = null;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          
-          _startTimer();
-        }
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (mechanicsService.currentLives <= 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
               ),
-            );
-          }
-        }
+            ),
+          ),
+        );
       },
     );
-
-    _startParticles();
-    _startTimer();
   }
 
   Widget _buildTopBar() {
@@ -912,8 +909,11 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       borderColor = Colors.white.withOpacity(0.6);
     }
 
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final noLivesAndEnforced = !kDebugMode && mechanicsService.currentLives <= 0;
+
     return GestureDetector(
-      onTap: _isAnswered || _gameOver || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0 ? null : () => _checkAnswer(option),
+      onTap: _isAnswered || _gameOver || noLivesAndEnforced ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: 55,
@@ -977,95 +977,27 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   void _showExitConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.red.shade400, Colors.orange.shade400],
-            ),
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Builder(
-            builder: (context) {
-              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-              final loc = AppLocalizations(localeProvider.locale);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('⚠️', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 16),
-                  Text(
-                    loc.get('exit_game_confirm'),
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    loc.get('progress_not_saved'),
-                    style: const TextStyle(fontSize: 16, color: Colors.white70),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(loc.get('no')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _timer?.cancel();
-                            _particleTimer?.cancel();
-                            Navigator.pop(context);
-                            widget.onBack();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.red,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(loc.get('yes')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+    GameExitConfirmDialog.show(
+      context,
+      themeColor: widget.topicColor ?? Colors.orange.shade400,
+      onStay: () {},
+      onExit: () {
+        _timer?.cancel();
+        _particleTimer?.cancel();
+        widget.onBack();
+      },
     );
   }
 
   void _showResults() {
+    // Eğer oyun canlar bittiği için zaten bitmişse, sonuç ekranını gösterme (sadece release'te).
+    if (_gameOver) return;
+
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!kDebugMode && mechanicsService.currentLives <= 0) return;
+
     _timer?.cancel();
     _particleTimer?.cancel();
-
-    // Her 3 oyunda bir geçiş reklamı göster (Premium değilse)
-    final adService = AdService();
-    adService.showInterstitialAd();
 
     showDialog(
       context: context,
@@ -1081,62 +1013,93 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
 
     final screenWidth = MediaQuery.of(context).size.width;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.24),
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.7, end: 1),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06, vertical: 40),
+        child: Transform.scale(
+          scale: scale,
+          child: child,
+        ),
+      ),
       child: SingleChildScrollView(
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.purple.shade400, Colors.blue.shade400],
+              colors: [
+                Colors.purple.shade400,
+                Colors.blue.shade400,
+              ],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
                 blurRadius: 30,
-                offset: const Offset(0, 15),
+                offset: const Offset(0, 18),
               ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Başlık ve emoji
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🎉', style: TextStyle(fontSize: 26)),
+                  const SizedBox(width: 6),
+                  Text(
+                    loc.get('game_over'),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('🎉', style: TextStyle(fontSize: 26)),
+                ],
+              ),
+              const SizedBox(height: 8),
               Text(
-                '🎉 ${loc.get('game_over')} 🎉',
+                percentage >= 80
+                    ? loc.get('great_job')
+                    : percentage >= 40
+                        ? loc.get('keep_going')
+                        : loc.get('you_can_do_better'),
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [Shadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 3))],
+                  fontSize: 14,
+                  color: Colors.white70,
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
 
+              // Yıldız animasyonu
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(mechanicsService.maxLives, (index) {
+                children: List.generate(3, (index) {
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 500 + index * 200),
                     tween: Tween(begin: 0.0, end: 1.0),
                     builder: (context, value, child) {
                       return Transform.scale(
                         scale: value,
-                        child: Icon(
-                          index < stars ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                          size: 36,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < stars ? Icons.star_rounded : Icons.star_border_rounded,
+                            color: Colors.amber,
+                            size: 32,
+                          ),
                         ),
                       );
                     },
@@ -1144,18 +1107,19 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 }),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
 
+              // Sonuç kartı
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
                 ),
                 child: Column(
                   children: [
-                    _buildResultRow('📊 ${loc.get('correct_answers')}', '$_correctAnswers / $_totalQuestions'),
+                    _buildResultRow('📚 ${loc.get('correct_answers')}', '$_correctAnswers / $_totalQuestions'),
                     const Divider(color: Colors.white24),
                     _buildResultRow('❌ ${loc.get('wrong_answers')}', '$_wrongAnswers'),
                     const Divider(color: Colors.white24),
@@ -1170,8 +1134,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
 
+              // Butonlar
               Row(
                 children: [
                   Expanded(
@@ -1181,34 +1146,48 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                         widget.onBack();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withOpacity(0.18),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [const Icon(Icons.home, size: 16), const SizedBox(width: 4), Text(loc.get('main_menu'), style: const TextStyle(fontSize: 12))],
+                        children: [
+                          const Icon(Icons.home, size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            loc.get('main_menu'),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        _restartGame();
+                      _restartGame();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        elevation: 8,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 10,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [const Icon(Icons.refresh, size: 16), const SizedBox(width: 4), Text(loc.get('play_again'), style: const TextStyle(fontSize: 12))],
+                        children: [
+                          const Icon(Icons.refresh, size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            loc.get('play_again'),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1236,7 +1215,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   void _restartGame() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    if (!mechanicsService.hasLives) {
+    if (!kDebugMode && !mechanicsService.hasLives) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

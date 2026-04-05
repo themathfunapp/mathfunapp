@@ -7,11 +7,11 @@ import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import '../models/daily_reward.dart';
-import '../services/ad_service.dart';
 import '../services/badge_service.dart';
 import '../services/daily_reward_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
+import '../widgets/game_exit_confirm_dialog.dart';
 
 class SpecializedGameScreen extends StatefulWidget {
   final TopicGameSettings topicSettings;
@@ -56,12 +56,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
 
-  // REKLAM SİSTEMİ - GameMechanicsService ile can yönetimi
-  int _totalAdsWatched = 0; // İzlenen reklam sayısı (istatistik)
   bool _isGameOver = false; // Oyun bitti mi?
   bool _gamePaused = false; // Oyun duraklatıldı mı?
-  late AnimationController _adController; // Reklam butonu animasyonu
-  late Animation<double> _adAnimation;
 
   @override
   void initState() {
@@ -82,15 +78,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
     _heartAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
       CurvedAnimation(parent: _heartController, curve: Curves.elasticOut),
-    );
-
-    // Reklam animasyonu
-    _adController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    )..repeat(reverse: true);
-    _adAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _adController, curve: Curves.easeInOut),
     );
 
     _startTimer();
@@ -135,7 +122,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _timer?.cancel();
     _animationController.dispose();
     _heartController.dispose();
-    _adController.dispose();
     super.dispose();
   }
 
@@ -273,49 +259,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  // REKLAM İZLEYEREK CAN KAZANMA - GameMechanicsService ile profil senkron
-  void _reviveWithAd() {
-    final adService = AdService();
-    adService.watchAdForLife(
-      onLifeEarned: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          mechanicsService.earnLifeFromAd();
-          setState(() {
-            _totalAdsWatched++;
-            _isGameOver = false;
-            _gamePaused = false;
-            _isAnswered = false;
-            _selectedAnswer = null;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          _startTimer();
-        }
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (mechanicsService.currentLives <= 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      },
-    );
-  }
-
   void _gameOver() {
     setState(() {
       _isGameOver = true;
@@ -363,9 +306,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   void _showGameOverDialog() {
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    final bool showAdOption = !mechanicsService.hasLives; // Can yoksa reklam izle seçeneği
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -424,72 +364,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                         _buildStatRow(loc.get('correct_answers'), '$_correctAnswers / ${_currentQuestionIndex + 1}'),
                         const Divider(color: Colors.white24),
                         _buildStatRow(loc.get('score'), '$_score'),
-                        if (_totalAdsWatched > 0) ...[
-                          const Divider(color: Colors.white24),
-                          _buildStatRow(loc.get('ads_watched'), '$_totalAdsWatched'),
-                        ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // REKLAM İZLE BUTONU - Kalan hak varsa göster
-                  if (showAdOption) ...[
-                    AnimatedBuilder(
-                      animation: _adAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _adAnimation.value,
-                          child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _reviveWithAd();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
-                                foregroundColor: Colors.black87,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 8,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.play_circle, size: 28),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        loc.get('watch_ad_gain_life'),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${loc.get('lives')}: ${mechanicsService.currentLives}/${mechanicsService.maxLives}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
 
                   // TEKRAR DENE
                   Container(
@@ -1702,98 +1580,17 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _gamePaused = true;
     _timer?.cancel();
 
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  widget.topicSettings.color,
-                  widget.topicSettings.color.withOpacity(0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Builder(
-              builder: (context) {
-                final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-                final loc = AppLocalizations(localeProvider.locale);
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      loc.get('exit_game_confirm'),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      loc.get('progress_not_saved'),
-                      style: const TextStyle(fontSize: 14, color: Colors.white70),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _gamePaused = false;
-                              });
-                              _startTimer();
-                              Navigator.pop(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.3),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(loc.get('no'), style: const TextStyle(fontSize: 14)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _timer?.cancel();
-                              Navigator.pop(context);
-                              widget.onBack();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(loc.get('yes'), style: const TextStyle(fontSize: 14)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
+    GameExitConfirmDialog.show(
+      context,
+      themeColor: widget.topicSettings.color,
+      onStay: () {
+        setState(() => _gamePaused = false);
+        _startTimer();
+      },
+      onExit: () {
+        _timer?.cancel();
+        widget.onBack();
+      },
     );
   }
 
@@ -1878,10 +1675,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                     _buildStatRow('Skor', '$_score'),
                     const Divider(color: Colors.white24),
                     _buildStatRow('Başarı Oranı', '%$percentage'),
-                    if (_totalAdsWatched > 0) ...[
-                      const Divider(color: Colors.white24),
-                      _buildStatRow('İzlenen Reklam', '$_totalAdsWatched'),
-                    ],
                   ],
                 ),
               ),
@@ -1975,7 +1768,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _currentQuestionIndex = 0;
       _score = 0;
       _correctAnswers = 0;
-      _totalAdsWatched = 0;
       _isGameOver = false;
       _gamePaused = false;
       _isAnswered = false;

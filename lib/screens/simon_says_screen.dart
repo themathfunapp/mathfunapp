@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
@@ -336,63 +335,16 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
             Text(loc.get('no_lives_message'), style: GoogleFonts.quicksand(fontSize: 14)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _showMenu = true);
-            },
-            child: Text(loc.get('simon_back_to_menu'), style: GoogleFonts.quicksand(fontWeight: FontWeight.w600, color: Colors.teal)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black87,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              _reviveWithAd();
-            },
-            child: Text(loc.get('watch_ad_gain_life'), style: GoogleFonts.quicksand(fontWeight: FontWeight.w600, fontSize: 12)),
-          ),
-        ],
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            setState(() => _showMenu = true);
+          },
+          child: Text(loc.get('simon_back_to_menu'), style: GoogleFonts.quicksand(fontWeight: FontWeight.w600, color: Colors.teal)),
+        ),
+      ],
       ),
-    );
-  }
-
-  void _reviveWithAd() {
-    AdService().watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-        mechanicsService.earnLifeFromAd();
-        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('🎬 ${loc.get('simon_ad_watched')}', style: GoogleFonts.quicksand()),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        _startGame();
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (!mechanicsService.hasLives) {
-            final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loc.get('simon_ad_failed'), style: GoogleFonts.quicksand()),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      },
     );
   }
 

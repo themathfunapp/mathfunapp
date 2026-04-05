@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
@@ -175,26 +174,26 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
           content: Text(
               '${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10',
               style: GoogleFonts.quicksand()),
-          actions: [
-            TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                child: Text(loc.menu, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.black87,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _reviveWithAd();
-              },
-              child: Text(loc.get('watch_ad_gain_life'),
-                  style: GoogleFonts.quicksand(fontSize: 11)),
-            ),
-          ],
+      actions: [
+        TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            child: Text(loc.menu, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
+            setState(() {
+              _currentSection = firstOfBolum;
+              _score = 0;
+            });
+            _loadSection(_currentSection);
+          },
+          child: Text(loc.repeat, style: GoogleFonts.quicksand()),
+        ),
+      ],
         ),
       );
     } else {
@@ -231,22 +230,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         ),
       );
     }
-  }
-
-  void _reviveWithAd() {
-    AdService().watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        Provider.of<GameMechanicsService>(context, listen: false).earnLifeFromAd();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('🎬 +1 can!', style: GoogleFonts.quicksand()),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ));
-        _initializeGame();
-      },
-      onAdClosed: () {},
-    );
   }
 
   Widget _buildBackButton(VoidCallback onPressed) {

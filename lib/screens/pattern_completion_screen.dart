@@ -7,7 +7,6 @@ import 'dart:math' as math;
 import '../models/pattern_completion_model.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
@@ -248,9 +247,13 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
           actions: [
             TextButton(onPressed: () { Navigator.pop(ctx); Navigator.pop(context); }, child: Text(loc.menu, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black87, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-              onPressed: () { Navigator.pop(ctx); _reviveWithAd(); },
-              child: Text(loc.get('watch_ad_gain_life'), style: GoogleFonts.quicksand(fontSize: 11)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
+                _loadSection(firstOfBolum);
+                setState(() => _score = 0);
+              },
+              child: Text(loc.repeat, style: GoogleFonts.quicksand()),
             ),
           ],
         ),
@@ -275,18 +278,6 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
         ),
       );
     }
-  }
-
-  void _reviveWithAd() {
-    AdService().watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        Provider.of<GameMechanicsService>(context, listen: false).earnLifeFromAd();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🎬 +1 can!', style: GoogleFonts.quicksand()), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
-        _loadSection(_currentSection);
-      },
-      onAdClosed: () {},
-    );
   }
 
   Widget _buildLevelSelect() {
@@ -635,7 +626,7 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
     final cols = _currentPattern!.cols;
     final maxW = maxWidth ?? (MediaQuery.of(context).size.width - 80);
     final cellSize = (maxW / cols - 8).clamp(24.0, 60.0);
-    final gridW = cellSize * cols + 6 * (cols - 1);
+    final gridW = math.min(maxW, cellSize * cols + 6 * (cols - 1));
     final gridH = cellSize * rows + 6 * (rows - 1);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),

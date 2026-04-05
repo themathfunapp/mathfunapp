@@ -324,112 +324,113 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
               ),
             ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icon - biraz küçült
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        isUnlocked ? game.iconEmoji : '🔒',
-                        style: const TextStyle(fontSize: 18),
+            // Content (kilitli/gelecek oyunlarda underlying metinleri göstermeyelim)
+            if (!isComingSoon)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon - biraz küçült
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          isUnlocked ? game.iconEmoji : '🔒',
+                          style: const TextStyle(fontSize: 18),
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 4),
+                    const SizedBox(height: 4),
 
-                  // Title - normal boyut
-                  Text(
-                    localizations.get(game.nameKey),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isUnlocked ? Colors.white : Colors.white70,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-
-                  const SizedBox(height: 1),
-
-                  // Age range - normal boyut
-                  Text(
-                    '${game.minAge}-${game.maxAge}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isUnlocked ? Colors.white70 : Colors.white54,
-                    ),
-                  ),
-
-                  const SizedBox(height: 2),
-
-                  // Stats or unlock requirement - normal boyut
-                  if (isUnlocked && stats != null)
-                    Row(
-                      children: [
-                        const Text('⭐', style: TextStyle(fontSize: 10)),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${stats.totalStars}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text('🎮', style: TextStyle(fontSize: 10)),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${stats.timesPlayed}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (!isUnlocked)
-                    Row(
-                      children: [
-                        const Icon(Icons.lock, size: 10, color: Colors.white54),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${game.requiredStars}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white54,
-                          ),
-                        ),
-                        const Text('⭐', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                      ],
-                    )
-                  else
+                    // Title - normal boyut
                     Text(
-                      localizations.get('tap_to_play'),
-                      style: const TextStyle(
+                      localizations.get(game.nameKey),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isUnlocked ? Colors.white : Colors.white70,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 1),
+
+                    // Age range - normal boyut
+                    Text(
+                      '${game.minAge}-${game.maxAge}',
+                      style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white70,
+                        color: isUnlocked ? Colors.white70 : Colors.white54,
                       ),
                     ),
-                ],
-              ),
-            ),
 
-            // Best score badge - küçük rozet
-            if (isUnlocked && stats != null && stats.bestScore > 0)
+                    const SizedBox(height: 2),
+
+                    // Stats or unlock requirement - normal boyut
+                    if (isUnlocked && stats != null)
+                      Row(
+                        children: [
+                          const Text('⭐', style: TextStyle(fontSize: 10)),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${stats.totalStars}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text('🎮', style: TextStyle(fontSize: 10)),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${stats.timesPlayed}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (!isUnlocked)
+                      Row(
+                        children: [
+                          const Icon(Icons.lock, size: 10, color: Colors.white54),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${game.requiredStars}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white54,
+                            ),
+                          ),
+                          const Text('⭐', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                        ],
+                      )
+                    else
+                      Text(
+                        localizations.get('tap_to_play'),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white70,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+            // Best score badge - küçük rozet (sadece aktif oyunlarda göster)
+            if (!isComingSoon && isUnlocked && stats != null && stats.bestScore > 0)
               Positioned(
                 top: 4,
                 right: 4,

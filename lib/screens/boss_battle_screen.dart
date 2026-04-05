@@ -5,9 +5,9 @@ import 'dart:math' as math;
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
+import '../widgets/game_exit_confirm_dialog.dart';
 
 /// Boss Savaşı Ekranı - 5 CAN (GameMechanicsService ile profil senkron)
 class BossBattleScreen extends StatefulWidget {
@@ -337,40 +337,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               ),
               const SizedBox(height: 24),
 
-              // REKLAM İLE 1 CAN ALMA BUTONU
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _reviveWithAd();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.play_circle, size: 24),
-                      const SizedBox(width: 8),
-                      Text(
-                        loc.get('watch_ad_gain_life'),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
               // NORMAL TEKRAR DENE
               Container(
                 width: double.infinity,
@@ -412,47 +378,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
           ),
         ),
       ),
-    );
-  }
-
-  // REKLAM İLE 1 CAN ALMA - GameMechanicsService ile profil senkron
-  void _reviveWithAd() {
-    final adService = AdService();
-    adService.watchAdForLife(
-      onLifeEarned: () {
-        if (!mounted) return;
-        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-        mechanicsService.earnLifeFromAd();
-        setState(() {
-          _gameOver = false;
-          _isAnswered = false;
-          _selectedAnswer = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        _generateQuestion();
-        _startTimer();
-      },
-      onAdClosed: () {
-        if (mounted) {
-          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-          if (mechanicsService.currentLives <= 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      },
     );
   }
 
@@ -631,88 +556,14 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   void _showExitConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Builder(
-            builder: (context) {
-              final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
-              final loc = AppLocalizations(localeProvider.locale);
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    loc.get('exit_game_confirm'),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    loc.get('progress_not_saved'),
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.3),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(loc.get('no')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _timer?.cancel();
-                            Navigator.pop(context);
-                            widget.onBack();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(loc.get('yes')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+    GameExitConfirmDialog.show(
+      context,
+      themeColor: const Color(0xFF667eea),
+      onStay: () {},
+      onExit: () {
+        _timer?.cancel();
+        widget.onBack();
+      },
     );
   }
 
