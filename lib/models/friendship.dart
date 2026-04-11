@@ -6,7 +6,7 @@ class Friendship {
   final String friendName; // Arkadaşın adı
   final String? friendPhotoUrl;
   final String? friendEmail;
-  final String? friendUserCode; // Arkadaşın RKN kodu
+  final String? friendUserCode; // Arkadaşın oyuncu kodu (MTN…)
   final DateTime friendsSince;
   final bool isOnline;
   final DateTime? lastSeen;

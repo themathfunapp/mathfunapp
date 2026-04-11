@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/badge_service.dart';
+import '../services/daily_reward_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/story_service.dart';
 import '../models/app_user.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
@@ -301,15 +303,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontWeight: FontWeight.w600,
               ),
             )
-          else if (user.email != null)
+          else ...[
+            if (user.email != null) ...[
+              Text(
+                user.email!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
             Text(
-              user.email!,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+              '${localizations.playerCodeLabel}: ${user.userCode ?? user.playerCode}',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
+          ],
 
           const SizedBox(height: 8),
 
@@ -349,20 +364,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
 
           // HIZLI İSTATİSTİKLER - Gerçek verilerle (şans çarkı ödülleri dahil)
-          Consumer2<BadgeService, GameMechanicsService>(
-            builder: (context, badgeService, mechanicsService, _) {
+          Consumer4<BadgeService, GameMechanicsService, DailyRewardService, StoryService>(
+            builder: (context, badgeService, mechanicsService, dailyRewardService, storyService, _) {
               final stats = badgeService.userStats;
               final coins = mechanicsService.inventory.coins;
+              final diamonds = mechanicsService.inventory.gems;
               final lives = mechanicsService.currentLives;
               final maxLives = mechanicsService.maxLives;
               final hints = mechanicsService.hintSystem.availableHints;
+              final storyStars = storyService.progress?.totalStars ?? 0;
+              final bonusStars = dailyRewardService.profileBonusStars;
+              final totalStars = storyStars + bonusStars;
               return Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 8,
                 runSpacing: 16,
                 children: [
                   _buildStatItem('🏆', '${stats?.totalScore ?? 0}', localizations.get('total_score')),
+                  _buildStatItem('⭐', '$totalStars', localizations.get('profile_total_stars')),
                   _buildStatItem('🪙', '$coins', localizations.get('coins')),
+                  _buildStatItem('💎', '$diamonds', localizations.get('diamonds')),
                   _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
                   _buildStatItem('💡', '$hints', localizations.get('hints')),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),

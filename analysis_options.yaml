@@ -10,6 +10,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  exclude:
+    - build/**
+    - "**/.dart_tool/**"
+    - functions/node_modules/**
   errors:
     deprecated_member_use: ignore
     avoid_print: ignore

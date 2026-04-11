@@ -3,26 +3,27 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-import 'firebase_options.dart';
-import 'models/app_user.dart';
-import 'services/auth_service.dart';
-import 'services/friend_service.dart';
-import 'services/badge_service.dart';
-import 'services/daily_reward_service.dart';
-import 'services/story_service.dart';
-import 'services/mini_game_service.dart';
-import 'services/game_mechanics_service.dart';
-import 'services/offline_service.dart';
-import 'services/ai_storyteller_service.dart';
-import 'services/voice_command_service.dart';
-import 'services/premium_service_export.dart';
-import 'services/ad_service.dart';
-import 'services/family_service.dart';
-import 'services/parent_pin_service.dart';
-import 'providers/locale_provider.dart';
-import 'screens/app_screen_wrappers.dart';
-import 'screens/welcome_screen.dart';
-import 'localization/app_localizations.dart';
+import 'package:mathfun/firebase_options.dart';
+import 'package:mathfun/models/app_user.dart';
+import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/services/friend_service.dart';
+import 'package:mathfun/services/badge_service.dart';
+import 'package:mathfun/services/daily_reward_service.dart';
+import 'package:mathfun/services/story_service.dart';
+import 'package:mathfun/services/mini_game_service.dart';
+import 'package:mathfun/services/game_mechanics_service.dart';
+import 'package:mathfun/services/offline_service.dart';
+import 'package:mathfun/services/ai_storyteller_service.dart';
+import 'package:mathfun/services/voice_command_service.dart';
+import 'package:mathfun/services/premium_service_export.dart';
+import 'package:mathfun/services/ad_service.dart';
+import 'package:mathfun/services/family_service.dart';
+import 'package:mathfun/services/parent_mode_service.dart';
+import 'package:mathfun/services/parent_pin_service.dart';
+import 'package:mathfun/providers/locale_provider.dart';
+import 'package:mathfun/screens/app_screen_wrappers.dart';
+import 'package:mathfun/screens/welcome_screen.dart';
+import 'package:mathfun/localization/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,9 @@ Future<void> main() async {
         ChangeNotifierProvider<LocaleProvider>(
           create: (_) => LocaleProvider(),
         ),
+        ChangeNotifierProvider<ParentModeService>(
+          create: (_) => ParentModeService(),
+        ),
         // Lazy loading'i aç - sadece ihtiyaç duyulunca oluştur
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
@@ -62,7 +66,9 @@ Future<void> main() async {
             return friendService;
           },
         ),
+        // Web DDC: modülü ilk karede yükle; hot reload sonrası "Library not defined" riskini azaltır.
         ChangeNotifierProxyProvider<AuthService, BadgeService>(
+          lazy: false,
           create: (_) => BadgeService(),
           update: (_, authService, badgeService) {
             badgeService!.initialize(authService.currentUser);

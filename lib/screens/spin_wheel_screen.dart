@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/badge_service.dart';
+import '../services/daily_reward_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 
@@ -88,6 +89,10 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     try {
       _reward = await mechanicsService.spinWheel();
       if (!mounted) return;
+      if (_reward!.type == 'stars') {
+        await Provider.of<DailyRewardService>(context, listen: false)
+            .addProfileBonusStars(_reward!.value);
+      }
       final badgeService = Provider.of<BadgeService>(context, listen: false);
       await badgeService.addSpinWheelReward(_reward!);
       if (!mounted) return;

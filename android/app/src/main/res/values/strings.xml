@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Firebase / Google Sign-In: Web OAuth istemcisi (Console’daki Web client ile aynı olmalı) -->
+    <string name="default_web_client_id" translatable="false">728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com</string>
+</resources>

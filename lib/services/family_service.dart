@@ -79,12 +79,96 @@ class FamilyService extends ChangeNotifier {
     notifyListeners();
   }
 
+  DocumentReference<Map<String, dynamic>>? get _aggregatesRef {
+    if (_parentUid == null || _parentUid!.isEmpty) return null;
+    return _firestore
+        .collection('users')
+        .doc(_parentUid)
+        .collection('family')
+        .doc('aggregates');
+  }
+
+  /// Aile düellolarından biriken bonus puanlar (ebeveyn hesabı altında tutulur).
+  Future<Map<String, int>> _loadDuelBonusesMap() async {
+    final ref = _aggregatesRef;
+    if (ref == null) return {};
+    try {
+      final snap = await ref.get();
+      if (!snap.exists) return {};
+      final raw = snap.data()?['duelPointsByUser'];
+      if (raw is! Map) return {};
+      final out = <String, int>{};
+      for (final e in raw.entries) {
+        out[e.key.toString()] = (e.value as num?)?.toInt() ?? 0;
+      }
+      return out;
+    } catch (e) {
+      debugPrint('FamilyService duel bonuses: $e');
+      return {};
+    }
+  }
+
+  /// Birebir yarış sonucunu kaydet; liderlikte `totalScore + duel bonus` görünür.
+  Future<void> recordFamilyDuelResult({
+    required String childUserId,
+    required String topicKey,
+    required int parentCorrect,
+    required int childCorrect,
+    required int rounds,
+  }) async {
+    final ref = _aggregatesRef;
+    if (ref == null || _parentUid == null) return;
+
+    final parentPts = parentCorrect * 10;
+    final childPts = childCorrect * 10;
+
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final data = snap.data() ?? <String, dynamic>{};
+        final raw = data['duelPointsByUser'];
+        final map = <String, int>{};
+        if (raw is Map) {
+          for (final e in raw.entries) {
+            map[e.key.toString()] = (e.value as num?)?.toInt() ?? 0;
+          }
+        }
+        map[_parentUid!] = (map[_parentUid!] ?? 0) + parentPts;
+        map[childUserId] = (map[childUserId] ?? 0) + childPts;
+
+        tx.set(
+          ref,
+          {
+            'duelPointsByUser': map,
+            'lastFamilyDuel': {
+              'at': FieldValue.serverTimestamp(),
+              'topic': topicKey,
+              'parentCorrect': parentCorrect,
+              'childCorrect': childCorrect,
+              'rounds': rounds,
+              'childUserId': childUserId,
+            },
+          },
+          SetOptions(merge: true),
+        );
+      });
+      await loadMembers();
+    } catch (e) {
+      debugPrint('FamilyService recordFamilyDuelResult: $e');
+    }
+  }
+
   /// Liderlik tablosu verilerini yükle
   Future<void> _loadLeaderboard() async {
     _leaderboard = [];
 
+    final duelBonuses = await _loadDuelBonusesMap();
+
     for (final member in _members) {
-      final entry = await _fetchMemberStats(member);
+      final entry = await _fetchMemberStats(
+        member,
+        duelBonus: duelBonuses[member.userId] ?? 0,
+      );
       if (entry != null) {
         _leaderboard.add(entry);
       }
@@ -109,7 +193,10 @@ class FamilyService extends ChangeNotifier {
     }).toList();
   }
 
-  Future<LeaderboardEntry?> _fetchMemberStats(FamilyMember member) async {
+  Future<LeaderboardEntry?> _fetchMemberStats(
+    FamilyMember member, {
+    int duelBonus = 0,
+  }) async {
     try {
       final statsDoc = await _firestore
           .collection('users')
@@ -134,6 +221,8 @@ class FamilyService extends ChangeNotifier {
         lastPlayedAt = stats.lastPlayedAt;
         consecutiveDays = stats.consecutiveDays;
       }
+
+      score += duelBonus;
 
       // Rozet sayısı
       int earnedBadges = 0;

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "728773599076-bpbcc1kjf30lufek9g1iqdbrfhh4kjvh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.themathfunapp.mathfunapp",
+            "certificate_hash": "d73ad99e99bdbc5a825dbcfee767b161294ff3ea"
+          }
+        },
+        {
           "client_id": "728773599076-iqijod9ks20g5q9sm57n3sm9shtiv4ss.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

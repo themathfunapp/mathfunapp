@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_mechanics.dart';
+import '../models/daily_reward.dart' show UserRewards;
 
 /// Oyun Mekanikleri Servisi
 /// Combo, Can, İpucu, Güç-Up, Günlük Challenge yönetimi
@@ -91,6 +92,32 @@ class GameMechanicsService extends ChangeNotifier {
     inventory.coins = coins;
     inventory.gems = diamonds;
     hintSystem.availableHints = hints;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  /// Günlük ödüller (`users/.../rewards/daily`) ile oyun envanterini tam eşitle:
+  /// jeton, elmas, ipucu + günlük sayaçlardaki güçlendiriciler.
+  Future<void> syncInventoryFromDailyRewards(UserRewards rewards) async {
+    inventory.coins = rewards.coins;
+    inventory.gems = rewards.diamonds;
+    hintSystem.availableHints = rewards.hintCount;
+
+    // daily_reward.PowerUpType -> game_mechanics.PowerUpType
+    int mergePowerUp(PowerUpType t, int fromDaily) =>
+        max(inventory.getPowerUpCount(t), fromDaily);
+
+    inventory.powerUps[PowerUpType.fiftyFifty] =
+        mergePowerUp(PowerUpType.fiftyFifty, rewards.halfOptionsCount);
+    inventory.powerUps[PowerUpType.slowMotion] =
+        mergePowerUp(PowerUpType.slowMotion, rewards.extraTimeCount);
+    inventory.powerUps[PowerUpType.doublePoints] =
+        mergePowerUp(PowerUpType.doublePoints, rewards.doublePointsCount);
+    inventory.powerUps[PowerUpType.skipQuestion] =
+        mergePowerUp(PowerUpType.skipQuestion, rewards.skipQuestionCount);
+    inventory.powerUps[PowerUpType.freezeTime] =
+        mergePowerUp(PowerUpType.freezeTime, rewards.freezeTimeCount);
+
     await _saveUserData();
     notifyListeners();
   }
@@ -540,6 +567,9 @@ class GameMechanicsService extends ChangeNotifier {
         break;
       case 'xp':
         // XP ekle - ayrı serviste işlenebilir
+        break;
+      case 'stars':
+        // Profil yıldızı DailyRewardService üzerinden (SpinWheelScreen) eklenir
         break;
       case 'hint':
         hintSystem.addHint(reward.value);

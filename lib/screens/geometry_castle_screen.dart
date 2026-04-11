@@ -23,11 +23,11 @@ enum QuestionType { shapeName, vertexCount, equalEdges }
 
 class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     with TickerProviderStateMixin {
-  late AnimationController _pulseController;
+  /// Yavaş, düzgün faz — parıltı / baykuş için hafif hareket (titreme yok)
+  late AnimationController _gentleMotionController;
   late AnimationController _floatController;
   late AnimationController _celebrationController;
   late AnimationController _bgController;
-  late Animation<double> _pulseAnimation;
   late Animation<double> _floatAnimation;
   late Animation<double> _bgAnimation;
 
@@ -88,21 +88,17 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    _gentleMotionController = AnimationController(
+      duration: const Duration(seconds: 10),
       vsync: this,
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    )..repeat();
 
     _floatController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 6),
       vsync: this,
     )..repeat(reverse: true);
 
-    _floatAnimation = Tween<double>(begin: -8, end: 8).animate(
+    _floatAnimation = Tween<double>(begin: -4, end: 4).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
 
@@ -141,7 +137,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _gentleMotionController.dispose();
     _floatController.dispose();
     _celebrationController.dispose();
     _bgController.dispose();
@@ -435,35 +431,52 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   Widget _buildAmbientEffects() {
-    return Stack(
-      children: [
-        AnimatedBuilder(
-          animation: _floatAnimation,
-          builder: (context, child) {
-            return Positioned(
-              top: 60 + _floatAnimation.value,
-              right: 20,
-              child: Text('🏰', style: TextStyle(fontSize: 50)),
-            );
-          },
-        ),
-        ...List.generate(6, (i) {
-          final r = math.Random(i);
-          return Positioned(
-            top: r.nextDouble() * 300,
-            left: r.nextDouble() * 300,
-            child: AnimatedBuilder(
-              animation: _pulseController,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        const headerReserve = 132.0;
+        final topMax = math.max(headerReserve + 40, h - 24);
+        return Stack(
+          children: [
+            AnimatedBuilder(
+              animation: _floatAnimation,
               builder: (context, child) {
-                return Opacity(
-                  opacity: 0.3 + _pulseAnimation.value * 0.2,
-                  child: Text('✨', style: TextStyle(fontSize: 16 + r.nextDouble() * 8)),
+                return Positioned(
+                  top: math.min(72.0, h * 0.12) + _floatAnimation.value,
+                  right: 12,
+                  child: RepaintBoundary(
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: 0.32,
+                        child: Text('🏰', style: TextStyle(fontSize: math.min(44, w * 0.11))),
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
-          );
-        }),
-      ],
+            ...List.generate(5, (i) {
+              final r = math.Random(i);
+              final top = headerReserve + r.nextDouble() * (topMax - headerReserve);
+              final left = w * 0.08 + r.nextDouble() * (w * 0.84);
+              return Positioned(
+                top: top,
+                left: left,
+                child: RepaintBoundary(
+                  child: Opacity(
+                    opacity: 0.24,
+                    child: Text(
+                      '✨',
+                      style: TextStyle(fontSize: 12 + r.nextDouble() * 6),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 
@@ -472,50 +485,113 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
       builder: (context, mechanicsService, _) {
         final lives = mechanicsService.currentLives;
         final maxLives = mechanicsService.maxLives;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: widget.onBack,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _castlePurple.withOpacity(0.5)),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 400;
+            final titleStyle = _textStyle(Colors.white, size: narrow ? 17 : 20, bold: true);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: widget.onBack,
+                    child: Container(
+                      width: narrow ? 42 : 44,
+                      height: narrow ? 42 : 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _castlePurple.withOpacity(0.5)),
+                      ),
+                      child: Icon(Icons.arrow_back, color: Colors.white, size: narrow ? 22 : 24),
+                    ),
                   ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                ),
+                  SizedBox(width: narrow ? 8 : 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text('🏰 ', style: titleStyle),
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  loc.get('world_geometry_castle'),
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.visible,
+                                  style: titleStyle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          loc.get('world_geometry_castle_desc'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: narrow ? 11 : 12,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: narrow ? 4 : 8),
+                  if (narrow)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.35)),
+                      ),
+                      child: Text(
+                        '🛡️ $lives/$maxLives',
+                        style: _textStyle(Colors.white, size: 11, bold: true),
+                      ),
+                    )
+                  else
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        maxLives,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(left: 2),
+                          child: Text(
+                            i < lives ? '🛡️' : '💨',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  SizedBox(width: narrow ? 4 : 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: narrow ? 8 : 12,
+                      vertical: narrow ? 5 : 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '⭐ $_stars',
+                      style: _textStyle(Colors.amber, size: narrow ? 13 : 16, bold: true),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('🏰 ${loc.get('world_geometry_castle')}', style: _textStyle(Colors.white, size: 20, bold: true)),
-                    Text(loc.get('world_geometry_castle_desc'), style: TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
-                ),
-              ),
-              Row(
-                children: List.generate(maxLives, (i) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: Text(i < lives ? '🛡️' : '💨', style: const TextStyle(fontSize: 20)),
-                )),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text('⭐ $_stars', style: _textStyle(Colors.amber, size: 16, bold: true)),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -553,19 +629,22 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                 Row(
                   children: [
                     AnimatedBuilder(
-                      animation: _pulseAnimation,
+                      animation: _gentleMotionController,
                       builder: (context, child) {
-                        return Transform.scale(
-                          scale: _pulseAnimation.value,
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: _castlePink.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _castlePurple, width: 2),
+                        final ang = _gentleMotionController.value * 2 * math.pi;
+                        return RepaintBoundary(
+                          child: Transform.translate(
+                            offset: Offset(0, 1.2 * math.sin(ang)),
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: _castlePink.withOpacity(0.3),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _castlePurple, width: 2),
+                              ),
+                              child: const Center(child: Text('🦉', style: TextStyle(fontSize: 26))),
                             ),
-                            child: const Center(child: Text('🦉', style: TextStyle(fontSize: 26))),
                           ),
                         );
                       },

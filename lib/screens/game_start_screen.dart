@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
+import '../services/friend_service.dart';
+import '../models/friendship.dart';
 import 'topic_selection_screen.dart';
 import 'math_regions_screen.dart';
 import 'quick_math_screen.dart';
@@ -11,18 +13,15 @@ import 'endless_mode_screen.dart';
 import 'daily_challenge_screen.dart';
 import 'boss_battle_screen.dart';
 import 'live_duel_screen.dart';
+import 'friends_screen.dart';
 import '../models/game_mechanics.dart';
 import 'coming_soon_screen.dart';
 import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
 import 'package:mathfun/services/game_mechanics_service.dart';
+import '../models/age_group_selection.dart';
 
-/// Yaş grupları enum
-enum AgeGroupSelection {
-  preschool, // 3-5
-  elementary, // 6-8
-  advanced, // 9-11
-}
+export '../models/age_group_selection.dart';
 
 /// Oyun Başlangıç Ekranı
 /// Yaş seçimi, hızlı başlangıç ve konu seçimi içerir
@@ -1593,7 +1592,7 @@ class _GameStartScreenState extends State<GameStartScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LiveDuelScreen(
+            builder: (context) => FriendDuelPickerScreen(
               ageGroup: _selectedAgeGroup,
               onBack: () => Navigator.pop(context),
             ),
@@ -2016,6 +2015,238 @@ class _GameStartScreenState extends State<GameStartScreen>
         backgroundColor: Colors.purple,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
+/// Arkadaş listesinden gerçek kayıtlı oyuncu seçilir; düello o isimle başlar.
+class FriendDuelPickerScreen extends StatelessWidget {
+  const FriendDuelPickerScreen({
+    super.key,
+    required this.ageGroup,
+    required this.onBack,
+  });
+
+  final AgeGroupSelection ageGroup;
+  final VoidCallback onBack;
+
+  static String _initial(String name) {
+    final t = name.trim();
+    if (t.isEmpty) return '?';
+    return t[0].toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final loc = AppLocalizations(locale);
+    final auth = Provider.of<AuthService>(context);
+    final user = auth.currentUser;
+
+    if (user == null || user.isGuest) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1a237e), Color(0xFF3949ab)],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        loc.get('friend_duel_guest'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 18,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final friendService = Provider.of<FriendService>(context, listen: false);
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1a237e), Color(0xFF3949ab)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  ),
+                  Expanded(
+                    child: Text(
+                      loc.get('friend_duel_pick_title'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  loc.get('friend_duel_subtitle'),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.88),
+                    fontSize: 14,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<List<Friendship>>(
+                  stream: friendService.friendsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    }
+                    final friends = snapshot.data ?? [];
+                    if (friends.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('👥', style: TextStyle(fontSize: 56)),
+                              const SizedBox(height: 16),
+                              Text(
+                                loc.get('friend_duel_empty'),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (ctx) => FriendsScreen(
+                                        onBack: () => Navigator.pop(ctx),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.person_add),
+                                label: Text(loc.get('friends')),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black87,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: friends.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final f = friends[index];
+                        return Material(
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.amber.shade200,
+                              child: Text(
+                                _initial(f.friendName),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              f.friendName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: f.friendUserCode != null && f.friendUserCode!.isNotEmpty
+                                ? Text(
+                                    f.friendUserCode!,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.65),
+                                      fontSize: 13,
+                                    ),
+                                  )
+                                : null,
+                            trailing: const Icon(
+                              Icons.sports_martial_arts,
+                              color: Colors.amber,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (ctx) => LiveDuelScreen(
+                                    ageGroup: ageGroup,
+                                    opponent: f,
+                                    onBack: () => Navigator.pop(ctx),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

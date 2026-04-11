@@ -12,6 +12,8 @@ import '../widgets/kurdistan_flag.dart'; // KurtceFlag widget
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
+import '../services/parent_mode_service.dart';
+import '../services/premium_service_export.dart';
 import '../screens/profile_screen.dart';
 import '../screens/friends_screen.dart';
 import '../screens/badges_screen.dart';
@@ -19,8 +21,8 @@ import '../screens/daily_rewards_screen.dart';
 import '../screens/story_mode_screen.dart';
 import '../screens/mini_games_screen.dart';
 import '../screens/game_start_screen.dart';
-import '../screens/spin_wheel_screen.dart';
 import '../screens/parent_panel_screen.dart';
+import '../screens/parent_mode_games_hub.dart';
 import '../screens/ai_storyteller_screen.dart';
 import '../screens/voice_commands_screen.dart';
 import '../screens/learning_journey_screen.dart';
@@ -104,6 +106,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final authService = Provider.of<AuthService>(context);
+    final parentMode = Provider.of<ParentModeService>(context);
+
+    final useParentHome = parentMode.isLoaded &&
+        parentMode.isParentMode &&
+        authService.currentUser?.isGuest != true;
 
     return Scaffold(
       body: Container(
@@ -138,154 +145,230 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 const SizedBox(height: 60),
 
-                // Başlık
-                Column(
-                  children: [
-                    ScaleTransition(
-                      scale: _titleAnimation,
-                      child: Text(
-                        localizations.homeTitle,
-                        style: titleStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      localizations.homeSubtitle,
-                      style: subtitleStyle,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 40),
-
-                // Orta içerik Metinleri
-                Text(
-                  localizations.homeImproveSkills,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 16),
-
-                Text(
-                  localizations.homeLearnFun,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 40),
-
-                // Ana butonlar
-                ShinyButton(
-                  text: localizations.startGame,
-                  onPressed: () => _openGameStartScreen(context),
-                ),
-
-                const SizedBox(height: 16),
-
-                StoryModeButton(
-                  text: localizations.storyMode,
-                  onPressed: () => _openStoryModeScreen(context),
-                ),
-
-                const SizedBox(height: 8),
-
-                // MINI GAMES BUTONU
-                MiniGamesButton(
-                  text: localizations.miniGames,
-                  subText: localizations.miniGamesCount,
-                  onPressed: () => _openMiniGamesScreen(context),
-                ),
-
-                const SizedBox(height: 16),
-
-                PremiumButton(
-                  onPressed: widget.onPremium,
-                ),
-
-                // BottomActionButton'lar
-                const SizedBox(height: 40),
-
-                // Alt butonlar
-                Row(
-                  children: [
-                    Expanded(
-                      child: BottomActionButton(
-                        text: localizations.dailyRewards,
-                        emoji: '🎁',
-                        onPressed: () => _openDailyRewardsScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: localizations.badges,
-                        emoji: '🏆',
-                        onPressed: () => _openBadgesScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: localizations.friends,
-                        emoji: '👥',
-                        onPressed: () => _openFriendsScreen(context),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // İkinci satır - Şans Çarkı + Ebeveyn Paneli
-                Row(
-                  children: [
-                    Expanded(
-                      child: BottomActionButton(
-                        text: localizations.spinWheelTitle,
-                        emoji: '🎰',
-                        onPressed: () => _openSpinWheelScreen(context),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: BottomActionButton(
-                        text: localizations.parentPanel,
-                        emoji: '👨‍👩‍👧',
-                        onPressed: () => _openParentPanelScreen(context),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
-                // İKİNCİ SATIĞA EKLENECEKLER:
-                // - Hikaye (📖) - _openAIStorytellerScreen
-                //
-                // ÜÇÜNCÜ SATIR:
-                // - Sesli (🎤) - _openVoiceCommandsScreen
-                // - Avatar (👤) - _openAvatarScreen
-                // - Evcil (🐱) - _openPetScreen
-                //
-                // DÖRDÜNCÜ SATIR:
-                // - Yolculuk (🗺️) - _openLearningJourneyScreen
-                // - Galeri (🎨) - _openMathArtGalleryScreen
-                // - Laboratuvar (🧪) - _openVirtualMathLabScreen
-
-                const SizedBox(height: 24),
+                if (useParentHome)
+                  ..._buildParentModeHome(context)
+                else
+                  ..._buildStandardHomeBody(context, localizations, authService),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildParentModeHome(BuildContext context) {
+    return [
+      ParentModeGamesHub.forHome(
+        onOpenParentPanel: () => _openParentPanelScreen(context),
+      ),
+      const SizedBox(height: 24),
+    ];
+  }
+
+  Future<void> _confirmEnterParentMode(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Ebeveyn modu',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Ebeveyn moduna geçmek istediğinizden emin misiniz?\n\n'
+          'Bu modda yalnızca aile oyunları ve ebeveyn paneline yönelik ekranlar gösterilir.',
+          style: TextStyle(color: Colors.white70, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'İptal',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Evet, geç'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await Provider.of<ParentModeService>(context, listen: false).setParentMode(true);
+    }
+  }
+
+  List<Widget> _buildStandardHomeBody(
+    BuildContext context,
+    AppLocalizations localizations,
+    AuthService authService,
+  ) {
+    return [
+      // Başlık
+      Column(
+        children: [
+          ScaleTransition(
+            scale: _titleAnimation,
+            child: Text(
+              localizations.homeTitle,
+              style: titleStyle,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            localizations.homeSubtitle,
+            style: subtitleStyle,
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 40),
+
+      // Orta içerik Metinleri
+      Text(
+        localizations.homeImproveSkills,
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        textAlign: TextAlign.center,
+      ),
+
+      const SizedBox(height: 16),
+
+      Text(
+        localizations.homeLearnFun,
+        style: const TextStyle(
+          fontSize: 16,
+          color: Colors.white70,
+        ),
+        textAlign: TextAlign.center,
+      ),
+
+      const SizedBox(height: 40),
+
+      // Ana butonlar
+      ShinyButton(
+        text: localizations.startGame,
+        onPressed: () => _openGameStartScreen(context),
+      ),
+
+      const SizedBox(height: 16),
+
+      StoryModeButton(
+        text: localizations.storyMode,
+        onPressed: () => _openStoryModeScreen(context),
+      ),
+
+      const SizedBox(height: 8),
+
+      // MINI GAMES BUTONU
+      MiniGamesButton(
+        text: localizations.miniGames,
+        subText: localizations.miniGamesCount,
+        onPressed: () => _openMiniGamesScreen(context),
+      ),
+
+      Consumer<PremiumService>(
+        builder: (context, premiumService, _) {
+          if (premiumService.isPremium) {
+            return const SizedBox.shrink();
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              PremiumButton(
+                onPressed: widget.onPremium,
+              ),
+            ],
+          );
+        },
+      ),
+
+      // BottomActionButton'lar
+      const SizedBox(height: 40),
+
+      // Alt butonlar
+      Row(
+        children: [
+          Expanded(
+            child: BottomActionButton(
+              text: localizations.dailyRewards,
+              emoji: '🎁',
+              onPressed: () => _openDailyRewardsScreen(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: BottomActionButton(
+              text: localizations.badges,
+              emoji: '🏆',
+              onPressed: () => _openBadgesScreen(context),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: BottomActionButton(
+              text: localizations.friends,
+              emoji: '👥',
+              onPressed: () => _openFriendsScreen(context),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 12),
+
+      // İkinci satır - Ebeveyn Paneli (şans çarkı Günlük Ödüller içinde)
+      Row(
+        children: [
+          Expanded(
+            child: BottomActionButton(
+              text: localizations.parentPanel,
+              emoji: '👨‍👩‍👧',
+              onPressed: () => _openParentPanelScreen(context),
+            ),
+          ),
+        ],
+      ),
+
+      if (authService.currentUser?.isGuest != true)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: TextButton(
+            onPressed: () => _confirmEnterParentMode(context),
+            child: Text(
+              'Ebeveyn moduna geç (sadece aile özellikleri)',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.65),
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+
+      // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
+      // İKİNCİ SATIĞA EKLENECEKLER:
+      // - Hikaye (📖) - _openAIStorytellerScreen
+      //
+      // ÜÇÜNCÜ SATIR:
+      // - Sesli (🎤) - _openVoiceCommandsScreen
+      // - Avatar (👤) - _openAvatarScreen
+      // - Evcil (🐱) - _openPetScreen
+      //
+      // DÖRDÜNCÜ SATIR:
+      // - Yolculuk (🗺️) - _openLearningJourneyScreen
+      // - Galeri (🎨) - _openMathArtGalleryScreen
+      // - Laboratuvar (🧪) - _openVirtualMathLabScreen
+
+      const SizedBox(height: 24),
+    ];
   }
 
   // Dil değiştirme butonu
@@ -570,17 +653,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context,
       MaterialPageRoute(
         builder: (context) => FriendsScreen(
-          onBack: () => Navigator.pop(context),
-        ),
-      ),
-    );
-  }
-
-  void _openSpinWheelScreen(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SpinWheelScreen(
           onBack: () => Navigator.pop(context),
         ),
       ),

@@ -20,6 +20,8 @@ import '../widgets/animated_counter.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/empty_state_lottie.dart';
 import 'parent_panel_child_detail_screen.dart';
+import 'family_duel_race_screen.dart';
+import 'parent_mode_games_hub.dart';
 
 /// Ebeveyn Paneli Ekranı
 /// Gerçek verilerle çocuğun ilerlemesini takip etme
@@ -34,6 +36,8 @@ class ParentPanelScreen extends StatefulWidget {
 
 class _ParentPanelScreenState extends State<ParentPanelScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static const int _tabCount = 5;
+
   late TabController _tabController;
   Timer? _sessionCheckTimer;
   
@@ -86,7 +90,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
     _loadNotificationPrefs();
     _loadReportHistory();
     _startSessionCheck();
@@ -98,6 +102,21 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Hot reload sonrası TabController eski uzunlukta kalmasın (4 vs 5 sekme uyumsuzluğu).
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (_tabController.length != _tabCount) {
+      final oldIndex = _tabController.index.clamp(0, _tabCount - 1);
+      _tabController.dispose();
+      _tabController = TabController(
+        length: _tabCount,
+        vsync: this,
+        initialIndex: oldIndex,
+      );
+    }
   }
 
   void _startSessionCheck() {
@@ -259,6 +278,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   children: [
                     _buildStatsTab(), // Consumer içinde gerçek veri
                     _buildReportsTab(),
+                    _buildPlayGamesTab(),
                     _buildFamilyGameTab(),
                     _buildSettingsTab(),
                   ],
@@ -426,10 +446,27 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         tabs: const [
           Tab(icon: Icon(Icons.dashboard), text: 'Gelişim'),
           Tab(icon: Icon(Icons.bar_chart), text: 'İstatistik'),
+          Tab(icon: Icon(Icons.sports_esports), text: 'Oyun Oyna'),
           Tab(icon: Icon(Icons.groups), text: 'Aile Oyunu'),
           Tab(icon: Icon(Icons.settings), text: 'Ayarlar'),
         ],
       ),
+    );
+  }
+
+  /// Oyun Oyna — ebeveyn modu oyun merkezi (birlikte yarış, bölge haritası).
+  Widget _buildPlayGamesTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ParentModeGamesHub.forParentPanelTab(
+          onJumpToGelisimTab: () {
+            if (_tabController.index != 0) {
+              _tabController.animateTo(0);
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -450,18 +487,21 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               '🏁 Birebir Yarış',
               'Çocuk vs Ebeveyn - Kim daha hızlı?',
               Icons.emoji_events,
+              onTap: () => _openFamilyDuelRace(context),
             ),
             const SizedBox(height: 12),
             _buildFamilyGameCard(
               '👨‍👩‍👧 Takım Modu',
               'Aile vs Bilgisayar - Birlikte kazanın!',
               Icons.groups,
+              onTap: () => _showFamilyModeSoon(context, 'Takım modu yakında.'),
             ),
             const SizedBox(height: 12),
             _buildFamilyGameCard(
               '🔄 Sırayla Oyna',
               'Herkes sırayla soru çözer',
               Icons.swap_horiz,
+              onTap: () => _showFamilyModeSoon(context, 'Sırayla oyna yakında.'),
             ),
           ],
         );
@@ -586,7 +626,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Çocuğun oyuncu kodunu girin (örn: RKN12345678)',
+              'Çocuğun oyuncu kodunu girin (örn: MTN1234567890)',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.white.withValues(alpha: 0.9),
@@ -597,7 +637,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               controller: controller,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'RKN12345678',
+                hintText: 'MTN1234567890',
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -777,51 +817,82 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildFamilyGameCard(String title, String subtitle, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+  void _openFamilyDuelRace(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => FamilyDuelRaceScreen(
+          onBack: () => Navigator.of(ctx).pop(),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
+    );
+  }
+
+  void _showFamilyModeSoon(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildFamilyGameCard(
+    String title,
+    String subtitle,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+            ],
           ),
-          Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-        ],
+        ),
       ),
     );
   }

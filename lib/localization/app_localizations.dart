@@ -103,6 +103,9 @@ class AppLocalizations {
   String get noAccountSignup => get('no_account_signup');
   String get signUp => get('sign_up');
   String get loginError => get('login_error');
+  String get googleSigninShaFirebaseShort =>
+      get('google_signin_sha_firebase_short');
+  String get playerCodeLabel => get('player_code_label');
   String get skipDescription => get('skip_description');
 
   // Premium
@@ -308,6 +311,14 @@ class AppLocalizations {
       'boss_won': 'kazandı!',
       'friend_race': 'Arkadaşla Yarış',
       'math_duel': 'Matematik düellosu',
+      'friend_duel_pick_title': 'Kiminle yarışacaksın?',
+      'friend_duel_subtitle':
+          'Listede yalnızca uygulamaya kayıtlı ve arkadaşın olarak eklediğin oyuncular görünür.',
+      'friend_duel_connecting': 'Arkadaşınla hazırlanıyor…',
+      'friend_duel_guest':
+          'Arkadaşla yarışmak için hesap oluşturmalı ve arkadaş eklemelisin.',
+      'friend_duel_empty':
+          'Henüz arkadaşın yok. Aynı oyunu indirip kayıt olan birini MTN koduyla ekleyerek buradan seçebilirsin.',
       'searching_for_opponent': 'Rakip Aranıyor...',
       'result_congratulations': 'TEBRİKLER!',
       'result_draw': 'BERABERE!',
@@ -622,6 +633,7 @@ class AppLocalizations {
       'user': 'Kullanıcı',
       'guest': 'Misafir',
       'total_score': 'Toplam Puan',
+      'profile_total_stars': 'Yıldız',
       'coins': 'Jetonlar',
       'characters': 'Karakterler',
       'lives': 'Can',
@@ -694,6 +706,9 @@ class AppLocalizations {
       'no_account_signup': 'Hesabınız yok mu? Kaydolun',
       'sign_up': 'Kaydol',
       'login_error': 'Giriş hatası',
+      'google_signin_sha_firebase_short':
+          'Google girişi: Firebase’de Android uygulamanıza bu bilgisayarın debug SHA-1’ini ekleyin, güncel google-services.json’u indirip android/app/ içine koyun. Yardım: android/print_firebase_sha.ps1',
+      'player_code_label': 'ID',
       'skip_description': 'Demo modunda göz atın',
 
       // Privacy
@@ -1243,6 +1258,8 @@ class AppLocalizations {
       'spin_reward_coins_50': '50 Altın',
       'spin_reward_coins_100': '100 Altın',
       'spin_reward_coins_200': '200 Altın',
+      'spin_reward_stars_5': '5 Yıldız',
+      'spin_reward_stars_10': '10 Yıldız',
       'spin_reward_xp_25': '25 XP',
       'spin_reward_xp_50': '50 XP',
       'spin_reward_hint_1': '1 İpucu',
@@ -1610,6 +1627,14 @@ class AppLocalizations {
       'boss_won': 'won!',
       'friend_race': 'Friend Race',
       'math_duel': 'Math duel',
+      'friend_duel_pick_title': 'Who will you race?',
+      'friend_duel_subtitle':
+          'Only players who registered in the app and are on your friends list appear here.',
+      'friend_duel_connecting': 'Getting ready with your friend…',
+      'friend_duel_guest':
+          'Create an account and add friends to race with someone.',
+      'friend_duel_empty':
+          'No friends yet. Ask someone who installed the app to register, then add them with their code.',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -1943,6 +1968,7 @@ class AppLocalizations {
       'user': 'User',
       'guest': 'Guest',
       'total_score': 'Total Score',
+      'profile_total_stars': 'Stars',
       'coins': 'Coins',
       'characters': 'Characters',
       'lives': 'Lives',
@@ -2006,6 +2032,9 @@ class AppLocalizations {
       'no_account_signup': 'No account? Sign up',
       'sign_up': 'Sign Up',
       'login_error': 'Login Error',
+      'google_signin_sha_firebase_short':
+          'Google sign-in: Add this PC\'s debug SHA-1 to your Firebase Android app, download google-services.json into android/app/. Run android/print_firebase_sha.ps1',
+      'player_code_label': 'ID',
       'skip_description': 'Browse in demo mode',
 
       'privacy_terms_agreement':
@@ -2537,6 +2566,8 @@ class AppLocalizations {
       'spin_reward_coins_50': '50 Gold',
       'spin_reward_coins_100': '100 Gold',
       'spin_reward_coins_200': '200 Gold',
+      'spin_reward_stars_5': '5 Stars',
+      'spin_reward_stars_10': '10 Stars',
       'spin_reward_xp_25': '25 XP',
       'spin_reward_xp_50': '50 XP',
       'spin_reward_hint_1': '1 Hint',

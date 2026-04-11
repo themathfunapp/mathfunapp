@@ -38,6 +38,16 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
   String _questionText = '';
   List<String> _options = [];
   String _correctAnswer = '';
+  final List<_AmbientRuler> _ambientRulers = List.generate(8, (i) {
+    final r = math.Random(i);
+    return _AmbientRuler(
+      topFactor: r.nextDouble() * 0.65,
+      leftFactor: r.nextDouble(),
+      icon: i.isEven ? '📐' : '📏',
+      size: 16 + r.nextDouble() * 10,
+      opacity: 0.18 + r.nextDouble() * 0.15,
+    );
+  });
 
   static const Color _orange = Color(0xFFFF9800);
   static const Color _yellow = Color(0xFFFFC107);
@@ -327,119 +337,225 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withOpacity(0.4)),
       ),
-      child: Row(
-        children: [
-          Text('📏', style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(totalFloors, (i) {
-                final isPassed = i < currentFloor;
-                final isCurrent = i == currentFloor;
-                return Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: isPassed ? _yellow : (isCurrent ? Colors.white : Colors.white.withOpacity(0.4)),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: isCurrent ? 2 : 1),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 430;
+          final dotSize = compact ? 14.0 : 20.0;
+          final iconSize = compact ? 10.0 : 12.0;
+          final levelText = loc
+              .get('measurement_level_format')
+              .replaceAll('{0}', '${currentFloor + 1}')
+              .replaceAll('{1}', '$totalFloors');
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!compact)
+                Text(
+                  levelText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.95),
+                    fontSize: 12,
                   ),
-                  child: isPassed ? const Icon(Icons.check, size: 12, color: _orange) : null,
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(loc.get('measurement_level_format').replaceAll('{0}', '${currentFloor + 1}').replaceAll('{1}', '$totalFloors'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 12)),
-        ],
+                ),
+              if (!compact) const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('📏', style: TextStyle(fontSize: compact ? 18 : 20)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(totalFloors, (i) {
+                        final isPassed = i < currentFloor;
+                        final isCurrent = i == currentFloor;
+                        return Container(
+                          width: dotSize,
+                          height: dotSize,
+                          decoration: BoxDecoration(
+                            color: isPassed
+                                ? _yellow
+                                : (isCurrent
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.4)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: isCurrent ? 2 : 1,
+                            ),
+                          ),
+                          child: isPassed
+                              ? Icon(Icons.check,
+                                  size: iconSize, color: _orange)
+                              : null,
+                        );
+                      }),
+                    ),
+                  ),
+                  if (compact) const SizedBox(width: 8),
+                  if (compact)
+                    Text(
+                      '${currentFloor + 1}/$totalFloors',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.95),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildAmbientEffects() {
-    return Stack(
-      children: [
-        AnimatedBuilder(
-          animation: _bounceAnimation,
-          builder: (context, child) {
-            return Positioned(
-              top: 60 + _bounceAnimation.value,
-              right: 30,
-              child: Text('📏', style: TextStyle(fontSize: 45)),
-            );
-          },
-        ),
-        ...List.generate(8, (i) {
-          final r = math.Random(i);
-          return Positioned(
-            top: r.nextDouble() * 400,
-            left: r.nextDouble() * 350,
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: 0.4 + _pulseAnimation.value * 0.2,
-                  child: Text('📐', style: TextStyle(fontSize: 20 + r.nextDouble() * 12)),
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              AnimatedBuilder(
+                animation: _bounceAnimation,
+                builder: (context, child) {
+                  return Positioned(
+                    top: 60 + _bounceAnimation.value,
+                    right: 30,
+                    child: const Text('📏', style: TextStyle(fontSize: 40)),
+                  );
+                },
+              ),
+              ..._ambientRulers.map((ruler) {
+                return Positioned(
+                  top: constraints.maxHeight * ruler.topFactor,
+                  left: constraints.maxWidth * ruler.leftFactor,
+                  child: Opacity(
+                    opacity: ruler.opacity,
+                    child: Text(
+                      ruler.icon,
+                      style: TextStyle(fontSize: ruler.size),
+                    ),
+                  ),
                 );
-              },
-            ),
+              }),
+            ],
           );
-        }),
-      ],
+        },
+      ),
     );
   }
 
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                shape: BoxShape.circle,
-                border: Border.all(color: _orange.withOpacity(0.6)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 430;
+          return Row(
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _orange.withOpacity(0.6)),
+                  ),
+                  child:
+                      const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                ),
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('📏 ${loc.get('world_measurement_land')}', style: _textStyle(Colors.white, size: 20, bold: true)),
-                Text(loc.get('world_measurement_land_desc'), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
-              ],
-            ),
-          ),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Row(
-                children: List.generate(maxLives, (i) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: Text(i < lives ? '🐢' : '🐚', style: const TextStyle(fontSize: 20)),
-                )),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _yellow.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text('⭐ $_stars', style: _textStyle(Colors.amber, size: 16, bold: true)),
-          ),
-        ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '📏 ${loc.get('world_measurement_land')}',
+                      style: _textStyle(
+                        Colors.white,
+                        size: compact ? 16 : 20,
+                        bold: true,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (!compact)
+                      Text(
+                        loc.get('world_measurement_land_desc'),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Consumer<GameMechanicsService>(
+                builder: (context, mechanicsService, _) {
+                  final lives = mechanicsService.currentLives;
+                  final maxLives = mechanicsService.maxLives;
+                  if (compact) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.35), width: 1),
+                      ),
+                      child: Text(
+                        '🐢 $lives/$maxLives',
+                        style: _textStyle(Colors.white, size: 12, bold: true),
+                      ),
+                    );
+                  }
+
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      maxLives,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(left: 2),
+                        child: Text(
+                          i < lives ? '🐢' : '🐚',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 8 : 12,
+                  vertical: compact ? 5 : 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _yellow.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '⭐ $_stars',
+                  style: _textStyle(
+                    Colors.amber,
+                    size: compact ? 13 : 16,
+                    bold: true,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -513,17 +629,19 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
               children: [
                 Text('🔍 ${loc.get('measurement_look_carefully')}', style: _textStyle(_orange, size: 16, bold: true)),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.center,
                   children: _options.map((emoji) {
                     return Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: _orange.withOpacity(0.3)),
                       ),
-                      child: Text(emoji, style: const TextStyle(fontSize: 52)),
+                      child: Text(emoji, style: const TextStyle(fontSize: 48)),
                     );
                   }).toList(),
                 ),
@@ -626,4 +744,20 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
 
   static TextStyle _textStyle(Color color, {double size = 16, bool bold = false}) =>
       GoogleFonts.quicksand(color: color, fontSize: size, fontWeight: bold ? FontWeight.bold : FontWeight.w500);
+}
+
+class _AmbientRuler {
+  final double topFactor;
+  final double leftFactor;
+  final String icon;
+  final double size;
+  final double opacity;
+
+  const _AmbientRuler({
+    required this.topFactor,
+    required this.leftFactor,
+    required this.icon,
+    required this.size,
+    required this.opacity,
+  });
 }

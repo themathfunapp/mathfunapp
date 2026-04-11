@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-import '../screens/game_start_screen.dart';
+import 'age_group_selection.dart';
 
-
+export 'spin_wheel_reward.dart';
 
 // === KONU TÜRLERİ ===
 enum TopicType {
@@ -1153,92 +1153,6 @@ class DailyChallenge {
     isCompleted: json['isCompleted'] ?? false,
     bestScore: json['bestScore'] ?? 0,
   );
-}
-
-// === ŞANS ÇARKI ÖDÜLLERİ ===
-class SpinWheelReward {
-  final String id;
-  final String name;
-  final String emoji;
-  final String type; // 'coins', 'xp', 'powerup', 'hint', 'life'
-  final int value;
-  final double probability; // 0-1 arası
-
-  const SpinWheelReward({
-    required this.id,
-    required this.name,
-    required this.emoji,
-    required this.type,
-    required this.value,
-    required this.probability,
-  });
-
-  static List<SpinWheelReward> get defaultRewards => [
-    const SpinWheelReward(
-      id: 'coins_50',
-      name: '50 Altın',
-      emoji: '🪙',
-      type: 'coins',
-      value: 50,
-      probability: 0.25,
-    ),
-    const SpinWheelReward(
-      id: 'coins_100',
-      name: '100 Altın',
-      emoji: '💰',
-      type: 'coins',
-      value: 100,
-      probability: 0.15,
-    ),
-    const SpinWheelReward(
-      id: 'coins_200',
-      name: '200 Altın',
-      emoji: '💎',
-      type: 'coins',
-      value: 200,
-      probability: 0.05,
-    ),
-    const SpinWheelReward(
-      id: 'xp_25',
-      name: '25 XP',
-      emoji: '⭐',
-      type: 'xp',
-      value: 25,
-      probability: 0.20,
-    ),
-    const SpinWheelReward(
-      id: 'xp_50',
-      name: '50 XP',
-      emoji: '🌟',
-      type: 'xp',
-      value: 50,
-      probability: 0.10,
-    ),
-    const SpinWheelReward(
-      id: 'hint_1',
-      name: '1 İpucu',
-      emoji: '💡',
-      type: 'hint',
-      value: 1,
-      probability: 0.10,
-    ),
-    const SpinWheelReward(
-      id: 'life_1',
-      name: '1 Can',
-      emoji: '❤️',
-      type: 'life',
-      value: 1,
-      probability: 0.10,
-    ),
-    const SpinWheelReward(
-      id: 'powerup_random',
-      name: 'Rastgele Güç',
-      emoji: '🎁',
-      type: 'powerup',
-      value: 1,
-      probability: 0.05,
-    ),
-  ];
 }
 
 // === SÜRPRİZ KUTUSU ===

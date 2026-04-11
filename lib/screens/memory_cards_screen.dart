@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
-import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
 class MemoryCardsScreen extends StatefulWidget {
@@ -124,19 +123,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _loadSection(int section) {
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    if (!mechanicsService.hasLives) {
-      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(loc.get('no_lives_play')),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-      ));
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) Navigator.pop(context);
-      });
-      return;
-    }
     setState(() {
       _currentSection = section;
       _initializeGame();
@@ -152,92 +138,14 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     _loadSection(_currentSection);
   }
 
-  void _gameOver() {
-    _saveHighScore(_score);
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    if (!mechanicsService.hasLives) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Row(
-            children: [
-              Text('💔', style: GoogleFonts.quicksand(fontSize: 32)),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(loc.get('lives_finished'),
-                      style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold))),
-            ],
-          ),
-          content: Text(
-              '${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10',
-              style: GoogleFonts.quicksand()),
-      actions: [
-        TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: Text(loc.menu, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(ctx);
-            final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
-            setState(() {
-              _currentSection = firstOfBolum;
-              _score = 0;
-            });
-            _loadSection(_currentSection);
-          },
-          child: Text(loc.repeat, style: GoogleFonts.quicksand()),
-        ),
-      ],
-        ),
-      );
-    } else {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: Text(loc.get('game_over'), style: GoogleFonts.quicksand()),
-          content: Text(
-              '${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10',
-              style: GoogleFonts.quicksand()),
-          actions: [
-            TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() => _showLevelSelect = true);
-                },
-                child: Text(loc.sectionSelect,
-                    style: GoogleFonts.quicksand(color: Colors.red.shade700))),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
-                setState(() {
-                  _currentSection = firstOfBolum;
-                  _score = 0;
-                });
-                _loadSection(_currentSection);
-              },
-              child: Text(loc.repeat, style: GoogleFonts.quicksand()),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Widget _buildBackButton(VoidCallback onPressed) {
+  Widget _buildBackButton(VoidCallback onPressed, {bool compact = false}) {
+    final double size = compact ? 42 : 48;
+    final double iconSize = compact ? 26 : 30;
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
@@ -251,7 +159,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         ),
         child: Center(
             child: Icon(Icons.keyboard_arrow_left_rounded,
-                color: Colors.purple.shade700, size: 30)),
+                color: Colors.purple.shade700, size: iconSize)),
       ),
     );
   }
@@ -412,92 +320,107 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          _buildBackButton(() {
-            ChildExitDialog.show(
-              context,
-              themeColor: Colors.purple,
-              onStay: () {},
-              onSectionSelect: () => setState(() => _showLevelSelect = true),
-              onExit: () => Navigator.pop(context),
-            );
-          }),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.1), blurRadius: 6),
-                ]),
-            child: Text(
-                '${((_currentSection - 1) % 10) + 1}/10',
-                style: GoogleFonts.quicksand(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple.shade800)),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.amber.withOpacity(0.3), blurRadius: 6),
-                ]),
-            child: Row(
-              children: [
-                Text('⭐', style: GoogleFonts.quicksand(fontSize: 18)),
-                const SizedBox(width: 6),
-                Text('$_score',
-                    style: GoogleFonts.quicksand(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.purple.withOpacity(0.3),
-                          blurRadius: 6),
-                    ]),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxLives,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.favorite,
-                        color: i < lives
-                            ? Colors.purple.shade600
-                            : Colors.grey.shade300,
-                        size: 22,
-                      ),
+    final levelText = '${((_currentSection - 1) % 10) + 1}/10';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 380;
+        final hPad = compact ? 10.0 : 16.0;
+        final vPad = compact ? 10.0 : 16.0;
+        final gap = compact ? 8.0 : 12.0;
+        final chipHPad = compact ? 10.0 : 16.0;
+        final chipVPad = compact ? 6.0 : 8.0;
+        final chipFont = compact ? 14.0 : 16.0;
+        final starFont = compact ? 15.0 : 18.0;
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
+          child: Row(
+            children: [
+              _buildBackButton(
+                () {
+                  ChildExitDialog.show(
+                    context,
+                    themeColor: Colors.purple,
+                    onStay: () {},
+                    onSectionSelect: () =>
+                        setState(() => _showLevelSelect = true),
+                    onExit: () => Navigator.pop(context),
+                  );
+                },
+                compact: compact,
+              ),
+              SizedBox(width: gap),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: chipHPad, vertical: chipVPad),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            levelText,
+                            style: GoogleFonts.quicksand(
+                              fontSize: chipFont,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple.shade800,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: compact ? 6 : 12),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: chipHPad, vertical: chipVPad),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.amber.withOpacity(0.3),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('⭐',
+                                  style: GoogleFonts.quicksand(
+                                      fontSize: starFont)),
+                              SizedBox(width: compact ? 4 : 6),
+                              Text(
+                                '$_score',
+                                style: GoogleFonts.quicksand(
+                                  fontSize: starFont,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -566,49 +489,84 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     int totalPairs = _getPairCount();
     int matchedPairs = _getMatchedPairCount();
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Builder(
-        builder: (ctx) {
-          final loc = AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale);
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(loc.level, '${((_currentSection - 1) % 10) + 1}/10', Colors.purple),
-              _buildStatItem(loc.match, '$matchedPairs/$totalPairs', Colors.teal),
-              _buildStatItem(loc.moves, '$_moves', Colors.blue),
-              _buildStatItem(loc.score, '$_score', Colors.orange),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: narrow ? 10 : 16),
+          padding: EdgeInsets.symmetric(
+              horizontal: narrow ? 8 : 16, vertical: narrow ? 10 : 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
             ],
-          );
-        },
-      ),
+          ),
+          child: Builder(
+            builder: (ctx) {
+              final loc = AppLocalizations(
+                  Provider.of<LocaleProvider>(ctx, listen: false).locale);
+              final levelVal = '${((_currentSection - 1) % 10) + 1}/10';
+              final items = <Widget>[
+                _buildStatItem(loc.level, levelVal, Colors.purple,
+                    narrow: narrow),
+                _buildStatItem(
+                    loc.match, '$matchedPairs/$totalPairs', Colors.teal,
+                    narrow: narrow),
+                _buildStatItem(loc.moves, '$_moves', Colors.blue,
+                    narrow: narrow),
+                _buildStatItem(loc.score, '$_score', Colors.orange,
+                    narrow: narrow),
+              ];
+              return Row(
+                children: [
+                  for (int i = 0; i < items.length; i++) ...[
+                    if (i > 0) SizedBox(width: narrow ? 4 : 8),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: items[i],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
+  Widget _buildStatItem(String label, String value, Color color,
+      {bool narrow = false}) {
+    final labelSize = narrow ? 9.5 : 11.0;
+    final valueSize = narrow ? 13.0 : 16.0;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
-          style: GoogleFonts.quicksand(fontSize: 11, color: Colors.grey.shade600),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.quicksand(
+              fontSize: labelSize, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 2),
         Text(
           value,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.quicksand(
-              fontSize: 16, fontWeight: FontWeight.bold, color: color),
+              fontSize: valueSize, fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );
@@ -769,11 +727,6 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         if (!mounted) return;
 
         bool isMatch = _cardPairIds[firstIndex] == _cardPairIds[secondIndex];
-        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-
-        if (!isMatch) {
-          mechanicsService.onWrongAnswer();
-        }
 
         setState(() {
           if (isMatch) {
@@ -789,9 +742,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
           _canTap = true;
         });
 
-        if (!isMatch && !mechanicsService.hasLives) {
-          _gameOver();
-        } else if (!isMatch) {
+        if (!isMatch) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('❌ Yanlış eşleşme!', style: GoogleFonts.quicksand()),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
+import '../services/daily_reward_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/ad_service.dart';
 import '../models/story_mode.dart';
@@ -89,8 +90,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
           ),
         ),
         child: SafeArea(
-          child: Consumer<StoryService>(
-            builder: (context, storyService, child) {
+          child: Consumer2<StoryService, DailyRewardService>(
+            builder: (context, storyService, dailyRewardService, child) {
               if (storyService.isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.white),
@@ -101,7 +102,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                 return _buildAgeSelection(localizations, storyService);
               }
 
-              return _buildMainContent(localizations, storyService);
+              return _buildMainContent(localizations, storyService, dailyRewardService);
             },
           ),
         ),
@@ -360,7 +361,11 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     );
   }
 
-  Widget _buildMainContent(AppLocalizations localizations, StoryService storyService) {
+  Widget _buildMainContent(
+    AppLocalizations localizations,
+    StoryService storyService,
+    DailyRewardService dailyRewardService,
+  ) {
     final progress = storyService.progress;
 
     return WillPopScope(
@@ -373,7 +378,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
       child: Column(
         children: [
           // Top Bar
-          _buildTopBar(localizations, progress),
+          _buildTopBar(localizations, progress, dailyRewardService),
 
           // World Map
           Expanded(
@@ -388,14 +393,22 @@ class _StoryModeScreenState extends State<StoryModeScreen>
             padding: EdgeInsets.symmetric(vertical: 8),
           ),
 
-          // Bottom Navigation
-          _buildBottomNav(localizations, storyService),
+          // Alt 6 öğe (Başarılar, Görevler, …) — Sayı Maceraları (3-5 / preschool) için gizli
+          if (progress?.selectedAgeGroup != AgeGroup.preschool)
+            _buildBottomNav(localizations, storyService, dailyRewardService),
         ],
       ),
     );
   }
 
-  Widget _buildTopBar(AppLocalizations localizations, StoryProgress? progress) {
+  Widget _buildTopBar(
+    AppLocalizations localizations,
+    StoryProgress? progress,
+    DailyRewardService dailyRewardService,
+  ) {
+    final bonusStars = dailyRewardService.profileBonusStars;
+    final displayStars = (progress?.totalStars ?? 0) + bonusStars;
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -514,8 +527,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
             ),
           ),
 
-          // Stars
-          _buildStatItem('⭐', '${progress?.totalStars ?? 0}'),
+          // Stars (hikâye + günlük ödül / çark yıldızları)
+          _buildStatItem('⭐', '$displayStars'),
           const SizedBox(width: 12),
           // Coins
           _buildStatItem('💰', '${progress?.totalCoins ?? 0}'),
@@ -556,12 +569,16 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     );
   }
 
-  Widget _buildBottomNav(AppLocalizations localizations, StoryService storyService) {
+  Widget _buildBottomNav(
+    AppLocalizations localizations,
+    StoryService storyService,
+    DailyRewardService dailyRewardService,
+  ) {
     final progress = storyService.progress;
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
 
     // Gerçek veriler
-    final totalStars = progress?.totalStars ?? 0;
+    final totalStars = (progress?.totalStars ?? 0) + dailyRewardService.profileBonusStars;
     final totalCoins = (progress?.totalCoins ?? 0) > mechanicsService.inventory.coins
         ? (progress?.totalCoins ?? 0) : mechanicsService.inventory.coins;
     final totalGems = (progress?.totalGems ?? 0) > mechanicsService.inventory.gems

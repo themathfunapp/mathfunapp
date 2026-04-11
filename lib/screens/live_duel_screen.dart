@@ -3,17 +3,21 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
+import '../models/friendship.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 
 /// Canlı Düello Ekranı - Optimize Edilmiş Çocuk Tasarımı
 class LiveDuelScreen extends StatefulWidget {
   final AgeGroupSelection ageGroup;
+  /// Firestore arkadaş listesinden seçilen gerçek kayıtlı oyuncu
+  final Friendship opponent;
   final VoidCallback onBack;
 
   const LiveDuelScreen({
     super.key,
     required this.ageGroup,
+    required this.opponent,
     required this.onBack,
   });
 
@@ -40,7 +44,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   int _timeLeft = 15;
   int _searchTime = 0;
 
-  String _opponentNameKey = '';
+  String _opponentDisplayName = '';
   String _opponentAvatar = '';
   int _opponentLevel = 0;
 
@@ -84,7 +88,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _startSearch();
+    _beginFriendDuelFlow();
   }
 
   void _initializeAnimations() {
@@ -146,7 +150,18 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
     super.dispose();
   }
 
-  void _startSearch() {
+  void _applyOpponentFromFriend() {
+    final f = widget.opponent;
+    _opponentDisplayName =
+        f.friendName.trim().isNotEmpty ? f.friendName.trim() : 'Arkadaş';
+    final idx = f.friendId.hashCode.abs() % _characterAvatars.length;
+    _opponentAvatar = _characterAvatars[idx]['emoji'] as String;
+    _opponentLevel = 5 + (f.friendId.hashCode.abs() % 15);
+  }
+
+  /// Kısa “eşleşme” animasyonu (rastgele bot yok — seçilen arkadaş)
+  void _beginFriendDuelFlow() {
+    _applyOpponentFromFriend();
     setState(() {
       _state = DuelState.searching;
       _searchTime = 0;
@@ -155,36 +170,45 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
       _currentRound = 0;
     });
 
-    _searchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _searchTime++;
-      });
-
-      if (_searchTime >= _random.nextInt(6) + 3) {
-        _findOpponent();
+    _searchTimer?.cancel();
+    var ticks = 0;
+    _searchTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      ticks++;
+      setState(() => _searchTime = ticks);
+      if (ticks >= 5) {
+        timer.cancel();
+        _goMatchedThenStart();
       }
     });
   }
 
-  void _findOpponent() {
+  void _goMatchedThenStart() {
+    if (!mounted) return;
+    setState(() => _state = DuelState.matched);
+    _vsController.forward(from: 0);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) _startGame();
+    });
+  }
+
+  void _restartFriendDuel() {
     _searchTimer?.cancel();
-
-    final nameKeys = ['opponent_number_champion', 'opponent_math_master', 'opponent_fast_calc', 'opponent_smart_kid', 'opponent_super_brain', 'opponent_genius_cube'];
-    final avatar = _characterAvatars[_random.nextInt(_characterAvatars.length)];
-
+    _gameTimer?.cancel();
+    _applyOpponentFromFriend();
+    _vsController.reset();
     setState(() {
-      _opponentNameKey = nameKeys[_random.nextInt(nameKeys.length)];
-      _opponentAvatar = avatar['emoji'];
-      _opponentLevel = _random.nextInt(20) + 5;
+      _playerScore = 0;
+      _opponentScore = 0;
+      _currentRound = 0;
       _state = DuelState.matched;
     });
-
-    _vsController.forward();
-
+    _vsController.forward(from: 0);
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _startGame();
-      }
+      if (mounted) _startGame();
     });
   }
 
@@ -459,19 +483,33 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
               ).createShader(bounds);
             },
             child: Text(
-              loc.get('searching_for_opponent'),
+              loc.get('friend_duel_connecting'),
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 28,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
           ),
           const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              _opponentDisplayName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Text(
-            '${_searchTime}s',
+            '$_searchTime / 5',
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white70,
             ),
           ),
@@ -484,7 +522,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
               borderRadius: BorderRadius.circular(4),
             ),
             child: LinearProgressIndicator(
-              value: _searchTime / 10,
+              value: (_searchTime.clamp(0, 5)) / 5,
               backgroundColor: Colors.transparent,
               valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
               borderRadius: BorderRadius.circular(4),
@@ -561,7 +599,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
             const SizedBox(height: 16),
             _buildPlayerCard(
               emoji: _opponentAvatar,
-              name: loc.get(_opponentNameKey),
+              name: _opponentDisplayName,
               level: '${loc.get('duel_level')} $_opponentLevel',
               color: _opponentColors[_currentRound % _opponentColors.length],
               isPlayer: false,
@@ -819,7 +857,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            loc.get(_opponentNameKey),
+                            _opponentDisplayName,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -1093,7 +1131,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
     final isDraw = _playerScore == _opponentScore;
     final medalColor = playerWon ? Colors.amber : isDraw ? Colors.blue : Colors.grey;
     final resultText = playerWon ? loc.get('result_congratulations') : isDraw ? loc.get('result_draw') : loc.get('result_try_again');
-    final opponentName = loc.get(_opponentNameKey);
+    final opponentName = _opponentDisplayName;
 
     return Center(
       child: SingleChildScrollView(
@@ -1241,7 +1279,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _startSearch,
+                      onPressed: _restartFriendDuel,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,

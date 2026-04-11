@@ -6,6 +6,8 @@ import '../models/app_user.dart';
 import '../models/friend_request.dart';
 import '../models/friendship.dart';
 import '../localization/app_localizations.dart';
+import 'welcome_screen.dart';
+import 'app_screen_wrappers.dart';
 
 class FriendsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -37,6 +39,43 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _navigateToCreateAccount() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    try {
+      await authService.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => WelcomeScreen(
+            initialPageIsLoginOptions: true,
+            onSignInComplete: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+            onSkip: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bir hata oluştu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _performSearch() async {
@@ -174,7 +213,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               ),
             ),
           ),
-          // BAŞLIK ve RKN KODU
+          // BAŞLIK ve oyuncu kodu (MTN)
           Column(
             children: [
               Text(
@@ -292,7 +331,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             ],
             const Text(
               'Arkadaşlarını eklemek için:\n'
-              '1. Arkadaşının RKN kodunu iste\n'
+              '1. Arkadaşının MTN kodunu iste\n'
               '2. Ara sekmesinde kodu yaz\n'
               '3. Arkadaş olarak ekle\n'
               '4. Düelloya davet et!',
@@ -384,9 +423,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/welcome');
-              },
+              onPressed: _navigateToCreateAccount,
               icon: const Icon(Icons.person_add),
               label: Text(localizations.get('create_account')),
               style: ElevatedButton.styleFrom(
@@ -574,7 +611,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        friend.friendUserCode ?? 'RKN••••••••',
+                        friend.friendUserCode ?? 'MTN••••••••••',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -850,7 +887,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 child: TextField(
                   controller: _searchController,
                   decoration: const InputDecoration(
-                    hintText: 'RKN kodu veya isim ara...',
+                    hintText: 'MTN kodu veya isim ara...',
                     border: InputBorder.none,
                     icon: Icon(Icons.search, color: Color(0xFF667eea)),
                   ),

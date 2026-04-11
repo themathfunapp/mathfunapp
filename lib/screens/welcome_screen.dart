@@ -159,7 +159,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         });
       }
     } catch (e) {
-      _showErrorSnackbar('${AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('login_error')}: $e');
+      final loc = AppLocalizations(
+        Provider.of<LocaleProvider>(context, listen: false).locale,
+      );
+      if (e is GoogleSignInShaNotRegisteredException) {
+        _showErrorSnackbar(loc.googleSigninShaFirebaseShort);
+      } else {
+        _showErrorSnackbar('${loc.loginError}: $e');
+      }
       setState(() {
         _isLoading = false;
         _selectedOption = '';

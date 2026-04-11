@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 import '../../services/auth_service.dart';
 import '../../services/mini_game_service.dart';
 import '../../models/mini_game.dart';
@@ -33,6 +33,12 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   Timer? _balloonTimer;
   
   late AnimationController _confettiController;
+  /// Hedef sayı rozeti — hafif nabız (çocuk dostu)
+  late AnimationController _targetPulseController;
+
+  /// Yaklaşık yatay/dikey merkez mesafesi (normalize); çakışmayı azaltır.
+  static const double _minCenterDistX = 0.20;
+  static const double _minCenterDistY = 0.32;
 
   @override
   void initState() {
@@ -41,6 +47,10 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
+    _targetPulseController = AnimationController(
+      duration: const Duration(milliseconds: 1100),
+      vsync: this,
+    )..repeat(reverse: true);
     _startGame();
   }
 
@@ -49,6 +59,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     _gameTimer?.cancel();
     _balloonTimer?.cancel();
     _confettiController.dispose();
+    _targetPulseController.dispose();
     super.dispose();
   }
 
@@ -66,7 +77,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   }
 
   void _generateNewTarget() {
-    final random = Random();
+    final random = math.Random();
     setState(() {
       _targetNumber = random.nextInt(_level + 4) + 1; // 1 to level+4
       _currentQuestion++;
@@ -100,10 +111,51 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     });
   }
 
+  bool _balloonOverlapsCandidate(double x, double y) {
+    const margin = 1.15;
+    final dxNeed = _minCenterDistX * margin;
+    final dyNeed = _minCenterDistY * margin;
+    for (final b in _balloons) {
+      if (b.isPopped) continue;
+      final dx = (b.x - x).abs();
+      final dy = (b.y - y).abs();
+      if (dx < dxNeed && dy < dyNeed) return true;
+    }
+    return false;
+  }
+
+  /// Yeni balon için x: mümkün olduğunca mevcut balonlarla üst üste binmeyen konum.
+  double _pickSpawnX(math.Random random) {
+    const spawnY = 1.1;
+    for (int attempt = 0; attempt < 45; attempt++) {
+      final candidate = 0.10 + random.nextDouble() * 0.80;
+      if (!_balloonOverlapsCandidate(candidate, spawnY)) {
+        return candidate;
+      }
+    }
+    const lanes = [0.16, 0.28, 0.40, 0.52, 0.64, 0.76];
+    double bestX = lanes[3];
+    double bestMinDist = -1;
+    for (final lx in lanes) {
+      double minNeighbor = double.infinity;
+      for (final b in _balloons) {
+        if (b.isPopped) continue;
+        if ((b.y - spawnY).abs() > 0.55) continue;
+        final d = (b.x - lx).abs();
+        if (d < minNeighbor) minNeighbor = d;
+      }
+      if (minNeighbor > bestMinDist) {
+        bestMinDist = minNeighbor;
+        bestX = lx;
+      }
+    }
+    return bestX;
+  }
+
   void _addNewBalloon() {
     if (_balloons.length >= 10) return;
 
-    final random = Random();
+    final random = math.Random();
     final colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#74B9FF', '#FF9FF3'];
     
     // Make sure target number appears
@@ -114,15 +166,17 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       number = random.nextInt(_level + 4) + 1;
     }
 
+    final scale = 0.8 + random.nextDouble() * 0.35;
+
     setState(() {
       _balloons.add(Balloon(
         id: DateTime.now().millisecondsSinceEpoch + random.nextInt(1000),
         number: number,
         color: colors[random.nextInt(colors.length)],
-        x: random.nextDouble() * 0.8 + 0.1,
+        x: _pickSpawnX(random),
         y: 1.1,
         speed: 0.003 + random.nextDouble() * 0.002,
-        scale: 0.8 + random.nextDouble() * 0.4,
+        scale: scale,
       ));
     });
   }
@@ -464,61 +518,126 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   }
 
   Widget _buildTargetSection(AppLocalizations localizations) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '${localizations.get('pop_number')}: ',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
+    return AnimatedBuilder(
+      animation: _targetPulseController,
+      builder: (context, child) {
+        final pulse = 1.0 + 0.08 * _targetPulseController.value;
+        final bob = 4 * math.sin(_targetPulseController.value * math.pi * 2);
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.97),
+                const Color(0xFFFFF8E7).withOpacity(0.95),
+              ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6B6B),
-              borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: const Color(0xFFFF6B6B).withOpacity(0.35 + 0.15 * _targetPulseController.value),
+              width: 2.5,
             ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: animation,
-                  child: child,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6B6B).withOpacity(0.18 + 0.12 * _targetPulseController.value),
+                blurRadius: 14 + 6 * _targetPulseController.value,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Transform.translate(
+                offset: Offset(0, bob),
+                child: const Text('🎈', style: TextStyle(fontSize: 36)),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  '${localizations.get('pop_number')}:',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3436),
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              child: Text(
-                '$_targetNumber',
-                key: ValueKey<int>(_targetNumber),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              const SizedBox(width: 10),
+              Transform.scale(
+                scale: pulse,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFFF8E8E),
+                        Color(0xFFFF5252),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF5252).withOpacity(0.45),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.elasticOut,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.6, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      '$_targetNumber',
+                      key: ValueKey<int>(_targetNumber),
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black26,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Transform.translate(
+                offset: Offset(0, -bob * 0.6),
+                child: const Text('✨', style: TextStyle(fontSize: 22)),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

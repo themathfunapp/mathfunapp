@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/badge.dart';
-import '../models/app_user.dart';
-import '../models/game_mechanics.dart';
-import '../models/topic_performance_stats.dart';
+import 'package:mathfun/models/badge.dart';
+import 'package:mathfun/models/app_user.dart';
+import 'package:mathfun/models/spin_wheel_reward.dart';
+import 'package:mathfun/models/topic_performance_stats.dart';
 
 class BadgeService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -502,6 +502,9 @@ class BadgeService extends ChangeNotifier {
           totalScore: _userStats!.totalScore + reward.value,
         );
         break;
+      case 'stars':
+        // Yıldızlar UserRewards.profileBonusStars (DailyRewardService)
+        return;
       default:
         return;
     }

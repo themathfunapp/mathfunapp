@@ -183,36 +183,36 @@ class FriendService extends ChangeNotifier {
     }
   }
 
-  // RKN kodu ile kullanıcı ara
+  Future<AppUser?> _fetchUserByExactUserCode(String codeUpper) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .where('userCode', isEqualTo: codeUpper)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return AppUser.fromMap(snapshot.docs.first.data());
+    }
+
+    final snapshotLower = await _firestore
+        .collection('users')
+        .where('userCodeLower', isEqualTo: codeUpper.toLowerCase())
+        .limit(1)
+        .get();
+
+    if (snapshotLower.docs.isNotEmpty) {
+      return AppUser.fromMap(snapshotLower.docs.first.data());
+    }
+    return null;
+  }
+
+  // Oyuncu kodu (MTN) ile kullanıcı ara
   Future<AppUser?> searchUserByCode(String userCode) async {
     if (_isGuest) return null;
 
     try {
       final normalizedCode = userCode.toUpperCase().trim();
-      
-      // userCode alanında ara
-      final snapshot = await _firestore
-          .collection('users')
-          .where('userCode', isEqualTo: normalizedCode)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        return AppUser.fromMap(snapshot.docs.first.data());
-      }
-
-      // userCodeLower alanında da ara (küçük harf)
-      final snapshotLower = await _firestore
-          .collection('users')
-          .where('userCodeLower', isEqualTo: normalizedCode.toLowerCase())
-          .limit(1)
-          .get();
-
-      if (snapshotLower.docs.isNotEmpty) {
-        return AppUser.fromMap(snapshotLower.docs.first.data());
-      }
-
-      return null;
+      return await _fetchUserByExactUserCode(normalizedCode);
     } catch (e) {
       debugPrint('Search user by code error: $e');
       return null;
@@ -257,14 +257,13 @@ class FriendService extends ChangeNotifier {
     }
   }
 
-  // Genel arama (RKN kodu, ID veya isim)
+  // Genel arama (MTN oyuncu kodu, Firebase ID veya isim)
   Future<List<AppUser>> searchUsers(String query) async {
     if (_isGuest || query.trim().isEmpty) return [];
 
     final trimmedQuery = query.trim();
 
-    // RKN kodu ile ara (RKN ile başlıyorsa)
-    if (trimmedQuery.toUpperCase().startsWith('RKN')) {
+    if (AppUser.queryLooksLikePlayerCode(trimmedQuery)) {
       final userByCode = await searchUserByCode(trimmedQuery);
       if (userByCode != null && userByCode.uid != _currentUserId && !userByCode.isGuest) {
         return [userByCode];

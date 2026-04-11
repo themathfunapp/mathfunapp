@@ -20,6 +20,7 @@ class DailyRewardService extends ChangeNotifier {
   bool get isGuest => _isGuest;
   int get coins => _userRewards?.coins ?? 0;
   int get diamonds => _userRewards?.diamonds ?? 0;
+  int get profileBonusStars => _userRewards?.profileBonusStars ?? 0;
   int get loginStreak => _userRewards?.loginStreak ?? 0;
   int get freeSpinsToday => _userRewards?.freeSpinsToday ?? 0;
   bool get canSpin => (_userRewards?.freeSpinsToday ?? 0) > 0;
@@ -30,6 +31,7 @@ class DailyRewardService extends ChangeNotifier {
   static const List<StreakReward> streakRewards = [
     StreakReward(day: 1, rewards: [
       RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙'),
+      RewardItem(type: RewardType.stars, amount: 1, emoji: '⭐'),
     ]),
     StreakReward(day: 2, rewards: [
       RewardItem(type: RewardType.coins, amount: 100, emoji: '🪙'),
@@ -54,6 +56,7 @@ class DailyRewardService extends ChangeNotifier {
     StreakReward(day: 7, rewards: [
       RewardItem(type: RewardType.coins, amount: 1000, emoji: '🪙'),
       RewardItem(type: RewardType.diamonds, amount: 20, emoji: '💎'),
+      RewardItem(type: RewardType.stars, amount: 5, emoji: '⭐'),
       RewardItem(type: RewardType.badge, amount: 1, itemId: 'weekly_streak', emoji: '🏆'),
     ], isSpecial: true),
   ];
@@ -69,7 +72,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '🎯',
       type: TaskType.solveQuestions,
       targetValue: 5,
-      rewards: [RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     DailyTask(
@@ -79,7 +82,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '🎮',
       type: TaskType.playGames,
       targetValue: 3,
-      rewards: [RewardItem(type: RewardType.coins, amount: 75, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 30, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     DailyTask(
@@ -89,7 +92,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '📅',
       type: TaskType.dailyLogin,
       targetValue: 1,
-      rewards: [RewardItem(type: RewardType.coins, amount: 25, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     // Orta görevler
@@ -101,7 +104,7 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.correctStreak,
       targetValue: 5,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 100, emoji: '🪙'),
+        RewardItem(type: RewardType.coins, amount: 30, emoji: '🪙'),
         RewardItem(type: RewardType.hint, amount: 1, emoji: '💡'),
       ],
       difficulty: TaskDifficulty.medium,
@@ -114,8 +117,8 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.solveQuestions,
       targetValue: 10,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 150, emoji: '🪙'),
-        RewardItem(type: RewardType.diamonds, amount: 3, emoji: '💎'),
+        RewardItem(type: RewardType.coins, amount: 40, emoji: '🪙'),
+        RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.medium,
     ),
@@ -128,7 +131,7 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.perfectGame,
       targetValue: 1,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 200, emoji: '🪙'),
+        RewardItem(type: RewardType.coins, amount: 40, emoji: '🪙'),
         RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
       ],
       difficulty: TaskDifficulty.hard,
@@ -141,8 +144,8 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.fastAnswers,
       targetValue: 10,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 300, emoji: '🪙'),
-        RewardItem(type: RewardType.diamonds, amount: 5, emoji: '💎'),
+        RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙'),
+        RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.hard,
     ),
@@ -152,17 +155,17 @@ class DailyRewardService extends ChangeNotifier {
   
   static const List<WheelSlice> wheelSlices = [
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙'),
-      probability: 0.25,
+      reward: RewardItem(type: RewardType.coins, amount: 10, emoji: '🪙'),
+      probability: 0.17,
       colorIndex: 0,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 100, emoji: '🪙'),
+      reward: RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
       probability: 0.20,
       colorIndex: 1,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 200, emoji: '🪙'),
+      reward: RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙'),
       probability: 0.15,
       colorIndex: 2,
     ),
@@ -182,13 +185,13 @@ class DailyRewardService extends ChangeNotifier {
       colorIndex: 5,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 500, emoji: '💰'),
+      reward: RewardItem(type: RewardType.coins, amount: 20, emoji: '💰'),
       probability: 0.05,
       colorIndex: 6,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.diamonds, amount: 20, emoji: '💎'),
-      probability: 0.02,
+      reward: RewardItem(type: RewardType.stars, amount: 10, emoji: '⭐'),
+      probability: 0.10,
       colorIndex: 7,
     ),
   ];
@@ -404,11 +407,18 @@ class DailyRewardService extends ChangeNotifier {
     return 0;
   }
 
-  Future<RewardItem?> spinWheel() async {
+  /// [sliceIndex] verilirse çark animasyonu ile aynı dilim ödül olarak uygulanır.
+  Future<RewardItem?> spinWheel({int? sliceIndex}) async {
     if (!canSpin || _userId == null || _isGuest) return null;
 
-    final sliceIndex = getRandomWheelIndex();
-    final reward = wheelSlices[sliceIndex].reward;
+    final int index;
+    if (sliceIndex != null) {
+      if (sliceIndex < 0 || sliceIndex >= wheelSlices.length) return null;
+      index = sliceIndex;
+    } else {
+      index = getRandomWheelIndex();
+    }
+    final reward = wheelSlices[index].reward;
 
     // Ödülü uygula
     await _applyRewards([reward]);
@@ -458,8 +468,8 @@ class DailyRewardService extends ChangeNotifier {
     final rand = _random.nextDouble();
 
     if (rand < 0.40) {
-      // %40 - Coin
-      final amounts = [25, 50, 75, 100, 150];
+      // %40 - Coin (düşük aralık)
+      final amounts = [20, 25, 30, 35, 40];
       return RewardItem(
         type: RewardType.coins,
         amount: amounts[_random.nextInt(amounts.length)],
@@ -472,8 +482,8 @@ class DailyRewardService extends ChangeNotifier {
         amount: 1 + _random.nextInt(2),
         emoji: '💡',
       );
-    } else if (rand < 0.75) {
-      // %15 - Güçlendirici
+    } else if (rand < 0.72) {
+      // %12 - Güçlendirici
       final powerUps = PowerUpType.values;
       return RewardItem(
         type: RewardType.powerUp,
@@ -481,18 +491,25 @@ class DailyRewardService extends ChangeNotifier {
         powerUpType: powerUps[_random.nextInt(powerUps.length)],
         emoji: '✨',
       );
-    } else if (rand < 0.90) {
-      // %15 - Elmas
+    } else if (rand < 0.82) {
+      // %10 - Profil yıldızı
+      return RewardItem(
+        type: RewardType.stars,
+        amount: 1 + _random.nextInt(3),
+        emoji: '⭐',
+      );
+    } else if (rand < 0.86) {
+      // %4 - Elmas (azaltildi)
       return RewardItem(
         type: RewardType.diamonds,
-        amount: 1 + _random.nextInt(5),
+        amount: 1 + _random.nextInt(2),
         emoji: '💎',
       );
     } else {
-      // %10 - Büyük ödül
+      // %14 - Biraz daha yüksek altın (yine sınırlı: 40–50)
       return RewardItem(
         type: RewardType.coins,
-        amount: 200 + _random.nextInt(300),
+        amount: 40 + _random.nextInt(11),
         emoji: '💰',
       );
     }
@@ -571,11 +588,15 @@ class DailyRewardService extends ChangeNotifier {
     int doublePointsToAdd = 0;
     int skipQuestionToAdd = 0;
     int freezeTimeToAdd = 0;
+    int starsToAdd = 0;
 
     for (final reward in rewards) {
       switch (reward.type) {
         case RewardType.coins:
           coinsToAdd += reward.amount;
+          break;
+        case RewardType.stars:
+          starsToAdd += reward.amount;
           break;
         case RewardType.diamonds:
           diamondsToAdd += reward.amount;
@@ -612,6 +633,7 @@ class DailyRewardService extends ChangeNotifier {
     _userRewards = _userRewards!.copyWith(
       coins: _userRewards!.coins + coinsToAdd,
       diamonds: _userRewards!.diamonds + diamondsToAdd,
+      profileBonusStars: _userRewards!.profileBonusStars + starsToAdd,
       hintCount: _userRewards!.hintCount + hintsToAdd,
       halfOptionsCount: _userRewards!.halfOptionsCount + halfOptionsToAdd,
       extraTimeCount: _userRewards!.extraTimeCount + extraTimeToAdd,
@@ -619,6 +641,16 @@ class DailyRewardService extends ChangeNotifier {
       skipQuestionCount: _userRewards!.skipQuestionCount + skipQuestionToAdd,
       freezeTimeCount: _userRewards!.freezeTimeCount + freezeTimeToAdd,
     );
+  }
+
+  /// Ana ekran şans çarkından gelen yıldızlar (Firestore `rewards/daily` ile senkron)
+  Future<void> addProfileBonusStars(int amount) async {
+    if (_userId == null || _isGuest || _userRewards == null || amount <= 0) return;
+    _userRewards = _userRewards!.copyWith(
+      profileBonusStars: _userRewards!.profileBonusStars + amount,
+    );
+    await _saveUserRewards();
+    notifyListeners();
   }
 
   // ==================== KAYDETME ====================

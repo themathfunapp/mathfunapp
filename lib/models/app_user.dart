@@ -21,7 +21,7 @@ class AppUser {
   final bool isGuest;
   final String? guestId;
 
-  // 🎮 OYUNCU KODU - Her kullanıcı için benzersiz RKN ID
+  // 🎮 OYUNCU KODU - Her kullanıcı için benzersiz MTN ID 
   final String? userCode;
 
   // 👑 PREMİUM ÜYELİK
@@ -166,12 +166,59 @@ class AppUser {
     );
   }
 
-  // RKN + 8 haneli ID (her kullanıcı için benzersiz)
+  static const String playerCodePrefix = 'MTN';
+  /// MTN sonrası rakam sayısı (ilk rakam 1–9, diğerleri 0–9).
+  static const int playerCodeSuffixLength = 10;
+  static int get playerCodeTotalLength =>
+      playerCodePrefix.length + playerCodeSuffixLength;
+
+  /// Arkadaş araması: sorgu MTN oyuncu kodu gibi mi?
+  static bool queryLooksLikePlayerCode(String query) {
+    return query.trim().toUpperCase().startsWith(playerCodePrefix);
+  }
+
+  // MTN + 10 haneli ID (ilk rakam 1–9)
   static String _generateUserCode() {
-    const prefix = 'RKN';
     final random = Random();
-    final numbers = List.generate(8, (_) => random.nextInt(10)).join();
-    return '$prefix$numbers';
+    final first = random.nextInt(9) + 1;
+    final rest = List.generate(playerCodeSuffixLength - 1, (_) => random.nextInt(10))
+        .join();
+    return '$playerCodePrefix$first$rest';
+  }
+
+  /// Yeni oyuncu kodu (kayıt / e-posta girişi vb.).
+  static String generatePlayerUserCode() => _generateUserCode();
+
+  /// Kayıtlı kullanıcı: MTN + 10 rakam; ilk rakam 1–9.
+  static bool isValidAssignedUserCode(String? code) {
+    if (code == null || code.length != playerCodeTotalLength) return false;
+    final u = code.toUpperCase();
+    if (!u.startsWith(playerCodePrefix)) return false;
+    final suffix = u.substring(playerCodePrefix.length);
+    return RegExp(r'^[1-9]\d{9}$').hasMatch(suffix);
+  }
+
+  /// Misafir ID (MTN + en az 10 rakam) → kayıtlı kod (ilk 10 rakam geçerliyse).
+  static String? playerCodeDerivedFromGuestId(String? guestId) {
+    if (guestId == null) return null;
+    final u = guestId.trim();
+    if (u.length < playerCodeTotalLength) return null;
+    final up = u.toUpperCase();
+    if (!up.startsWith(playerCodePrefix)) {
+      return null;
+    }
+    final rest = u.substring(playerCodePrefix.length);
+    if (!RegExp(r'^\d+$').hasMatch(rest)) return null;
+    if (rest.length < playerCodeSuffixLength) return null;
+    final ten = rest.substring(0, playerCodeSuffixLength);
+    if (!RegExp(r'^[1-9]\d{9}$').hasMatch(ten)) return null;
+    return '$playerCodePrefix$ten';
+  }
+
+  /// Senkron yedek: geçerli kod yoksa rastgele üretir (çakışma kontrolü yok).
+  static String resolveUserCodeForRegistered({String? existing}) {
+    if (isValidAssignedUserCode(existing)) return existing!;
+    return _generateUserCode();
   }
 
   // =========================
@@ -197,8 +244,8 @@ class AppUser {
     return 'Kullanıcı';
   }
 
-  // Oyuncu kodu (RKN ID)
-  String get playerCode => userCode ?? guestId ?? 'RKN00000000';
+  // Oyuncu kodu (MTN ID) — geçersiz/placeholder gösterme
+  String get playerCode => userCode ?? guestId ?? '';
 
   // Dil adı
   String getLanguageName() {

@@ -12,6 +12,7 @@ enum RewardType {
   multiplier,   // Çarpan
   ticket,       // Bilet
   mystery,      // Gizemli ödül
+  stars,        // Profil / hikâye üst çubuğu ile senkron yıldız
 }
 
 /// Güçlendirici türleri
@@ -202,6 +203,9 @@ class UserRewards {
   // Para birimleri
   final int coins;
   final int diamonds;
+
+  /// Günlük ödül, çark ve sürpriz kutudan gelen yıldızlar (hikâye yıldızına eklenir)
+  final int profileBonusStars;
   
   // Güçlendiriciler
   final int hintCount;
@@ -233,6 +237,7 @@ class UserRewards {
     required this.userId,
     this.coins = 0,
     this.diamonds = 0,
+    this.profileBonusStars = 0,
     this.hintCount = 0,
     this.halfOptionsCount = 0,
     this.extraTimeCount = 0,
@@ -256,6 +261,7 @@ class UserRewards {
       userId: userId,
       coins: map['coins'] ?? 0,
       diamonds: map['diamonds'] ?? 0,
+      profileBonusStars: map['profileBonusStars'] ?? 0,
       hintCount: map['hintCount'] ?? 0,
       halfOptionsCount: map['halfOptionsCount'] ?? 0,
       extraTimeCount: map['extraTimeCount'] ?? 0,
@@ -286,6 +292,7 @@ class UserRewards {
     return {
       'coins': coins,
       'diamonds': diamonds,
+      'profileBonusStars': profileBonusStars,
       'hintCount': hintCount,
       'halfOptionsCount': halfOptionsCount,
       'extraTimeCount': extraTimeCount,
@@ -310,6 +317,7 @@ class UserRewards {
     String? userId,
     int? coins,
     int? diamonds,
+    int? profileBonusStars,
     int? hintCount,
     int? halfOptionsCount,
     int? extraTimeCount,
@@ -331,6 +339,7 @@ class UserRewards {
       userId: userId ?? this.userId,
       coins: coins ?? this.coins,
       diamonds: diamonds ?? this.diamonds,
+      profileBonusStars: profileBonusStars ?? this.profileBonusStars,
       hintCount: hintCount ?? this.hintCount,
       halfOptionsCount: halfOptionsCount ?? this.halfOptionsCount,
       extraTimeCount: extraTimeCount ?? this.extraTimeCount,

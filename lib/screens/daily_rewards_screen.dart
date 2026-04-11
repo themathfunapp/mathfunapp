@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../models/daily_reward.dart';
 import '../localization/app_localizations.dart';
+import 'welcome_screen.dart';
+import 'app_screen_wrappers.dart';
 
 class DailyRewardsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -41,6 +43,44 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Misafir için hesap oluşturma / giriş seçenekleri (MaterialApp'te `/welcome` rotası yok).
+  Future<void> _navigateToCreateAccount() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    try {
+      await authService.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => WelcomeScreen(
+            initialPageIsLoginOptions: true,
+            onSignInComplete: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+            onSkip: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreenWrapper()),
+              );
+            },
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bir hata oluştu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -94,6 +134,13 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
         ),
       ),
     );
+  }
+
+  /// Günlük ödül sonrası jeton/elmas/ipucu/güçlendiricileri oyun envanterine yazar.
+  Future<void> _syncMechanicsFromDaily(DailyRewardService rewardService) async {
+    if (rewardService.isGuest || rewardService.userRewards == null) return;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    await mechanics.syncInventoryFromDailyRewards(rewardService.userRewards!);
   }
 
   Widget _buildTopBar(AppLocalizations localizations, DailyRewardService rewardService) {
@@ -308,7 +355,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/welcome'),
+              onPressed: _navigateToCreateAccount,
               icon: const Icon(Icons.person_add),
               label: Text(localizations.get('create_account')),
               style: ElevatedButton.styleFrom(
@@ -451,14 +498,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
                   ? () async {
                       final rewards = await rewardService.claimStreakReward();
                       if (rewards.isNotEmpty && mounted) {
-                        if (!rewardService.isGuest) {
-                          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-                          await mechanicsService.syncInventoryFromRewards(
-                            rewardService.coins,
-                            rewardService.diamonds,
-                            rewardService.userRewards?.hintCount ?? 0,
-                          );
-                        }
+                        await _syncMechanicsFromDaily(rewardService);
                         _showRewardDialog(rewards, localizations);
                       }
                     }
@@ -604,14 +644,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
               setState(() => _isOpeningBox = false);
               
               if (rewards.isNotEmpty && mounted) {
-                if (!rewardService.isGuest) {
-                  final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-                  await mechanicsService.syncInventoryFromRewards(
-                    rewardService.coins,
-                    rewardService.diamonds,
-                    rewardService.userRewards?.hintCount ?? 0,
-                  );
-                }
+                await _syncMechanicsFromDaily(rewardService);
                 _showRewardDialog(rewards, localizations);
               }
             },
@@ -708,11 +741,6 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
         children: [
           // ÇARK
           _buildSpinWheel(rewardService, localizations),
-          
-          const SizedBox(height: 20),
-          
-          // ÖDÜL LİSTESİ
-          _buildWheelRewardsList(localizations),
         ],
       ),
     );
@@ -751,14 +779,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
             ),
           ),
           const SizedBox(height: 20),
-          // ÇARK
+          // ÇARK — ödüller dilimlerin üzerinde
           SizedBox(
-            width: 280,
-            height: 280,
+            width: 300,
+            height: 300,
             child: Stack(
               alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
-                // ÇARK
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: _wheelRotation),
                   duration: Duration(milliseconds: _isSpinning ? 4000 : 0),
@@ -767,59 +795,60 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
                     return Transform.rotate(
                       angle: rotation,
                       child: CustomPaint(
-                        size: const Size(260, 260),
-                        painter: WheelPainter(),
+                        size: const Size(280, 280),
+                        painter: DailyWheelPainter(
+                          slices: DailyRewardService.wheelSlices,
+                          colorForIndex: _getWheelColor,
+                        ),
                       ),
                     );
                   },
                 ),
-                // OK İŞARETİ
                 Positioned(
-                  top: 0,
-                  child: Container(
-                    width: 30,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(15),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.4),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
+                  top: 4,
+                  child: CustomPaint(
+                    size: const Size(28, 22),
+                    painter: _WheelPointerPainter(),
                   ),
                 ),
-                // ORTA BUTON
                 GestureDetector(
                   onTap: rewardService.canSpin && !_isSpinning
                       ? () => _spinWheel(rewardService, localizations)
                       : null,
                   child: Container(
-                    width: 70,
-                    height: 70,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: rewardService.canSpin && !_isSpinning
-                            ? [const Color(0xFFFF6B6B), const Color(0xFFFFE66D)]
-                            : [Colors.grey.shade400, Colors.grey.shade500],
+                            ? [const Color(0xFFFF8C42), const Color(0xFFFF6B35)]
+                            : [Colors.grey.shade500, Colors.grey.shade600],
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 10,
+                          color: (rewardService.canSpin && !_isSpinning
+                                  ? const Color(0xFFFF8C42)
+                                  : Colors.black)
+                              .withOpacity(0.35),
+                          blurRadius: 12,
+                          spreadRadius: 1,
                         ),
                       ],
                     ),
                     child: Center(
-                      child: Text(
-                        _isSpinning ? '🎰' : '▶️',
-                        style: const TextStyle(fontSize: 28),
-                      ),
+                      child: _isSpinning
+                          ? const Text('🎰', style: TextStyle(fontSize: 30))
+                          : Text(
+                              localizations.get('spin_wheel_button'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -846,83 +875,14 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
 
     await Future.delayed(const Duration(milliseconds: 4200));
 
-    final reward = await rewardService.spinWheel();
+    final reward = await rewardService.spinWheel(sliceIndex: _selectedSliceIndex);
 
     setState(() => _isSpinning = false);
 
     if (reward != null && mounted) {
-      if (!rewardService.isGuest) {
-        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-        await mechanicsService.syncInventoryFromRewards(
-          rewardService.coins,
-          rewardService.diamonds,
-          rewardService.userRewards?.hintCount ?? 0,
-        );
-      }
+      await _syncMechanicsFromDaily(rewardService);
       _showRewardDialog([reward], localizations);
     }
-  }
-
-  Widget _buildWheelRewardsList(AppLocalizations localizations) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            localizations.get('possible_rewards'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2d3436),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: DailyRewardService.wheelSlices.map((slice) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getWheelColor(slice.colorIndex).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _getWheelColor(slice.colorIndex).withOpacity(0.5),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(slice.reward.emoji, style: const TextStyle(fontSize: 16)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '+${slice.reward.amount}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _getWheelColor(slice.colorIndex),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
   }
 
   Color _getWheelColor(int index) {
@@ -1082,14 +1042,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
                   onPressed: () async {
                     final rewards = await rewardService.claimTaskReward(task.id);
                     if (rewards.isNotEmpty && mounted) {
-                      if (!rewardService.isGuest) {
-                        final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-                        await mechanicsService.syncInventoryFromRewards(
-                          rewardService.coins,
-                          rewardService.diamonds,
-                          rewardService.userRewards?.hintCount ?? 0,
-                        );
-                      }
+                      await _syncMechanicsFromDaily(rewardService);
                       _showRewardDialog(rewards, localizations);
                     }
                   },
@@ -1314,61 +1267,130 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
 
 // ==================== ÇARK PAİNTER ====================
 
-class WheelPainter extends CustomPainter {
-  final colors = [
-    const Color(0xFFFF6B6B),
-    const Color(0xFF4ECDC4),
-    const Color(0xFFFFE66D),
-    const Color(0xFF95E1D3),
-    const Color(0xFFF38181),
-    const Color(0xFFAA96DA),
-    const Color(0xFFFCBF49),
-    const Color(0xFF00BBF0),
-  ];
+/// Günlük çark dilimleri — ödül emoji + miktar dilimin üzerinde çizilir.
+class DailyWheelPainter extends CustomPainter {
+  DailyWheelPainter({
+    required this.slices,
+    required this.colorForIndex,
+  });
 
-  final emojis = ['🪙', '🪙', '🪙', '💡', '💎', '✨', '💰', '💎'];
+  final List<WheelSlice> slices;
+  final Color Function(int index) colorForIndex;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    final sliceAngle = (2 * pi) / colors.length;
+    final radius = min(size.width, size.height) / 2;
+    final n = slices.length;
+    final sliceAngle = 2 * pi / n;
 
-    for (int i = 0; i < colors.length; i++) {
-      final paint = Paint()
-        ..color = colors[i]
+    for (var i = 0; i < n; i++) {
+      final path = Path()
+        ..moveTo(center.dx, center.dy)
+        ..arcTo(
+          Rect.fromCircle(center: center, radius: radius),
+          -pi / 2 + i * sliceAngle,
+          sliceAngle,
+          false,
+        )
+        ..close();
+
+      final fill = Paint()
+        ..color = colorForIndex(slices[i].colorIndex)
         ..style = PaintingStyle.fill;
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -pi / 2 + (i * sliceAngle),
-        sliceAngle,
-        true,
-        paint,
-      );
-
-      // Kenar çizgisi
-      final borderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -pi / 2 + (i * sliceAngle),
-        sliceAngle,
-        true,
-        borderPaint,
-      );
+      canvas.drawPath(path, fill);
     }
 
-    // Dış çember
-    final outerCirclePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8;
+    final divider = Paint()
+      ..color = Colors.white.withOpacity(0.92)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
 
-    canvas.drawCircle(center, radius, outerCirclePaint);
+    for (var i = 0; i < n; i++) {
+      final a = -pi / 2 + i * sliceAngle;
+      final outer = center + Offset.fromDirection(a, radius);
+      canvas.drawLine(center, outer, divider);
+    }
+
+    canvas.drawCircle(
+      center,
+      radius - 1.5,
+      Paint()
+        ..color = const Color(0xFFE6C200)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7,
+    );
+
+    for (var i = 0; i < n; i++) {
+      final midAngle = -pi / 2 + i * sliceAngle + sliceAngle / 2;
+      final labelR = radius * 0.52;
+      final pos = center + Offset.fromDirection(midAngle, labelR);
+      final r = slices[i].reward;
+
+      canvas.save();
+      canvas.translate(pos.dx, pos.dy);
+      canvas.rotate(midAngle + pi / 2);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '${r.emoji}\n',
+              style: TextStyle(
+                fontSize: radius * 0.13,
+                height: 1.05,
+              ),
+            ),
+            TextSpan(
+              text: '+${r.amount}',
+              style: TextStyle(
+                fontSize: radius * 0.09,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black45,
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: radius * 0.55);
+
+      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DailyWheelPainter oldDelegate) =>
+      oldDelegate.slices != slices;
+}
+
+class _WheelPointerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, size.height)
+      ..lineTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..close();
+
+    canvas.drawShadow(path, Colors.black38, 3, false);
+    canvas.drawPath(path, Paint()..color = const Color(0xFFFFD700));
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xFFFFF8DC),
+    );
   }
 
   @override

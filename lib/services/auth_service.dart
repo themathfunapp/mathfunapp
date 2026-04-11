@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -9,7 +9,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_user.dart';
 
+/// Firebase Android uygulamasında imza (SHA-1) kayıtlı değilse Google Sign-In ApiException: 10 verir.
+class GoogleSignInShaNotRegisteredException implements Exception {
+  const GoogleSignInShaNotRegisteredException();
+}
+
 class AuthService extends ChangeNotifier {
+  /// Firebase’de “Web client” OAuth kimliği (google-services.json → client_type: 3).
+  /// Android’de `serverClientId` verilmezse sık sık `ApiException: 10` ve boş idToken olur.
+  static const String _googleOAuthWebClientId =
+      '728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com';
+
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   
   // Web için oturum kalıcılığı - uygulama kapatılsa bile oturum açık kalsın
@@ -27,9 +37,9 @@ class AuthService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    clientId: kIsWeb
-        ? '728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com'
-        : null,
+    clientId: kIsWeb ? _googleOAuthWebClientId : null,
+    // Mobil: Web client ID → Google, Firebase Auth için idToken üretir
+    serverClientId: kIsWeb ? null : _googleOAuthWebClientId,
   );
 
   // Local storage keys
@@ -109,6 +119,9 @@ class AuthService extends ChangeNotifier {
 
       if (appUserFromFirestore != null) {
         _currentUser = appUserFromFirestore;
+        if (!AppUser.isValidAssignedUserCode(_currentUser!.userCode)) {
+          await _saveOrUpdateUserInFirestore(_currentUser!);
+        }
       } else {
         // Create new user
         _currentUser = AppUser.fromFirebaseUser(firebaseUser);
@@ -164,6 +177,9 @@ class AuthService extends ChangeNotifier {
 
       if (appUserFromFirestore != null) {
         _currentUser = appUserFromFirestore;
+        if (!AppUser.isValidAssignedUserCode(_currentUser!.userCode)) {
+          await _saveOrUpdateUserInFirestore(_currentUser!);
+        }
       } else {
         _currentUser = AppUser.fromFirebaseUser(firebaseUser);
         await _saveOrUpdateUserInFirestore(_currentUser!);
@@ -191,7 +207,6 @@ class AuthService extends ChangeNotifier {
       final existingGuestId = prefs.getString(_guestIdKey);
 
       if (existingGuestId != null) {
-        // Use existing guest
         final language = prefs.getString(_languageKey) ?? 'tr';
         final appUser = AppUser(
           uid: existingGuestId,
@@ -238,19 +253,8 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Benzersiz guest ID oluştur
-  String _generateUniqueGuestId() {
-    const String prefix = 'RKN';
-    final random = Random();
-
-    // 10 haneli random sayı oluştur
-    String generateNumbers() {
-      return List.generate(10, (_) => random.nextInt(10)).join();
-    }
-
-    final numbers = generateNumbers();
-    return '$prefix$numbers';
-  }
+  // Benzersiz misafir ID (kayıtlı oyuncu kodu ile aynı biçim: MTN + 10 rakam)
+  String _generateUniqueGuestId() => AppUser.generatePlayerUserCode();
 
   // Misafir kullanıcıyı Firestore'a kaydet
   Future<void> _createGuestInFirestore(AppUser guestUser) async {
@@ -348,8 +352,19 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Google Sign-In hatası: $e');
       debugPrint('Hata detayı: ${e.toString()}');
+      if (_isGoogleSignInDeveloperConfigError(e)) {
+        throw const GoogleSignInShaNotRegisteredException();
+      }
       rethrow;
     }
+  }
+
+  /// ApiException: 10 = DEVELOPER_ERROR; çoğunlukla Firebase’de eksik/yanlış SHA-1.
+  static bool _isGoogleSignInDeveloperConfigError(Object e) {
+    if (e is! PlatformException) return false;
+    final msg = e.message ?? '';
+    if (e.code != 'sign_in_failed') return false;
+    return msg.contains('ApiException: 10') || msg.contains('DEVELOPER_ERROR');
   }
 
   // Google girişi başarılı olduğunda
@@ -364,14 +379,16 @@ class AuthService extends ChangeNotifier {
     }
 
     await _saveOrUpdateUserInFirestore(appUser);
-    _currentUser = appUser;
+    if (_currentUser?.uid != appUser.uid) {
+      _currentUser = appUser;
+    }
 
     // Clear guest flag
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isGuestKey, false);
 
     notifyListeners();
-    return appUser;
+    return _currentUser ?? appUser;
   }
 
   // ------------- EMAIL/PASSWORD İLE GİRİŞ -------------
@@ -388,25 +405,20 @@ class AuthService extends ChangeNotifier {
       if (userCredential.user != null) {
         debugPrint('Email signup başarılı: ${userCredential.user!.email}');
 
-        final appUser = AppUser(
-          uid: userCredential.user!.uid,
-          email: email,
-          displayName: email.split('@').first,
+        final fu = userCredential.user!;
+        var appUser = AppUser.fromFirebaseUser(fu).copyWith(
+          displayName: fu.displayName ?? email.split('@').first,
           selectedLanguage: await getSavedLanguage(),
-          isGuest: false,
-          guestId: userCredential.user!.uid,
-          createdAt: DateTime.now(),
         );
 
         await _saveOrUpdateUserInFirestore(appUser);
-        _currentUser = appUser;
 
         // Guest flag'ini temizle
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_isGuestKey, false);
 
         notifyListeners();
-        return appUser;
+        return _currentUser ?? appUser;
       }
       return null;
     } catch (e) {
@@ -430,29 +442,24 @@ class AuthService extends ChangeNotifier {
         final appUserFromFirestore = await getUserFromFirestore(userCredential.user!.uid);
 
         AppUser appUser;
+        final fu = userCredential.user!;
         if (appUserFromFirestore != null) {
           appUser = appUserFromFirestore;
         } else {
-          appUser = AppUser(
-            uid: userCredential.user!.uid,
-            email: email,
-            displayName: userCredential.user!.displayName ?? email.split('@').first,
+          appUser = AppUser.fromFirebaseUser(fu).copyWith(
+            displayName: fu.displayName ?? email.split('@').first,
             selectedLanguage: await getSavedLanguage(),
-            isGuest: false,
-            guestId: userCredential.user!.uid,
-            createdAt: DateTime.now(),
           );
         }
 
         await _saveOrUpdateUserInFirestore(appUser);
-        _currentUser = appUser;
 
         // Guest flag'ini temizle
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_isGuestKey, false);
 
         notifyListeners();
-        return appUser;
+        return _currentUser ?? appUser;
       }
       return null;
     } catch (e) {
@@ -503,6 +510,29 @@ class AuthService extends ChangeNotifier {
     return _currentUser;
   }
 
+  /// Firestore’da başka kullanıcıda olmayan MTN + 10 rakam kodu üretir (ilk rakam 1–9).
+  Future<String> _allocateUniquePlayerCode(String forUid) async {
+    for (var attempt = 0; attempt < 32; attempt++) {
+      var candidate = AppUser.generatePlayerUserCode();
+      if (!AppUser.isValidAssignedUserCode(candidate)) continue;
+      try {
+        final snap = await _firestore
+            .collection('users')
+            .where('userCode', isEqualTo: candidate)
+            .limit(1)
+            .get();
+        if (snap.docs.isEmpty) return candidate;
+        if (snap.docs.length == 1 && snap.docs.first.id == forUid) {
+          return candidate;
+        }
+      } catch (e) {
+        debugPrint('allocateUniquePlayerCode query error: $e');
+        break;
+      }
+    }
+    return AppUser.generatePlayerUserCode();
+  }
+
   // Get user from Firestore
   Future<AppUser?> getUserFromFirestore(String userId) async {
     try {
@@ -519,9 +549,21 @@ class AuthService extends ChangeNotifier {
   // Save or update user in Firestore
   Future<void> _saveOrUpdateUserInFirestore(AppUser user) async {
     try {
-      final userData = user.toMap();
-      await _firestore.collection('users').doc(user.uid).set(userData);
-      await saveUserId(user.uid);
+      AppUser toSave = user;
+      if (!toSave.isGuest && toSave.uid.isNotEmpty) {
+        if (!AppUser.isValidAssignedUserCode(toSave.userCode)) {
+          final code = await _allocateUniquePlayerCode(toSave.uid);
+          toSave = toSave.copyWith(userCode: code);
+        }
+      }
+      final userData = toSave.toMap();
+      await _firestore.collection('users').doc(toSave.uid).set(userData);
+      await saveUserId(toSave.uid);
+      if (!toSave.isGuest &&
+          toSave.uid.isNotEmpty &&
+          _auth.currentUser?.uid == toSave.uid) {
+        _currentUser = toSave;
+      }
     } catch (e) {
       debugPrint("Save user to Firestore error: $e");
     }
@@ -806,14 +848,18 @@ class AuthService extends ChangeNotifier {
         await userCredential.user!.updateDisplayName(displayName);
       }
 
-      // Create new AppUser
+      // Misafir MTN kodunu kayıtlı hesapta koru
+      final preservedCode = AppUser.playerCodeDerivedFromGuestId(oldGuestId) ??
+          AppUser.resolveUserCodeForRegistered(existing: null);
+
       final newUser = AppUser(
         uid: userCredential.user!.uid,
         email: email,
         displayName: displayName ?? email.split('@').first,
         selectedLanguage: savedLanguage,
         isGuest: false,
-        guestId: oldGuestId,
+        guestId: null,
+        userCode: preservedCode,
         createdAt: DateTime.now(),
       );
 

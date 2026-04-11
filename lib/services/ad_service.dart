@@ -18,10 +18,6 @@ class AdService extends ChangeNotifier {
   static const String _bannerAdUnitId = 'ca-app-pub-6873365802729244/1636702911';
   static const String _interstitialAdUnitId = 'ca-app-pub-6873365802729244/3649311098';
   
-  // Test Ad Unit IDs (Debug mode için - kDebugMode true olduğunda kullanılır)
-  static const String _testRewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
-  static const String _testBannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
-  static const String _testInterstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
 
   // ================== AD INSTANCES ==================
   
@@ -52,10 +48,10 @@ class AdService extends ChangeNotifier {
   bool get isPremiumUser => _isPremiumUser;
   bool get isLoading => _isRewardedAdLoading;
   
-  // Debug modda test reklamları kullan
-  String get _rewardedId => kDebugMode ? _testRewardedAdUnitId : _rewardedAdUnitId;
-  String get _bannerId => kDebugMode ? _testBannerAdUnitId : _bannerAdUnitId;
-  String get _interstitialId => kDebugMode ? _testInterstitialAdUnitId : _interstitialAdUnitId;
+  // Tüm ortamlarda canlı reklam birimleri kullanılır.
+  String get _rewardedId => _rewardedAdUnitId;
+  String get _bannerId => _bannerAdUnitId;
+  String get _interstitialId => _interstitialAdUnitId;
 
   // ================== INITIALIZATION ==================
 
