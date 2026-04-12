@@ -244,51 +244,11 @@ class ComboSystem {
   }
 }
 
-// === İPUCU SİSTEMİ ===
+// === SORU METNİ İPUCU (envanter yok) ===
 class HintSystem {
-  int availableHints;
-  int maxFreeHints;
-  DateTime? lastFreeHintAt;
-  Duration freeHintCooldown;
+  HintSystem._();
 
-  HintSystem({
-    this.availableHints = 3,
-    this.maxFreeHints = 3,
-    this.lastFreeHintAt,
-    this.freeHintCooldown = const Duration(hours: 4),
-  });
-
-  bool get hasHints => availableHints > 0;
-
-  void useHint() {
-    if (availableHints > 0) {
-      availableHints--;
-    }
-  }
-
-  void addHint([int count = 1]) {
-    availableHints += count;
-  }
-
-  bool canClaimFreeHint() {
-    if (lastFreeHintAt == null) return true;
-    return DateTime.now().difference(lastFreeHintAt!) >= freeHintCooldown;
-  }
-
-  void claimFreeHint() {
-    if (canClaimFreeHint()) {
-      availableHints++;
-      lastFreeHintAt = DateTime.now();
-    }
-  }
-
-  Duration? get timeUntilFreeHint {
-    if (canClaimFreeHint()) return Duration.zero;
-    final elapsed = DateTime.now().difference(lastFreeHintAt!);
-    return freeHintCooldown - elapsed;
-  }
-
-  /// Soru için ipucu oluştur
+  /// Soru için açıklayıcı metin üretir
   static String generateHint(int num1, int num2, String operator, int answer) {
     switch (operator) {
       case '+':
@@ -1280,7 +1240,6 @@ class BossBattle {
 // === OYUNCU ENVANTERİ ===
 class PlayerInventory {
   Map<PowerUpType, int> powerUps;
-  int hints;
   int lives;
   int coins;
   int gems;
@@ -1290,7 +1249,6 @@ class PlayerInventory {
 
   PlayerInventory({
     Map<PowerUpType, int>? powerUps,
-    this.hints = 3,
     this.lives = 5,
     this.coins = 0,
     this.gems = 0,
@@ -1319,7 +1277,6 @@ class PlayerInventory {
 
   Map<String, dynamic> toJson() => {
     'powerUps': powerUps.map((k, v) => MapEntry(k.name, v)),
-    'hints': hints,
     'lives': lives,
     'coins': coins,
     'gems': gems,
@@ -1341,7 +1298,6 @@ class PlayerInventory {
 
     return PlayerInventory(
       powerUps: powerUpsMap,
-      hints: json['hints'] ?? 3,
       lives: json['lives'] ?? 5,
       coins: json['coins'] ?? 0,
       gems: json['gems'] ?? 0,

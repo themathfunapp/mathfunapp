@@ -18,8 +18,11 @@ import 'package:mathfun/services/voice_command_service.dart';
 import 'package:mathfun/services/premium_service_export.dart';
 import 'package:mathfun/services/ad_service.dart';
 import 'package:mathfun/services/family_service.dart';
+import 'package:mathfun/services/family_remote_duel_service.dart';
 import 'package:mathfun/services/parent_mode_service.dart';
 import 'package:mathfun/services/parent_pin_service.dart';
+import 'package:mathfun/services/audio_service.dart';
+import 'package:mathfun/services/push_notification_service.dart';
 import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/screens/app_screen_wrappers.dart';
 import 'package:mathfun/screens/welcome_screen.dart';
@@ -52,6 +55,14 @@ Future<void> main() async {
         ChangeNotifierProvider<LocaleProvider>(
           create: (_) => LocaleProvider(),
         ),
+        ChangeNotifierProvider<AudioService>(
+          lazy: false,
+          create: (_) {
+            final audio = AudioService();
+            audio.initialize();
+            return audio;
+          },
+        ),
         ChangeNotifierProvider<ParentModeService>(
           create: (_) => ParentModeService(),
         ),
@@ -82,12 +93,6 @@ Future<void> main() async {
             return rewardService;
           },
         ),
-        ChangeNotifierProvider<StoryService>(
-          create: (_) => StoryService(),
-        ),
-        ChangeNotifierProvider<MiniGameService>(
-          create: (_) => MiniGameService(),
-        ),
         ChangeNotifierProxyProvider<AuthService, GameMechanicsService>(
           create: (_) => GameMechanicsService(),
           update: (_, authService, mechanicsService) {
@@ -98,6 +103,22 @@ Future<void> main() async {
               );
             }
             return mechanicsService!;
+          },
+        ),
+        ChangeNotifierProxyProvider<GameMechanicsService, StoryService>(
+          create: (_) => StoryService(),
+          update: (_, mechanics, previous) {
+            final story = previous!;
+            story.attachMechanicsWallet(mechanics);
+            return story;
+          },
+        ),
+        ChangeNotifierProxyProvider<GameMechanicsService, MiniGameService>(
+          create: (_) => MiniGameService(),
+          update: (_, mechanics, previous) {
+            final mini = previous!;
+            mini.attachMechanicsWallet(mechanics);
+            return mini;
           },
         ),
         ChangeNotifierProvider<OfflineService>(
@@ -142,6 +163,9 @@ Future<void> main() async {
             return familyService;
           },
         ),
+        Provider<FamilyRemoteDuelService>(
+          create: (_) => FamilyRemoteDuelService(),
+        ),
         ChangeNotifierProxyProvider<AuthService, ParentPinService>(
           create: (_) => ParentPinService(),
           update: (_, authService, pinService) {
@@ -155,6 +179,10 @@ Future<void> main() async {
       child: const MyApp(),
     ),
   );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    PushNotificationService.instance.initialize();
+  });
 }
 
 // Firebase'i arka planda başlat

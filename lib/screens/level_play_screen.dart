@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
+import '../audio/section_soundscape.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
+import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
@@ -32,12 +35,17 @@ class LevelPlayScreen extends StatefulWidget {
 
 class _LevelPlayScreenState extends State<LevelPlayScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   final Random _random = Random();
   int _currentObjectCount = 1;
   int _currentQuestionIndex = 0;
   int _correctAnswers = 0;
+  int _wrongAnswers = 0;
   int _score = 0;
   bool _isAnswered = false;
+  bool _sessionReported = false;
+  int _runStreak = 0;
+  int _bestStreak = 0;
   String? _selectedAnswer;
   Timer? _timer;
   int _timeRemaining = 0;
@@ -52,9 +60,6 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
   late ConfettiController _confettiController;
   late AnimationController _helperJumpController;
   late Animation<double> _helperJumpAnimation;
-
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
 
   final List<String> _objectEmojis = [
     '⭐',
@@ -79,6 +84,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
 
     _generateRandomCount();
 
@@ -139,6 +145,24 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
         curve: Curves.easeOut,
       ),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      if (!mechanics.hasLives) {
+        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.get('no_lives_play')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
+      scheduleSectionAmbient(context, soundscapeForStoryWorldId(widget.world.id));
+    });
   }
 
 
@@ -162,7 +186,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
     _bounceController.dispose();
     _confettiController.dispose();
     _helperJumpController.dispose();
-    _audioPlayer.dispose();
+    _audio.cancelAmbientSync();
     super.dispose();
   }
 
@@ -669,6 +693,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
     if (isCorrect) {
       // 📳 HAPTIC (DOĞRU)
       HapticFeedback.lightImpact();
+      _audio.playAnswerFeedback(true);
 
       // 🎉 CONFETTI
       _confettiController.play();
@@ -680,6 +705,8 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
 
       // ⭐ SKOR
       _correctAnswers++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
       _score += question.points;
 
       // 🔘 DOĞRU BUTON ZIPLASIN
@@ -690,6 +717,12 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
     } else {
       // 📳 HAPTIC (YANLIŞ)
       HapticFeedback.heavyImpact();
+      _audio.playAnswerFeedback(false);
+
+      _wrongAnswers++;
+      _runStreak = 0;
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanicsService.onWrongAnswer();
 
       // 😢 ÜZGÜN EMOJI GÖSTER
       setState(() {
@@ -708,8 +741,17 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
           _showSadEmoji = false;
         });
       });
-    }
 
+      if (!mechanicsService.hasLives) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (!mounted) return;
+          _timer?.cancel();
+          _reportStoryLevelSession();
+          Navigator.pop(context);
+        });
+        return;
+      }
+    }
 
     // ➡️ SONRAKİ SORU
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -726,6 +768,28 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
         _showResults();
       }
     });
+  }
+
+  void _reportStoryLevelSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _correctAnswers + _wrongAnswers;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _correctAnswers,
+        wrongAnswers: _wrongAnswers,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('LevelPlay report error: $e');
+    }
   }
 
 
@@ -813,6 +877,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
 
   void _showResults() async {
     _timer?.cancel();
+    _reportStoryLevelSession();
 
     final storyService = Provider.of<StoryService>(context, listen: false);
     final result = await storyService.completeLevel(
@@ -958,9 +1023,13 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
                         setState(() {
                           _currentQuestionIndex = 0;
                           _correctAnswers = 0;
+                          _wrongAnswers = 0;
                           _score = 0;
                           _isAnswered = false;
                           _selectedAnswer = null;
+                          _sessionReported = false;
+                          _runStreak = 0;
+                          _bestStreak = 0;
                           if (widget.level.timeLimit > 0) {
                             _timeRemaining = widget.level.timeLimit;
                             _startTimer();

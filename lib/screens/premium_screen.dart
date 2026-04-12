@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/premium_service_export.dart';
-import '../localization/app_localizations.dart';
+
+import 'package:mathfun/config/legal_urls.dart';
+import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/services/premium_service_export.dart';
 
 class PremiumScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -632,6 +634,17 @@ class _PremiumScreenState extends State<PremiumScreen>
           ),
         ),
         actions: [
+          if (hasConfiguredTermsOfUseUrl)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await LegalUrls.launchTermsInBrowserFromDialog(context, localizations);
+              },
+              child: Text(
+                localizations.get('legal_open_in_browser'),
+                style: const TextStyle(color: Colors.amber),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(localizations.close, style: const TextStyle(color: Colors.amber)),
@@ -658,6 +671,17 @@ class _PremiumScreenState extends State<PremiumScreen>
           ),
         ),
         actions: [
+          if (hasConfiguredPrivacyPolicyUrl)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await LegalUrls.launchPrivacyInBrowserFromDialog(context, localizations);
+              },
+              child: Text(
+                localizations.get('legal_open_in_browser'),
+                style: const TextStyle(color: Colors.amber),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(localizations.close, style: const TextStyle(color: Colors.amber)),

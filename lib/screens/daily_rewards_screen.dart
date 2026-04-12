@@ -228,8 +228,6 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
           _buildCurrencyItem('🪙', '${rewardService.coins}', localizations.get('gold')),
           Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3)),
           _buildCurrencyItem('💎', '${rewardService.diamonds}', localizations.get('diamonds')),
-          Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3)),
-          _buildCurrencyItem('💡', '${rewardService.userRewards?.hintCount ?? 0}', localizations.get('hints')),
         ],
       ),
     );

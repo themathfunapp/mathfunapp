@@ -1,7 +1,14 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+/// Google sample ad units — use with `--dart-define=USE_TEST_ADS=true` (any mode).
+const bool _useTestAds = bool.fromEnvironment('USE_TEST_ADS', defaultValue: false);
+
+/// In debug, simulates EEA to verify UMP form (`flutter run --dart-define=UMP_DEBUG_EEA=true`).
+const bool _umpDebugEea = bool.fromEnvironment('UMP_DEBUG_EEA', defaultValue: false);
 
 /// AdMob Reklam Yönetim Servisi (Singleton)
 /// Banner, Interstitial ve Rewarded reklamları yönetir
@@ -12,12 +19,17 @@ class AdService extends ChangeNotifier {
   AdService._internal();
 
   // ================== AD UNIT IDs ==================
-  
-  // Production Ad Unit IDs - Canlı Reklamlar
-  static const String _rewardedAdUnitId = 'ca-app-pub-6873365802729244/9037844504';
-  static const String _bannerAdUnitId = 'ca-app-pub-6873365802729244/1636702911';
-  static const String _interstitialAdUnitId = 'ca-app-pub-6873365802729244/3649311098';
-  
+
+  // Production (AdMob console)
+  static const String _prodRewardedId = 'ca-app-pub-6873365802729244/9037844504';
+  static const String _prodBannerId = 'ca-app-pub-6873365802729244/1636702911';
+  static const String _prodInterstitialId = 'ca-app-pub-6873365802729244/3649311098';
+
+  // Google test units (do not use in production store listing tests without intent)
+  static const String _testRewardedId = 'ca-app-pub-3940256099942544/5224354917';
+  static const String _testBannerId = 'ca-app-pub-3940256099942544/6300978111';
+  static const String _testInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
+
 
   // ================== AD INSTANCES ==================
   
@@ -48,10 +60,9 @@ class AdService extends ChangeNotifier {
   bool get isPremiumUser => _isPremiumUser;
   bool get isLoading => _isRewardedAdLoading;
   
-  // Tüm ortamlarda canlı reklam birimleri kullanılır.
-  String get _rewardedId => _rewardedAdUnitId;
-  String get _bannerId => _bannerAdUnitId;
-  String get _interstitialId => _interstitialAdUnitId;
+  String get _rewardedId => _useTestAds ? _testRewardedId : _prodRewardedId;
+  String get _bannerId => _useTestAds ? _testBannerId : _prodBannerId;
+  String get _interstitialId => _useTestAds ? _testInterstitialId : _prodInterstitialId;
 
   // ================== INITIALIZATION ==================
 
@@ -67,12 +78,13 @@ class AdService extends ChangeNotifier {
     }
 
     try {
-      debugPrint('AdService: MobileAds başlatılıyor...');
-      await MobileAds.instance.initialize();
-      _isInitialized = true;
+      if (_useTestAds) {
+        debugPrint('AdService: USE_TEST_ADS=true — test reklam birimleri kullanılıyor');
+      }
+      await _requestConsentThenInitSdk();
+
       debugPrint('AdService: MobileAds başlatıldı');
 
-      // Reklamları önceden yükle
       await Future.wait([
         loadRewardedAd(),
         loadInterstitialAd(),
@@ -80,6 +92,55 @@ class AdService extends ChangeNotifier {
     } catch (e) {
       debugPrint('AdService initialize error: $e');
     }
+  }
+
+  /// GDPR / EEA User Messaging Platform (UMP), then AdMob SDK.
+  Future<void> _requestConsentThenInitSdk() async {
+    final completer = Completer<void>();
+    final params = ConsentRequestParameters(
+      // Uygulama çocuk odaklı; yasal / mağaza sınıflandırmasıyla uyum için avukat onayı önerilir.
+      tagForUnderAgeOfConsent: true,
+      consentDebugSettings: kDebugMode && _umpDebugEea
+          ? ConsentDebugSettings(debugGeography: DebugGeography.debugGeographyEea)
+          : null,
+    );
+
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      params,
+      () {
+        ConsentForm.loadAndShowConsentFormIfRequired((FormError? formError) {
+          if (formError != null) {
+            debugPrint('AdService: UMP form: $formError');
+          }
+        }).whenComplete(() {
+          if (!completer.isCompleted) completer.complete();
+        });
+      },
+      (FormError error) {
+        debugPrint('AdService: UMP consent info update failed: $error');
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+
+    await completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => debugPrint('AdService: UMP timeout, SDK yine de başlatılıyor'),
+    );
+
+    debugPrint('AdService: MobileAds SDK başlatılıyor...');
+    await MobileAds.instance.initialize();
+    _isInitialized = true;
+  }
+
+  /// GDPR / EEA: reklam kişiselleştirme tercihlerini değiştirmek için Google UMP ekranı.
+  /// Ayarlar ekranından veya ebeveyn panelinden çağrılabilir.
+  static Future<void> showPrivacyOptionsFormIfAvailable() async {
+    if (kIsWeb) return;
+    await ConsentForm.showPrivacyOptionsForm((FormError? error) {
+      if (error != null) {
+        debugPrint('AdService: privacy options form: $error');
+      }
+    });
   }
 
   /// Premium durumunu güncelle

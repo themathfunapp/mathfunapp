@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 
 /// Kesir Pastanesi - Şef Sincap ile Pastane Temalı Kesir Oyunu
 /// Pastaları eşit parçalara böl, partiyi hazırla!
@@ -19,6 +22,7 @@ class FractionBakeryScreen extends StatefulWidget {
 
 class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   late AnimationController _pulseController;
   late AnimationController _celebrationController;
   late Animation<double> _pulseAnimation;
@@ -35,7 +39,13 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   bool _isCorrect = false;
   bool _gameOver = false;
   bool _hasShownNoLivesDialog = false;
-  
+  bool _sessionReported = false;
+  int _sessQuestions = 0;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
+
   // Soru verileri
   int _totalItems = 8; // Başlangıçtaki toplam
   int _eatenItems = 0; // Yenen/yok edilen
@@ -61,6 +71,8 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.bakery);
 
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
@@ -81,6 +93,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _pulseController.dispose();
     _celebrationController.dispose();
     super.dispose();
@@ -194,8 +207,13 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
       _isCorrect = answer == _correctParts;
 
       if (_isCorrect) {
+        _sessQuestions++;
+        _sessCorrect++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _score += 10;
         _stars++;
+        _audio.playAnswerFeedback(true);
         _celebrationController.forward(from: 0);
 
         Future.delayed(const Duration(seconds: 2), () {
@@ -205,6 +223,10 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
           }
         });
       } else {
+        _sessQuestions++;
+        _sessWrong++;
+        _runStreak = 0;
+        _audio.playAnswerFeedback(false);
         mechanicsService.onWrongAnswer();
         if (!mechanicsService.hasLives) {
           _gameOver = true;
@@ -218,7 +240,29 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     });
   }
 
+  void _reportFractionSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final q = (_sessCorrect + _sessWrong).clamp(1, 9999);
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('FractionBakery report error: $e');
+    }
+  }
+
   void _showNoLivesDialog() {
+    _reportFractionSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -252,6 +296,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   void _showGameOver() {
+    _reportFractionSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,

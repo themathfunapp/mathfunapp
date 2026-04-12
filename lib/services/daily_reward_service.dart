@@ -35,7 +35,7 @@ class DailyRewardService extends ChangeNotifier {
     ]),
     StreakReward(day: 2, rewards: [
       RewardItem(type: RewardType.coins, amount: 100, emoji: '🪙'),
-      RewardItem(type: RewardType.hint, amount: 1, emoji: '💡'),
+      RewardItem(type: RewardType.coins, amount: 50, emoji: '⚡'),
     ]),
     StreakReward(day: 3, rewards: [
       RewardItem(type: RewardType.coins, amount: 150, emoji: '🪙'),
@@ -51,7 +51,7 @@ class DailyRewardService extends ChangeNotifier {
     ], isSpecial: true),
     StreakReward(day: 6, rewards: [
       RewardItem(type: RewardType.coins, amount: 400, emoji: '🪙'),
-      RewardItem(type: RewardType.hint, amount: 3, emoji: '💡'),
+      RewardItem(type: RewardType.diamonds, amount: 8, emoji: '💎'),
     ]),
     StreakReward(day: 7, rewards: [
       RewardItem(type: RewardType.coins, amount: 1000, emoji: '🪙'),
@@ -105,7 +105,7 @@ class DailyRewardService extends ChangeNotifier {
       targetValue: 5,
       rewards: [
         RewardItem(type: RewardType.coins, amount: 30, emoji: '🪙'),
-        RewardItem(type: RewardType.hint, amount: 1, emoji: '💡'),
+        RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.medium,
     ),
@@ -170,7 +170,7 @@ class DailyRewardService extends ChangeNotifier {
       colorIndex: 2,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.hint, amount: 1, emoji: '💡'),
+      reward: RewardItem(type: RewardType.coins, amount: 30, emoji: '⚡'),
       probability: 0.15,
       colorIndex: 3,
     ),
@@ -476,11 +476,11 @@ class DailyRewardService extends ChangeNotifier {
         emoji: '🪙',
       );
     } else if (rand < 0.60) {
-      // %20 - İpucu
+      // %20 - Ekstra altın
       return RewardItem(
-        type: RewardType.hint,
-        amount: 1 + _random.nextInt(2),
-        emoji: '💡',
+        type: RewardType.coins,
+        amount: 25 + _random.nextInt(16),
+        emoji: '⚡',
       );
     } else if (rand < 0.72) {
       // %12 - Güçlendirici
@@ -582,7 +582,6 @@ class DailyRewardService extends ChangeNotifier {
 
     int coinsToAdd = 0;
     int diamondsToAdd = 0;
-    int hintsToAdd = 0;
     int halfOptionsToAdd = 0;
     int extraTimeToAdd = 0;
     int doublePointsToAdd = 0;
@@ -602,7 +601,7 @@ class DailyRewardService extends ChangeNotifier {
           diamondsToAdd += reward.amount;
           break;
         case RewardType.hint:
-          hintsToAdd += reward.amount;
+          coinsToAdd += reward.amount * 20;
           break;
         case RewardType.powerUp:
           switch (reward.powerUpType) {
@@ -634,7 +633,6 @@ class DailyRewardService extends ChangeNotifier {
       coins: _userRewards!.coins + coinsToAdd,
       diamonds: _userRewards!.diamonds + diamondsToAdd,
       profileBonusStars: _userRewards!.profileBonusStars + starsToAdd,
-      hintCount: _userRewards!.hintCount + hintsToAdd,
       halfOptionsCount: _userRewards!.halfOptionsCount + halfOptionsToAdd,
       extraTimeCount: _userRewards!.extraTimeCount + extraTimeToAdd,
       doublePointsCount: _userRewards!.doublePointsCount + doublePointsToAdd,

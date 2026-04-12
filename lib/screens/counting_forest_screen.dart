@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
+import '../services/audio_service.dart';
 import '../providers/locale_provider.dart';
 
 /// Sayı Ormanı - Eğlenceli Sayma Oyunu
@@ -16,6 +18,7 @@ class CountingForestScreen extends StatefulWidget {
 
 class _CountingForestScreenState extends State<CountingForestScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   late AnimationController _swingController;
   late AnimationController _celebrationController;
   late Animation<double> _swingAnimation;
@@ -36,7 +39,9 @@ class _CountingForestScreenState extends State<CountingForestScreen>
   @override
   void initState() {
     super.initState();
-    
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
+
     _swingController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -56,6 +61,7 @@ class _CountingForestScreenState extends State<CountingForestScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _swingController.dispose();
     _celebrationController.dispose();
     super.dispose();
@@ -94,11 +100,9 @@ class _CountingForestScreenState extends State<CountingForestScreen>
       if (_isCorrect) {
         _score += 10;
         _stars++;
+        _audio.playAnswerFeedback(true);
         _celebrationController.forward(from: 0);
-        
-        // Ses efekti burada çalacak
-        // AudioService.play('correct');
-        
+
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             _currentLevel++;
@@ -106,9 +110,8 @@ class _CountingForestScreenState extends State<CountingForestScreen>
           }
         });
       } else {
-        // Ses efekti burada çalacak
-        // AudioService.play('wrong');
-        
+        _audio.playAnswerFeedback(false);
+
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) _generateQuestion();
         });

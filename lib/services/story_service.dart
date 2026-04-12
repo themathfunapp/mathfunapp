@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/story_mode.dart';
+import 'game_mechanics_service.dart';
 
 class StoryService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -9,6 +10,12 @@ class StoryService extends ChangeNotifier {
   List<StoryQuest> _activeQuests = [];
   List<StoryWorld> _worlds = [];
   bool _isLoading = false;
+  GameMechanicsService? _mechanicsWallet;
+
+  /// Ana cüzdan ile jeton/elmas senkronu — [main] içinde bağlanır.
+  void attachMechanicsWallet(GameMechanicsService mechanics) {
+    _mechanicsWallet = mechanics;
+  }
 
   StoryProgress? get progress => _progress;
   List<StoryQuest> get activeQuests => _activeQuests;
@@ -227,6 +234,9 @@ class StoryService extends ChangeNotifier {
 
     await saveProgress();
     await _updateQuestProgress('complete_level', 1);
+    if (coinsEarned > 0) {
+      _mechanicsWallet?.addCoins(coinsEarned);
+    }
     notifyListeners();
 
     return LevelCompleteResult(
@@ -333,14 +343,18 @@ class StoryService extends ChangeNotifier {
 
     int coins = _progress!.totalCoins;
     int gems = _progress!.totalGems;
+    int coinDelta = 0;
+    int gemDelta = 0;
 
     for (var reward in rewards) {
       switch (reward.type) {
         case RewardType.coins:
           coins += reward.amount;
+          coinDelta += reward.amount;
           break;
         case RewardType.gems:
           gems += reward.amount;
+          gemDelta += reward.amount;
           break;
         case RewardType.experience:
           // Avatar XP'si güncelle
@@ -366,6 +380,12 @@ class StoryService extends ChangeNotifier {
     );
 
     await saveProgress();
+    if (coinDelta > 0) {
+      _mechanicsWallet?.addCoins(coinDelta);
+    }
+    if (gemDelta > 0) {
+      _mechanicsWallet?.addGems(gemDelta);
+    }
   }
 
   /// Günlük görevler oluştur

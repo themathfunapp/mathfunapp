@@ -3,12 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../services/game_session_report.dart';
 
 /// Hızlı Matematik Oyunu Ekranı - 3 CAN SİSTEMİ VE REKLAM EKLENDİ
 class QuickMathScreen extends StatefulWidget {
@@ -47,6 +50,7 @@ class QuickMathScreen extends StatefulWidget {
 
 class _QuickMathScreenState extends State<QuickMathScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Oyun durumu
   int _currentQuestionIndex = 0;
   int _totalQuestions = 5;
@@ -59,6 +63,11 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   // CAN SİSTEMİ - GameMechanicsService'ten (profil ile senkron)
   bool _gameOver = false;
+  bool _hasReportedSession = false;
+  int _fastAnswersSession = 0;
+  int _superFastAnswersSession = 0;
+  int _runStreak = 0;
+  int _bestRunStreak = 0;
 
   // Mevcut soru
   late MathQuestion _currentQuestion;
@@ -99,6 +108,8 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
 
     _initializeGameSettings();
     _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
@@ -237,6 +248,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _timer?.cancel();
     _particleTimer?.cancel();
     _bounceController.dispose();
@@ -359,6 +371,14 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     if (_isAnswered || _gameOver) return;
 
     _timer?.cancel();
+    final int limit = widget.timeLimit ?? 15;
+    final int timeUsed = isTimeout ? limit : (limit - _timeLeft).clamp(0, limit);
+    if (timeUsed <= 5) {
+      _superFastAnswersSession++;
+    } else if (timeUsed <= 10) {
+      _fastAnswersSession++;
+    }
+
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
@@ -366,13 +386,18 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     });
 
     if (_isCorrect) {
+      _runStreak++;
+      if (_runStreak > _bestRunStreak) _bestRunStreak = _runStreak;
       _score += _calculateScore();
       _correctAnswers++;
+      _audio.playAnswerFeedback(true);
       _bounceController.forward(from: 0);
       _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
       _confettiController.forward(from: 0);
     } else {
+      _runStreak = 0;
       _wrongAnswers++;
+      _audio.playAnswerFeedback(false);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       if (!kDebugMode) {
         mechanicsService.onWrongAnswer();
@@ -421,6 +446,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   void _showGameOverDialog() {
     _timer?.cancel();
+    _reportSessionToBadges();
 
     showDialog(
       context: context,
@@ -998,6 +1024,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
     _timer?.cancel();
     _particleTimer?.cancel();
+    _reportSessionToBadges();
 
     showDialog(
       context: context,
@@ -1213,6 +1240,28 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     );
   }
 
+  void _reportSessionToBadges() {
+    if (_hasReportedSession || !mounted) return;
+    _hasReportedSession = true;
+    final answered = (_correctAnswers + _wrongAnswers).clamp(1, 9999);
+    final avg = answered > 0 ? _totalTime / answered : 0.0;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: answered,
+        correctAnswers: _correctAnswers,
+        wrongAnswers: _wrongAnswers,
+        score: _score,
+        averageAnswerTimeSeconds: avg,
+        fastAnswersCount: _fastAnswersSession,
+        superFastAnswersCount: _superFastAnswersSession,
+        bestCorrectStreakInSession: _bestRunStreak,
+      );
+    } catch (e) {
+      debugPrint('QuickMath report session error: $e');
+    }
+  }
+
   void _restartGame() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!kDebugMode && !mechanicsService.hasLives) {
@@ -1232,6 +1281,11 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _score = 0;
       _correctAnswers = 0;
       _wrongAnswers = 0;
+      _hasReportedSession = false;
+      _fastAnswersSession = 0;
+      _superFastAnswersSession = 0;
+      _runStreak = 0;
+      _bestRunStreak = 0;
       _gameOver = false;
       _totalTime = 0;
       _isAnswered = false;

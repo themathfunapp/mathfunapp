@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
+import '../audio/section_soundscape.dart';
 import '../models/pattern_completion_model.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../widgets/child_exit_dialog.dart';
 
 class PatternCompletionScreen extends StatefulWidget {
@@ -21,6 +25,7 @@ class PatternCompletionScreen extends StatefulWidget {
 
 class _PatternCompletionScreenState extends State<PatternCompletionScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   static const String _highScoreKey = 'pattern_completion_high_score';
   static const String _completedSectionsKey = 'pattern_completion_sections';
 
@@ -39,6 +44,11 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
   late ConfettiController _confettiController;
+  bool _sessionReported = false;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
 
   final _colorMap = [
     Colors.transparent,
@@ -72,6 +82,11 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _audio.playMenuAmbientLoop();
+    });
     _allPatterns = PatternGenerator.generateAllPatterns();
     _loadHighScore();
     _shakeController = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
@@ -81,6 +96,7 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _shakeController.dispose();
     _confettiController.dispose();
     super.dispose();
@@ -163,7 +179,11 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
       return;
     }
 
+    _audio.playAnswerFeedback(true);
     setState(() {
+      _sessCorrect++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
       _userGrid[row][col] = correctVal;
       _emptyIndices.remove(index);
       _selectedSymbol = null;
@@ -206,7 +226,10 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
   }
 
   void _onWrongTap(int index) {
+    _audio.playAnswerFeedback(false);
     setState(() {
+      _sessWrong++;
+      _runStreak = 0;
       _shakeIndex = index;
       _selectedSymbol = null;
     });
@@ -226,7 +249,30 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
     if (!mechanicsService.hasLives) _gameOver();
   }
 
+  void _reportPatternSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _sessCorrect + _sessWrong;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('PatternCompletion report error: $e');
+    }
+  }
+
   void _gameOver() {
+    _reportPatternSession();
     _saveHighScore(_score);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
@@ -267,7 +313,13 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
           title: Text(loc.get('game_over'), style: GoogleFonts.quicksand()),
           content: Text('${loc.score}: $_score\n${loc.level}: ${((_currentSection - 1) % 10) + 1}/10', style: GoogleFonts.quicksand()),
           actions: [
-            TextButton(onPressed: () { Navigator.pop(ctx); setState(() => _showLevelSelect = true); }, child: Text(loc.sectionSelect, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
+            TextButton(onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _showLevelSelect = true);
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _audio.playMenuAmbientLoop();
+              });
+            }, child: Text(loc.sectionSelect, style: GoogleFonts.quicksand(color: Colors.red.shade700))),
             ElevatedButton(onPressed: () {
               Navigator.pop(ctx);
               final firstOfBolum = ((_currentSection - 1) ~/ 10) * 10 + 1;
@@ -444,9 +496,15 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
   }
 
   void _startGame(int bolum) {
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
     setState(() {
       _showLevelSelect = false;
       _score = 0;
+      _sessionReported = false;
+      _sessCorrect = 0;
+      _sessWrong = 0;
+      _runStreak = 0;
+      _bestStreak = 0;
     });
     final firstSection = (bolum - 1) * 10 + 1;
     _loadSection(firstSection);
@@ -559,7 +617,12 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
               context,
               themeColor: Colors.green,
               onStay: () {},
-              onSectionSelect: () => setState(() => _showLevelSelect = true),
+              onSectionSelect: () {
+                setState(() => _showLevelSelect = true);
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _audio.playMenuAmbientLoop();
+                });
+              },
               onExit: () => Navigator.pop(context),
             );
           }),

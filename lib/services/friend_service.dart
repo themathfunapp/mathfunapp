@@ -2,10 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/friend_request.dart';
 import '../models/friendship.dart';
+import '../models/friend_duel_invite.dart';
 import '../models/app_user.dart';
 
 class FriendService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FriendService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _firestore;
+
+  static const String _friendDuelInvitesCol = 'friendDuelInvites';
   
   // Current user info
   String? _currentUserId;
@@ -540,6 +546,58 @@ class FriendService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Check friendship status error: $e');
       return FriendshipStatus.none;
+    }
+  }
+
+  // ------------- ARKADAŞ DÜELLO DAVETİ (friendDuelInvites) -------------
+
+  Stream<List<FriendDuelInvite>> incomingFriendDuelInvitesStream() {
+    if (_currentUserId == null || _isGuest) {
+      return Stream.value([]);
+    }
+    return _firestore
+        .collection(_friendDuelInvitesCol)
+        .where('toUserId', isEqualTo: _currentUserId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map(FriendDuelInvite.fromFirestore).toList());
+  }
+
+  /// Aynı arkadaşa bekleyen davet varsa false döner.
+  Future<bool> sendFriendDuelInvite(Friendship friend) async {
+    if (_isGuest || _currentUserId == null) return false;
+    try {
+      final dup = await _firestore
+          .collection(_friendDuelInvitesCol)
+          .where('fromUserId', isEqualTo: _currentUserId)
+          .where('toUserId', isEqualTo: friend.friendId)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+      if (dup.docs.isNotEmpty) return false;
+
+      final invite = FriendDuelInvite(
+        id: '',
+        fromUserId: _currentUserId!,
+        fromDisplayName: _currentUserName ?? 'Oyuncu',
+        fromUserCode: _currentUserCode,
+        toUserId: friend.friendId,
+        createdAt: DateTime.now(),
+      );
+      await _firestore.collection(_friendDuelInvitesCol).add(invite.toCreateMap());
+      return true;
+    } catch (e) {
+      debugPrint('sendFriendDuelInvite error: $e');
+      return false;
+    }
+  }
+
+  Future<void> deleteFriendDuelInvite(String inviteId) async {
+    try {
+      await _firestore.collection(_friendDuelInvitesCol).doc(inviteId).delete();
+    } catch (e) {
+      debugPrint('deleteFriendDuelInvite error: $e');
     }
   }
 

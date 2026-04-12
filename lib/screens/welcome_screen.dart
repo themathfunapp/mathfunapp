@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../widgets/shiny_button.dart';
-import '../localization/app_localizations.dart';
-import '../models/app_user.dart';
-import '../providers/locale_provider.dart';
-import 'home_screen.dart';
+
+import 'package:mathfun/config/legal_urls.dart';
+import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/models/app_user.dart';
+import 'package:mathfun/providers/locale_provider.dart';
+import 'package:mathfun/screens/home_screen.dart';
+import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/widgets/shiny_button.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:ui';
 
@@ -936,6 +938,48 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     height: 1.4,
                   ),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => LegalUrls.openPrivacyPolicy(context, localizations),
+                      child: Text(
+                        localizations.privacyPolicy,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[700],
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                    Text('|', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => LegalUrls.openTermsOfUse(context, localizations),
+                      child: Text(
+                        localizations.termsOfUse,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[700],
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(

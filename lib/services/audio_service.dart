@@ -1,21 +1,29 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Ses ve Müzik Servisi
-/// Uyarlamalı müzik ve ses manzaraları sistemi
+/// Ses ve müzik: `assets/sounds/` altındaki WAV dosyalarını çalar.
+/// Ambient döngüler bölüm/konuya göre; kısa SFX doğru/yanlış ve UI için.
 class AudioService extends ChangeNotifier {
-  // Ses ayarları
+  AudioService() {
+    _ambientPlayer = AudioPlayer();
+    _sfxPlayer = AudioPlayer();
+    _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+    _sfxPlayer.setReleaseMode(ReleaseMode.release);
+  }
+
+  late final AudioPlayer _ambientPlayer;
+  late final AudioPlayer _sfxPlayer;
+
   bool _musicEnabled = true;
   bool _soundEffectsEnabled = true;
   double _musicVolume = 0.7;
   double _effectsVolume = 1.0;
-  
-  // Mevcut durum
+
   MusicMood _currentMood = MusicMood.normal;
   SoundscapeTheme _currentSoundscape = SoundscapeTheme.forest;
   bool _isPlaying = false;
 
-  // Getters
   bool get musicEnabled => _musicEnabled;
   bool get soundEffectsEnabled => _soundEffectsEnabled;
   double get musicVolume => _musicVolume;
@@ -26,132 +34,170 @@ class AudioService extends ChangeNotifier {
 
   SharedPreferences? _prefs;
 
-  /// Servisi başlat
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-    
     _musicEnabled = _prefs?.getBool('music_enabled') ?? true;
     _soundEffectsEnabled = _prefs?.getBool('effects_enabled') ?? true;
     _musicVolume = _prefs?.getDouble('music_volume') ?? 0.7;
     _effectsVolume = _prefs?.getDouble('effects_volume') ?? 1.0;
-    
     notifyListeners();
   }
 
-  /// Müzik aç/kapat
   Future<void> setMusicEnabled(bool enabled) async {
     _musicEnabled = enabled;
     await _prefs?.setBool('music_enabled', enabled);
-    
     if (!enabled) {
-      stopMusic();
+      await stopMusic();
     }
-    
     notifyListeners();
   }
 
-  /// Ses efektleri aç/kapat
   Future<void> setSoundEffectsEnabled(bool enabled) async {
     _soundEffectsEnabled = enabled;
     await _prefs?.setBool('effects_enabled', enabled);
     notifyListeners();
   }
 
-  /// Müzik ses seviyesi
   Future<void> setMusicVolume(double volume) async {
     _musicVolume = volume.clamp(0.0, 1.0);
     await _prefs?.setDouble('music_volume', _musicVolume);
+    await _ambientPlayer.setVolume(_musicVolume * 0.5);
     notifyListeners();
   }
 
-  /// Efekt ses seviyesi
   Future<void> setEffectsVolume(double volume) async {
     _effectsVolume = volume.clamp(0.0, 1.0);
     await _prefs?.setDouble('effects_volume', _effectsVolume);
     notifyListeners();
   }
 
-  /// Müzik modunu değiştir
   void setMusicMood(MusicMood mood) {
     if (_currentMood == mood) return;
-    
     _currentMood = mood;
     notifyListeners();
-    
-    // TODO: Gerçek müzik değişimi buraya gelecek
-    debugPrint('Music mood changed to: ${mood.name}');
   }
 
-  /// Ses manzarasını değiştir
   void setSoundscape(SoundscapeTheme theme) {
     if (_currentSoundscape == theme) return;
-    
     _currentSoundscape = theme;
     notifyListeners();
-    
-    // TODO: Gerçek soundscape değişimi buraya gelecek
-    debugPrint('Soundscape changed to: ${theme.name}');
   }
 
-  /// Müzik çal
-  void playMusic() {
+  /// Menü / genel ekranlar için yumuşak döngü (konu ambient’inden bağımsız).
+  Future<void> playMenuAmbientLoop() async {
     if (!_musicEnabled) return;
-    
-    _isPlaying = true;
-    notifyListeners();
-    
-    // TODO: Müzik çalma implementasyonu
-    debugPrint('Playing music: ${_currentMood.trackName}');
+    try {
+      await _ambientPlayer.stop();
+      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+      await _ambientPlayer.play(AssetSource('sounds/music_relaxed_ambient.wav'));
+      await _ambientPlayer.setVolume(_musicVolume * 0.42);
+      _isPlaying = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Menu ambient: $e');
+    }
   }
 
-  /// Müzik durdur
-  void stopMusic() {
+  /// Seçili [SoundscapeTheme] için döngüsel ortam sesi.
+  Future<void> playAmbientLoop() async {
+    if (!_musicEnabled) return;
+    try {
+      await _ambientPlayer.stop();
+      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+      final path = 'sounds/ambient_${_currentSoundscape.name}.wav';
+      await _ambientPlayer.play(AssetSource(path));
+      await _ambientPlayer.setVolume(_musicVolume * 0.48);
+      _isPlaying = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Ambient: $e');
+    }
+  }
+
+  /// [MusicMood] ile kısa döngü (süre baskısı, boss vb.).
+  Future<void> playMoodLoop(MusicMood mood) async {
+    if (!_musicEnabled) return;
+    setMusicMood(mood);
+    try {
+      await _ambientPlayer.stop();
+      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+      await _ambientPlayer.play(AssetSource('sounds/music_${mood.trackName}.wav'));
+      await _ambientPlayer.setVolume(_musicVolume * 0.5);
+      _isPlaying = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Mood loop: $e');
+    }
+  }
+
+  Future<void> playMusic() => playAmbientLoop();
+
+  Future<void> stopMusic() async {
+    try {
+      await _ambientPlayer.stop();
+    } catch (_) {}
     _isPlaying = false;
     notifyListeners();
-    
-    // TODO: Müzik durdurma implementasyonu
-    debugPrint('Music stopped');
   }
 
-  /// Ses efekti çal
-  void playSound(SoundEffect effect) {
+  /// [dispose] sırasında güvenli senkron durdurma (await yok).
+  void cancelAmbientSync() {
+    // ignore: discarded_futures
+    _ambientPlayer.stop();
+    _isPlaying = false;
+    notifyListeners();
+  }
+
+  Future<void> playSound(SoundEffect effect) async {
     if (!_soundEffectsEnabled) return;
-    
-    // TODO: Ses efekti çalma implementasyonu
-    debugPrint('Playing sound: ${effect.name}');
+    try {
+      final path = 'sounds/sfx_${effect.fileName}.wav';
+      await _sfxPlayer.stop();
+      await _sfxPlayer.setReleaseMode(ReleaseMode.release);
+      await _sfxPlayer.play(AssetSource(path));
+      await _sfxPlayer.setVolume(_effectsVolume * 0.85);
+    } catch (e) {
+      debugPrint('SFX ${effect.name}: $e');
+    }
   }
 
-  /// Bağlama göre otomatik müzik ayarla
+  void playAnswerFeedback(bool correct) {
+    if (correct) {
+      playSound(SoundEffect.correct);
+    } else {
+      playSound(SoundEffect.wrong);
+    }
+  }
+
   void adaptToContext(GameContext context) {
     switch (context) {
       case GameContext.menu:
-        setMusicMood(MusicMood.normal);
+        setMusicMood(MusicMood.relaxed);
+        playMenuAmbientLoop();
         break;
       case GameContext.playing:
         setMusicMood(MusicMood.normal);
         break;
       case GameContext.timed:
         setMusicMood(MusicMood.intense);
+        playMoodLoop(MusicMood.intense);
         break;
       case GameContext.thinking:
         setMusicMood(MusicMood.thinking);
+        playMoodLoop(MusicMood.thinking);
         break;
       case GameContext.success:
-        setMusicMood(MusicMood.celebration);
-        playSound(SoundEffect.success);
+        playSound(SoundEffect.correct);
         break;
       case GameContext.failure:
-        setMusicMood(MusicMood.encouraging);
         playSound(SoundEffect.wrong);
         break;
       case GameContext.levelUp:
-        setMusicMood(MusicMood.celebration);
         playSound(SoundEffect.levelUp);
         break;
     }
   }
 
-  /// Konuya göre ses manzarası ayarla
   void adaptToTopic(MathTopic topic) {
     switch (topic) {
       case MathTopic.counting:
@@ -176,9 +222,17 @@ class AudioService extends ChangeNotifier {
         break;
     }
   }
+
+  @override
+  void dispose() {
+    _ambientPlayer.dispose();
+    _sfxPlayer.dispose();
+    super.dispose();
+  }
 }
 
-/// Müzik Modları
+// --- Aşağıdaki enum ve yardımcı sınıflar mevcut API ile uyumludur ---
+
 enum MusicMood {
   normal(
     name: 'Normal',
@@ -230,7 +284,6 @@ enum MusicMood {
   });
 }
 
-/// Ses Manzaraları
 enum SoundscapeTheme {
   forest(
     name: 'Sayı Ormanı',
@@ -284,37 +337,25 @@ enum SoundscapeTheme {
   });
 }
 
-/// Ses Efektleri
 enum SoundEffect {
-  // Genel
   buttonTap('button_tap'),
   buttonHover('button_hover'),
   pageFlip('page_flip'),
-  
-  // Oyun
   correct('correct_answer'),
   wrong('wrong_answer'),
   timeout('timeout'),
   hint('hint_reveal'),
-  
-  // Başarı
   levelUp('level_up'),
   achievement('achievement_unlock'),
   streak('streak_bonus'),
   combo('combo_hit'),
-  
-  // Ödüller
   coinCollect('coin_collect'),
   starEarn('star_earn'),
   boxOpen('box_open'),
   spinWheel('spin_wheel'),
-  
-  // Karakterler
   characterHappy('character_happy'),
   characterSad('character_sad'),
   characterCheer('character_cheer'),
-  
-  // UI
   notification('notification'),
   error('error_beep'),
   success('success_chime');
@@ -324,7 +365,6 @@ enum SoundEffect {
   const SoundEffect(this.fileName);
 }
 
-/// Oyun Bağlamı
 enum GameContext {
   menu,
   playing,
@@ -335,7 +375,6 @@ enum GameContext {
   levelUp,
 }
 
-/// Matematik Konuları
 enum MathTopic {
   counting,
   addition,
@@ -347,7 +386,6 @@ enum MathTopic {
   time,
 }
 
-/// Sesli Geri Bildirim Metinleri
 class VoiceFeedback {
   static const Map<String, List<String>> phrases = {
     'correct_tr': [
@@ -388,9 +426,7 @@ class VoiceFeedback {
   static String getRandomPhrase(String key) {
     final phraseList = phrases[key];
     if (phraseList == null || phraseList.isEmpty) return '';
-    
     final index = DateTime.now().millisecondsSinceEpoch % phraseList.length;
     return phraseList[index];
   }
 }
-

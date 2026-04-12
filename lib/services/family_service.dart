@@ -32,6 +32,24 @@ class FamilyService extends ChangeNotifier {
     }
   }
 
+  /// Firestore güvenlik kuralları: `childUserIds` ile davet hedefi doğrulanır.
+  List<String> _linkedChildUserIds(List<Map<String, dynamic>> memberMaps) {
+    return memberMaps
+        .map((m) => m['userId'] as String? ?? '')
+        .where((id) => id.isNotEmpty && id != _parentUid)
+        .toList();
+  }
+
+  bool _sameStringList(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final sa = [...a]..sort();
+    final sb = [...b]..sort();
+    for (var i = 0; i < sa.length; i++) {
+      if (sa[i] != sb[i]) return false;
+    }
+    return true;
+  }
+
   /// Aile üyelerini yükle (mevcut kullanıcı + Firestore'dan eklenen çocuklar)
   Future<void> loadMembers() async {
     if (_parentUid == null || _parentUid!.isEmpty) return;
@@ -60,13 +78,39 @@ class FamilyService extends ChangeNotifier {
       if (snapshot.exists && snapshot.data() != null) {
         final data = snapshot.data()!;
         final list = data['members'] as List<dynamic>? ?? [];
+        final memberMaps = <Map<String, dynamic>>[];
         for (final item in list) {
           if (item is Map<String, dynamic>) {
+            memberMaps.add(item);
             final member = FamilyMember.fromMap(item);
             if (member.userId.isNotEmpty && member.userId != _parentUid) {
               _members.add(member);
             }
+          } else if (item is Map) {
+            final m = Map<String, dynamic>.from(item);
+            memberMaps.add(m);
+            final member = FamilyMember.fromMap(m);
+            if (member.userId.isNotEmpty && member.userId != _parentUid) {
+              _members.add(member);
+            }
           }
+        }
+
+        final membersRef = _firestore
+            .collection('users')
+            .doc(_parentUid)
+            .collection('family')
+            .doc('members');
+        final computedChildIds = _linkedChildUserIds(memberMaps);
+        final existingChildIds = (data['childUserIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            <String>[];
+        if (!_sameStringList(existingChildIds, computedChildIds)) {
+          await membersRef.set(
+            {'childUserIds': computedChildIds},
+            SetOptions(merge: true),
+          );
         }
       }
 
@@ -155,6 +199,64 @@ class FamilyService extends ChangeNotifier {
       await loadMembers();
     } catch (e) {
       debugPrint('FamilyService recordFamilyDuelResult: $e');
+    }
+  }
+
+  /// Uzaktan düello: skorlar her zaman ebeveyn hesabındaki `family/aggregates` altına yazılır.
+  Future<void> recordRemoteFamilyDuelResult({
+    required String parentUserId,
+    required String childUserId,
+    required String topicKey,
+    required int parentCorrect,
+    required int childCorrect,
+    required int rounds,
+  }) async {
+    if (parentUserId.isEmpty || childUserId.isEmpty) return;
+    final ref = _firestore
+        .collection('users')
+        .doc(parentUserId)
+        .collection('family')
+        .doc('aggregates');
+
+    final parentPts = parentCorrect * 10;
+    final childPts = childCorrect * 10;
+
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final data = snap.data() ?? <String, dynamic>{};
+        final raw = data['duelPointsByUser'];
+        final map = <String, int>{};
+        if (raw is Map) {
+          for (final e in raw.entries) {
+            map[e.key.toString()] = (e.value as num?)?.toInt() ?? 0;
+          }
+        }
+        map[parentUserId] = (map[parentUserId] ?? 0) + parentPts;
+        map[childUserId] = (map[childUserId] ?? 0) + childPts;
+
+        tx.set(
+          ref,
+          {
+            'duelPointsByUser': map,
+            'lastFamilyDuel': {
+              'at': FieldValue.serverTimestamp(),
+              'topic': topicKey,
+              'parentCorrect': parentCorrect,
+              'childCorrect': childCorrect,
+              'rounds': rounds,
+              'childUserId': childUserId,
+              'remote': true,
+            },
+          },
+          SetOptions(merge: true),
+        );
+      });
+      if (_parentUid == parentUserId) {
+        await loadMembers();
+      }
+    } catch (e) {
+      debugPrint('FamilyService recordRemoteFamilyDuelResult: $e');
     }
   }
 
@@ -332,7 +434,8 @@ class FamilyService extends ChangeNotifier {
         'isParent': false,
       });
 
-      await membersRef.set({'members': list});
+      final childIds = _linkedChildUserIds(list);
+      await membersRef.set({'members': list, 'childUserIds': childIds});
       await loadMembers();
       return true;
     } catch (e) {

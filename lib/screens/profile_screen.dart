@@ -371,7 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final diamonds = mechanicsService.inventory.gems;
               final lives = mechanicsService.currentLives;
               final maxLives = mechanicsService.maxLives;
-              final hints = mechanicsService.hintSystem.availableHints;
               final storyStars = storyService.progress?.totalStars ?? 0;
               final bonusStars = dailyRewardService.profileBonusStars;
               final totalStars = storyStars + bonusStars;
@@ -385,7 +384,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildStatItem('🪙', '$coins', localizations.get('coins')),
                   _buildStatItem('💎', '$diamonds', localizations.get('diamonds')),
                   _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
-                  _buildStatItem('💡', '$hints', localizations.get('hints')),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
                 ],
               );

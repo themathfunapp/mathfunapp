@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 import '../../services/auth_service.dart';
+import '../../services/game_mechanics_service.dart';
+import '../../services/mini_game_session_report.dart';
 import '../../services/mini_game_service.dart';
 import '../../models/mini_game.dart';
 import '../../localization/app_localizations.dart';
@@ -25,6 +27,9 @@ class _PuzzlePieceGameState extends State<PuzzlePieceGame>
   int _currentQuestion = 0;
   int _totalQuestions = 10;
   int _correctAnswers = 0;
+  int _wrongAnswers = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
   bool _showResult = false;
   bool _isCorrect = false;
 
@@ -86,18 +91,32 @@ class _PuzzlePieceGameState extends State<PuzzlePieceGame>
     if (_showResult) return;
 
     final isCorrect = option == _targetShape;
-    
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+
     setState(() {
       _showResult = true;
       _isCorrect = isCorrect;
       if (isCorrect) {
         _correctAnswers++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _score += 10;
+      } else {
+        _wrongAnswers++;
+        _runStreak = 0;
       }
     });
 
     if (isCorrect) {
       _rotateController.forward(from: 0);
+    } else {
+      mechanics.onWrongAnswer();
+      if (!mechanics.hasLives) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _endGame();
+        });
+        return;
+      }
     }
 
     Future.delayed(const Duration(milliseconds: 1200), () {
@@ -110,7 +129,15 @@ class _PuzzlePieceGameState extends State<PuzzlePieceGame>
     });
   }
 
-  void _endGame() {
+  Future<void> _endGame() async {
+    await MiniGameSessionReport.submit(
+      context,
+      correctAnswers: _correctAnswers,
+      wrongAnswers: _wrongAnswers,
+      score: _score,
+      bestCorrectStreakInSession: _bestStreak,
+    );
+
     final miniGameService = Provider.of<MiniGameService>(context, listen: false);
     final stars = miniGameService.calculateStars(
       _correctAnswers, _totalQuestions, Duration.zero, GameDifficulty.easy,
@@ -187,6 +214,9 @@ class _PuzzlePieceGameState extends State<PuzzlePieceGame>
                         setState(() {
                           _score = 0;
                           _correctAnswers = 0;
+                          _wrongAnswers = 0;
+                          _runStreak = 0;
+                          _bestStreak = 0;
                           _currentQuestion = 0;
                         });
                         _generateQuestion();

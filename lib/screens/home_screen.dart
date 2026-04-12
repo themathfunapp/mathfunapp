@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
@@ -12,6 +15,8 @@ import '../widgets/kurdistan_flag.dart'; // KurtceFlag widget
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
+import '../services/family_remote_duel_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/parent_mode_service.dart';
 import '../services/premium_service_export.dart';
 import '../screens/profile_screen.dart';
@@ -30,6 +35,7 @@ import '../screens/math_art_gallery_screen.dart';
 import '../screens/virtual_math_lab_screen.dart';
 import '../screens/avatar_customization_screen.dart';
 import '../screens/pet_screen.dart';
+import '../screens/family_remote_duel_play_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onGameSelection;
@@ -58,6 +64,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late AnimationController _titleController;
   late Animation<double> _titleAnimation;
+  late final VoidCallback _remoteDuelQueueListener;
 
   @override
   void initState() {
@@ -72,12 +79,64 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _titleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _titleController, curve: Curves.easeInOut),
     );
+
+    _remoteDuelQueueListener = _consumeRemoteDuelNotificationQueue;
+    PushNotificationService.instance.remoteDuelInviteQueueVersion
+        .addListener(_remoteDuelQueueListener);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _consumeRemoteDuelNotificationQueue());
   }
 
   @override
   void dispose() {
+    PushNotificationService.instance.remoteDuelInviteQueueVersion
+        .removeListener(_remoteDuelQueueListener);
     _titleController.dispose();
     super.dispose();
+  }
+
+  void _consumeRemoteDuelNotificationQueue() {
+    if (!mounted) return;
+    final items = PushNotificationService.instance.drainRemoteDuelInvites();
+    for (final p in items) {
+      unawaited(_openRemoteDuelFromNotification(p));
+    }
+  }
+
+  Future<void> _openRemoteDuelFromNotification(RemoteDuelInvitePayload payload) async {
+    final auth = context.read<AuthService>();
+    final uid = auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty || auth.currentUser?.isGuest == true) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Davet için hesap ile giriş yapın.')),
+      );
+      return;
+    }
+    final svc = context.read<FamilyRemoteDuelService>();
+    final ok = await svc.acceptInvite(
+      inviteId: payload.inviteId,
+      acceptingUserId: uid,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
+          ),
+        ),
+      );
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => FamilyRemoteDuelPlayScreen(
+          sessionId: payload.sessionId,
+          onDone: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
   }
 
   // Desteklenen diller listesi - Ekrandaki tüm diller
@@ -117,6 +176,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         decoration: BoxDecoration(gradient: primaryGradient),
         child: Stack(
           children: [
+            if (authService.currentUser != null &&
+                authService.currentUser!.isGuest != true)
+              Positioned(
+                left: 8,
+                right: 8,
+                top: MediaQuery.paddingOf(context).top + 2,
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: _FamilyRemoteDuelInviteBar(
+                    userId: authService.currentUser!.uid,
+                  ),
+                ),
+              ),
             // Dönen matematik sembolü - dokunma olaylarını engellemez
             const Positioned(
               top: 80,
@@ -840,6 +914,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           onBack: () => Navigator.pop(context),
         ),
       ),
+    );
+  }
+}
+
+/// Ana sayfa: gelen uzaktan aile düellosu daveti (Firestore canlı dinleme).
+class _FamilyRemoteDuelInviteBar extends StatelessWidget {
+  final String userId;
+
+  const _FamilyRemoteDuelInviteBar({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Provider.of<FamilyRemoteDuelService>(context, listen: false);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: svc.pendingInvitesStream(userId),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final pending = snap.data!.docs
+            .where((d) => (d.data()['status'] as String?) == 'pending')
+            .toList();
+        if (pending.isEmpty) return const SizedBox.shrink();
+
+        final doc = pending.first;
+        final m = doc.data();
+        final from = m['fromDisplayName'] as String? ?? 'Ailen';
+        final sessionId = m['sessionId'] as String? ?? '';
+
+        return Container(
+          color: const Color(0xFF1e3a5f),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.notifications_active, color: Colors.amber, size: 22),
+              Expanded(
+                child: Text(
+                  '$from seni uzaktan düelloya davet etti.',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.2),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final ok = await svc.acceptInvite(
+                    inviteId: doc.id,
+                    acceptingUserId: userId,
+                  );
+                  if (!context.mounted) return;
+                  if (!ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  if (sessionId.isEmpty) return;
+                  await Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (ctx) => FamilyRemoteDuelPlayScreen(
+                        sessionId: sessionId,
+                        onDone: () => Navigator.of(ctx).pop(),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Kabul', style: TextStyle(color: Colors.lightGreenAccent)),
+              ),
+              TextButton(
+                onPressed: () => svc.declineInvite(doc.id, userId),
+                child: const Text('Reddet', style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

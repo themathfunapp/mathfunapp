@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../../services/auth_service.dart';
+import '../../services/game_mechanics_service.dart';
+import '../../services/mini_game_session_report.dart';
 import '../../services/mini_game_service.dart';
 import '../../models/mini_game.dart';
 import '../../localization/app_localizations.dart';
@@ -24,6 +26,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   int _score = 0;
   int _correctPops = 0;
   int _wrongPops = 0;
+  int _popStreak = 0;
+  int _bestPopStreak = 0;
   int _level = 1;
   int _totalQuestions = 10;
   int _currentQuestion = 0;
@@ -69,6 +73,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       _score = 0;
       _correctPops = 0;
       _wrongPops = 0;
+      _popStreak = 0;
+      _bestPopStreak = 0;
       _currentQuestion = 0;
       _balloons = [];
     });
@@ -203,6 +209,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     if (balloon.number == _targetNumber) {
       // Correct!
       _correctPops++;
+      _popStreak++;
+      if (_popStreak > _bestPopStreak) _bestPopStreak = _popStreak;
       _score += 10 * _level;
       _showSuccessEffect();
       
@@ -216,7 +224,15 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     } else {
       // Wrong
       _wrongPops++;
+      _popStreak = 0;
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanics.onWrongAnswer();
       _showWrongEffect();
+      if (!mechanics.hasLives) {
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) _endGame();
+        });
+      }
     }
   }
 
@@ -232,10 +248,18 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     // Shake effect would go here
   }
 
-  void _endGame() {
+  Future<void> _endGame() async {
     _isPlaying = false;
     _gameTimer?.cancel();
     _balloonTimer?.cancel();
+
+    await MiniGameSessionReport.submit(
+      context,
+      correctAnswers: _correctPops,
+      wrongAnswers: _wrongPops,
+      score: _score,
+      bestCorrectStreakInSession: _bestPopStreak,
+    );
 
     final miniGameService = Provider.of<MiniGameService>(context, listen: false);
     final stars = miniGameService.calculateStars(

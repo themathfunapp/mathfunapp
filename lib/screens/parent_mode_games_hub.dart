@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../models/game_mechanics.dart' show TopicType;
 import '../services/parent_mode_service.dart';
+import '../services/auth_service.dart';
+import '../services/family_remote_duel_service.dart';
 import '../utils/constants.dart';
 import '../widgets/bottom_action_button.dart';
 import '../widgets/parent_mode_regions_map.dart';
 import '../widgets/shiny_button.dart';
 import 'family_duel_race_screen.dart';
+import 'family_remote_duel_setup_screen.dart';
 
 /// Ebeveyn modu oyun merkezi — ana sayfa veya Ebeveyn Paneli → Oyun Oyna.
 class ParentModeGamesHub extends StatelessWidget {
@@ -50,6 +53,37 @@ class ParentModeGamesHub extends StatelessWidget {
         builder: (ctx) => FamilyDuelRaceScreen(
           onBack: () => Navigator.of(ctx).pop(),
           presetTopic: presetTopic,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRemoteDuel(BuildContext context) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final uid = auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    final duel = Provider.of<FamilyRemoteDuelService>(context, listen: false);
+    final linked = await duel.linkedChildUserIdsForHost(uid);
+    final hasLinkedChildren = linked.isNotEmpty;
+
+    if (!context.mounted) return;
+    if (!hasLinkedChildren) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Uzaktan düello için ebeveyn hesabınızla giriş yapın. '
+            'Bu özellik, hesabınızdaki aile bağlantısı (childUserIds) ile çalışır.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => FamilyRemoteDuelSetupScreen(
+          onBack: () => Navigator.of(ctx).pop(),
         ),
       ),
     );
@@ -100,6 +134,20 @@ class ParentModeGamesHub extends StatelessWidget {
         ShinyButton(
           text: '🏁 Birlikte yarış',
           onPressed: () => _openFamilyRace(context),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white54),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          icon: const Icon(Icons.phonelink, color: Colors.amber),
+          label: const Text(
+            '📱 Uzaktan düello (Premium)',
+            textAlign: TextAlign.center,
+          ),
+          onPressed: () => _openRemoteDuel(context),
         ),
         const SizedBox(height: 16),
         Row(

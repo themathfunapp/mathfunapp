@@ -5,9 +5,12 @@ import '../services/friend_service.dart';
 import '../models/app_user.dart';
 import '../models/friend_request.dart';
 import '../models/friendship.dart';
+import '../models/friend_duel_invite.dart';
 import '../localization/app_localizations.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
+import 'live_duel_screen.dart';
+import 'game_start_screen.dart' show AgeGroupSelection;
 
 class FriendsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -517,33 +520,118 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   // ------------- ARKADAŞLAR TAB -------------
 
   Widget _buildFriendsTab(FriendService friendService, AppLocalizations localizations) {
-    return StreamBuilder<List<Friendship>>(
-      stream: friendService.friendsStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
-        }
-
-        final friends = snapshot.data ?? [];
-
-        if (friends.isEmpty) {
-          return _buildEmptyState(
-            emoji: '👥',
-            title: localizations.get('no_friends_title'),
-            description: localizations.get('no_friends_description'),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: friends.length,
-          itemBuilder: (context, index) {
-            return _buildFriendCard(friends[index], friendService, localizations);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StreamBuilder<List<FriendDuelInvite>>(
+          stream: friendService.incomingFriendDuelInvitesStream(),
+          builder: (context, duelSnap) {
+            final invites = duelSnap.data ?? [];
+            if (invites.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: invites
+                    .map((i) => _buildIncomingDuelInviteCard(i, friendService, localizations))
+                    .toList(),
+              ),
+            );
           },
-        );
-      },
+        ),
+        Expanded(
+          child: StreamBuilder<List<Friendship>>(
+            stream: friendService.friendsStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              }
+
+              final friends = snapshot.data ?? [];
+
+              if (friends.isEmpty) {
+                return _buildEmptyState(
+                  emoji: '👥',
+                  title: localizations.get('no_friends_title'),
+                  description: localizations.get('no_friends_description'),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                itemCount: friends.length,
+                itemBuilder: (context, index) {
+                  return _buildFriendCard(friends[index], friendService, localizations);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIncomingDuelInviteCard(
+    FriendDuelInvite invite,
+    FriendService friendService,
+    AppLocalizations localizations,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade800,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        children: [
+          const Text('⚔️', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${invite.fromDisplayName} seni düelloya davet etti!',
+              style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.25),
+            ),
+          ),
+          TextButton(
+            onPressed: () => friendService.deleteFriendDuelInvite(invite.id),
+            child: Text(localizations.get('reject'), style: const TextStyle(color: Colors.white70)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.amber.shade300,
+              foregroundColor: Colors.black87,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: () => _acceptFriendDuelInvite(invite, friendService),
+            child: Text(localizations.get('accept')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _acceptFriendDuelInvite(FriendDuelInvite invite, FriendService friendService) async {
+    final opponent = Friendship(
+      id: invite.fromUserId,
+      friendId: invite.fromUserId,
+      friendName: invite.fromDisplayName,
+      friendUserCode: invite.fromUserCode,
+      friendsSince: DateTime.now(),
+    );
+    await friendService.deleteFriendDuelInvite(invite.id);
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => LiveDuelScreen(
+          ageGroup: AgeGroupSelection.elementary,
+          opponent: opponent,
+          onBack: () => Navigator.of(ctx).pop(),
+        ),
+      ),
     );
   }
 
@@ -706,9 +794,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             child: const Text('İptal'),
           ),
           ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _sendDuelInvite(friend);
+              await _sendDuelInvite(friend);
             },
             icon: const Icon(Icons.send),
             label: const Text('Davet Gönder'),
@@ -725,9 +813,17 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  void _sendDuelInvite(Friendship friend) {
-    // TODO: Firebase'e düello daveti gönder
-    _showSuccessSnackbar('${friend.friendName} adlı arkadaşına düello daveti gönderildi!');
+  Future<void> _sendDuelInvite(Friendship friend) async {
+    final friendService = Provider.of<FriendService>(context, listen: false);
+    final ok = await friendService.sendFriendDuelInvite(friend);
+    if (!mounted) return;
+    if (ok) {
+      _showSuccessSnackbar('${friend.friendName} adlı arkadaşına düello daveti gönderildi!');
+    } else {
+      _showErrorSnackbar(
+        'Davet gönderilemedi veya bu arkadaş için zaten bekleyen bir davetin var.',
+      );
+    }
   }
 
   // ------------- İSTEKLER TAB -------------

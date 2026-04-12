@@ -141,3 +141,51 @@ export const verifyPinResetCode = functions.https.onCall(async (data, context) =
   await codeRef.delete();
   return { success: true, message: "Kod doğrulandı." };
 });
+
+/**
+ * Uzaktan aile düellosu: davet oluşunca çocuğa FCM bildirimi.
+ * Jeton: users/{toUid}/private/fcm/current (Flutter PushNotificationService).
+ */
+export const onFamilyRemoteDuelInviteCreated = functions.firestore
+  .document("familyRemoteDuelInvites/{inviteId}")
+  .onCreate(async (snap, context) => {
+    const d = snap.data();
+    if (!d || d.status !== "pending") {
+      return;
+    }
+    const toUid = d.toUserId as string | undefined;
+    const fromName = (d.fromDisplayName as string) || "Ailen";
+    const sessionId = (d.sessionId as string) || "";
+    if (!toUid) {
+      return;
+    }
+
+    const tokenSnap = await admin
+      .firestore()
+      .doc(`users/${toUid}/private/fcm/current`)
+      .get();
+    const token = tokenSnap.data()?.token as string | undefined;
+    if (!token) {
+      functions.logger.info("onFamilyRemoteDuelInviteCreated: no FCM token", {
+        toUid,
+      });
+      return;
+    }
+
+    try {
+      await admin.messaging().send({
+        token,
+        notification: {
+          title: "MathFun — Aile düellosu",
+          body: `${fromName} seni uzaktan düelloya davet etti.`,
+        },
+        data: {
+          type: "family_remote_duel_invite",
+          inviteId: context.params.inviteId as string,
+          sessionId,
+        },
+      });
+    } catch (err) {
+      functions.logger.error("onFamilyRemoteDuelInviteCreated FCM error", err);
+    }
+  });

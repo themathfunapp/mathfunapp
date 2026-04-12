@@ -43,6 +43,9 @@ class BadgeDefinition {
     required this.statKey,
   });
 
+  /// Yerelleştirme: `badge_ht_$id` (ör. `badge_ht_first_game`) — hangi oyun / koşul.
+  String get howToEarnKey => 'badge_ht_$id';
+
   /// Rozet renklerini döndür
   Map<String, dynamic> get colors {
     switch (rarity) {

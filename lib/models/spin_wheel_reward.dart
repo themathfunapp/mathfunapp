@@ -3,7 +3,7 @@ class SpinWheelReward {
   final String id;
   final String name;
   final String emoji;
-  final String type; // 'coins', 'xp', 'powerup', 'hint', 'life'
+  final String type; // 'coins', 'xp', 'powerup', 'life', 'stars', 'lightning'
   final int value;
   final double probability; // 0-1 arası
 
@@ -58,10 +58,10 @@ class SpinWheelReward {
           probability: 0.10,
         ),
         const SpinWheelReward(
-          id: 'hint_1',
-          name: '1 İpucu',
-          emoji: '💡',
-          type: 'hint',
+          id: 'lightning_1',
+          name: 'Şimşek',
+          emoji: '⚡',
+          type: 'lightning',
           value: 1,
           probability: 0.10,
         ),
@@ -82,4 +82,15 @@ class SpinWheelReward {
           probability: 0.05,
         ),
       ];
+}
+
+/// `spinWheel()` sonucu: çarpan bir önceki şimşekten geliyorsa 2 olabilir.
+class SpinWheelOutcome {
+  final SpinWheelReward reward;
+  final int appliedMultiplier;
+
+  const SpinWheelOutcome({
+    required this.reward,
+    this.appliedMultiplier = 1,
+  });
 }

@@ -14,7 +14,6 @@ class GameMechanicsService extends ChangeNotifier {
   // Sistemler
   late ComboSystem comboSystem;
   late LivesSystem livesSystem;
-  late HintSystem hintSystem;
   late PlayerInventory inventory;
   
   // Günlük Challenge
@@ -22,13 +21,25 @@ class GameMechanicsService extends ChangeNotifier {
   
   // Şans Çarkı
   DateTime? lastSpinTime;
-  bool get canSpin {
+  /// Şimşek diliminden kalan ekstra çevirme (aynı gün içinde).
+  int bonusWheelSpins = 0;
+  int _pendingSpinRewardMultiplier = 1;
+
+  bool _isNewCalendarDaySinceLastSpin() {
     if (lastSpinTime == null) return true;
     final now = DateTime.now();
-    final lastSpinDate = DateTime(lastSpinTime!.year, lastSpinTime!.month, lastSpinTime!.day);
+    final last = DateTime(lastSpinTime!.year, lastSpinTime!.month, lastSpinTime!.day);
     final today = DateTime(now.year, now.month, now.day);
-    return today.isAfter(lastSpinDate);
+    return today.isAfter(last);
   }
+
+  /// Günlük ücretsiz çevirme hakkı var mı (takvim günü).
+  bool get hasDailySpinAvailable => _isNewCalendarDaySinceLastSpin();
+
+  bool get canSpin => bonusWheelSpins > 0 || hasDailySpinAvailable;
+
+  /// Günlük hak bitti; yalnızca şimşekten gelen ekstra çevirme kaldı.
+  bool get hasOnlyBonusSpin => canSpin && !hasDailySpinAvailable;
   
   // Aktif güç-uplar
   Map<PowerUpType, DateTime> activePowerUps = {};
@@ -47,7 +58,6 @@ class GameMechanicsService extends ChangeNotifier {
   GameMechanicsService() {
     comboSystem = ComboSystem();
     livesSystem = LivesSystem();
-    hintSystem = HintSystem();
     inventory = PlayerInventory();
   }
 
@@ -88,10 +98,9 @@ class GameMechanicsService extends ChangeNotifier {
   }
 
   /// DailyRewardService'ten alınan ödüller sonrası envanteri senkronize et
-  Future<void> syncInventoryFromRewards(int coins, int diamonds, int hints) async {
+  Future<void> syncInventoryFromRewards(int coins, int diamonds) async {
     inventory.coins = coins;
     inventory.gems = diamonds;
-    hintSystem.availableHints = hints;
     await _saveUserData();
     notifyListeners();
   }
@@ -101,7 +110,6 @@ class GameMechanicsService extends ChangeNotifier {
   Future<void> syncInventoryFromDailyRewards(UserRewards rewards) async {
     inventory.coins = rewards.coins;
     inventory.gems = rewards.diamonds;
-    hintSystem.availableHints = rewards.hintCount;
 
     // daily_reward.PowerUpType -> game_mechanics.PowerUpType
     int mergePowerUp(PowerUpType t, int fromDaily) =>
@@ -136,10 +144,8 @@ class GameMechanicsService extends ChangeNotifier {
         final d = doc.data()!;
         final coins = (d['coins'] is int) ? d['coins'] as int : 0;
         final diamonds = (d['diamonds'] is int) ? d['diamonds'] as int : 0;
-        final hints = (d['hintCount'] is int) ? d['hintCount'] as int : 0;
         if (coins > inventory.coins) inventory.coins = coins;
         if (diamonds > inventory.gems) inventory.gems = diamonds;
-        if (hints > hintSystem.availableHints) hintSystem.availableHints = hints;
       }
     } catch (e) {
       debugPrint('Load currency from rewards error: $e');
@@ -166,7 +172,9 @@ class GameMechanicsService extends ChangeNotifier {
             if (data['lastPlayDate'] != null) {
               lastPlayDate = DateTime.tryParse(data['lastPlayDate'].toString());
             }
-            hintSystem.availableHints = data['hints'] ?? 3;
+            bonusWheelSpins = (data['bonusWheelSpins'] is int) ? data['bonusWheelSpins'] as int : 0;
+            _pendingSpinRewardMultiplier =
+                (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
           } catch (_) {}
         }
       } else {
@@ -189,8 +197,10 @@ class GameMechanicsService extends ChangeNotifier {
           if (data['lastPlayDate'] != null) {
             lastPlayDate = DateTime.tryParse(data['lastPlayDate'].toString());
           }
-          
-          hintSystem.availableHints = data['hints'] ?? 3;
+
+          bonusWheelSpins = (data['bonusWheelSpins'] is int) ? data['bonusWheelSpins'] as int : 0;
+          _pendingSpinRewardMultiplier =
+              (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
         }
       }
     } catch (e) {
@@ -211,7 +221,8 @@ class GameMechanicsService extends ChangeNotifier {
           'lastSpinTime': lastSpinTime?.toIso8601String(),
           'dailyStreak': dailyStreak,
           'lastPlayDate': lastPlayDate?.toIso8601String(),
-          'hints': hintSystem.availableHints,
+          'bonusWheelSpins': bonusWheelSpins,
+          'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
         };
         await prefs.setString(_guestMechanicsKey, jsonEncode(data));
       } else {
@@ -221,7 +232,8 @@ class GameMechanicsService extends ChangeNotifier {
           'lastSpinTime': lastSpinTime?.toIso8601String(),
           'dailyStreak': dailyStreak,
           'lastPlayDate': lastPlayDate?.toIso8601String(),
-          'hints': hintSystem.availableHints,
+          'bonusWheelSpins': bonusWheelSpins,
+          'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
         await _syncCurrencyToRewards();
@@ -243,7 +255,6 @@ class GameMechanicsService extends ChangeNotifier {
           .set({
         'coins': inventory.coins,
         'diamonds': inventory.gems,
-        'hintCount': hintSystem.availableHints,
       }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Sync currency to rewards error: $e');
@@ -511,18 +522,7 @@ class GameMechanicsService extends ChangeNotifier {
     return wrongAnswers.take(2).toList();
   }
 
-  // ============= İPUCU SİSTEMİ =============
-  
-  /// İpucu kullan
-  bool useHint() {
-    if (!hintSystem.hasHints) return false;
-    hintSystem.useHint();
-    _saveUserData();
-    notifyListeners();
-    return true;
-  }
-
-  /// Soru için ipucu al
+  /// Soru için açıklayıcı metin (envanter ipucu yok)
   String getHintForQuestion(int num1, int num2, String operator, int answer) {
     return HintSystem.generateHint(num1, num2, operator, answer);
   }
@@ -530,18 +530,29 @@ class GameMechanicsService extends ChangeNotifier {
   // ============= ŞANS ÇARKI =============
   
   /// Çarkı döndür - ödülü uygular ve kalıcı olarak kaydeder
-  Future<SpinWheelReward> spinWheel() async {
+  Future<SpinWheelOutcome> spinWheel() async {
     if (!canSpin) {
+      throw Exception('Bugün zaten çarkı döndürdünüz!');
+    }
+
+    final appliedMult = _pendingSpinRewardMultiplier.clamp(1, 10);
+    _pendingSpinRewardMultiplier = 1;
+
+    if (hasDailySpinAvailable) {
+      lastSpinTime = DateTime.now();
+    } else if (bonusWheelSpins > 0) {
+      bonusWheelSpins--;
+    } else {
       throw Exception('Bugün zaten çarkı döndürdünüz!');
     }
 
     final rewards = SpinWheelReward.defaultRewards;
     final random = Random();
     final roll = random.nextDouble();
-    
+
     double cumulative = 0;
     SpinWheelReward selectedReward = rewards.first;
-    
+
     for (final reward in rewards) {
       cumulative += reward.probability;
       if (roll <= cumulative) {
@@ -550,20 +561,26 @@ class GameMechanicsService extends ChangeNotifier {
       }
     }
 
-    // Ödülü uygula (coins, xp, hint, life, powerup)
-    _applyReward(selectedReward);
-    
-    lastSpinTime = DateTime.now();
+    if (selectedReward.type == 'lightning') {
+      bonusWheelSpins++;
+      // Önceki şimşekten kalan 2x bu çevirmede tüketilmediyse sonraki ödüle taşınsın
+      _pendingSpinRewardMultiplier = max(2, appliedMult);
+    } else {
+      _applyReward(selectedReward, appliedMult);
+    }
+
     await _saveUserData();
     notifyListeners();
 
-    return selectedReward;
+    final int multForUi = selectedReward.type == 'lightning' ? 1 : appliedMult;
+    return SpinWheelOutcome(reward: selectedReward, appliedMultiplier: multForUi);
   }
 
-  void _applyReward(SpinWheelReward reward) {
+  void _applyReward(SpinWheelReward reward, int multiplier) {
+    final m = multiplier.clamp(1, 10);
     switch (reward.type) {
       case 'coins':
-        inventory.coins += reward.value;
+        inventory.coins += reward.value * m;
         break;
       case 'xp':
         // XP ekle - ayrı serviste işlenebilir
@@ -571,19 +588,19 @@ class GameMechanicsService extends ChangeNotifier {
       case 'stars':
         // Profil yıldızı DailyRewardService üzerinden (SpinWheelScreen) eklenir
         break;
-      case 'hint':
-        hintSystem.addHint(reward.value);
-        break;
       case 'life':
-        for (int i = 0; i < reward.value; i++) {
+        for (int i = 0; i < reward.value * m; i++) {
           livesSystem.gainLife();
         }
         break;
       case 'powerup':
-        // Rastgele güç-up ekle
         final powerUps = PowerUpType.values;
-        final randomPowerUp = powerUps[Random().nextInt(powerUps.length)];
-        inventory.addPowerUp(randomPowerUp);
+        final rnd = Random();
+        for (int i = 0; i < m; i++) {
+          inventory.addPowerUp(powerUps[rnd.nextInt(powerUps.length)]);
+        }
+        break;
+      default:
         break;
     }
   }
@@ -645,17 +662,6 @@ class GameMechanicsService extends ChangeNotifier {
     
     inventory.coins -= powerUp.cost;
     inventory.addPowerUp(powerUp.type);
-    _saveUserData();
-    notifyListeners();
-    return true;
-  }
-
-  /// İpucu satın al
-  bool purchaseHints(int count, int cost) {
-    if (inventory.coins < cost) return false;
-    
-    inventory.coins -= cost;
-    hintSystem.addHint(count);
     _saveUserData();
     notifyListeners();
     return true;

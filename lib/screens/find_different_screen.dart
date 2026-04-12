@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../widgets/child_exit_dialog.dart';
 
 class FindDifferentScreen extends StatefulWidget {
@@ -21,6 +25,7 @@ class FindDifferentScreen extends StatefulWidget {
 }
 
 class _FindDifferentScreenState extends State<FindDifferentScreen> {
+  late final AudioService _audio;
   static const String _highScoreKey = 'find_different_high_score';
   static const String _completedSectionsKey = 'find_different_sections';
 
@@ -31,11 +36,27 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
   int _highScore = 0;
   int _correctIndex = 0;
   List<String> _items = [];
+  bool _sessionReported = false;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _audio.playMenuAmbientLoop();
+    });
     _loadHighScore();
+  }
+
+  @override
+  void dispose() {
+    _audio.cancelAmbientSync();
+    super.dispose();
   }
 
   Future<void> _loadHighScore() async {
@@ -139,12 +160,38 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
           _generateQuestion();
         } else {
           setState(() => _showLevelSelect = true);
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _audio.playMenuAmbientLoop();
+          });
         }
       }
     });
   }
 
+  void _reportFindDifferentSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _sessCorrect + _sessWrong;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('FindDifferent report error: $e');
+    }
+  }
+
   void _gameOver() {
+    _reportFindDifferentSession();
     _saveHighScore(_score);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
@@ -203,6 +250,9 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   setState(() => _showLevelSelect = true);
+                  SchedulerBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _audio.playMenuAmbientLoop();
+                  });
                 },
                 child: Text(loc.sectionSelect,
                     style: GoogleFonts.quicksand(color: Colors.red.shade700))),
@@ -226,6 +276,10 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
 
   void _checkAnswer(int index) {
     if (index == _correctIndex) {
+      _sessCorrect++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
+      _audio.playAnswerFeedback(true);
       _saveCompletedSection(_currentSection);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -238,6 +292,9 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
       );
       _onLevelComplete();
     } else {
+      _sessWrong++;
+      _runStreak = 0;
+      _audio.playAnswerFeedback(false);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,10 +316,16 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
   }
 
   void _startGame(int bolum) {
+    scheduleSectionAmbient(context, SoundscapeTheme.underwater);
     setState(() {
       _showLevelSelect = false;
       _score = 0;
       _currentSection = (bolum - 1) * 10 + 1;
+      _sessionReported = false;
+      _sessCorrect = 0;
+      _sessWrong = 0;
+      _runStreak = 0;
+      _bestStreak = 0;
     });
     _loadSection(_currentSection);
   }
@@ -480,7 +543,12 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
               context,
               themeColor: Colors.orange,
               onStay: () {},
-              onSectionSelect: () => setState(() => _showLevelSelect = true),
+              onSectionSelect: () {
+                setState(() => _showLevelSelect = true);
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _audio.playMenuAmbientLoop();
+                });
+              },
               onExit: () => Navigator.pop(context),
             );
           }),

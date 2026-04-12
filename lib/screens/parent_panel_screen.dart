@@ -11,7 +11,9 @@ import '../services/badge_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
 import '../services/family_service.dart';
+import '../services/family_remote_duel_service.dart';
 import '../services/parent_pin_service.dart';
+import '../services/parent_panel_notification_scheduler.dart';
 import '../models/badge.dart';
 import '../models/family_member.dart';
 import '../localization/app_localizations.dart';
@@ -21,6 +23,7 @@ import '../widgets/shimmer_loading.dart';
 import '../widgets/empty_state_lottie.dart';
 import 'parent_panel_child_detail_screen.dart';
 import 'family_duel_race_screen.dart';
+import 'family_remote_duel_setup_screen.dart';
 import 'parent_mode_games_hub.dart';
 
 /// Ebeveyn Paneli Ekranı
@@ -91,7 +94,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: _tabCount, vsync: this);
-    _loadNotificationPrefs();
+    unawaited(_bootstrapNotificationPrefs());
     _loadReportHistory();
     _startSessionCheck();
   }
@@ -168,9 +171,17 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     await prefs.setString(_prefReportHistory, jsonEncode(list));
   }
 
+  Future<void> _bootstrapNotificationPrefs() async {
+    await _loadNotificationPrefs();
+    if (!mounted) return;
+    await ParentPanelNotificationScheduler.instance.syncFromDisk();
+  }
+
   Future<void> _loadNotificationPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
+      _notificationsEnabled =
+          prefs.getBool(ParentPanelNotificationScheduler.prefMaster) ?? true;
       _dailyReminderEnabled = prefs.getBool(_prefDailyReminder) ?? true;
       _dailyReminderHour = prefs.getInt(_prefDailyReminderHour) ?? 18;
       _dailyReminderMinute = prefs.getInt(_prefDailyReminderMin) ?? 0;
@@ -182,12 +193,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
   Future<void> _saveNotificationPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(ParentPanelNotificationScheduler.prefMaster, _notificationsEnabled);
     await prefs.setBool(_prefDailyReminder, _dailyReminderEnabled);
     await prefs.setInt(_prefDailyReminderHour, _dailyReminderHour);
     await prefs.setInt(_prefDailyReminderMin, _dailyReminderMinute);
     await prefs.setBool(_prefSuccessMessages, _successMessagesEnabled);
     await prefs.setBool(_prefWeeklySummary, _weeklySummaryEnabled);
     await prefs.setBool(_prefInactivityWarning, _inactivityWarningEnabled);
+    await ParentPanelNotificationScheduler.instance.syncFromDisk();
   }
 
   /// Son aktivite metnini formatla (gerçek veri)
@@ -488,6 +501,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               'Çocuk vs Ebeveyn - Kim daha hızlı?',
               Icons.emoji_events,
               onTap: () => _openFamilyDuelRace(context),
+            ),
+            const SizedBox(height: 12),
+            _buildFamilyGameCard(
+              '📱 Uzaktan düello (Premium)',
+              'İki telefon, aynı sorular; davet çocuğun ana sayfasında bildirim olarak çıkar.',
+              Icons.phonelink,
+              onTap: () => _openRemoteFamilyDuel(context),
             ),
             const SizedBox(height: 12),
             _buildFamilyGameCard(
@@ -821,6 +841,35 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (ctx) => FamilyDuelRaceScreen(
+          onBack: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRemoteFamilyDuel(BuildContext context) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final uid = auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    final duel = Provider.of<FamilyRemoteDuelService>(context, listen: false);
+    final linked = await duel.linkedChildUserIdsForHost(uid);
+    if (!context.mounted) return;
+    if (linked.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Uzaktan düello için ebeveyn hesabınızla giriş yapın. '
+            'Bu özellik, hesabınızdaki aile bağlantısı (childUserIds) ile çalışır.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => FamilyRemoteDuelSetupScreen(
           onBack: () => Navigator.of(ctx).pop(),
         ),
       ),
@@ -2277,10 +2326,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               style: TextStyle(color: Colors.white70),
             ),
             value: _notificationsEnabled,
-            onChanged: (value) {
+            onChanged: (value) async {
               setState(() {
                 _notificationsEnabled = value;
               });
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool(ParentPanelNotificationScheduler.prefMaster, value);
+              await ParentPanelNotificationScheduler.instance.syncFromDisk();
             },
             activeColor: Colors.green,
           ),

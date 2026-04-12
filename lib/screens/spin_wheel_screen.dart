@@ -24,6 +24,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   
   bool _isSpinning = false;
   SpinWheelReward? _reward;
+  SpinWheelOutcome? _lastOutcome;
   double _currentAngle = 0;
 
   final List<SpinWheelReward> rewards = SpinWheelReward.defaultRewards;
@@ -87,14 +88,16 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     });
 
     try {
-      _reward = await mechanicsService.spinWheel();
+      final outcome = await mechanicsService.spinWheel();
       if (!mounted) return;
+      _reward = outcome.reward;
+      _lastOutcome = outcome;
       if (_reward!.type == 'stars') {
         await Provider.of<DailyRewardService>(context, listen: false)
-            .addProfileBonusStars(_reward!.value);
+            .addProfileBonusStars(_reward!.value * outcome.appliedMultiplier);
       }
       final badgeService = Provider.of<BadgeService>(context, listen: false);
-      await badgeService.addSpinWheelReward(_reward!);
+      await badgeService.addSpinWheelReward(_reward!, multiplier: outcome.appliedMultiplier);
       if (!mounted) return;
       _controller.forward(from: 0);
     } catch (e) {
@@ -163,6 +166,27 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                     color: Colors.amber,
                   ),
                 ),
+                if (_reward!.type == 'lightning') ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.get('spin_wheel_lightning_bonus'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.white,
+                      height: 1.35,
+                    ),
+                  ),
+                ] else if (_lastOutcome != null && _lastOutcome!.appliedMultiplier > 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '×${_lastOutcome!.appliedMultiplier} ${loc.get('spin_wheel_multiplier_applied')}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.amber.shade100,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(dialogContext),
@@ -271,7 +295,9 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
               Text(
                 mechanicsService.canSpin
-                    ? localizations.get('spin_wheel_subtitle_free')
+                    ? (mechanicsService.hasOnlyBonusSpin
+                        ? localizations.get('spin_wheel_subtitle_bonus')
+                        : localizations.get('spin_wheel_subtitle_free'))
                     : localizations.get('spin_wheel_subtitle_tomorrow'),
                 style: TextStyle(
                   fontSize: 14,

@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../localization/app_localizations.dart';
-import '../models/game_manager.dart';
-import '../widgets/kurdistan_flag.dart';
+
+import 'package:mathfun/config/legal_urls.dart';
+import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/models/game_manager.dart';
+import 'package:mathfun/services/ad_service.dart';
+import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/widgets/kurdistan_flag.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -137,6 +141,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                       emoji: "⏰",
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Gizlilik, şartlar, reklam tercihleri
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                elevation: 8,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Row(
+                        children: [
+                          const Text('🔒', style: TextStyle(fontSize: 22)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              localizations.get('settings_legal_section'),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2d3436),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildLegalNavTile(
+                      context: context,
+                      emoji: '📄',
+                      title: localizations.get('settings_legal_privacy'),
+                      subtitle: localizations.get('settings_legal_privacy_sub'),
+                      onTap: () => LegalUrls.openPrivacyPolicy(context, localizations),
+                    ),
+                    const Divider(color: Color(0xFFE0E0E0), height: 1),
+                    _buildLegalNavTile(
+                      context: context,
+                      emoji: '📜',
+                      title: localizations.get('settings_legal_terms'),
+                      subtitle: localizations.get('settings_legal_terms_sub'),
+                      onTap: () => LegalUrls.openTermsOfUse(context, localizations),
+                    ),
+                    if (!kIsWeb) ...[
+                      const Divider(color: Color(0xFFE0E0E0), height: 1),
+                      _buildLegalNavTile(
+                        context: context,
+                        emoji: '🎯',
+                        title: localizations.get('settings_ad_privacy'),
+                        subtitle: localizations.get('settings_ad_privacy_sub'),
+                        onTap: () => AdService.showPrivacyOptionsFormIfAvailable(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -539,6 +604,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
               inactiveThumbColor: Colors.grey,
               inactiveTrackColor: Colors.grey.shade300,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegalNavTile({
+    required BuildContext context,
+    required String emoji,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2d3436),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0xFF5A4FCF)),
           ],
         ),
       ),

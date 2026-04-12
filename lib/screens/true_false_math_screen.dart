@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
+import '../services/game_session_report.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
@@ -21,6 +24,7 @@ class TrueFalseMathScreen extends StatefulWidget {
 }
 
 class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
+  late final AudioService _audio;
   static const String _highScoreKey = 'true_false_math_high_score';
   static const String _completedSectionsKey = 'true_false_math_sections';
 
@@ -33,11 +37,23 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   String _question = '';
   bool _isCorrect = true;
   int _streak = 0;
+  bool _sessionReported = false;
+  int _sessQuestions = 0;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _bestStreakInSession = 0;
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
     _loadHighScore();
+  }
+
+  @override
+  void dispose() {
+    _audio.cancelAmbientSync();
+    super.dispose();
   }
 
   Future<void> _loadHighScore() async {
@@ -67,12 +83,18 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   void _startGame(int bolum) {
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
     setState(() {
       _showLevelSelect = false;
       _score = 0;
       _currentSection = (bolum - 1) * 10 + 1;
       _timeLeft = 25;
       _streak = 0;
+      _sessionReported = false;
+      _sessQuestions = 0;
+      _sessCorrect = 0;
+      _sessWrong = 0;
+      _bestStreakInSession = 0;
     });
     _loadSection(_currentSection);
   }
@@ -123,8 +145,11 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   void _onTimeOut() {
+    _sessQuestions++;
+    _sessWrong++;
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     mechanicsService.onWrongAnswer();
+    _audio.playAnswerFeedback(false);
     setState(() => _streak = 0);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -180,7 +205,13 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
 
   void _checkAnswer(bool playerAnswer) {
     if (playerAnswer == _isCorrect) {
+      _sessQuestions++;
+      _sessCorrect++;
+      _audio.playAnswerFeedback(true);
       setState(() => _streak++);
+      if (_streak > _bestStreakInSession) {
+        _bestStreakInSession = _streak;
+      }
       final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -192,6 +223,9 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
       );
       _onLevelComplete();
     } else {
+      _sessQuestions++;
+      _sessWrong++;
+      _audio.playAnswerFeedback(false);
       setState(() => _streak = 0);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
@@ -250,6 +284,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   void _gameOver() {
+    _reportTrueFalseSession();
     _saveHighScore(_score);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
@@ -258,6 +293,27 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
       _showNoLivesDialog(loc);
     } else {
       _showNormalGameOverDialog(loc);
+    }
+  }
+
+  void _reportTrueFalseSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final q = _sessQuestions.clamp(1, 9999);
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreakInSession,
+      );
+    } catch (e) {
+      debugPrint('TrueFalse report error: $e');
     }
   }
 

@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../models/castle_door.dart';
+import '../audio/section_soundscape.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../widgets/castle_door_widget.dart';
 import '../widgets/shape_painter.dart';
 
@@ -23,6 +26,7 @@ enum QuestionType { shapeName, vertexCount, equalEdges }
 
 class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   /// Yavaş, düzgün faz — parıltı / baykuş için hafif hareket (titreme yok)
   late AnimationController _gentleMotionController;
   late AnimationController _floatController;
@@ -39,6 +43,12 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   bool _isBonusLevel = false;
   bool _gameOver = false;
   bool _hasShownNoLivesDialog = false;
+  bool _sessionReported = false;
+  int _sessQuestions = 0;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
 
   // Şekil tanımları: type, nameKey (lokalizasyon), köşe sayısı, kenar eşitliği
   final List<Map<String, dynamic>> _shapes = [
@@ -88,6 +98,8 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.castle);
     _gentleMotionController = AnimationController(
       duration: const Duration(seconds: 10),
       vsync: this,
@@ -137,6 +149,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _gentleMotionController.dispose();
     _floatController.dispose();
     _celebrationController.dispose();
@@ -241,8 +254,13 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
       _isAnswered = true;
       _isCorrect = correct;
       if (correct) {
+        _sessQuestions++;
+        _sessCorrect++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _score += _isBonusLevel ? 25 : 10;
         _stars += _isBonusLevel ? 2 : 1;
+        _audio.playAnswerFeedback(true);
         _bgController.forward(from: 0);
         _celebrationController.forward(from: 0);
         Future.delayed(const Duration(seconds: 2), () {
@@ -252,6 +270,10 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
           }
         });
       } else {
+        _sessQuestions++;
+        _sessWrong++;
+        _runStreak = 0;
+        _audio.playAnswerFeedback(false);
         mechanicsService.onWrongAnswer();
         if (!mechanicsService.hasLives) {
           _gameOver = true;
@@ -265,7 +287,29 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     });
   }
 
+  void _reportGeometrySession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final q = (_sessCorrect + _sessWrong).clamp(1, 9999);
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('GeometryCastle report error: $e');
+    }
+  }
+
   void _showNoLivesDialog() {
+    _reportGeometrySession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -299,6 +343,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   void _showGameOver() {
+    _reportGeometrySession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,

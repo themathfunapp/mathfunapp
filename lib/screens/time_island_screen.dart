@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 
 class TimeIslandScreen extends StatefulWidget {
   final String ageGroup;
@@ -19,6 +22,7 @@ class TimeIslandScreen extends StatefulWidget {
 
 class _TimeIslandScreenState extends State<TimeIslandScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   int _currentQuestion = 0;
   int _score = 0;
   bool _isAnswering = false;
@@ -47,11 +51,18 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   bool _isDragging = false;
   String _draggingHand = 'none'; // 'hour' veya 'minute'
   bool _hasShownNoLivesDialog = false;
+  bool _sessionReported = false;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
 
   @override
   void initState() {
     super.initState();
-    
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.clockTower);
+
     _sunMoonController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -77,6 +88,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _sunMoonController.dispose();
     _clockController.dispose();
     _characterController.dispose();
@@ -221,10 +233,17 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
       _characterIsHappy = isCorrect;
 
       if (isCorrect) {
+        _sessCorrect++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _score += 10;
+        _audio.playAnswerFeedback(true);
         _feedback = '🎉 Harika! Doğru saat!';
         _clockController.forward(from: 0);
       } else {
+        _sessWrong++;
+        _runStreak = 0;
+        _audio.playAnswerFeedback(false);
         mechanicsService.onWrongAnswer();
         _feedback = '⏰ Tekrar deneyin!';
         if (!mechanicsService.hasLives) {
@@ -264,7 +283,30 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
     });
   }
 
+  void _reportTimeIslandSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _sessCorrect + _sessWrong;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('TimeIsland report error: $e');
+    }
+  }
+
   void _showNoLivesDialog() {
+    _reportTimeIslandSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -298,6 +340,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   void _showGameOver() {
+    _reportTimeIslandSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -335,6 +378,11 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
               setState(() {
                 _currentQuestion = 0;
                 _score = 0;
+                _sessionReported = false;
+                _sessCorrect = 0;
+                _sessWrong = 0;
+                _runStreak = 0;
+                _bestStreak = 0;
                 _isDragging = false;
                 _draggingHand = 'none';
                 _generateQuestions();
@@ -348,6 +396,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   }
 
   void _showVictory() {
+    _reportTimeIslandSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,

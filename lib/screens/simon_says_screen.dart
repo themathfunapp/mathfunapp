@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../widgets/child_exit_dialog.dart';
 
 enum SimonDifficulty { easy, medium, hard }
@@ -26,6 +30,7 @@ class SimonSaysScreen extends StatefulWidget {
 
 class _SimonSaysScreenState extends State<SimonSaysScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Menu state
   bool _showMenu = true;
   SimonDifficulty _difficulty = SimonDifficulty.medium;
@@ -50,13 +55,30 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
     Colors.green.shade400,
   ];
 
+  bool _sessionReported = false;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
+
   late final math.Random _random = math.Random();
   static const String _highScoreKey = 'simon_says_high_score';
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _audio.playMenuAmbientLoop();
+    });
     _loadHighScore();
+  }
+
+  @override
+  void dispose() {
+    _audio.cancelAmbientSync();
+    super.dispose();
   }
 
   Future<void> _loadHighScore() async {
@@ -123,6 +145,7 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
       );
       return;
     }
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
     setState(() {
       _showMenu = false;
       _sequence = [];
@@ -131,6 +154,11 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
       _score = 0;
       _timeAttackActive = _gameMode == SimonGameMode.timeAttack;
       _timeRemaining = 30;
+      _sessionReported = false;
+      _sessCorrect = 0;
+      _sessWrong = 0;
+      _runStreak = 0;
+      _bestStreak = 0;
     });
     _initializeSequence();
   }
@@ -155,6 +183,9 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
         _timeRemaining--;
         if (_timeRemaining <= 0) {
           _timeAttackActive = false;
+          _sessWrong++;
+          _runStreak = 0;
+          _audio.playAnswerFeedback(false);
           _gameOver();
         }
       });
@@ -213,6 +244,9 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
     } else {
       if (_playerInput.last != _sequence[_playerInput.length - 1]) {
         _showWrongFeedback();
+        _sessWrong++;
+        _runStreak = 0;
+        _audio.playAnswerFeedback(false);
         final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
         mechanicsService.onWrongAnswer();
         Future.delayed(const Duration(milliseconds: 600), () {
@@ -232,6 +266,10 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
     }
 
     if (correct) {
+      _sessCorrect++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
+      _audio.playAnswerFeedback(true);
       setState(() {
         _score += 10;
         _level++;
@@ -245,11 +283,36 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
       });
     } else {
       _showWrongFeedback();
+      _sessWrong++;
+      _runStreak = 0;
+      _audio.playAnswerFeedback(false);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) _gameOver();
       });
+    }
+  }
+
+  void _reportSimonSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _sessCorrect + _sessWrong;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('SimonSays report error: $e');
     }
   }
 
@@ -300,6 +363,7 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
   }
 
   void _gameOver() {
+    _reportSimonSession();
     _saveHighScore(_score);
     _timeAttackActive = false;
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
@@ -340,6 +404,9 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
           onPressed: () {
             Navigator.pop(context);
             setState(() => _showMenu = true);
+            SchedulerBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _audio.playMenuAmbientLoop();
+            });
           },
           child: Text(loc.get('simon_back_to_menu'), style: GoogleFonts.quicksand(fontWeight: FontWeight.w600, color: Colors.teal)),
         ),
@@ -398,6 +465,9 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
             onPressed: () {
               Navigator.pop(context);
               setState(() => _showMenu = true);
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _audio.playMenuAmbientLoop();
+              });
             },
             child: Text(loc.get('simon_back_to_menu'), style: GoogleFonts.quicksand(fontWeight: FontWeight.w600, color: Colors.teal)),
           ),

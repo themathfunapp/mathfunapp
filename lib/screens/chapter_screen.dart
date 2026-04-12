@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
@@ -354,6 +355,18 @@ class _ChapterScreenState extends State<ChapterScreen> {
       onTap: isLocked
           ? null
           : () async {
+              final mechanics =
+                  Provider.of<GameMechanicsService>(context, listen: false);
+              if (!mechanics.hasLives) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(localizations.get('no_lives_play')),
+                    backgroundColor: Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
               await Navigator.push(
                 context,
                 MaterialPageRoute(

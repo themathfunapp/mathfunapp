@@ -6,9 +6,9 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
-import '../models/daily_reward.dart';
-import '../services/badge_service.dart';
-import '../services/daily_reward_service.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
+import '../services/game_session_report.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
@@ -35,6 +35,7 @@ class SpecializedGameScreen extends StatefulWidget {
 
 class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   late List<Map<String, dynamic>> _questions;
   int _currentQuestionIndex = 0;
   int _score = 0;
@@ -62,6 +63,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
     _questions = [];
     _generateQuestions();
     _animationController = AnimationController(
@@ -78,6 +80,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
     _heartAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
       CurvedAnimation(parent: _heartController, curve: Curves.elasticOut),
+    );
+
+    scheduleSectionAmbient(
+      context,
+      soundscapeForTopicType(widget.topicSettings.topicType),
     );
 
     _startTimer();
@@ -122,6 +129,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _timer?.cancel();
     _animationController.dispose();
     _heartController.dispose();
+    _audio.cancelAmbientSync();
     super.dispose();
   }
 
@@ -205,6 +213,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _currentStreak++;
       if (_currentStreak > _bestStreak) _bestStreak = _currentStreak;
       _animationController.forward(from: 0);
+      _audio.playAnswerFeedback(true);
 
       // Biraz bekle ve sonraki soruya geç
       Future.delayed(const Duration(milliseconds: 600), () {
@@ -214,6 +223,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     } else {
       _wrongAnswers++;
       _currentStreak = 0;
+      _audio.playAnswerFeedback(false);
       _loseLife();
     }
   }
@@ -269,37 +279,27 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _showGameOverDialog();
   }
 
-  /// Oyun sonuçlarını BadgeService ve DailyRewardService'e bildir
+  /// Oyun sonuçlarını rozet ve günlük görevlere bildir
   void _reportGameCompletion() {
     if (!mounted || _hasReportedCompletion) return;
     _hasReportedCompletion = true;
     try {
-      final badgeService = Provider.of<BadgeService>(context, listen: false);
-      final rewardService = Provider.of<DailyRewardService>(context, listen: false);
-
       final questionsAnswered = _currentQuestionIndex + 1;
       final avgTime = questionsAnswered > 0
           ? _totalAnswerTimeSeconds / questionsAnswered
           : 0.0;
 
-      badgeService.onGameCompleted(
+      GameSessionReport.submit(
+        context,
         questionsAnswered: questionsAnswered,
         correctAnswers: _correctAnswers,
         wrongAnswers: _wrongAnswers,
         score: _score,
-        averageTime: avgTime,
+        averageAnswerTimeSeconds: avgTime,
         fastAnswersCount: _fastAnswersCount,
         superFastAnswersCount: _superFastAnswersCount,
-        streak: _bestStreak,
+        bestCorrectStreakInSession: _bestStreak,
       );
-
-      rewardService.updateTaskProgress(TaskType.playGames, 1);
-      rewardService.updateTaskProgress(TaskType.solveQuestions, _correctAnswers);
-      rewardService.updateTaskProgress(TaskType.correctStreak, _bestStreak);
-      if (_wrongAnswers == 0 && _correctAnswers > 0) {
-        rewardService.updateTaskProgress(TaskType.perfectGame, 1);
-      }
-      rewardService.updateTaskProgress(TaskType.fastAnswers, _fastAnswersCount + _superFastAnswersCount);
     } catch (e) {
       debugPrint('Report game completion error: $e');
     }

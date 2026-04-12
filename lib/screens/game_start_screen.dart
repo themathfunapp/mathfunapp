@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
@@ -20,6 +21,7 @@ import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
 import 'package:mathfun/services/game_mechanics_service.dart';
 import '../models/age_group_selection.dart';
+import '../services/audio_service.dart';
 
 export '../models/age_group_selection.dart';
 
@@ -39,6 +41,7 @@ class GameStartScreen extends StatefulWidget {
 
 class _GameStartScreenState extends State<GameStartScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Animasyon kontrolcüleri
   late AnimationController _doorController;
   late AnimationController _floatController;
@@ -73,6 +76,11 @@ class _GameStartScreenState extends State<GameStartScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _audio.playMenuAmbientLoop();
+    });
 
     // GameMechanicsService başlat
     _mechanicsService = GameMechanicsService();
@@ -125,6 +133,7 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _doorController.dispose();
     _floatController.dispose();
     _pulseController.dispose();
@@ -1145,7 +1154,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 subtitle: localizations.get('brain_games'),
                 color: const Color(0xFF00CEC9),
                 onTap: () => _openDiscoverItem('intelligence_games'),
-                isPremium: false, // TODO: Test için geçici kapatıldı
+                isPremium: true,
               ),
             ),
             Transform.translate(
@@ -1159,7 +1168,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 subtitle: localizations.get('fun_design'),
                 color: const Color(0xFF74B9FF),
                 onTap: () => _openDiscoverItem('colorful_math'),
-                isPremium: false, // TODO: Test için geçici kapatıldı
+                isPremium: true,
               ),
             ),
             ),
@@ -1831,12 +1840,11 @@ class _GameStartScreenState extends State<GameStartScreen>
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     final localizations = AppLocalizations(localeProvider.locale);
     
-    // Premium kontrol gerektiren özellikler - TODO: Test için geçici devre dışı
-    // const premiumFeatures = ['intelligence_games', 'colorful_math'];
-    // if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
-    //   _showPremiumRequiredDialog(localizations.get(itemKey));
-    //   return;
-    // }
+    const premiumFeatures = ['intelligence_games', 'colorful_math'];
+    if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
+      _showPremiumRequiredDialog(localizations.get(itemKey));
+      return;
+    }
 
     if (itemKey == 'colorful_math') {
       Navigator.push(

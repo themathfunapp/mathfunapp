@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../models/multipliers_tower_data.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 
 /// Çarpanlar Kulesi - Ziki'nin Muz Adası'na Yolculuğu
 /// Göklerdeki Matematik Hazinesi - Katlar, bölenler, EKOK, EBOB öğrenme
@@ -20,6 +23,7 @@ class MultipliersTowerScreen extends StatefulWidget {
 
 class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   late AnimationController _jumpController;
   late AnimationController _shakeController;
   late AnimationController _bounceController;
@@ -34,6 +38,11 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   int _currentStep = 0;
   int _comboCount = 0;
   bool _hasShownNoLivesDialog = false;
+  bool _sessionReported = false;
+  int _sessCorrect = 0;
+  int _sessWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
   bool _isAnswered = false;
   int _questionType = 0; // 0:kat, 1:bölen, 2:ekok, 3:ebob
   int _targetNumber = 7;
@@ -51,6 +60,9 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.castle);
+
     _jumpController = AnimationController(duration: const Duration(milliseconds: 500), vsync: this);
     _jumpAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _jumpController, curve: Curves.easeOut));
 
@@ -80,6 +92,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _jumpController.dispose();
     _shakeController.dispose();
     _bounceController.dispose();
@@ -211,6 +224,9 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
       _hintController.stop();
 
       if (correct) {
+        _sessCorrect++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _comboCount++;
         _bananas++;
         _currentStep++;
@@ -230,6 +246,9 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
           }
         });
       } else {
+        _sessWrong++;
+        _runStreak = 0;
+        _audio.playAnswerFeedback(false);
         mechanicsService.onWrongAnswer();
         _comboCount = 0;
         _shakeController.forward(from: 0);
@@ -243,7 +262,30 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     });
   }
 
+  void _reportTowerSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _sessCorrect + _sessWrong;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessCorrect,
+        wrongAnswers: _sessWrong,
+        score: _bananas * 10,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('MultipliersTower report error: $e');
+    }
+  }
+
   void _showNoLivesDialog() {
+    _reportTowerSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -254,6 +296,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   }
 
   void _showGameOver() {
+    _reportTowerSession();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../services/mini_game_service.dart';
 import '../services/ad_service.dart';
 import '../models/mini_game.dart';
@@ -457,6 +458,18 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
   }
 
   void _openGame(MiniGame game, AppLocalizations localizations) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanics.hasLives) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(localizations.get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     Widget? gameScreen;
 
     switch (game.id) {

@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 import '../models/mini_game.dart';
+import 'game_mechanics_service.dart';
 
 class MiniGameService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   MiniGameProgress? _progress;
   bool _isLoading = false;
+  GameMechanicsService? _mechanicsWallet;
+
+  /// Ana cüzdan (`GameMechanicsService`) ile jeton senkronu — [main] içinde bağlanır.
+  void attachMechanicsWallet(GameMechanicsService mechanics) {
+    _mechanicsWallet = mechanics;
+  }
   
   MiniGameProgress? get progress => _progress;
   bool get isLoading => _isLoading;
@@ -108,6 +115,9 @@ class MiniGameService extends ChangeNotifier {
     );
 
     await saveProgress();
+    if (result.coinsEarned > 0) {
+      _mechanicsWallet?.addCoins(result.coinsEarned);
+    }
     notifyListeners();
   }
 

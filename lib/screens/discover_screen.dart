@@ -5,6 +5,8 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import 'game_start_screen.dart'; // AgeGroupSelection için
+import 'colorful_math_screen.dart';
+import 'intelligence_games_screen.dart';
 
 class DiscoverScreen extends StatefulWidget {
   final AgeGroupSelection ageGroup;
@@ -29,7 +31,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Beyin jimnastiği yap, matematiksel düşünme becerilerini geliştir!',
       color: Color(0xFF00CEC9),
       isNew: true,
-      isPremium: false, // TODO: Test için geçici kapatıldı
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎨',
@@ -38,7 +40,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Renklerle matematik öğren, görsel hafızana hitap eden oyunlar!',
       color: Color(0xFF74B9FF),
       isNew: true,
-      isPremium: false, // TODO: Test için geçici kapatıldı
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎵',
@@ -649,7 +651,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         if (isLocked) {
                           _showPremiumUpgradeDialog();
                         } else {
-                          _launchFeature(item.title);
+                          _launchFeature(item);
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -789,15 +791,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     );
   }
 
-  void _launchFeature(String featureName) {
-    // Özellik başlatma işlevi
+  void _launchFeature(DiscoverItem item) {
+    final ageSlug = widget.ageGroup.toString().split('.').last;
+
+    if (item.title == 'Zeka Oyunları') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => IntelligenceGamesScreen(ageGroup: ageSlug),
+        ),
+      );
+      return;
+    }
+    if (item.title == 'Renkli Matematik') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => ColorfulMathScreen(ageGroup: ageSlug),
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$featureName özelliği yakında eklenecek!'),
+        content: Text('${item.title} özelliği yakında eklenecek!'),
         backgroundColor: Colors.purple,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: Duration(seconds: 2),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

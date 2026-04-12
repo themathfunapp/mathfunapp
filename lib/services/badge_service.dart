@@ -455,7 +455,8 @@ class BadgeService extends ChangeNotifier {
     _userStats ??= UserStats(userId: _userId!);
 
     final bool isPerfectGame = wrongAnswers == 0 && questionsAnswered > 0;
-    
+    final previousLastPlayed = _userStats!.lastPlayedAt;
+
     // Stats'ı güncelle
     _userStats = _userStats!.copyWith(
       totalGamesPlayed: _userStats!.totalGamesPlayed + 1,
@@ -472,8 +473,8 @@ class BadgeService extends ChangeNotifier {
       lastPlayedAt: DateTime.now(),
     );
 
-    // Daily streak kontrolü
-    await _updateDailyStreak();
+    // Günlük ardışık oyun günü (önceki `lastPlayedAt` ile takvim farkı)
+    await _updateDailyStreak(previousLastPlayed: previousLastPlayed);
 
     // Stats'ı kaydet
     await _saveUserStats();
@@ -486,24 +487,26 @@ class BadgeService extends ChangeNotifier {
   }
 
   /// Şans çarkı ödülünü profile ekle (XP, coins vb.)
-  Future<void> addSpinWheelReward(SpinWheelReward reward) async {
+  Future<void> addSpinWheelReward(SpinWheelReward reward, {int multiplier = 1}) async {
     if (_userId == null || _userId!.isEmpty || _isGuest) return;
 
     _userStats ??= UserStats(userId: _userId!);
 
+    final m = multiplier.clamp(1, 10);
     switch (reward.type) {
       case 'coins':
         _userStats = _userStats!.copyWith(
-          coinsEarned: _userStats!.coinsEarned + reward.value,
+          coinsEarned: _userStats!.coinsEarned + reward.value * m,
         );
         break;
       case 'xp':
         _userStats = _userStats!.copyWith(
-          totalScore: _userStats!.totalScore + reward.value,
+          totalScore: _userStats!.totalScore + reward.value * m,
         );
         break;
       case 'stars':
-        // Yıldızlar UserRewards.profileBonusStars (DailyRewardService)
+      case 'lightning':
+        // Yıldızlar UserRewards.profileBonusStars (SpinWheelScreen); şimşek rozet yok
         return;
       default:
         return;
@@ -528,40 +531,44 @@ class BadgeService extends ChangeNotifier {
     return newBadges;
   }
 
-  /// Günlük giriş yapıldığında çağrılır
-  Future<void> _updateDailyStreak() async {
+  /// Oyun oturumu sonunda: önceki `lastPlayedAt` ile takvim günü farkına göre `consecutiveDays` güncellenir.
+  Future<void> _updateDailyStreak({DateTime? previousLastPlayed}) async {
     if (_userStats == null) return;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
-    if (_userStats!.lastPlayedAt != null) {
-      final lastPlayed = _userStats!.lastPlayedAt!;
-      final lastPlayedDate = DateTime(lastPlayed.year, lastPlayed.month, lastPlayed.day);
-      final difference = today.difference(lastPlayedDate).inDays;
 
-      if (difference == 1) {
-        // Ardışık gün
-        _userStats = _userStats!.copyWith(
-          consecutiveDays: _userStats!.consecutiveDays + 1,
-          bestDailyStreak: _userStats!.consecutiveDays + 1 > _userStats!.bestDailyStreak 
-              ? _userStats!.consecutiveDays + 1 
-              : _userStats!.bestDailyStreak,
-          totalDaysPlayed: _userStats!.totalDaysPlayed + 1,
-        );
-      } else if (difference > 1) {
-        // Seri bozuldu
-        _userStats = _userStats!.copyWith(
-          consecutiveDays: 1,
-          totalDaysPlayed: _userStats!.totalDaysPlayed + 1,
-        );
-      }
-      // difference == 0 ise aynı gün, güncelleme yapmıyoruz
+    if (previousLastPlayed == null) {
+      _userStats = _userStats!.copyWith(
+        consecutiveDays: _userStats!.consecutiveDays < 1 ? 1 : _userStats!.consecutiveDays,
+        totalDaysPlayed: _userStats!.totalDaysPlayed < 1 ? 1 : _userStats!.totalDaysPlayed,
+      );
+      return;
+    }
+
+    final prevDay = DateTime(
+      previousLastPlayed.year,
+      previousLastPlayed.month,
+      previousLastPlayed.day,
+    );
+    final diff = today.difference(prevDay).inDays;
+
+    if (diff == 0) {
+      // Aynı takvim günü — seri sayacı değişmez
+      return;
+    }
+
+    if (diff == 1) {
+      final next = _userStats!.consecutiveDays + 1;
+      _userStats = _userStats!.copyWith(
+        consecutiveDays: next,
+        bestDailyStreak: next > _userStats!.bestDailyStreak ? next : _userStats!.bestDailyStreak,
+        totalDaysPlayed: _userStats!.totalDaysPlayed + 1,
+      );
     } else {
-      // İlk kez oynuyor
       _userStats = _userStats!.copyWith(
         consecutiveDays: 1,
-        totalDaysPlayed: 1,
+        totalDaysPlayed: _userStats!.totalDaysPlayed + 1,
       );
     }
   }

@@ -12,3 +12,7 @@
 
 # Kotlin / Java annotations
 -keepattributes *Annotation*
+
+# AdMob (release minify)
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**

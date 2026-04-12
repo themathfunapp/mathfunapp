@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
@@ -21,6 +24,7 @@ class DailyChallengeScreen extends StatefulWidget {
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Oyun durumu
   bool _isPlaying = false;
   int _currentQuestionIndex = 0;
@@ -45,6 +49,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   // Combo
   int _combo = 0;
   int _maxCombo = 0;
+  bool _sessionReported = false;
 
   // Animasyonlar
   late AnimationController _pulseController;
@@ -55,6 +60,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -81,6 +87,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _timer?.cancel();
     _pulseController.dispose();
     _shakeController.dispose();
@@ -101,6 +108,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       return;
     }
     _generateQuestions(challenge);
+    scheduleSectionAmbient(context, SoundscapeTheme.mountain);
     setState(() {
       _isPlaying = true;
       _currentQuestionIndex = 0;
@@ -110,6 +118,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _gameOver = false;
       _combo = 0;
       _maxCombo = 0;
+      _sessionReported = false;
       _timeLeft = challenge.timeLimit;
       _currentQuestion = _questions[0];
       _isAnswered = false;
@@ -235,10 +244,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
       // Her doğru cevap 10 puan
       _score += 10;
+      _audio.playAnswerFeedback(true);
     } else {
       // YANLIŞ CEVAP - 1 CAN GİDER (GameMechanicsService - profil senkron)
       _wrongAnswers++;
       _combo = 0;
+      _audio.playAnswerFeedback(false);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
 
@@ -285,8 +296,31 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _showResultsDialog();
   }
 
+  void _reportDailyChallengeSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _correctAnswers + _wrongAnswers;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _correctAnswers,
+        wrongAnswers: _wrongAnswers,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _maxCombo,
+      );
+    } catch (e) {
+      debugPrint('DailyChallenge report error: $e');
+    }
+  }
+
   // OYUN BİTTİ DİYALOĞU - REKLAM İLE CAN ALMA BUTONU
   void _showGameOverDialog() {
+    _reportDailyChallengeSession();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -445,6 +479,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   }
 
   void _showResultsDialog() {
+    _reportDailyChallengeSession();
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final challenge = mechanicsService.todayChallenge;
 

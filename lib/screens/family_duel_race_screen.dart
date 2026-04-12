@@ -8,8 +8,10 @@ import '../models/game_mechanics.dart';
 import '../services/auth_service.dart';
 import '../services/family_service.dart';
 import '../models/age_group_selection.dart';
+import '../utils/family_duel_question_utils.dart';
 
 /// Tek cihazda: ebeveyn ve çocuk sırayla aynı soruyu cevaplar; skor aile liderliğine yansır.
+/// İki telefon için: [FamilyRemoteDuelSetupScreen] (Premium, Firestore).
 class FamilyDuelRaceScreen extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -101,53 +103,11 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
     });
   }
 
-  bool _isCorrect(dynamic pick) {
-    final c = _question?['correctAnswer'];
-    if (pick == null || c == null) return false;
-    if (pick == c) return true;
-    if (pick is num && c is num) {
-      return pick.toDouble() == c.toDouble();
-    }
-    return pick.toString() == c.toString();
-  }
+  bool _isCorrect(dynamic pick) => familyDuelIsCorrect(_question, pick);
 
-  String _questionLine() {
-    final q = _question;
-    if (q == null) return '';
-    final text = q['question'];
-    if (text is String && text.isNotEmpty) return text;
+  String _questionLine() => familyDuelQuestionLine(_question);
 
-    final type = q['type'] as String?;
-    switch (type) {
-      case 'count_objects':
-        final emoji = q['emoji'] as String? ?? '🎯';
-        final cnt = ((q['count'] as int?) ?? 3).clamp(1, 16);
-        return '${List.filled(cnt, emoji).join(' ')}\nKaç tane?';
-      case 'find_missing':
-        final seq = q['sequence'] as String? ?? '';
-        return 'Hangi sayı eksik: $seq';
-      case 'whats_next':
-        final seq = q['sequence'] as String? ?? '';
-        return 'Sonraki sayı: $seq';
-      case 'before_after':
-        final params = q['questionParams'];
-        final n = params is Map ? '${params['number'] ?? '?'}' : '?';
-        final key = q['questionKey'] as String? ?? '';
-        if (key == 'question_before_number') {
-          return "$n'den önce hangi sayı gelir?";
-        }
-        return "$n'den sonra hangi sayı gelir?";
-      default:
-        break;
-    }
-    return 'Soru';
-  }
-
-  List<dynamic> _optionList() {
-    final o = _question?['options'];
-    if (o is List) return o;
-    return [];
-  }
+  List<dynamic> _optionList() => familyDuelOptionList(_question);
 
   Future<void> _finishGame() async {
     if (_child == null || _topic == null) return;

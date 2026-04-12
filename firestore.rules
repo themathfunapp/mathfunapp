@@ -1,0 +1,224 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMtnStylePlayerId(id) {
+      return id is string && id.matches('^MTN[1-9][0-9]{9}$');
+    }
+
+    function membersDoc(parentUid) {
+      return get(/databases/$(database)/documents/users/$(parentUid)/family/members);
+    }
+
+    /// `family/members` belgesindeki `childUserIds` (FamilyService).
+    function parentLinkedChild(parentUid, childUid) {
+      return membersDoc(parentUid).data != null
+        && membersDoc(parentUid).data.keys().hasAny(['childUserIds'])
+        && childUid in membersDoc(parentUid).data.childUserIds;
+    }
+
+    function isDuelParticipant(data) {
+      return signedIn()
+        && (request.auth.uid == data.hostUserId || request.auth.uid == data.guestUserId);
+    }
+
+    // --- Yalnızca Cloud Functions (Admin SDK) ---
+    match /pinResetCodes/{docId} {
+      allow read, write: if false;
+    }
+
+    match /mail/{docId} {
+      allow read, write: if false;
+    }
+
+    // --- Misafir: Firebase Auth yok; MTN kimliği ile ilk kayıt ---
+    match /guests/{guestId} {
+      allow create: if request.auth == null
+        && guestId == request.resource.data.uid
+        && request.resource.data.isGuest == true;
+      allow read: if signedIn();
+      allow delete: if signedIn();
+      allow update: if false;
+    }
+
+    // --- Arkadaş düello daveti ---
+    match /friendDuelInvites/{inviteId} {
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.toUserId is string
+        && request.resource.data.toUserId != request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow read: if signedIn()
+        && (resource.data.fromUserId == request.auth.uid
+            || resource.data.toUserId == request.auth.uid);
+
+      allow delete: if signedIn()
+        && (resource.data.fromUserId == request.auth.uid
+            || (resource.data.toUserId == request.auth.uid
+                && resource.data.status == 'pending'));
+
+      allow update: if false;
+    }
+
+    // --- Arkadaşlık isteği ---
+    match /friendRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.receiverId is string
+        && request.resource.data.receiverId != request.auth.uid;
+
+      allow read: if signedIn()
+        && (resource.data.senderId == request.auth.uid
+            || resource.data.receiverId == request.auth.uid);
+
+      allow update: if signedIn()
+        && resource.data.senderId == request.resource.data.senderId
+        && resource.data.receiverId == request.resource.data.receiverId
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'rejected']
+        && resource.data.receiverId == request.auth.uid;
+
+      allow delete: if signedIn() && resource.data.senderId == request.auth.uid;
+    }
+
+    // --- Kullanıcı kökü + alt koleksiyonlar ---
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update, delete: if signedIn() && request.auth.uid == userId;
+
+      match /friends/{friendId} {
+        allow read: if signedIn()
+          && (request.auth.uid == userId || request.auth.uid == friendId);
+        allow create, update, delete: if signedIn()
+          && (request.auth.uid == userId || request.auth.uid == friendId);
+      }
+
+      match /rewards/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /stats/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /badges/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /game_stats/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /game_history/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /family/members {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /private/fcm/{docId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // --- Uzaktan aile düellosu ---
+    match /familyRemoteDuelSessions/{sessionId} {
+      allow read: if signedIn() && isDuelParticipant(resource.data);
+
+      allow create: if signedIn()
+        && request.resource.data.hostUserId == request.auth.uid
+        && request.resource.data.guestUserId is string
+        && request.resource.data.hostUserId != request.resource.data.guestUserId
+        && parentLinkedChild(
+          request.resource.data.hostUserId,
+          request.resource.data.guestUserId
+        );
+
+      allow update: if signedIn()
+        && isDuelParticipant(resource.data)
+        && request.resource.data.hostUserId == resource.data.hostUserId
+        && request.resource.data.guestUserId == resource.data.guestUserId
+        && request.resource.data.questions == resource.data.questions
+        && request.resource.data.topicKey == resource.data.topicKey
+        && request.resource.data.questionSeed == resource.data.questionSeed;
+
+      allow delete: if false;
+    }
+
+    match /familyRemoteDuelInvites/{inviteId} {
+      allow read: if signedIn()
+        && (request.auth.uid == resource.data.fromUserId
+            || request.auth.uid == resource.data.toUserId);
+
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && parentLinkedChild(
+          request.resource.data.fromUserId,
+          request.resource.data.toUserId
+        );
+
+      allow update: if signedIn() && (
+        (request.auth.uid == resource.data.toUserId
+          && resource.data.status == 'pending'
+          && request.resource.data.fromUserId == resource.data.fromUserId
+          && request.resource.data.toUserId == resource.data.toUserId
+          && request.resource.data.sessionId == resource.data.sessionId
+          && request.resource.data.status in ['accepted', 'declined'])
+        ||
+        (request.auth.uid == resource.data.fromUserId
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled')
+      );
+
+      allow delete: if false;
+    }
+
+    // --- Oyun ilerlemesi (kayıtlı kullanıcı veya misafir MTN belge kimliği) ---
+    match /story_progress/{docId} {
+      allow read, write: if (signedIn() && request.auth.uid == docId)
+        || (request.auth == null && isMtnStylePlayerId(docId));
+    }
+
+    match /mini_game_progress/{docId} {
+      allow read, write: if (signedIn() && request.auth.uid == docId)
+        || (request.auth == null && isMtnStylePlayerId(docId));
+    }
+
+    match /user_mechanics/{docId} {
+      allow read, write: if signedIn() && request.auth.uid == docId;
+    }
+
+    match /user_quests/{userId}/active/{questId} {
+      allow read, write: if (signedIn() && request.auth.uid == userId)
+        || (request.auth == null && isMtnStylePlayerId(userId));
+    }
+
+    // Günlük challenge şablonu — istemci oluşturur; kötüye kullanımı azaltmak için ileride CF önerilir.
+    match /daily_challenges/{dateKey} {
+      allow read: if signedIn();
+      allow create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /user_challenges/{docId} {
+      allow read, write: if signedIn()
+        && docId.matches('^' + request.auth.uid + '_.+');
+    }
+
+    match /purchases/{purchaseId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

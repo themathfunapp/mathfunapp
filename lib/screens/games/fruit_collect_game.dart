@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 import '../../services/auth_service.dart';
+import '../../services/game_mechanics_service.dart';
+import '../../services/mini_game_session_report.dart';
 import '../../services/mini_game_service.dart';
 import '../../models/mini_game.dart';
 import '../../localization/app_localizations.dart';
@@ -27,6 +29,9 @@ class _FruitCollectGameState extends State<FruitCollectGame>
   int _currentQuestion = 0;
   int _totalQuestions = 8;
   int _correctAnswers = 0;
+  int _wrongTaps = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
   bool _isPlaying = false;
 
   late AnimationController _basketController;
@@ -56,6 +61,9 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       _isPlaying = true;
       _score = 0;
       _correctAnswers = 0;
+      _wrongTaps = 0;
+      _runStreak = 0;
+      _bestStreak = 0;
       _currentQuestion = 0;
     });
     _generateNewQuestion();
@@ -128,10 +136,21 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       if (_collectedCount == _targetCount) {
         _score += 15;
         _correctAnswers++;
+        _runStreak++;
+        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _showSuccessFeedback();
       }
     } else {
+      _wrongTaps++;
+      _runStreak = 0;
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      mechanics.onWrongAnswer();
       _showWrongFeedback();
+      if (!mechanics.hasLives) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) _endGame();
+        });
+      }
     }
   }
 
@@ -162,8 +181,16 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     );
   }
 
-  void _endGame() {
+  Future<void> _endGame() async {
     setState(() => _isPlaying = false);
+
+    await MiniGameSessionReport.submit(
+      context,
+      correctAnswers: _correctAnswers,
+      wrongAnswers: _wrongTaps,
+      score: _score,
+      bestCorrectStreakInSession: _bestStreak,
+    );
 
     final miniGameService = Provider.of<MiniGameService>(context, listen: false);
     final stars = miniGameService.calculateStars(

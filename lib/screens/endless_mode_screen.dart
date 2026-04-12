@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
+import '../audio/section_soundscape.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/game_session_report.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
@@ -26,9 +29,11 @@ class EndlessModeScreen extends StatefulWidget {
 
 class _EndlessModeScreenState extends State<EndlessModeScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Oyun durumu
   int _score = 0;
   int _questionsAnswered = 0;
+  int _wrongAnswers = 0;
   int _combo = 0;
   int _maxCombo = 0;
   int _level = 1;
@@ -37,6 +42,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   bool _isCorrect = false;
   bool _isGameOver = false;
   bool _gamePaused = false;
+  bool _sessionReported = false;
 
   // Soru
   late _EndlessQuestion _currentQuestion;
@@ -59,6 +65,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.forest);
 
     _shakeController = AnimationController(
       duration: const Duration(milliseconds: 500),
@@ -90,6 +98,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _timer?.cancel();
     _shakeController.dispose();
     _heartController.dispose();
@@ -208,6 +217,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     if (_isCorrect) {
       _combo++;
       if (_combo > _maxCombo) _maxCombo = _combo;
+      _audio.playAnswerFeedback(true);
 
       // Her soru için 10 puan + combo bonusu
       _score += 10 + (_combo * 2);
@@ -238,8 +248,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   void _loseLife() {
     _heartController.forward().then((_) => _heartController.reset());
+    _audio.playAnswerFeedback(false);
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    setState(() => _wrongAnswers++);
     mechanicsService.onWrongAnswer();
 
     if (mechanicsService.currentLives <= 0) {
@@ -269,7 +281,30 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     _showGameOverDialog();
   }
 
+  void _reportEndlessSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final total = _questionsAnswered + _wrongAnswers;
+    final q = total < 1 ? 1 : total;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _questionsAnswered,
+        wrongAnswers: _wrongAnswers,
+        score: _score,
+        averageAnswerTimeSeconds: 5.0,
+        fastAnswersCount: 0,
+        superFastAnswersCount: 0,
+        bestCorrectStreakInSession: _maxCombo,
+      );
+    } catch (e) {
+      debugPrint('EndlessMode report error: $e');
+    }
+  }
+
   void _showGameOverDialog() {
+    _reportEndlessSession();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -440,6 +475,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     setState(() {
       _score = 0;
       _questionsAnswered = 0;
+      _wrongAnswers = 0;
       _combo = 0;
       _maxCombo = 0;
       _level = 1;
@@ -447,6 +483,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       _selectedAnswer = null;
       _isGameOver = false;
       _gamePaused = false;
+      _sessionReported = false;
       _generateQuestion();
     });
     _startTimer();

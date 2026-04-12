@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPinResetCode = exports.requestPinResetCode = void 0;
+exports.onFamilyRemoteDuelInviteCreated = exports.verifyPinResetCode = exports.requestPinResetCode = void 0;
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 admin.initializeApp();
@@ -101,5 +101,52 @@ exports.verifyPinResetCode = functions.https.onCall(async (data, context) => {
     }
     await codeRef.delete();
     return { success: true, message: "Kod doğrulandı." };
+});
+/**
+ * Uzaktan aile düellosu: davet oluşunca çocuğa FCM bildirimi.
+ * Jeton: users/{toUid}/private/fcm/current (Flutter PushNotificationService).
+ */
+exports.onFamilyRemoteDuelInviteCreated = functions.firestore
+    .document("familyRemoteDuelInvites/{inviteId}")
+    .onCreate(async (snap, context) => {
+    var _a;
+    const d = snap.data();
+    if (!d || d.status !== "pending") {
+        return;
+    }
+    const toUid = d.toUserId;
+    const fromName = d.fromDisplayName || "Ailen";
+    const sessionId = d.sessionId || "";
+    if (!toUid) {
+        return;
+    }
+    const tokenSnap = await admin
+        .firestore()
+        .doc(`users/${toUid}/private/fcm/current`)
+        .get();
+    const token = (_a = tokenSnap.data()) === null || _a === void 0 ? void 0 : _a.token;
+    if (!token) {
+        functions.logger.info("onFamilyRemoteDuelInviteCreated: no FCM token", {
+            toUid,
+        });
+        return;
+    }
+    try {
+        await admin.messaging().send({
+            token,
+            notification: {
+                title: "MathFun — Aile düellosu",
+                body: `${fromName} seni uzaktan düelloya davet etti.`,
+            },
+            data: {
+                type: "family_remote_duel_invite",
+                inviteId: context.params.inviteId,
+                sessionId,
+            },
+        });
+    }
+    catch (err) {
+        functions.logger.error("onFamilyRemoteDuelInviteCreated FCM error", err);
+    }
 });
 //# sourceMappingURL=index.js.map

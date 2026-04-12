@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../services/game_session_report.dart';
 
 /// Boss Savaşı Ekranı - 5 CAN (GameMechanicsService ile profil senkron)
 class BossBattleScreen extends StatefulWidget {
@@ -30,6 +33,7 @@ class BossBattleScreen extends StatefulWidget {
 
 class _BossBattleScreenState extends State<BossBattleScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   // Boss durumu
   late int _bossHealth;
   late int _bossMaxHealth;
@@ -37,6 +41,14 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   // OYUNCU CAN SİSTEMİ - GameMechanicsService ile profil senkron (5 can)
   int _score = 0;
   bool _gameOver = false;
+  bool _sessionReported = false;
+  int _sessionCorrect = 0;
+  int _sessionWrong = 0;
+  int _runStreak = 0;
+  int _bestStreak = 0;
+  int _fastAnswersSession = 0;
+  int _superFastAnswersSession = 0;
+  int _totalAnswerSeconds = 0;
 
   // Soru durumu
   late _BossQuestion _currentQuestion;
@@ -63,6 +75,11 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _audio.playMoodLoop(MusicMood.intense);
+    });
 
     _bossHealth = widget.boss.health;
     _bossMaxHealth = widget.boss.health;
@@ -108,6 +125,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   @override
   void dispose() {
+    _audio.cancelAmbientSync();
     _timer?.cancel();
     _bossShakeController.dispose();
     _playerShakeController.dispose();
@@ -221,6 +239,15 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     if (_isAnswered || _gameOver) return;
 
     _timer?.cancel();
+    final int limit = widget.boss.timePerQuestion;
+    final int timeUsed = (limit - _timeLeft).clamp(0, limit);
+    _totalAnswerSeconds += timeUsed;
+    if (timeUsed <= 5) {
+      _superFastAnswersSession++;
+    } else if (timeUsed <= 10) {
+      _fastAnswersSession++;
+    }
+
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
@@ -228,6 +255,10 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     });
 
     if (_isCorrect) {
+      _sessionCorrect++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
+      _audio.playAnswerFeedback(true);
       // DOĞRU CEVAP - Boss'a hasar ver
       _attackController.forward().then((_) => _attackController.reset());
       _bossShakeController.forward().then((_) => _bossShakeController.reset());
@@ -242,6 +273,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         return;
       }
     } else {
+      _sessionWrong++;
+      _runStreak = 0;
+      _audio.playAnswerFeedback(false);
       // YANLIŞ CEVAP - 1 CAN GİDER (GameMechanicsService - profil senkron)
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
@@ -288,6 +322,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   // OYUN BİTTİ DİYALOĞU - REKLAM İLE 1 CAN ALMA
   void _showGameOverDialog() {
+    _reportBossSession();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -382,6 +417,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   }
 
   void _showResultDialog(bool won) {
+    _reportBossSession();
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     final loc = AppLocalizations(localeProvider.locale);
     final bossName = loc.get('boss_${widget.boss.id}');
@@ -530,6 +566,28 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     );
   }
 
+  void _reportBossSession() {
+    if (_sessionReported || !mounted) return;
+    _sessionReported = true;
+    final q = (_sessionCorrect + _sessionWrong).clamp(1, 9999);
+    final avg = q > 0 ? _totalAnswerSeconds / q : 0.0;
+    try {
+      GameSessionReport.submit(
+        context,
+        questionsAnswered: q,
+        correctAnswers: _sessionCorrect,
+        wrongAnswers: _sessionWrong,
+        score: _score,
+        averageAnswerTimeSeconds: avg,
+        fastAnswersCount: _fastAnswersSession,
+        superFastAnswersCount: _superFastAnswersSession,
+        bestCorrectStreakInSession: _bestStreak,
+      );
+    } catch (e) {
+      debugPrint('Boss battle report error: $e');
+    }
+  }
+
   void _restartBattle() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!mechanicsService.hasLives) {
@@ -548,6 +606,14 @@ class _BossBattleScreenState extends State<BossBattleScreen>
       _bossHealth = _bossMaxHealth;
       _score = 0;
       _gameOver = false;
+      _sessionReported = false;
+      _sessionCorrect = 0;
+      _sessionWrong = 0;
+      _runStreak = 0;
+      _bestStreak = 0;
+      _fastAnswersSession = 0;
+      _superFastAnswersSession = 0;
+      _totalAnswerSeconds = 0;
       _isAnswered = false;
       _selectedAnswer = null;
       _generateQuestion();
