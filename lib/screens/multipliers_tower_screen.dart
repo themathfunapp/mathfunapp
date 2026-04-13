@@ -348,7 +348,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
               _buildClouds(),
               Column(
                 children: [
-                  _buildTopBar(loc, mechanicsService),
+                  _buildTopBar(loc),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -387,29 +387,99 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     );
   }
 
-  Widget _buildTopBar(AppLocalizations loc, GameMechanicsService mechanicsService) {
+  Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), shape: BoxShape.circle, border: Border.all(color: _gold)), child: const Icon(Icons.arrow_back, color: Colors.white, size: 24)),
+          // Üst: geri + canlar + muz (HUD); başlık alta taşınır.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _gold),
+                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Consumer<GameMechanicsService?>(
+                        builder: (context, m, _) {
+                          final lives = m?.maxLives ?? 3;
+                          final current = m?.currentLives ?? 3;
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              lives,
+                              (i) => Padding(
+                                padding: const EdgeInsets.only(left: 2),
+                                child: Opacity(
+                                  opacity: i < current ? 1.0 : 0.3,
+                                  child: const Text('⚡', style: TextStyle(fontSize: 18)),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _gold.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🍌', style: TextStyle(fontSize: 16)),
+                            const SizedBox(width: 4),
+                            Text('$_bananas', style: _textStyle(Colors.white, size: 14, bold: true)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('🏝️ ${loc.get('world_multipliers_tower')}', style: _textStyle(Colors.white, size: 18, bold: true)),
-              Text(loc.get('ziki_going_to_island'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-            ]),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '🏝️ ${loc.get('world_multipliers_tower')}',
+                  style: _textStyle(Colors.white, size: 18, bold: true),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  loc.get('ziki_going_to_island'),
+                  style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-          Consumer<GameMechanicsService?>(builder: (context, m, _) {
-            final lives = m?.maxLives ?? 3;
-            final current = m?.currentLives ?? 3;
-            return Row(children: List.generate(lives, (i) => Padding(padding: const EdgeInsets.only(left: 2), child: Opacity(opacity: i < current ? 1.0 : 0.3, child: const Text('⚡', style: TextStyle(fontSize: 18))))));
-          }),
-          const SizedBox(width: 8),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: _gold.withOpacity(0.5), borderRadius: BorderRadius.circular(12)), child: Row(children: [const Text('🍌', style: TextStyle(fontSize: 16)), const SizedBox(width: 4), Text('$_bananas', style: _textStyle(Colors.white, size: 14, bold: true))])),
         ],
       ),
     );

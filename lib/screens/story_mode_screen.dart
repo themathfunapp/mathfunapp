@@ -304,40 +304,34 @@ class _StoryModeScreenState extends State<StoryModeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$ageRange $yearsOld',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '$ageRange $yearsOld',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -346,6 +340,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.9),
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -393,8 +389,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
             padding: EdgeInsets.symmetric(vertical: 8),
           ),
 
-          // Alt 6 öğe (Başarılar, Görevler, …) — Sayı Maceraları (3-5 / preschool) için gizli
-          if (progress?.selectedAgeGroup != AgeGroup.preschool)
+          // Alt 6 öğe — Sayı Maceraları ve Matematik Krallığı'nda gizli; sadece Matematik Gezginleri (6-8).
+          if (progress?.selectedAgeGroup == AgeGroup.earlyElementary)
             _buildBottomNav(localizations, storyService, dailyRewardService),
         ],
       ),

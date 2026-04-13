@@ -15,6 +15,7 @@ import '../widgets/kurdistan_flag.dart'; // KurtceFlag widget
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
+import '../services/game_mechanics_service.dart';
 import '../services/family_remote_duel_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/parent_mode_service.dart';
@@ -61,7 +62,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _titleController;
   late Animation<double> _titleAnimation;
   late final VoidCallback _remoteDuelQueueListener;
@@ -69,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     // Başlık animasyonu
     _titleController = AnimationController(
@@ -89,10 +92,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     PushNotificationService.instance.remoteDuelInviteQueueVersion
         .removeListener(_remoteDuelQueueListener);
     _titleController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<GameMechanicsService>().tickLifeRegeneration();
+    }
   }
 
   void _consumeRemoteDuelNotificationQueue() {

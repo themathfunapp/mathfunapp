@@ -117,16 +117,18 @@ class PowerUp {
 }
 
 // === CAN SİSTEMİ ===
+/// Duolingo benzeri: eksik her can için sırayla [lifeRegenTime] beklenir;
+/// [nextLifeAt] bir sonraki otomatik canın anıdır (doluysa null).
 class LivesSystem {
   int maxLives;
   int currentLives;
-  DateTime? lastLifeLostAt;
+  DateTime? nextLifeAt;
   Duration lifeRegenTime;
 
   LivesSystem({
     this.maxLives = 5,
     this.currentLives = 5,
-    this.lastLifeLostAt,
+    this.nextLifeAt,
     this.lifeRegenTime = const Duration(minutes: 30),
   });
 
@@ -134,42 +136,101 @@ class LivesSystem {
   bool get isFullLives => currentLives >= maxLives;
 
   void loseLife() {
-    if (currentLives > 0) {
-      currentLives--;
-      lastLifeLostAt = DateTime.now();
+    if (currentLives <= 0) return;
+    currentLives--;
+    if (currentLives < maxLives && nextLifeAt == null) {
+      nextLifeAt = DateTime.now().add(lifeRegenTime);
     }
   }
 
   void gainLife() {
-    if (currentLives < maxLives) {
-      currentLives++;
+    if (currentLives >= maxLives) return;
+    currentLives++;
+    if (currentLives >= maxLives) {
+      nextLifeAt = null;
     }
   }
 
   void refillLives() {
     currentLives = maxLives;
+    nextLifeAt = null;
+  }
+
+  /// Şu ana kadar biriken canları uygular. Yeni can eklendiyse true.
+  bool applyRegeneration(DateTime now) {
+    if (isFullLives) {
+      final hadTimer = nextLifeAt != null;
+      nextLifeAt = null;
+      return hadTimer;
+    }
+    if (nextLifeAt == null) {
+      nextLifeAt = now.add(lifeRegenTime);
+      return false;
+    }
+    var changed = false;
+    while (currentLives < maxLives && !now.isBefore(nextLifeAt!)) {
+      currentLives++;
+      changed = true;
+      if (currentLives >= maxLives) {
+        nextLifeAt = null;
+        break;
+      }
+      nextLifeAt = nextLifeAt!.add(lifeRegenTime);
+    }
+    return changed;
   }
 
   Duration? get timeUntilNextLife {
-    if (isFullLives || lastLifeLostAt == null) return null;
-    final elapsed = DateTime.now().difference(lastLifeLostAt!);
-    if (elapsed >= lifeRegenTime) return Duration.zero;
-    return lifeRegenTime - elapsed;
+    if (isFullLives || nextLifeAt == null) return null;
+    final d = nextLifeAt!.difference(DateTime.now());
+    if (d.isNegative) return Duration.zero;
+    return d;
   }
 
   Map<String, dynamic> toJson() => {
     'maxLives': maxLives,
     'currentLives': currentLives,
-    'lastLifeLostAt': lastLifeLostAt?.toIso8601String(),
+    'nextLifeAt': nextLifeAt?.toIso8601String(),
+    'lifeRegenMinutes': lifeRegenTime.inMinutes,
   };
 
-  factory LivesSystem.fromJson(Map<String, dynamic> json) => LivesSystem(
-    maxLives: json['maxLives'] ?? 5,
-    currentLives: (json['currentLives'] ?? 5).clamp(0, 5),
-    lastLifeLostAt: json['lastLifeLostAt'] != null
-        ? DateTime.parse(json['lastLifeLostAt'])
-        : null,
-  );
+  factory LivesSystem.fromJson(Map<String, dynamic> json) {
+    final maxL = (json['maxLives'] is int) ? json['maxLives'] as int : 5;
+    var current = (json['currentLives'] is int) ? json['currentLives'] as int : maxL;
+    current = current.clamp(0, maxL);
+    final regenMin = (json['lifeRegenMinutes'] is int)
+        ? (json['lifeRegenMinutes'] as int).clamp(5, 180)
+        : 30;
+    final regen = Duration(minutes: regenMin);
+
+    DateTime? nextAt;
+    if (json['nextLifeAt'] != null) {
+      nextAt = DateTime.tryParse(json['nextLifeAt'].toString());
+    } else if (json['lastLifeLostAt'] != null && current < maxL) {
+      final last = DateTime.tryParse(json['lastLifeLostAt'].toString());
+      if (last != null) {
+        var candidate = last.add(regen);
+        final now = DateTime.now();
+        while (current < maxL && !candidate.isAfter(now)) {
+          current++;
+          if (current >= maxL) break;
+          candidate = candidate.add(regen);
+        }
+        if (current >= maxL) {
+          nextAt = null;
+        } else {
+          nextAt = candidate;
+        }
+      }
+    }
+
+    return LivesSystem(
+      maxLives: maxL,
+      currentLives: current,
+      nextLifeAt: nextAt,
+      lifeRegenTime: regen,
+    );
+  }
 }
 
 // === COMBO SİSTEMİ ===

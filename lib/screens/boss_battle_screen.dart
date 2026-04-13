@@ -651,25 +651,24 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         child: SafeArea(
           child: Column(
             children: [
-              // Üst bar - CANLAR EKLENDİ
               _buildTopBar(),
-
-              const SizedBox(height: 4),
-
-              // Boss alanı
-              _buildBossArea(),
-
-              const SizedBox(height: 12),
-
-              // Soru
-              _buildQuestion(),
-
-              const SizedBox(height: 12),
-
-              // Seçenekler
-              _buildOptions(),
-
-              const SizedBox(height: 20),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildBossArea(),
+                      const SizedBox(height: 12),
+                      _buildQuestion(),
+                      const SizedBox(height: 12),
+                      _buildOptions(),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -679,10 +678,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
       child: Row(
         children: [
-          // Geri butonu - sol köşede
           GestureDetector(
             onTap: _showExitConfirmation,
             child: Container(
@@ -695,79 +693,89 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               child: const Icon(Icons.close, color: Colors.white, size: 20),
             ),
           ),
-
-          const Spacer(),
-
-          // OYUNCU CANLARI VE YILDIZ - sağ köşede
-          AnimatedBuilder(
-            animation: _lifeShakeAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(_lifeShakeAnimation.value, 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Consumer<GameMechanicsService>(
-                    builder: (context, mechanicsService, _) {
-                      final lives = mechanicsService.currentLives;
-                      final maxLives = mechanicsService.maxLives;
-                      return Row(
-                        children: [
-                          const Text('🦸', style: TextStyle(fontSize: 18)),
-                          const SizedBox(width: 8),
-                          ...List.generate(
-                            maxLives,
-                            (index) => Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: Icon(
-                                index < lives
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: index < lives
-                                    ? Colors.red
-                                    : Colors.white.withOpacity(0.5),
-                                size: 20,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _lifeShakeAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(_lifeShakeAnimation.value, 0),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
                               ),
+                            ),
+                            child: Consumer<GameMechanicsService>(
+                              builder: (context, mechanicsService, _) {
+                                final lives = mechanicsService.currentLives;
+                                final maxLives = mechanicsService.maxLives;
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🦸', style: TextStyle(fontSize: 16)),
+                                    const SizedBox(width: 6),
+                                    ...List.generate(
+                                      maxLives,
+                                      (index) => Padding(
+                                        padding: const EdgeInsets.only(right: 2),
+                                        child: Icon(
+                                          index < lives
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                          color: index < lives
+                                              ? Colors.red
+                                              : Colors.white.withOpacity(0.5),
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 17),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$_score',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
                         ],
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
-
-          const SizedBox(width: 12),
-
-          // Puan (yıldız)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -861,8 +869,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     final isLowTime = _timeLeft <= 3;
 
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [const Color(0xFF667eea), const Color(0xFF764ba2)],
@@ -873,10 +882,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         border: Border.all(color: Colors.white, width: 2),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Zamanlayıcı
           Container(
             width: 35,
             height: 35,
@@ -899,25 +905,32 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          const Text('⚔️', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
-          // Soru
-          Text(
-            '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          const SizedBox(width: 8),
+          const Text('⚔️', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Text(
+                '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          // Sonuç ikonu
-          if (_isAnswered)
+          if (_isAnswered) ...[
+            const SizedBox(width: 6),
             Text(
               _isCorrect ? '✅' : '❌',
-              style: const TextStyle(fontSize: 22),
+              style: const TextStyle(fontSize: 20),
             ),
+          ],
         ],
       ),
     );

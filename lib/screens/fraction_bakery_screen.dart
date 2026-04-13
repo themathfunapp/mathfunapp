@@ -354,10 +354,11 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   /// Yenmiş cupcake - sadece kağıt/kalıp (can kaybedilince)
-  Widget _buildCupcakeWrapper() {
+  Widget _buildCupcakeWrapper({bool compact = false}) {
+    final s = compact ? 18.0 : 24.0;
     return SizedBox(
-      width: 24,
-      height: 24,
+      width: s,
+      height: s,
       child: CustomPaint(
         painter: _CupcakeWrapperPainter(color: _cream),
       ),
@@ -425,86 +426,98 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _cream.withOpacity(0.8),
-                shape: BoxShape.circle,
-                border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: _blueberryPurple.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _cream.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _blueberryPurple.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Icon(Icons.arrow_back, color: _blueberryPurple),
+                ),
               ),
-              child: Icon(Icons.arrow_back, color: _blueberryPurple),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🍰 ${loc.get('fraction_bakery')}',
-                  style: _textStyle(_blueberryPurple, size: 22, bold: true),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🍰 ${loc.get('fraction_bakery')}',
+                      style: _textStyle(_blueberryPurple, size: 22, bold: true),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      loc.get('fraction_bakery_subtitle'),
+                      style: _textStyle(_blueberryPurple.withOpacity(0.8), size: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                Text(
-                  loc.get('fraction_bakery_subtitle'),
-                  style: _textStyle(_blueberryPurple.withOpacity(0.8), size: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _blueberryPurple.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
                 ),
-              ],
-            ),
-          ),
-          // Can göstergesi - Cupcake (profil ile senkron)
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Row(
-                children: List.generate(maxLives, (i) {
-                  final hasLife = i < lives;
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 2),
-                    child: hasLife
-                        ? const Text('🧁', style: TextStyle(fontSize: 24))
-                        : _buildCupcakeWrapper(),
-                  );
-                }),
-              );
-            },
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: _blueberryPurple.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 4),
-                Text(
-                  '$_stars',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _blueberryPurple,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('⭐', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_stars',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _blueberryPurple,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Consumer<GameMechanicsService>(
+              builder: (context, mechanicsService, _) {
+                final lives = mechanicsService.currentLives;
+                final maxLives = mechanicsService.maxLives;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(maxLives, (i) {
+                    final hasLife = i < lives;
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: hasLife
+                          ? const Text('🧁', style: TextStyle(fontSize: 18))
+                          : _buildCupcakeWrapper(compact: true),
+                    );
+                  }),
+                );
+              },
             ),
           ),
         ],

@@ -106,6 +106,15 @@ dart analyze lib
 
 ---
 
+## Store builds and code hardening
+
+For **Play Store AAB** with Dart **obfuscation** and split debug symbols (keep symbols private — see doc):
+
+- `docs/SECURITY_RELEASE.md`
+- Windows: `.\scripts\build_release_appbundle.ps1`
+
+---
+
 ## License and contact
 
 `publish_to: 'none'` in `pubspec.yaml` — distribution model and SPDX license are up to the maintainer; add a `LICENSE` file and contact details when ready.

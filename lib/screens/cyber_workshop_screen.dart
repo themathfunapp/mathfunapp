@@ -326,81 +326,100 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _silver.withOpacity(0.2),
-                shape: BoxShape.circle,
-                border: Border.all(color: _neonBlue.withOpacity(0.5)),
+          // Üst satır: geri + başlık (geniş) + skor; canlar ayrı satırda (dar ekranda başlığı sıkıştırmaz).
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: widget.onBack,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _silver.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _neonBlue.withOpacity(0.5)),
+                  ),
+                  child: const Icon(Icons.arrow_back, color: _silver),
+                ),
               ),
-              child: const Icon(Icons.arrow_back, color: _silver),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🤖 ${loc.get('siber_atolye')}',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _silver,
-                    fontFamily: 'monospace',
-                  ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🤖 ${loc.get('siber_atolye')}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: _silver,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      loc.get('siber_atolye_subtitle'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _neonBlue.withOpacity(0.9),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                Text(
-                  loc.get('siber_atolye_subtitle'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _neonBlue.withOpacity(0.9),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _neonBlue.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _neonBlue.withOpacity(0.6)),
                 ),
-              ],
-            ),
-          ),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(maxLives, (i) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: Text(i < lives ? '🧩' : '🔌', style: const TextStyle(fontSize: 20)),
-                )),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: _neonBlue.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _neonBlue.withOpacity(0.6)),
-            ),
-            child: Row(
-              children: [
-                const Text('⚡', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 4),
-                Text(
-                  '$_stars',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _silver,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('⚡', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_stars',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _silver,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Consumer<GameMechanicsService>(
+              builder: (context, mechanicsService, _) {
+                final lives = mechanicsService.currentLives;
+                final maxLives = mechanicsService.maxLives;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    maxLives,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: Text(
+                        i < lives ? '🧩' : '🔌',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

@@ -19,9 +19,11 @@ import '../models/game_mechanics.dart';
 import 'coming_soon_screen.dart';
 import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
+import 'premium_screen.dart';
 import 'package:mathfun/services/game_mechanics_service.dart';
 import '../models/age_group_selection.dart';
 import '../services/audio_service.dart';
+import '../widgets/no_lives_gate_dialog.dart';
 
 export '../models/age_group_selection.dart';
 
@@ -1141,12 +1143,10 @@ class _GameStartScreenState extends State<GameStartScreen>
         ),
         const SizedBox(height: 12),
 
-        // Aktif özellikler - sadece Zeka Oyunları ve Renkli Matematik (bitişik yan yana)
+        // Zeka Oyunları + Renkli Matematik — negatif translate kaldırıldı (PRO rozeti üst üste biniyordu).
         Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 155,
+            Expanded(
               child: _buildDiscoverCard(
                 localizations: localizations,
                 emoji: '🧩',
@@ -1157,11 +1157,9 @@ class _GameStartScreenState extends State<GameStartScreen>
                 isPremium: true,
               ),
             ),
-            Transform.translate(
-              offset: const Offset(-45, 0),
-              child: SizedBox(
-                width: 155,
-                child: _buildDiscoverCard(
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildDiscoverCard(
                 localizations: localizations,
                 emoji: '🎨',
                 title: localizations.get('colorful_math'),
@@ -1170,7 +1168,6 @@ class _GameStartScreenState extends State<GameStartScreen>
                 onTap: () => _openDiscoverItem('colorful_math'),
                 isPremium: true,
               ),
-            ),
             ),
           ],
         ),
@@ -1295,10 +1292,16 @@ class _GameStartScreenState extends State<GameStartScreen>
     final isLocked = isPremium && !authService.isPremium;
 
     return GestureDetector(
-        onTap: onTap,
+      onTap: onTap,
+      // Expanded içinde tam genişlik: dar içerik yüzünden Stack dar kalıp PRO rozeti kart dışına kayıyordu.
+      child: SizedBox(
+        width: double.infinity,
+        height: 100,
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Container(
+              width: double.infinity,
               height: 100,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1318,9 +1321,10 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(emoji, style: const TextStyle(fontSize: 22)),
+                  Text(emoji, style: const TextStyle(fontSize: 22), textAlign: TextAlign.center),
                   const SizedBox(height: 4),
                   Text(
                     title,
@@ -1347,11 +1351,11 @@ class _GameStartScreenState extends State<GameStartScreen>
                 ],
               ),
             ),
-            // Premium badge - sağ üst köşe
+            // Premium badge — kartın sağ üst köşesi (Renkli Matematik ile aynı hizalama)
             if (isLocked)
               Positioned(
-                top: 6,
-                right: 6,
+                top: 4,
+                right: 4,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
@@ -1386,6 +1390,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
           ],
         ),
+      ),
     );
   }
 
@@ -1623,78 +1628,75 @@ class _GameStartScreenState extends State<GameStartScreen>
   }
 
   void _showNoLivesDialog() {
-    final loc = AppLocalizations.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.favorite_border, color: Colors.red, size: 32),
-            const SizedBox(width: 12),
-            Text(loc.get('lives_finished')),
-          ],
-        ),
-        content: Text(
-          '${loc.get('no_lives_play')}',
-          style: const TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.get('ok')),
-          ),
-        ],
-      ),
-    );
+    showNoLivesGateDialog(context);
   }
 
   void _showBossSelection() {
     final bosses = BossBattle.allBosses;
     final loc = AppLocalizations.of(context);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF2C3E50), Color(0xFF4CA1AF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '👾 ${loc.get('select_boss')} 👾',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 450),
-              child: SingleChildScrollView(
+      builder: (sheetContext) {
+        final h = MediaQuery.sizeOf(sheetContext).height;
+        final bottomPad = MediaQuery.viewPaddingOf(sheetContext).bottom;
+        // Sabit yükseklik: Column + Expanded doğru kısıtlanır; küçük ekranda taşma olmaz.
+        final sheetHeight = (h * 0.74).clamp(320.0, 620.0);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomPad),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              height: sheetHeight,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF2C3E50), Color(0xFF4CA1AF)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: bosses.map((boss) => _buildBossItem(boss, loc)).toList(),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '👾 ${loc.get('select_boss')} 👾',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 4),
+                        itemCount: bosses.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (ctx, i) => _buildBossItem(bosses[i], loc),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1719,7 +1721,6 @@ class _GameStartScreenState extends State<GameStartScreen>
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
@@ -1986,17 +1987,13 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  // Premium ekranına yönlendir
   void _navigateToPremiumScreen() {
-    // TODO: Premium satın alma ekranına yönlendir
-    final localizations = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(localizations.get('premium_coming_soon')),
-        backgroundColor: Colors.amber.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => PremiumScreen(
+          onBack: () => Navigator.pop(context),
+        ),
       ),
     );
   }

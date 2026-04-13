@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -51,9 +52,35 @@ class GameMechanicsService extends ChangeNotifier {
   String? _userId;
   bool _isGuest = false;
   bool _isLoading = false;
+  /// Premium: can düşmez, her zaman oynanabilir (reklam / can zamanlayıcısı yok).
+  bool _premiumUnlimited = false;
   bool get isLoading => _isLoading;
   bool get isGuest => _isGuest;
+  bool get premiumUnlimited => _premiumUnlimited;
+
+  /// [initialize] yalnızca kullanıcı / misafir değişince çağrılmalı (Premium güncellemesi tam yenileme yapmaz).
+  bool shouldReloadForUser(String userId, bool isGuest) =>
+      _userId != userId || _isGuest != isGuest;
+
   static const String _guestMechanicsKey = 'guest_mechanics';
+
+  /// Duolingo tarzı can dolumunu periyodik kontrol eder.
+  Timer? _lifeRegenTimer;
+
+  void setPremiumUnlimited(bool value) {
+    if (_premiumUnlimited == value) return;
+    _premiumUnlimited = value;
+    if (_premiumUnlimited) {
+      _lifeRegenTimer?.cancel();
+      _lifeRegenTimer = null;
+    } else {
+      tickLifeRegeneration();
+      if (_userId != null) {
+        _startLifeRegenTimer();
+      }
+    }
+    notifyListeners();
+  }
 
   GameMechanicsService() {
     comboSystem = ComboSystem();
@@ -63,6 +90,9 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Kullanıcı için sistemi başlat
   Future<void> initialize(String userId, {bool isGuest = false}) async {
+    _lifeRegenTimer?.cancel();
+    _lifeRegenTimer = null;
+
     _userId = userId;
     _isGuest = isGuest;
     _isLoading = true;
@@ -77,8 +107,9 @@ class GameMechanicsService extends ChangeNotifier {
         await _loadCurrencyFromRewards();
       }
       await _loadTodayChallenge();
-      _checkLifeRegeneration();
+      tickLifeRegeneration();
       _updateDailyStreak();
+      _startLifeRegenTimer();
     } catch (e) {
       debugPrint('GameMechanicsService initialization error: $e');
     }
@@ -86,6 +117,32 @@ class GameMechanicsService extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  void _startLifeRegenTimer() {
+    _lifeRegenTimer?.cancel();
+    _lifeRegenTimer = null;
+    if (_premiumUnlimited) return;
+    _lifeRegenTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      tickLifeRegeneration();
+    });
+  }
+
+  /// Uygulama ön plana gelince veya diyalog içi sayaçta çağrılabilir.
+  /// Yeni can verildiyse true (kayıt çağıran tarafında da yapılabilir).
+  bool tickLifeRegeneration() {
+    if (_premiumUnlimited) return false;
+    final changed = livesSystem.applyRegeneration(DateTime.now());
+    if (changed) {
+      // ignore: discarded_futures
+      _saveUserData();
+      notifyListeners();
+    }
+    return changed;
+  }
+
+  /// Bir sonraki otomatik cana kalan süre (doluysa null). Premium'da null.
+  Duration? get timeUntilNextLife =>
+      _premiumUnlimited ? null : livesSystem.timeUntilNextLife;
 
   /// Misafir verilerini temizle (her uygulama açılışında - çıkış sonrası sıfırlama)
   Future<void> _clearGuestData() async {
@@ -398,22 +455,6 @@ class GameMechanicsService extends ChangeNotifier {
     );
   }
 
-  /// Can yenilenmesini kontrol et
-  void _checkLifeRegeneration() {
-    if (livesSystem.isFullLives) return;
-    if (livesSystem.lastLifeLostAt == null) return;
-
-    final elapsed = DateTime.now().difference(livesSystem.lastLifeLostAt!);
-    final livesToAdd = elapsed.inMinutes ~/ 30; // Her 30 dakikada 1 can
-
-    if (livesToAdd > 0) {
-      for (int i = 0; i < livesToAdd && !livesSystem.isFullLives; i++) {
-        livesSystem.gainLife();
-      }
-      _saveUserData();
-    }
-  }
-
   /// Günlük streak güncelle
   void _updateDailyStreak() {
     final today = DateTime.now();
@@ -457,7 +498,12 @@ class GameMechanicsService extends ChangeNotifier {
       notifyListeners();
       return; // Can kaybetme
     }
-    
+
+    if (_premiumUnlimited) {
+      notifyListeners();
+      return;
+    }
+
     livesSystem.loseLife();
     _saveUserData();
     notifyListeners();
@@ -479,6 +525,9 @@ class GameMechanicsService extends ChangeNotifier {
   
   /// Güç-up kullan
   bool usePowerUp(PowerUpType type) {
+    if (_premiumUnlimited && type == PowerUpType.extraLife) {
+      return true;
+    }
     if (!inventory.usePowerUp(type)) return false;
 
     switch (type) {
@@ -589,8 +638,10 @@ class GameMechanicsService extends ChangeNotifier {
         // Profil yıldızı DailyRewardService üzerinden (SpinWheelScreen) eklenir
         break;
       case 'life':
-        for (int i = 0; i < reward.value * m; i++) {
-          livesSystem.gainLife();
+        if (!_premiumUnlimited) {
+          for (int i = 0; i < reward.value * m; i++) {
+            livesSystem.gainLife();
+          }
         }
         break;
       case 'powerup':
@@ -646,9 +697,10 @@ class GameMechanicsService extends ChangeNotifier {
     if (isCorrect) {
       return boss.damagePerCorrect;
     } else {
-      // Oyuncuya hasar
-      livesSystem.loseLife();
-      _saveUserData();
+      if (!_premiumUnlimited) {
+        livesSystem.loseLife();
+        _saveUserData();
+      }
       notifyListeners();
       return -boss.damagePerWrong;
     }
@@ -669,8 +721,9 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Can doldur
   bool refillLives(int cost) {
+    if (_premiumUnlimited) return true;
     if (inventory.coins < cost) return false;
-    
+
     inventory.coins -= cost;
     livesSystem.refillLives();
     _saveUserData();
@@ -698,6 +751,7 @@ class GameMechanicsService extends ChangeNotifier {
   
   /// Reklam izleyerek 1 can kazan
   void earnLifeFromAd() {
+    if (_premiumUnlimited) return;
     livesSystem.gainLife();
     _saveUserData();
     notifyListeners();
@@ -705,15 +759,16 @@ class GameMechanicsService extends ChangeNotifier {
   }
 
   /// Can durumunu kontrol et
-  bool get hasLives => livesSystem.hasLives;
-  
-  /// Mevcut can sayısı
-  int get currentLives => livesSystem.currentLives;
-  
+  bool get hasLives => _premiumUnlimited || livesSystem.hasLives;
+
+  /// Mevcut can sayısı (Premium'da gösterim için hep max)
+  int get currentLives =>
+      _premiumUnlimited ? livesSystem.maxLives : livesSystem.currentLives;
+
   /// Maksimum can sayısı
   int get maxLives => livesSystem.maxLives;
-  
-  /// Canlar dolu mu?
-  bool get isFullLives => livesSystem.isFullLives;
+
+  /// Canlar dolu mu? (Premium'da her zaman true sayılır)
+  bool get isFullLives => _premiumUnlimited || livesSystem.isFullLives;
 }
 

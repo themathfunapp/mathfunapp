@@ -507,6 +507,51 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     );
   }
 
+  Widget _buildLevelChip(AppLocalizations loc) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.purple.shade400,
+            Colors.purple.shade700,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.4),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.auto_awesome,
+            color: Colors.white,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${loc.get('level')} $_level',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
@@ -535,12 +580,11 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
         child: SafeArea(
           child: Column(
             children: [
-              // Üst bar - CANLAR SAĞDA
+              // Üst bar: çıkış solda; puan + canlar sağda (dar ekranda taşmayı önlemek için FittedBox)
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(
                   children: [
-                    // Geri butonu
                     GestureDetector(
                       onTap: _showExitConfirmation,
                       child: Container(
@@ -561,154 +605,120 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                         ),
                       ),
                     ),
-
-                    const SizedBox(width: 12),
-
-                    // Seviye
-                    AnimatedBuilder(
-                      animation: _levelUpAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _levelUpAnimation.value,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.purple.shade400,
-                                  Colors.purple.shade700,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(25),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.5),
-                                width: 1.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.purple.withOpacity(0.4),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.auto_awesome,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${loc.get('level')} $_level',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.amber.shade400,
+                                      Colors.orange.shade600,
+                                    ],
                                   ),
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.5),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.amber.withOpacity(0.4),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    const Spacer(),
-
-                    // Puan
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.amber.shade400, Colors.orange.shade600],
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.5),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.amber.withOpacity(0.4),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            '⭐',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$_score',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // CANLAR - SAĞ TARAFTA (3 KALP)
-                    ScaleTransition(
-                      scale: _heartAnimation,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(25),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Consumer<GameMechanicsService>(
-                          builder: (context, mechanicsService, _) {
-                            final lives = mechanicsService.currentLives;
-                            final maxLives = mechanicsService.maxLives;
-                            return Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: List.generate(
-                                maxLives,
-                                (index) => Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(
-                                    index < lives
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: index < lives
-                                        ? Colors.red.shade400
-                                        : Colors.white.withOpacity(0.3),
-                                    size: 24,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      '⭐',
+                                      style: TextStyle(fontSize: 17),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '$_score',
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              ScaleTransition(
+                                scale: _heartAnimation,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(25),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Consumer<GameMechanicsService>(
+                                    builder: (context, mechanicsService, _) {
+                                      final lives = mechanicsService.currentLives;
+                                      final maxLives = mechanicsService.maxLives;
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: List.generate(
+                                          maxLives,
+                                          (index) => Padding(
+                                            padding: const EdgeInsets.only(right: 3),
+                                            child: Icon(
+                                              index < lives
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                              color: index < lives
+                                                  ? Colors.red.shade400
+                                                  : Colors.white.withOpacity(0.3),
+                                              size: 22,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 2),
+                child: AnimatedBuilder(
+                  animation: _levelUpAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _levelUpAnimation.value,
+                      child: Center(child: _buildLevelChip(loc)),
+                    );
+                  },
                 ),
               ),
 

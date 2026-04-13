@@ -743,9 +743,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.check_circle, color: Color(0xFF2ECC71), size: 20),
                   const SizedBox(width: 4),
@@ -759,12 +759,18 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                   ),
                 ],
               ),
-              Text(
-                '${localizations.get('question')} ${_currentQuestionIndex + 1}/$_totalQuestions',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '${localizations.get('question')} ${_currentQuestionIndex + 1}/$_totalQuestions',
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
@@ -789,13 +795,15 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      width: double.infinity,
       child: AnimatedBuilder(
         animation: _bounceAnimation,
         builder: (context, child) {
           return Transform.scale(
             scale: _isAnswered && _isCorrect ? _bounceAnimation.value : 1.0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [_gameColor.withOpacity(0.9), _gameColor],
@@ -813,8 +821,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                 border: Border.all(color: Colors.white, width: 3),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   AnimatedBuilder(
                     animation: _pulseAnimation,
@@ -846,26 +853,34 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                       );
                     },
                   ),
-                  const SizedBox(width: 12),
-                  Text(_currentCharacter, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 4,
-                          color: Colors.black26,
-                          offset: Offset(2, 2),
+                  const SizedBox(width: 8),
+                  Text(_currentCharacter, style: const TextStyle(fontSize: 26)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 4,
+                              color: Colors.black26,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  if (_isAnswered)
+                  if (_isAnswered) ...[
+                    const SizedBox(width: 4),
                     AnimatedBuilder(
                       animation: _bounceController,
                       builder: (context, child) {
@@ -873,11 +888,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                           scale: 1.0 + _bounceController.value * 0.3,
                           child: Text(
                             _isCorrect ? '✅' : '❌',
-                            style: const TextStyle(fontSize: 28),
+                            style: const TextStyle(fontSize: 26),
                           ),
                         );
                       },
                     ),
+                  ],
                 ],
               ),
             ),
@@ -1319,10 +1335,20 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                   _buildTopBar(),
                   const SizedBox(height: 8),
                   _buildProgressBar(),
-                  const SizedBox(height: 30),
-                  _buildQuestion(),
-                  const SizedBox(height: 30),
-                  _buildOptions(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          _buildQuestion(),
+                          const SizedBox(height: 16),
+                          _buildOptions(),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

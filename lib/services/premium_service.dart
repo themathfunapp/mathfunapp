@@ -124,8 +124,11 @@ class PremiumService extends ChangeNotifier {
       final ProductDetailsResponse response = 
           await _inAppPurchase!.queryProductDetails(_productIds);
       
-      if (response.notFoundIDs.isNotEmpty) {
-        debugPrint('Bulunamayan ürünler: ${response.notFoundIDs}');
+      if (response.notFoundIDs.isNotEmpty && kDebugMode) {
+        debugPrint(
+          'PremiumService: Mağazada bu ID yok (Play Console / imza): '
+          '${response.notFoundIDs.join(", ")}',
+        );
       }
 
       if (response.error != null) {

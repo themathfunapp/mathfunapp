@@ -179,7 +179,8 @@ class ComingSoonScreen extends StatelessWidget {
                         crossAxisCount: 4,
                         crossAxisSpacing: 4,
                         mainAxisSpacing: 4,
-                        childAspectRatio: 1.35,
+                        // Sabit yükseklik: 1.35 en-boy oranı metin + rozet için çok kısaydı (bottom overflow).
+                        mainAxisExtent: 108,
                       ),
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
@@ -219,7 +220,6 @@ class ComingSoonScreen extends StatelessWidget {
         padding: const EdgeInsets.all(6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -248,24 +248,35 @@ class ComingSoonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              loc.get(item.titleKey),
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      loc.get(item.titleKey),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      loc.get(item.subtitleKey),
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Colors.white.withOpacity(0.95),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              loc.get(item.subtitleKey),
-              style: TextStyle(
-                fontSize: 8,
-                color: Colors.white.withOpacity(0.95),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

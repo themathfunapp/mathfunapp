@@ -7,6 +7,7 @@ import 'package:mathfun/localization/app_localizations.dart';
 import 'package:mathfun/models/game_manager.dart';
 import 'package:mathfun/services/ad_service.dart';
 import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/services/push_notification_service.dart';
 import 'package:mathfun/widgets/kurdistan_flag.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,12 +24,17 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late GameManager _gameManager;
+  bool _notificationsEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    // GameManager'ı Provider'dan veya direkt olarak alabilirsiniz
     _gameManager = GameManager();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (kIsWeb || !mounted) return;
+      final v = await PushNotificationService.instance.notificationsEnabled();
+      if (mounted) setState(() => _notificationsEnabled = v);
+    });
   }
 
   @override
@@ -49,43 +55,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-        child: Column(
-          children: [
-            // Üst Bar
-            Padding(
-              padding: const EdgeInsets.only(top: 30.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Eğlenceli Geri Butonu
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: FunBackButton(
-                      onPressed: widget.onBack,
-                      emoji: "🎮",
-                      scale: 1.0,
-                    ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Üst Bar
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: FunBackButton(
+                          onPressed: widget.onBack,
+                          emoji: "🎮",
+                          scale: 1.0,
+                        ),
+                      ),
+
+                      Text(
+                        localizations.get('settings_title'),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      const SizedBox(width: 60),
+                    ],
                   ),
+                ),
 
-                  Text(
-                    localizations.get('settings_title'),
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                const SizedBox(height: 20),
 
-                  // Denge için boş spacer
-                  const SizedBox(width: 60),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Ayarlar Listesi Kartı
-            Padding(
+                // Ayarlar Listesi Kartı
+                Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Card(
                 shape: RoundedRectangleBorder(
@@ -130,14 +139,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const Divider(color: Color(0xFFE0E0E0), height: 1),
 
-                    // Bildirimler
+                    // Bildirimler (mobil: FCM tercihi; web: devre dışı)
                     _buildSettingItem(
                       context: context,
                       title: localizations.get('notifications'),
-                      subtitle: localizations.get('notifications_subtitle'),
-                      isEnabled: true,
-                      onToggle: (value) {
-                        // Bildirim ayarı
+                      subtitle: kIsWeb
+                          ? '${localizations.get('notifications_subtitle')} (Web sürümünde kapalı)'
+                          : localizations.get('notifications_subtitle'),
+                      isEnabled: kIsWeb ? false : _notificationsEnabled,
+                      interactive: !kIsWeb,
+                      onToggle: (value) async {
+                        await PushNotificationService.instance.setNotificationsEnabled(value);
+                        if (mounted) {
+                          setState(() => _notificationsEnabled = value);
+                        }
                       },
                       emoji: "⏰",
                     ),
@@ -268,19 +283,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
 
             // Eğlenceli Footer
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                localizations.get('footer_motto'),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
-                  fontWeight: FontWeight.w500,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Text(
+                    localizations.get('footer_motto'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -556,11 +573,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool isEnabled,
     required Function(bool) onToggle,
     required String emoji,
+    bool interactive = true,
   }) {
     return InkWell(
-      onTap: () {
-        onToggle(!isEnabled);
-      },
+      onTap: interactive
+          ? () {
+              onToggle(!isEnabled);
+            }
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
@@ -598,7 +618,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             Switch(
               value: isEnabled,
-              onChanged: onToggle,
+              onChanged: interactive ? onToggle : null,
               activeColor: const Color(0xFF5A4FCF),
               activeTrackColor: const Color(0xFF5A4FCF).withOpacity(0.5),
               inactiveThumbColor: Colors.grey,

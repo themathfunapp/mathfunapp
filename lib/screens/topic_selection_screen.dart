@@ -9,6 +9,7 @@ import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart' as GameMechanics;
 import 'specialized_game_screen.dart';
 import 'game_start_screen.dart';
+import '../widgets/no_lives_gate_dialog.dart';
 
 /// Konu Seçimi Ekranı - Çocuklara Özel Tasarım
 class TopicSelectionScreen extends StatefulWidget {
@@ -1029,75 +1030,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
   }
 
   void _showNoLivesDialog() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.red, width: 3),
-                ),
-                child: const Icon(
-                  Icons.favorite_border,
-                  color: Colors.red,
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                loc.get('no_lives_title'),
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                loc.get('no_lives_message'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      child: Text(loc.get('ok')),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    showNoLivesGateDialog(context);
   }
 
   Map<String, dynamic> _createGameSettings(Map<String, dynamic> topic) {

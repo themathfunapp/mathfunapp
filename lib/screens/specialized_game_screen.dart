@@ -670,10 +670,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     final displayOptions = question['shuffledOptions'] as List<dynamic>;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 200,
-          height: 200,
+          width: 180,
+          height: 180,
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
@@ -687,19 +688,26 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           ),
           child: _buildAnalogClock(correctAnswer.toString()),
         ),
-        const SizedBox(height: 20),
-        Text(
-          questionText,
-          style: const TextStyle(
-            fontSize: 24,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            questionText,
+            style: const TextStyle(
+              fontSize: 22,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            softWrap: true,
           ),
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 16),
         Wrap(
           spacing: 10,
           runSpacing: 10,
+          alignment: WrapAlignment.center,
           children: displayOptions.map((option) {
             return _buildTimeOption(option.toString());
           }).toList(),
@@ -831,7 +839,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return GestureDetector(
       onTap: () => _checkAnswer(time),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: _isAnswered
               ? (isCorrectAnswer
@@ -844,7 +852,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
           child: Text(
             time,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
@@ -922,6 +930,48 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
+  /// Konu oyunu soru metni — kısa ekranlarda taşmayı önlemek için [Expanded] + çok satır.
+  Widget _buildTopicQuestionPill(String leadingEmoji, String questionText) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(leadingEmoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              questionText,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                height: 1.25,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 6,
+              softWrap: true,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (_isAnswered) ...[
+            const SizedBox(width: 8),
+            Text(
+              _isCorrect ? '✅' : '❌',
+              style: const TextStyle(fontSize: 22),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuestionContent(Map<String, dynamic> question, AppLocalizations loc) {
     final topicType = widget.topicSettings.topicType;
 
@@ -969,38 +1019,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('🔢', style: TextStyle(fontSize: 22)),
-              const SizedBox(width: 10),
-              Text(
-                questionText,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (_isAnswered) ...[
-                const SizedBox(width: 10),
-                Text(
-                  _isCorrect ? '✅' : '❌',
-                  style: const TextStyle(fontSize: 22),
-                ),
-              ],
-            ],
-          ),
-        ),
+        _buildTopicQuestionPill('🔢', questionText),
 
         const SizedBox(height: 30),
 
@@ -1099,38 +1118,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('🔢', style: TextStyle(fontSize: 22)),
-              const SizedBox(width: 10),
-              Text(
-                questionText,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (_isAnswered) ...[
-                const SizedBox(width: 10),
-                Text(
-                  _isCorrect ? '✅' : '❌',
-                  style: const TextStyle(fontSize: 22),
-                ),
-              ],
-            ],
-          ),
-        ),
+        _buildTopicQuestionPill('🔢', questionText),
 
         const SizedBox(height: 30),
 
@@ -1289,38 +1277,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('📝', style: TextStyle(fontSize: 22)),
-              const SizedBox(width: 10),
-              Text(
-                questionText,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (_isAnswered) ...[
-                const SizedBox(width: 10),
-                Text(
-                  _isCorrect ? '✅' : '❌',
-                  style: const TextStyle(fontSize: 22),
-                ),
-              ],
-            ],
-          ),
-        ),
+        _buildTopicQuestionPill('📝', questionText),
 
         const SizedBox(height: 30),
 
@@ -1802,18 +1759,29 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             children: [
               _buildTopBar(),
               _buildProgressBar(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Expanded(
-                child: Center(
-                  child: _questions.isNotEmpty
-                      ? AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: _buildQuestionContent(currentQuestion, loc),
-                  )
-                      : const CircularProgressIndicator(color: Colors.white),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Center(
+                          child: _questions.isNotEmpty
+                              ? AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 500),
+                                  child: _buildQuestionContent(currentQuestion, loc),
+                                )
+                              : const CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
             ],
           ),
         ),

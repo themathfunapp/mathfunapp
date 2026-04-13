@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Ses ve müzik: `assets/sounds/` altındaki WAV dosyalarını çalar.
@@ -23,6 +24,7 @@ class AudioService extends ChangeNotifier {
   MusicMood _currentMood = MusicMood.normal;
   SoundscapeTheme _currentSoundscape = SoundscapeTheme.forest;
   bool _isPlaying = false;
+  bool _disposed = false;
 
   bool get musicEnabled => _musicEnabled;
   bool get soundEffectsEnabled => _soundEffectsEnabled;
@@ -104,7 +106,8 @@ class AudioService extends ChangeNotifier {
     try {
       await _ambientPlayer.stop();
       await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
-      final path = 'sounds/ambient_${_currentSoundscape.name}.wav';
+      // `SoundscapeTheme.name` Türkçe görünen ad; dosya adları `ambient_forest.wav` vb.
+      final path = 'sounds/ambient_${_currentSoundscape.ambientStem}.wav';
       await _ambientPlayer.play(AssetSource(path));
       await _ambientPlayer.setVolume(_musicVolume * 0.48);
       _isPlaying = true;
@@ -140,12 +143,16 @@ class AudioService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// [dispose] sırasında güvenli senkron durdurma (await yok).
+  /// [dispose] veya rota çıkışında güvenli durdurma (await yok).
+  /// [notifyListeners] bir sonraki kareye ertelenir; dispose / build kilidi sırasında assert önlenir.
   void cancelAmbientSync() {
+    if (_disposed) return;
     // ignore: discarded_futures
     _ambientPlayer.stop();
     _isPlaying = false;
-    notifyListeners();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) notifyListeners();
+    });
   }
 
   Future<void> playSound(SoundEffect effect) async {
@@ -225,6 +232,7 @@ class AudioService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _ambientPlayer.dispose();
     _sfxPlayer.dispose();
     super.dispose();
@@ -286,51 +294,62 @@ enum MusicMood {
 
 enum SoundscapeTheme {
   forest(
+    ambientStem: 'forest',
     name: 'Sayı Ormanı',
     description: 'Kuş sesleri, yaprak hışırtısı',
     ambientSounds: ['birds', 'leaves', 'wind'],
   ),
   river(
+    ambientStem: 'river',
     name: 'Rakam Nehri',
     description: 'Su akışı, kurbağa sesleri',
     ambientSounds: ['water_flow', 'frogs', 'crickets'],
   ),
   castle(
+    ambientStem: 'castle',
     name: 'Geometri Şatosu',
     description: 'Rüzgar, bayrak dalgalanması',
     ambientSounds: ['wind', 'flags', 'distant_horn'],
   ),
   space(
+    ambientStem: 'space',
     name: 'Uzay Matematik',
     description: 'Uzay sesleri, elektronik bip\'ler',
     ambientSounds: ['space_ambient', 'beeps', 'stars'],
   ),
   bakery(
+    ambientStem: 'bakery',
     name: 'Kesir Pastanesi',
     description: 'Fırın sesleri, mutfak',
     ambientSounds: ['oven', 'mixing', 'happy_hum'],
   ),
   clockTower(
+    ambientStem: 'clockTower',
     name: 'Zaman Kulesi',
     description: 'Saat tik-takları, çanlar',
     ambientSounds: ['clock_tick', 'bells', 'gears'],
   ),
   underwater(
+    ambientStem: 'underwater',
     name: 'Deniz Altı',
     description: 'Su altı sesleri, baloncuklar',
     ambientSounds: ['bubbles', 'whale', 'current'],
   ),
   mountain(
+    ambientStem: 'mountain',
     name: 'Dağ Zirvesi',
     description: 'Rüzgar, kartal sesleri',
     ambientSounds: ['mountain_wind', 'eagle', 'echo'],
   );
 
+  /// `assets/sounds/ambient_<ambientStem>.wav` ile eşleşir.
+  final String ambientStem;
   final String name;
   final String description;
   final List<String> ambientSounds;
 
   const SoundscapeTheme({
+    required this.ambientStem,
     required this.name,
     required this.description,
     required this.ambientSounds,

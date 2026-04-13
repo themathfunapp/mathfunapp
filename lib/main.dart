@@ -93,16 +93,28 @@ Future<void> main() async {
             return rewardService;
           },
         ),
-        ChangeNotifierProxyProvider<AuthService, GameMechanicsService>(
+        ChangeNotifierProxyProvider<AuthService, PremiumService>(
+          create: (_) => PremiumService(),
+          update: (_, authService, premiumService) {
+            premiumService!.initialize(userId: authService.currentUser?.uid);
+            return premiumService;
+          },
+        ),
+        ChangeNotifierProxyProvider2<AuthService, PremiumService, GameMechanicsService>(
           create: (_) => GameMechanicsService(),
-          update: (_, authService, mechanicsService) {
+          update: (_, authService, premiumService, mechanicsService) {
+            final m = mechanicsService!;
+            final premium = authService.currentUser != null && premiumService.isPremium;
+            m.setPremiumUnlimited(premium);
             if (authService.currentUser != null) {
-              mechanicsService!.initialize(
-                authService.currentUser!.uid,
-                isGuest: authService.currentUser!.isGuest,
-              );
+              final u = authService.currentUser!;
+              if (m.shouldReloadForUser(u.uid, u.isGuest)) {
+                m.initialize(u.uid, isGuest: u.isGuest);
+              }
+            } else {
+              m.setPremiumUnlimited(false);
             }
-            return mechanicsService!;
+            return m;
           },
         ),
         ChangeNotifierProxyProvider<GameMechanicsService, StoryService>(
@@ -133,13 +145,6 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<VoiceCommandService>(
           create: (_) => VoiceCommandService(),
-        ),
-        ChangeNotifierProxyProvider<AuthService, PremiumService>(
-          create: (_) => PremiumService(),
-          update: (_, authService, premiumService) {
-            premiumService!.initialize(userId: authService.currentUser?.uid);
-            return premiumService;
-          },
         ),
         ChangeNotifierProxyProvider<PremiumService, AdService>(
           create: (_) => AdService(),

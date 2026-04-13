@@ -951,8 +951,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       children: [
         // Üst bar - CANLAR EKLENDİ
         Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.3),
             borderRadius: BorderRadius.circular(20),
@@ -967,7 +967,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
           ),
           child: Row(
             children: [
-              // Geri butonu
               GestureDetector(
                 onTap: _showExitConfirmation,
                 child: Container(
@@ -980,69 +979,79 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                   child: const Icon(
                     Icons.close,
                     color: Colors.white,
-                    size: 24,
+                    size: 22,
                   ),
                 ),
               ),
-
-              const Spacer(),
-
-              // Puan
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_score',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              // CANLAR - 5 KALP (GameMechanicsService ile profil senkron)
-              Consumer<GameMechanicsService>(
-                builder: (context, mechanicsService, _) {
-                  final lives = mechanicsService.currentLives;
-                  final maxLives = mechanicsService.maxLives;
-                  return AnimatedBuilder(
-                    animation: _shakeController,
-                    builder: (context, child) {
-                      return Transform.translate(
-                        offset: Offset(_shakeAnimation.value, 0),
-                        child: Row(
-                          children: List.generate(
-                            maxLives,
-                            (index) => Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Icon(
-                                index < lives
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: index < lives
-                                    ? Colors.red
-                                    : Colors.white.withOpacity(0.5),
-                                size: 26,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 17),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$_score',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
+                        const SizedBox(width: 8),
+                        Consumer<GameMechanicsService>(
+                          builder: (context, mechanicsService, _) {
+                            final lives = mechanicsService.currentLives;
+                            final maxLives = mechanicsService.maxLives;
+                            return AnimatedBuilder(
+                              animation: _shakeController,
+                              builder: (context, child) {
+                                return Transform.translate(
+                                  offset: Offset(_shakeAnimation.value, 0),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: List.generate(
+                                      maxLives,
+                                      (index) => Padding(
+                                        padding: const EdgeInsets.only(left: 2, right: 2),
+                                        child: Icon(
+                                          index < lives
+                                              ? Icons.favorite
+                                              : Icons.favorite_border,
+                                          color: index < lives
+                                              ? Colors.red
+                                              : Colors.white.withOpacity(0.5),
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1069,120 +1078,142 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             ),
           ),
 
-        const SizedBox(height: 30),
-
-        // Soru
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(50),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF667eea).withOpacity(0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-              border: Border.all(color: Colors.white, width: 3),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
               children: [
-                // Zamanlayıcı
-                AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: isLowTime ? _pulseAnimation.value : 1.0,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
-                            width: 2,
-                          ),
+                const SizedBox(height: 12),
+
+                // Soru (dar ekranda yatay taşma yok)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  width: double.infinity,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF667eea).withOpacity(0.4),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
                         ),
-                        child: Center(
-                          child: Text(
-                            '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                      ],
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: isLowTime ? _pulseAnimation.value : 1.0,
+                              child: Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('🎯', style: TextStyle(fontSize: 26)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 4,
+                                    color: Colors.black26,
+                                    offset: Offset(2, 2),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 12),
-                const Text('🎯', style: TextStyle(fontSize: 28)),
-                const SizedBox(width: 12),
-                Text(
-                  '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        blurRadius: 4,
-                        color: Colors.black26,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
+                        if (_isAnswered) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            _isCorrect ? '✅' : '❌',
+                            style: const TextStyle(fontSize: 26),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                if (_isAnswered)
-                  Text(
-                    _isCorrect ? '✅' : '❌',
-                    style: const TextStyle(fontSize: 28),
+
+                const SizedBox(height: 16),
+
+                // Seçenekler
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+                              const SizedBox(width: 10),
+                              Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+                              const SizedBox(width: 10),
+                              Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+                ),
               ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 30),
-
-        // Seçenekler - ekran genişliğinin %80'i ile sınırlandırıldı
-        Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
-                      const SizedBox(width: 10),
-                      Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
-                      const SizedBox(width: 10),
-                      Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
-                    ],
-                  ),
-                ],
-              ),
             ),
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_local_notifications.dart';
 
@@ -27,6 +28,7 @@ class PushNotificationService {
   static final instance = PushNotificationService._();
 
   static const String _remoteDuelPayloadPrefix = 'frd';
+  static const String _prefNotificationsEnabled = 'notifications_enabled';
 
   bool _started = false;
 
@@ -96,6 +98,7 @@ class PushNotificationService {
   }
 
   Future<void> _showForegroundFamilyRemoteDuel(RemoteMessage message) async {
+    if (!await notificationsEnabled()) return;
     final data = message.data;
     if (data['type'] != 'family_remote_duel_invite') return;
     final inviteId = '${data['inviteId'] ?? ''}'.trim();
@@ -138,10 +141,21 @@ class PushNotificationService {
 
     await _initLocalNotifications();
 
-    FirebaseMessaging.instance.onTokenRefresh.listen((t) {
+    final prefs = await SharedPreferences.getInstance();
+    final notificationsOn = prefs.getBool(_prefNotificationsEnabled) ?? true;
+    if (!notificationsOn) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        debugPrint('PushNotificationService init deleteToken: $e');
+      }
+    }
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((t) async {
+      if (!await notificationsEnabled()) return;
       final u = FirebaseAuth.instance.currentUser;
       if (u != null) {
-        _persistToken(u.uid, t);
+        await _persistToken(u.uid, t);
       }
     });
 
@@ -172,7 +186,53 @@ class PushNotificationService {
     });
   }
 
+  /// Ayarlardaki bildirim anahtarı (varsayılan: açık).
+  Future<bool> notificationsEnabled() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_prefNotificationsEnabled) ?? true;
+  }
+
+  /// Kullanıcı bildirimleri kapattığında token ve Firestore kaydı temizlenir.
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefNotificationsEnabled, enabled);
+    if (!enabled) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        debugPrint('PushNotificationService deleteToken: $e');
+      }
+      final u = FirebaseAuth.instance.currentUser;
+      if (u != null) {
+        try {
+          await FirebaseFirestore.instance.doc('users/${u.uid}/private/fcm/current').delete();
+        } catch (e) {
+          debugPrint('PushNotificationService clear fcm doc: $e');
+        }
+      }
+      return;
+    }
+
+    final u = FirebaseAuth.instance.currentUser;
+    if (u != null) {
+      await _syncTokenForFirebaseUser(u);
+    } else {
+      try {
+        await FirebaseMessaging.instance.requestPermission();
+        await FirebaseMessaging.instance.getToken();
+      } catch (e) {
+        debugPrint('PushNotificationService opt-in (misafir): $e');
+      }
+    }
+  }
+
   Future<void> _syncTokenForFirebaseUser(User user) async {
+    if (!await notificationsEnabled()) {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (_) {}
+      return;
+    }
     try {
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();

@@ -349,6 +349,29 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     );
   }
 
+  /// Bilinmeyen Ormanı: denklemdeki meyve/şekil emojisi + "kaçtır?"; diğer bölgelerde klasik "x kaçtır?".
+  Widget _buildWhatIsPrompt(AppLocalizations loc) {
+    final style = _textStyle(_purple, size: 16, bold: true);
+    if (_currentRegion == AlgebraRegion.bilinmeyenOrmani) {
+      final suffix = loc.get('algebra_how_many_suffix');
+      return Center(
+        child: Text.rich(
+          textAlign: TextAlign.center,
+          TextSpan(
+            children: [
+              TextSpan(
+                text: _questionEmoji,
+                style: GoogleFonts.quicksand(fontSize: 26, fontWeight: FontWeight.bold, color: _purple, height: 1.1),
+              ),
+              TextSpan(text: suffix, style: style),
+            ],
+          ),
+        ),
+      );
+    }
+    return Text(loc.get('algebra_what_is_x'), style: style, textAlign: TextAlign.center);
+  }
+
   Widget _buildRegionBadge(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -397,7 +420,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
               ]),
             ),
           if (_isBossQuestion) const SizedBox(height: 16),
-          Text(loc.get('algebra_what_is_x'), style: _textStyle(_purple, size: 16, bold: true)),
+          _buildWhatIsPrompt(loc),
           const SizedBox(height: 16),
           Text(_questionDisplay, style: GoogleFonts.quicksand(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
           const SizedBox(height: 24),

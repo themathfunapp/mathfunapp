@@ -58,6 +58,18 @@ URL verilmezse aynı ekranlarda uygulama içi özet metin (`privacy_content` / `
 
 ## 8. Build commands
 
+**Önerilen (obfuscation + sembol ayrımı — mağaza için):**
+
+```bash
+flutter build appbundle --release --obfuscate --split-debug-info=./symbols/app_bundle
+```
+
+Windows: `.\scripts\build_release_appbundle.ps1` (isteğe bağlı `-PrivacyUrl` / `-TermsUrl`).
+
+`symbols/` **repoya eklenmez** (`.gitignore`); crash analizi için güvenli yerde yedekleyin. Ayrıntı: `docs/SECURITY_RELEASE.md`.
+
+Basit derleme (obfuscation olmadan):
+
 ```bash
 flutter build appbundle --release
 # or
