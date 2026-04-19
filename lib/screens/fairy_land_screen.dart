@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
@@ -124,10 +126,8 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   late AnimationController _shakeController;
   late Animation<double> _pulseAnimation;
 
-  // Oyun durumu
-  int _currentLevel = 1;
+  // Oyun durumu (puan ve seviye: her 10 doğru cevapta bir güncellenir)
   int _score = 0;
-  int _stars = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _gameOver = false;
@@ -139,6 +139,9 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   int _runStreak = 0;
   int _bestStreak = 0;
   int _currentCount = 0; // Şu ana kadar sayılan
+
+  /// Ekrandaki seviye: her 10 doğru cevap = 1 seviye artışı (1 tabanlı).
+  int get _displayLevel => 1 + (_sessCorrect ~/ 10);
 
   // Nesne ve soru verileri
   List<GameObject> _objects = [];
@@ -284,9 +287,12 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                      targetType == ObjectType.hibiscus ||
                      targetType == ObjectType.cherry;
 
+    final sameQ = targetType == ObjectType.star
+        ? loc.get('fairy_question_same_type_star')
+        : loc.get('fairy_question_same_type');
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.sameTypeCounting,
-      questionText: loc.get('fairy_question_same_type').replaceAll('{0}', name),
+      questionText: sameQ.replaceAll('{0}', name),
       targetTypeName: name,
       targetType: targetType,
       correctAnswer: count,
@@ -348,9 +354,12 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                      targetType == ObjectType.hibiscus ||
                      targetType == ObjectType.cherry;
 
+    final filtQ = targetType == ObjectType.star
+        ? loc.get('fairy_question_filtered_star')
+        : loc.get('fairy_question_filtered');
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.filteredCounting,
-      questionText: loc.get('fairy_question_filtered').replaceAll('{0}', name),
+      questionText: filtQ.replaceAll('{0}', name),
       targetTypeName: name,
       targetType: targetType,
       correctAnswer: targetCount,
@@ -382,9 +391,15 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     int flowerCount = _objects.where((o) => o.isFlower).length;
     final groundType = flowerCount > _objects.length / 2 ? GroundType.grass : GroundType.crystal;
 
+    final onlyStars =
+        _objects.isNotEmpty && _objects.every((o) => o.type == ObjectType.star);
+    final generalQ = onlyStars
+        ? loc.get('fairy_question_general_star')
+        : loc.get('fairy_question_general');
+
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.generalCounting,
-      questionText: loc.get('fairy_question_general'),
+      questionText: generalQ,
       targetTypeName: loc.get('fairy_all_objects'),
       correctAnswer: count,
       options: _generateOptions(count, random),
@@ -420,12 +435,18 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                      targetType == ObjectType.hibiscus ||
                      targetType == ObjectType.cherry;
 
+    final addText = targetType == ObjectType.star
+        ? loc.get('fairy_question_addition_star')
+            .replaceAll('{0}', '$initialCount')
+            .replaceAll('{2}', '$additionalCount')
+        : loc.get('fairy_question_addition')
+            .replaceAll('{0}', '$initialCount')
+            .replaceAll('{1}', name)
+            .replaceAll('{2}', '$additionalCount');
+
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.additionSameType,
-      questionText: loc.get('fairy_question_addition')
-          .replaceAll('{0}', '$initialCount')
-          .replaceAll('{1}', name)
-          .replaceAll('{2}', '$additionalCount'),
+      questionText: addText,
       targetTypeName: name,
       targetType: targetType,
       correctAnswer: totalCount,
@@ -461,12 +482,18 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                      targetType == ObjectType.hibiscus ||
                      targetType == ObjectType.cherry;
 
+    final subText = targetType == ObjectType.star
+        ? loc.get('fairy_question_subtraction_star')
+            .replaceAll('{0}', '$initialCount')
+            .replaceAll('{2}', '$removeCount')
+        : loc.get('fairy_question_subtraction')
+            .replaceAll('{0}', '$initialCount')
+            .replaceAll('{1}', name)
+            .replaceAll('{2}', '$removeCount');
+
     _currentQuestion = FairyLandQuestion(
       type: QuestionType.subtractionSameType,
-      questionText: loc.get('fairy_question_subtraction')
-          .replaceAll('{0}', '$initialCount')
-          .replaceAll('{1}', name)
-          .replaceAll('{2}', '$removeCount'),
+      questionText: subText,
       targetTypeName: name,
       targetType: targetType,
       correctAnswer: remainingCount,
@@ -537,13 +564,14 @@ class _FairyLandScreenState extends State<FairyLandScreen>
         _sessCorrect++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
-        _score += 10;
-        _stars++;
+        // Her 10 doğru cevapta bir kez 5 veya 10 puan
+        if (_sessCorrect % 10 == 0) {
+          _score += math.Random().nextBool() ? 5 : 10;
+        }
         _audio.playAnswerFeedback(true);
         _celebrationController.forward(from: 0);
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
-            _currentLevel++;
             final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
             _generateNewQuestion(AppLocalizations(locale));
           }
@@ -569,14 +597,17 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     });
   }
 
-  void _reportFairySession() {
+  /// Oturumu profile yansıtır ([BadgeService] `totalScore` + günlük görevler).
+  /// En az bir cevap verilmiş olmalı; misafir kullanıcıda Firestore güncellenmez.
+  Future<void> _reportFairySession() async {
     if (_sessionReported || !mounted) return;
+    final totalAnswered = _sessCorrect + _sessWrong;
+    if (totalAnswered == 0) return;
     _sessionReported = true;
-    final q = (_sessCorrect + _sessWrong).clamp(1, 9999);
     try {
-      GameSessionReport.submit(
+      await GameSessionReport.submit(
         context,
-        questionsAnswered: q,
+        questionsAnswered: totalAnswered,
         correctAnswers: _sessCorrect,
         wrongAnswers: _sessWrong,
         score: _score,
@@ -590,8 +621,14 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     }
   }
 
+  Future<void> _leaveScreen() async {
+    await _reportFairySession();
+    if (!mounted) return;
+    widget.onBack();
+  }
+
   void _showNoLivesDialog() {
-    _reportFairySession();
+    unawaited(_reportFairySession());
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -625,7 +662,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   }
 
   void _showGameOver() {
-    _reportFairySession();
+    unawaited(_reportFairySession());
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog(
       context: context,
@@ -673,37 +710,44 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      body: Container(
-        decoration: _buildBackgroundDecoration(),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              _buildAmbientEffects(),
-              Column(
-                children: [
-                  _buildTopBar(loc),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildCharacterMessage(loc),
-                          const SizedBox(height: 8),
-                          _buildLevelInfo(loc),
-                          const SizedBox(height: 12),
-                          _buildCentralPlayArea(loc),
-                          const SizedBox(height: 12),
-                          _buildAnswerSection(loc),
-                          const SizedBox(height: 20),
-                        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        await _leaveScreen();
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: _buildBackgroundDecoration(),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                _buildAmbientEffects(),
+                Column(
+                  children: [
+                    _buildTopBar(loc),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildLevelInfo(loc),
+                            const SizedBox(height: 8),
+                            _buildCharacterMessage(loc),
+                            const SizedBox(height: 12),
+                            _buildCentralPlayArea(loc),
+                            const SizedBox(height: 12),
+                            _buildAnswerSection(loc),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              if (_isCorrect) _buildCelebration(),
-            ],
+                  ],
+                ),
+                if (_isCorrect) _buildCelebration(),
+              ],
+            ),
           ),
         ),
       ),
@@ -790,7 +834,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
           child: Row(
             children: [
               GestureDetector(
-                onTap: widget.onBack,
+                onTap: () => _leaveScreen(),
                 child: Container(
                   width: 40,
                   height: 40,
@@ -806,8 +850,24 @@ class _FairyLandScreenState extends State<FairyLandScreen>
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('🧚 ${loc.get('world_fairy_land')}', style: _textStyle(_fairyPurple, size: 18, bold: true)),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text('🧚', style: TextStyle(fontSize: 20, height: 1.0)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            loc.get('world_fairy_land'),
+                            style: _textStyle(_fairyPurple, size: 17, bold: true),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     Text(_getGroundLabel(loc), style: _textStyle(Colors.white, size: 11)),
                   ],
                 ),
@@ -819,15 +879,6 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                     child: Text(i < lives ? '🧚' : '💨', style: const TextStyle(fontSize: 18)),
                   );
                 }),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text('⭐ $_stars', style: _textStyle(Colors.white, size: 16, bold: true)),
               ),
             ],
           ),
@@ -874,8 +925,6 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                 Text(
                   _currentQuestion!.questionText,
                   style: _textStyle(Colors.black87, size: 17),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -897,11 +946,8 @@ class _FairyLandScreenState extends State<FairyLandScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(loc.get('level_label'), '$_currentLevel', '🎯'),
+          _buildStatItem(loc.get('level_label'), '$_displayLevel', '🎯'),
           _buildStatItem(loc.get('score'), '$_score', '⭐'),
-          if (_currentQuestion!.type == QuestionType.filteredCounting ||
-              _currentQuestion!.type == QuestionType.sameTypeCounting)
-            _buildStatItem(loc.get('fairy_counted'), '$_currentCount', '🔢'),
         ],
       ),
     );
@@ -1086,11 +1132,17 @@ class _FairyLandScreenState extends State<FairyLandScreen>
             style: _textStyle(_fairyPurple, size: 13, bold: true),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: _currentQuestion!.options.map((opt) => _buildOptionButton(opt)).toList(),
+          Row(
+            children: _currentQuestion!.options
+                .map(
+                  (opt) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: _buildOptionButton(opt),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -1113,7 +1165,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     return GestureDetector(
       onTap: canTap ? () => _checkAnswer(value) : null,
       child: Container(
-        width: 70,
+        width: double.infinity,
         height: 52,
         decoration: BoxDecoration(
           color: buttonColor,

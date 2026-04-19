@@ -9,6 +9,7 @@ import '../models/app_user.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
 import 'badges_screen.dart';
+import '../widgets/bottom_action_button.dart';
 import 'parent_panel_screen.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
@@ -878,7 +879,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Center(
-                  child: Text('👨‍👩‍👧', style: TextStyle(fontSize: 28)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: ParentPanelLeadingIcon(),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),

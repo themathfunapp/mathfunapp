@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
 import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
@@ -58,9 +59,12 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   late AnimationController _levelUpController;
   late Animation<double> _shakeAnimation;
   late Animation<double> _heartAnimation;
-  late Animation<double> _levelUpAnimation;
 
   final math.Random _random = math.Random();
+
+  late ConfettiController _burstConfetti;
+  String? _reactionEmoji;
+  late AnimationController _playfulLoopController;
 
   @override
   void initState() {
@@ -88,9 +92,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _levelUpAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _levelUpController, curve: Curves.elasticOut),
-    );
+
+    _burstConfetti = ConfettiController(duration: const Duration(milliseconds: 550));
+
+    _playfulLoopController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
 
     _generateQuestion();
     _startTimer();
@@ -103,6 +111,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     _shakeController.dispose();
     _heartController.dispose();
     _levelUpController.dispose();
+    _burstConfetti.dispose();
+    _playfulLoopController.dispose();
     super.dispose();
   }
 
@@ -201,6 +211,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   void _handleTimeout() {
     _timer?.cancel();
+    if (_isGameOver || _gamePaused) return;
+    setState(() => _reactionEmoji = '😰');
     _loseLife();
   }
 
@@ -208,16 +220,20 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     if (_isAnswered || _isGameOver || _gamePaused) return;
 
     _timer?.cancel();
+    final wasCorrect = answer == _currentQuestion.correctAnswer;
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
-      _isCorrect = answer == _currentQuestion.correctAnswer;
+      _isCorrect = wasCorrect;
+      _reactionEmoji = wasCorrect ? null : '🥺';
     });
 
-    if (_isCorrect) {
+    if (wasCorrect) {
       _combo++;
       if (_combo > _maxCombo) _maxCombo = _combo;
-      _audio.playAnswerFeedback(true);
+      _audio.playSound(SoundEffect.characterHappy);
+      _burstConfetti.stop();
+      _burstConfetti.play();
 
       // Her soru için 10 puan + combo bonusu
       _score += 10 + (_combo * 2);
@@ -232,9 +248,11 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
       Future.delayed(const Duration(milliseconds: 600), () {
         if (!mounted || _isGameOver) return;
+        _burstConfetti.stop();
         setState(() {
           _isAnswered = false;
           _selectedAnswer = null;
+          _reactionEmoji = null;
           _generateQuestion();
         });
         _startTimer();
@@ -248,22 +266,25 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   void _loseLife() {
     _heartController.forward().then((_) => _heartController.reset());
-    _audio.playAnswerFeedback(false);
+    _audio.playSound(SoundEffect.characterSad);
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     setState(() => _wrongAnswers++);
     mechanicsService.onWrongAnswer();
 
     if (mechanicsService.currentLives <= 0) {
+      _burstConfetti.stop();
       _gameOver();
     } else {
       _gamePaused = true;
 
       Future.delayed(const Duration(seconds: 1), () {
         if (!mounted || _isGameOver) return;
+        _burstConfetti.stop();
         setState(() {
           _isAnswered = false;
           _selectedAnswer = null;
+          _reactionEmoji = null;
           _generateQuestion();
           _gamePaused = false;
         });
@@ -273,6 +294,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   }
 
   void _gameOver() {
+    _burstConfetti.stop();
     setState(() {
       _isGameOver = true;
       _gamePaused = true;
@@ -481,11 +503,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       _level = 1;
       _isAnswered = false;
       _selectedAnswer = null;
+      _reactionEmoji = null;
       _isGameOver = false;
       _gamePaused = false;
       _sessionReported = false;
       _generateQuestion();
     });
+    _burstConfetti.stop();
     _startTimer();
   }
 
@@ -502,53 +526,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       },
       onExit: () {
         _timer?.cancel();
+        _burstConfetti.stop();
         widget.onBack();
       },
-    );
-  }
-
-  Widget _buildLevelChip(AppLocalizations loc) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.purple.shade400,
-            Colors.purple.shade700,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.auto_awesome,
-            color: Colors.white,
-            size: 18,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${loc.get('level')} $_level',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -577,9 +557,60 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _playfulLoopController,
+                  builder: (context, _) {
+                    return CustomPaint(
+                      painter: _EndlessPlaygroundPainter(
+                        phase: _playfulLoopController.value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: LayoutBuilder(
+                  builder: (context, c) {
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: SizedBox(
+                        height: c.maxHeight,
+                        width: c.maxWidth,
+                        child: ConfettiWidget(
+                          confettiController: _burstConfetti,
+                          blastDirectionality: BlastDirectionality.explosive,
+                          shouldLoop: false,
+                          emissionFrequency: 0.35,
+                          numberOfParticles: 14,
+                          gravity: 0.38,
+                          colors: const [
+                            Color(0xFFFFD54F),
+                            Color(0xFFFF80AB),
+                            Color(0xFF80DEEA),
+                            Color(0xFFA5D6A7),
+                            Color(0xFFB39DDB),
+                            Color(0xFFFFAB91),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Column(
+                    children: [
               // Üst bar: çıkış solda; puan + canlar sağda (dar ekranda taşmayı önlemek için FittedBox)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -709,21 +740,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 10, bottom: 2),
-                child: AnimatedBuilder(
-                  animation: _levelUpAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _levelUpAnimation.value,
-                      child: Center(child: _buildLevelChip(loc)),
-                    );
-                  },
-                ),
-              ),
-
-
-
               // Combo göstergesi
               if (_combo >= 3)
                 Center(
@@ -737,7 +753,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                             horizontal: 24,
                             vertical: 10,
                           ),
-                          margin: const EdgeInsets.only(bottom: 20, top: 10),
+                          margin: const EdgeInsets.only(bottom: 6, top: 4),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: _combo >= 10
@@ -790,33 +806,78 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ),
                 ),
 
-              if (_combo < 3) const SizedBox(height: 30),
-
-              // Soru
+              // Soru + şıklar bitişik; üstte gereksiz boşluk yok
               Expanded(
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _shakeAnimation,
-                    builder: (context, child) {
-                      return Transform.translate(
-                        offset: Offset(
-                          _shakeAnimation.value *
-                              math.sin(_shakeController.value * math.pi * 4),
-                          0,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(height: constraints.maxHeight * 0.04),
+                              AnimatedBuilder(
+                                animation: _shakeAnimation,
+                                builder: (context, child) {
+                                  return Transform.translate(
+                                    offset: Offset(
+                                      _shakeAnimation.value *
+                                          math.sin(_shakeController.value * math.pi * 4),
+                                      0,
+                                    ),
+                                    child: _buildQuestion(loc),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              _buildOptions(),
+                            ],
+                          ),
                         ),
-                        child: _buildQuestion(loc),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
 
-              // Seçenekler
-              _buildOptions(),
-
-              const SizedBox(height: 30),
-            ],
-          ),
+              const SizedBox(height: 8),
+                    ],
+                  ),
+                  if (_reactionEmoji != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Center(
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey('${_questionsAnswered}_${_wrongAnswers}_${_selectedAnswer ?? -1}'),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 420),
+                            curve: Curves.elasticOut,
+                            builder: (context, t, _) {
+                              return Opacity(
+                                opacity: (0.4 + 0.6 * t).clamp(0.0, 1.0),
+                                child: Transform.scale(
+                                  scale: 0.35 + 0.65 * t,
+                                  child: Text(
+                                    _reactionEmoji!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 96),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -826,8 +887,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     final isLowTime = _timeLeft <= 3;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -853,7 +914,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
         children: [
           // Zamanlayıcı
           Container(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: const EdgeInsets.only(bottom: 4),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
@@ -880,93 +941,96 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
-          // Soru
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${_currentQuestion.num1}',
-                style: const TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                      offset: Offset(3, 3),
-                    ),
-                  ],
+          // Soru (dar ekranda taşmayı önlemek için)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${_currentQuestion.num1}',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Colors.black26,
+                        offset: Offset(3, 3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                _currentQuestion.operator,
-                style: const TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                      offset: Offset(3, 3),
-                    ),
-                  ],
+                const SizedBox(width: 10),
+                Text(
+                  _currentQuestion.operator,
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Colors.black26,
+                        offset: Offset(3, 3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${_currentQuestion.num2}',
-                style: const TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                      offset: Offset(3, 3),
-                    ),
-                  ],
+                const SizedBox(width: 10),
+                Text(
+                  '${_currentQuestion.num2}',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Colors.black26,
+                        offset: Offset(3, 3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                '=',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                      offset: Offset(3, 3),
-                    ),
-                  ],
+                const SizedBox(width: 10),
+                const Text(
+                  '=',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Colors.black26,
+                        offset: Offset(3, 3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                '?',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                      offset: Offset(3, 3),
-                    ),
-                  ],
+                const SizedBox(width: 10),
+                const Text(
+                  '?',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Colors.black26,
+                        offset: Offset(3, 3),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           const SizedBox(height: 8),
@@ -1007,26 +1071,32 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   }
 
   Widget _buildOptions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        children: [
-          Row(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
-              const SizedBox(width: 12),
-              Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+              Row(
+                children: [
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
-              const SizedBox(width: 12),
-              Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1035,9 +1105,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     final isSelected = _selectedAnswer == option;
     final isCorrectAnswer = option == _currentQuestion.correctAnswer;
 
-    Color bgColor;
-    Color borderColor;
-    Color textColor = Colors.white;
+    final bool idle = !_isAnswered;
+    Color bgColor = Colors.transparent;
+    late Color borderColor;
+    late Color textColor;
 
     if (_isAnswered) {
       if (isCorrectAnswer) {
@@ -1054,9 +1125,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
         textColor = Colors.white70;
       }
     } else {
-      bgColor = Colors.white.withOpacity(0.2);
-      borderColor = Colors.white.withOpacity(0.5);
-      textColor = Colors.white;
+      borderColor = Colors.white.withOpacity(0.55);
+      textColor = const Color(0xFF4A148C);
     }
 
     return GestureDetector(
@@ -1065,18 +1135,29 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
           : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 70,
+        height: 62,
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
+          gradient: idle
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xE6FFFFFF),
+                    Color(0x66E1BEE7),
+                    Color(0x99B39DDB),
+                  ],
+                )
+              : null,
+          color: idle ? null : bgColor,
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: borderColor,
             width: 3,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
+              color: (_isAnswered ? Colors.black : const Color(0xFF7E57C2)).withOpacity(_isAnswered ? 0.2 : 0.25),
+              blurRadius: _isAnswered ? 10 : 12,
               offset: const Offset(0, 5),
             ),
           ],
@@ -1085,14 +1166,14 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
           child: Text(
             '$option',
             style: TextStyle(
-              fontSize: 32,
+              fontSize: 30,
               fontWeight: FontWeight.bold,
               color: textColor,
               shadows: [
-                const Shadow(
+                Shadow(
                   blurRadius: 3,
-                  color: Colors.black26,
-                  offset: Offset(2, 2),
+                  color: Colors.black.withOpacity(_isAnswered ? 0.26 : 0.12),
+                  offset: const Offset(2, 2),
                 ),
               ],
             ),
@@ -1101,6 +1182,88 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       ),
     );
   }
+}
+
+/// Arka planda hafif hareketli çocuk dostu süsler (gradient üzerinde).
+class _EndlessPlaygroundPainter extends CustomPainter {
+  _EndlessPlaygroundPainter({required this.phase});
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final p2 = phase * math.pi * 2;
+
+    final wash = Paint()
+      ..shader = LinearGradient(
+        begin: const Alignment(0, -0.2),
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white.withOpacity(0.03),
+          const Color(0x18FFECB3),
+          const Color(0x12E1BEE7),
+        ],
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawRect(Offset.zero & size, wash);
+
+    for (var i = 0; i < 14; i++) {
+      final t = p2 + i * 0.5;
+      final bx = w * (0.05 + (i * 0.07) % 0.9) + 10 * math.sin(t);
+      final by = h * (0.08 + 0.85 * ((phase * 0.4 + i * 0.07) % 1.0));
+      final br = 2.5 + (i % 4) * 1.8;
+      final o = 0.08 + 0.1 * (0.5 + 0.5 * math.sin(t * 2));
+      canvas.drawCircle(
+        Offset(bx, by),
+        br,
+        Paint()..color = Colors.white.withOpacity(o),
+      );
+    }
+
+    const glyphs = ['+', '−', '×', '⭐', '✨', '🔢'];
+    for (var i = 0; i < glyphs.length; i++) {
+      final t = p2 + i * 0.9;
+      final x = w * (0.08 + (i % 3) * 0.32) + 14 * math.sin(t);
+      final y = h * (0.12 + (i % 2) * 0.35) + 12 * math.cos(t * 1.1);
+      _paintGlyph(
+        canvas,
+        glyphs[i],
+        x,
+        y,
+        18.0 + (i % 3) * 5,
+        Colors.white.withOpacity(0.12 + 0.1 * (0.5 + 0.5 * math.sin(t))),
+      );
+    }
+
+    for (var i = 0; i < 5; i++) {
+      final t = p2 * 1.2 + i;
+      final cx = w * (0.15 + i * 0.18) + 8 * math.sin(t);
+      final cy = h * (0.55 + 0.12 * math.sin(t * 1.3));
+      final puff = Paint()..color = Colors.white.withOpacity(0.07);
+      canvas.drawCircle(Offset(cx, cy), 22 + (i % 3) * 6, puff);
+      canvas.drawCircle(Offset(cx + 16, cy - 4), 18 + (i % 2) * 5, puff);
+    }
+  }
+
+  static void _paintGlyph(Canvas canvas, String text, double cx, double cy, double fontSize, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant _EndlessPlaygroundPainter oldDelegate) => oldDelegate.phase != phase;
 }
 
 class _EndlessQuestion {

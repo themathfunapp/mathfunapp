@@ -111,84 +111,95 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   }
 
   Widget _buildAgeSelection(AppLocalizations localizations, StoryService storyService) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
         Navigator.pop(context);
-        return false;
       },
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                ),
-                Expanded(
-                  child: Text(
-                    localizations.storyMode,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                   ),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
-
-          // Floating mascot
-          AnimatedBuilder(
-            animation: _floatAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, _floatAnimation.value),
-                child: const Text(
-                  '🦸',
-                  style: TextStyle(fontSize: 80),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          Text(
-            localizations.get('choose_adventure'),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              localizations.get('age_appropriate_adventure'),
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                  Expanded(
+                    child: Text(
+                      localizations.storyMode,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-
-          const SizedBox(height: 40),
-
-          // Age group cards
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 100,
+              child: ClipRect(
+                child: AnimatedBuilder(
+                  animation: _floatAnimation,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(0, _floatAnimation.value),
+                      child: const Center(
+                        child: Text(
+                          '🦸',
+                          style: TextStyle(fontSize: 80),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                localizations.get('choose_adventure'),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 10)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                localizations.get('age_appropriate_adventure'),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
                 _buildAgeCard(
                   title: localizations.get('number_adventures'),
                   subtitle: localizations.get('colorful_animals_discovery'),
@@ -221,8 +232,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                   storyService: storyService,
                   ageGroup: AgeGroup.lateElementary,
                 ),
-                const SizedBox(height: 30),
-              ],
+                const SizedBox(height: 32),
+              ]),
             ),
           ),
         ],

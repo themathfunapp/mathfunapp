@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
 import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
@@ -56,6 +57,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   late Animation<double> _pulseAnimation;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
+  /// Oyun içi arka plan / soru alanı için yumuşak döngü animasyonu
+  late AnimationController _playfulLoopController;
+  late ConfettiController _confettiController;
+  /// Yanlış cevapta kısa süreli üzgün emoji katmanı
+  String? _reactionEmoji;
 
   @override
   void initState() {
@@ -83,6 +89,14 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         curve: Curves.elasticIn,
       ),
     );
+
+    _playfulLoopController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+
+    // Kısa patlama: ardışık doğru cevaplarda üst üste binmesin
+    _confettiController = ConfettiController(duration: const Duration(milliseconds: 550));
   }
 
   @override
@@ -91,6 +105,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _timer?.cancel();
     _pulseController.dispose();
     _shakeController.dispose();
+    _playfulLoopController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -123,7 +139,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _currentQuestion = _questions[0];
       _isAnswered = false;
       _selectedAnswer = null;
+      _reactionEmoji = null;
     });
+    _confettiController.stop();
     _startTimer();
   }
 
@@ -230,10 +248,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   void _checkAnswer(int answer) {
     if (_isAnswered || _gameOver) return;
 
+    final wasCorrect = answer == _currentQuestion.correctAnswer;
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
-      _isCorrect = answer == _currentQuestion.correctAnswer;
+      _isCorrect = wasCorrect;
+      _reactionEmoji = wasCorrect ? null : '🥺';
     });
 
     if (_isCorrect) {
@@ -244,12 +264,14 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
       // Her doğru cevap 10 puan
       _score += 10;
-      _audio.playAnswerFeedback(true);
+      _audio.playSound(SoundEffect.characterHappy);
+      _confettiController.stop();
+      _confettiController.play();
     } else {
       // YANLIŞ CEVAP - 1 CAN GİDER (GameMechanicsService - profil senkron)
       _wrongAnswers++;
       _combo = 0;
-      _audio.playAnswerFeedback(false);
+      _audio.playSound(SoundEffect.characterSad);
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       mechanicsService.onWrongAnswer();
 
@@ -281,7 +303,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         _currentQuestion = _questions[_currentQuestionIndex];
         _isAnswered = false;
         _selectedAnswer = null;
+        _reactionEmoji = null;
       });
+      _confettiController.stop();
     } else {
       _endChallenge();
     }
@@ -289,6 +313,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   void _endChallenge() {
     _timer?.cancel();
+    _confettiController.stop();
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     mechanicsService.completeChallenge(_score, _correctAnswers);
@@ -649,20 +674,76 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _isPlaying
+                ? const [
+                    Color(0xFF7C4DFF),
+                    Color(0xFF9575FF),
+                    Color(0xFFE879F9),
+                  ]
+                : const [
+                    Color(0xFF667eea),
+                    Color(0xFF764ba2),
+                  ],
           ),
         ),
-        child: SafeArea(
-          child: _isPlaying
-              ? _buildPlayingView()
-              : _buildChallengeInfoView(challenge),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_isPlaying)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _playfulLoopController,
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: _DailySparklePainter(phase: _playfulLoopController.value),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            if (_isPlaying)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          height: c.maxHeight,
+                          width: c.maxWidth,
+                          child: ConfettiWidget(
+                            confettiController: _confettiController,
+                            blastDirectionality: BlastDirectionality.explosive,
+                            shouldLoop: false,
+                            emissionFrequency: 0.35,
+                            numberOfParticles: 14,
+                            gravity: 0.38,
+                            colors: const [
+                              Color(0xFFFFD54F),
+                              Color(0xFFFF80AB),
+                              Color(0xFF80DEEA),
+                              Color(0xFFA5D6A7),
+                              Color(0xFFB39DDB),
+                              Color(0xFFFFAB91),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            SafeArea(
+              child: _isPlaying
+                  ? _buildPlayingView()
+                  : _buildChallengeInfoView(challenge),
+            ),
+          ],
         ),
       ),
     );
@@ -947,8 +1028,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     final isLowTime = _timeLeft <= 30;
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
 
-    return Column(
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
+        Column(
+          children: [
         // Üst bar - CANLAR EKLENDİ
         Container(
           margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -1059,164 +1143,346 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
         // Combo göstergesi
         if (_combo >= 2)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.orange, Colors.red],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '🔥 ${loc.get('combo_format').replaceAll('{0}', '$_combo')}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+          AnimatedBuilder(
+            animation: _playfulLoopController,
+            builder: (context, _) {
+              final s = 1.0 + 0.05 * math.sin(_playfulLoopController.value * math.pi * 2);
+              return Transform.scale(
+                scale: s,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.45),
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '🔥 ${loc.get('combo_format').replaceAll('{0}', '$_combo')}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
 
         Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-
-                // Soru (dar ekranda yatay taşma yok)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  width: double.infinity,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(50),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF667eea).withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
+          child: LayoutBuilder(
+            builder: (context, expandedConstraints) {
+              return Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _playfulLoopController,
+                          builder: (context, _) {
+                            return CustomPaint(
+                              painter: _DailyPlaygroundPainter(
+                                phase: _playfulLoopController.value,
+                              ),
+                            );
+                          },
                         ),
-                      ],
-                      border: Border.all(color: Colors.white, width: 3),
+                      ),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: isLowTime ? _pulseAnimation.value : 1.0,
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 8,
+                    height: math.min(140, expandedConstraints.maxHeight * 0.22),
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _playfulLoopController,
+                        builder: (context, _) {
+                          const icons = ['🧮', '🎈', '✨', '📐', '🌟'];
+                          final t = _playfulLoopController.value * math.pi * 2;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(icons.length, (i) {
+                              final dy = 10 * math.sin(t + i * 1.1);
+                              final sc = 1.0 + 0.08 * math.sin(t * 1.2 + i * 0.9);
+                              return Transform.translate(
+                                offset: Offset(0, dy),
+                                child: Transform.scale(
+                                  scale: sc,
+                                  child: Opacity(
+                                    opacity: 0.45 + 0.25 * (0.5 + 0.5 * math.sin(t + i)),
                                     child: Text(
-                                      '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                      icons[i],
+                                      style: TextStyle(
+                                        fontSize: 28 + (i % 3) * 6,
                                       ),
                                     ),
                                   ),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: AnimatedBuilder(
+                            animation: _playfulLoopController,
+                            builder: (context, _) {
+                              final bounce = 1.0 + 0.02 * math.sin(_playfulLoopController.value * math.pi * 2);
+                              return Transform.scale(
+                                scale: bounce,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.22),
+                                      borderRadius: BorderRadius.circular(24),
+                                      border: Border.all(color: Colors.white.withOpacity(0.55), width: 2),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFD54F),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            loc.get('daily_quest_today_chip'),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF5D4037),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          loc.get('daily_challenge'),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Soru (dar ekranda yatay taşma yok)
+                        AnimatedBuilder(
+                          animation: _playfulLoopController,
+                          builder: (context, _) {
+                            final glow = 0.28 + 0.22 * math.sin(_playfulLoopController.value * math.pi * 2);
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              width: double.infinity,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF5C6BC0), Color(0xFF7E57C2), Color(0xFFAB47BC)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(50),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFFD54F).withOpacity(glow),
+                                      blurRadius: 22,
+                                      spreadRadius: 0,
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFF7E57C2).withOpacity(0.45),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                  border: Border.all(color: Colors.white, width: 3),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    AnimatedBuilder(
+                                      animation: _pulseAnimation,
+                                      builder: (context, child) {
+                                        return Transform.scale(
+                                          scale: isLowTime ? _pulseAnimation.value : 1.0,
+                                          child: Container(
+                                            width: 46,
+                                            height: 46,
+                                            decoration: BoxDecoration(
+                                              color: isLowTime ? Colors.red : Colors.white.withOpacity(0.2),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: isLowTime ? Colors.red.shade300 : Colors.white.withOpacity(0.5),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                child: Text(
+                                                  '${_timeLeft ~/ 60}:${(_timeLeft % 60).toString().padLeft(2, '0')}',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    AnimatedBuilder(
+                                      animation: _playfulLoopController,
+                                      builder: (context, _) {
+                                        final a = 0.08 * math.sin(_playfulLoopController.value * math.pi * 2 + 0.5);
+                                        return Transform.rotate(
+                                          angle: a,
+                                          child: const Text('🎯', style: TextStyle(fontSize: 26)),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                                          maxLines: 1,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            shadows: [
+                                              Shadow(
+                                                blurRadius: 4,
+                                                color: Colors.black26,
+                                                offset: Offset(2, 2),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (_isAnswered) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _isCorrect ? '✅' : '❌',
+                                        style: const TextStyle(fontSize: 26),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             );
                           },
                         ),
-                        const SizedBox(width: 8),
-                        const Text('🎯', style: TextStyle(fontSize: 26)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.center,
-                            child: Text(
-                              '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                              maxLines: 1,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 4,
-                                    color: Colors.black26,
-                                    offset: Offset(2, 2),
+
+                        const SizedBox(height: 32),
+
+                        // Seçenekler (çerçevesiz, düzenli aralık)
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
                           ),
                         ),
-                        if (_isAnswered) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            _isCorrect ? '✅' : '❌',
-                            style: const TextStyle(fontSize: 26),
-                          ),
-                        ],
                       ],
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Seçenekler
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
-                              const SizedBox(width: 10),
-                              Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
-                              const SizedBox(width: 10),
-                              Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ),
+      ],
+        ),
+        if (_reactionEmoji != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('${_currentQuestionIndex}_$_selectedAnswer'),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.elasticOut,
+                  builder: (context, t, _) {
+                    return Opacity(
+                      opacity: (0.4 + 0.6 * t).clamp(0.0, 1.0),
+                      child: Transform.scale(
+                        scale: 0.35 + 0.65 * t,
+                        child: Text(
+                          _reactionEmoji!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 96),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1248,15 +1514,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       onTap: _isAnswered || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0 ? null : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 55,
+        height: 58,
         decoration: BoxDecoration(
-          color: bgColor,
+          gradient: _isAnswered
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xE6FFFFFF),
+                    Color(0x66E1BEE7),
+                    Color(0x99B39DDB),
+                  ],
+                ),
+          color: _isAnswered ? bgColor : null,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: borderColor, width: 3),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
+              color: (_isAnswered ? Colors.black : const Color(0xFF7E57C2)).withOpacity(_isAnswered ? 0.2 : 0.28),
+              blurRadius: _isAnswered ? 8 : 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -1264,15 +1541,15 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         child: Center(
           child: Text(
             '$option',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: _isAnswered ? Colors.white : const Color(0xFF4A148C),
               shadows: [
                 Shadow(
                   blurRadius: 2,
-                  color: Colors.black26,
-                  offset: Offset(1, 1),
+                  color: Colors.black.withOpacity(_isAnswered ? 0.26 : 0.12),
+                  offset: const Offset(1, 1),
                 ),
               ],
             ),
@@ -1281,6 +1558,159 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       ),
     );
   }
+}
+
+/// Oyun alanının alt yarısını dolduran yumuşak tepeler, bulutlar ve hareketli matematik süsleri.
+class _DailyPlaygroundPainter extends CustomPainter {
+  _DailyPlaygroundPainter({required this.phase});
+
+  final double phase;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final p2 = phase * math.pi * 2;
+
+    final aurora = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment(0, 0.4),
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.transparent,
+          Color(0x28FFECB3),
+          Color(0x38E1BEE7),
+          Color(0x30CE93D8),
+        ],
+        stops: [0.0, 0.38, 0.7, 1.0],
+      ).createShader(Rect.fromLTWH(0, h * 0.32, w, h * 0.68));
+    canvas.drawRect(Rect.fromLTWH(0, h * 0.32, w, h * 0.68), aurora);
+
+    // Tepeler (alt bölgeyi doldurur)
+    final hill1 = Path()
+      ..moveTo(0, h * 0.5)
+      ..quadraticBezierTo(w * 0.22, h * (0.46 + 0.02 * math.sin(p2)), w * 0.45, h * 0.52)
+      ..quadraticBezierTo(w * 0.68, h * (0.58 + 0.015 * math.cos(p2 * 1.1)), w, h * 0.48)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(
+      hill1,
+      Paint()..color = const Color(0x2EFFFFFF),
+    );
+    final hill2 = Path()
+      ..moveTo(0, h * 0.62)
+      ..quadraticBezierTo(w * 0.35, h * (0.56 + 0.025 * math.cos(p2 * 0.9)), w * 0.7, h * 0.64)
+      ..quadraticBezierTo(w * 0.9, h * 0.68, w, h * 0.6)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(
+      hill2,
+      Paint()..color = const Color(0x22F8BBD0),
+    );
+
+    _drawCloud(canvas, Offset(w * 0.1 + 6 * math.sin(p2), h * 0.56), 1.0);
+    _drawCloud(canvas, Offset(w * 0.78 + 8 * math.cos(p2 * 0.85), h * 0.52), 1.12);
+    _drawCloud(canvas, Offset(w * 0.42 + 5 * math.sin(p2 * 1.2), h * 0.74), 1.25);
+
+    for (var i = 0; i < 16; i++) {
+      final t = p2 + i * 0.48;
+      final bx = w * (0.04 + (i * 0.059) % 0.92) + 8 * math.sin(t);
+      final drift = (phase * 0.35 + i * 0.08) % 1.0;
+      final by = h * (0.38 + 0.58 * drift);
+      final br = 3.0 + (i % 5) * 1.8;
+      final o = 0.1 + 0.12 * (0.5 + 0.5 * math.sin(t * 2));
+      canvas.drawCircle(
+        Offset(bx, by),
+        br,
+        Paint()..color = Colors.white.withOpacity(o),
+      );
+    }
+
+    const symbols = ['+', '−', '×', '÷', '=', '★', '✨', '123'];
+    for (var i = 0; i < symbols.length; i++) {
+      final t = p2 + i * 0.85;
+      final x = w * (0.08 + (i % 4) * 0.28) + 16 * math.sin(t);
+      final y = h * (0.45 + (i % 3) * 0.12) + 14 * math.cos(t * 1.05);
+      _paintGlyph(
+        canvas,
+        symbols[i],
+        x,
+        y,
+        20.0 + (i % 3) * 6,
+        Colors.white.withOpacity(0.16 + 0.14 * (0.5 + 0.5 * math.sin(t))),
+      );
+    }
+
+    for (var i = 0; i < 7; i++) {
+      final t = p2 * 1.4 + i;
+      final cx = w * (0.12 + i * 0.13) + 10 * math.sin(t);
+      final cy = h * (0.66 + 0.06 * math.sin(t * 1.2));
+      final rr = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(cx, cy), width: 40, height: 26),
+        const Radius.circular(13),
+      );
+      canvas.drawRRect(
+        rr,
+        Paint()
+          ..color = Color.lerp(
+            const Color(0xFFFF80AB),
+            const Color(0xFFB388FF),
+            (i / 7).clamp(0.0, 1.0),
+          )!
+              .withOpacity(0.14),
+      );
+    }
+  }
+
+  static void _drawCloud(Canvas canvas, Offset c, double scale) {
+    final puff = Paint()..color = Colors.white.withOpacity(0.2);
+    canvas.drawCircle(c.translate(-18 * scale, 0), 24 * scale, puff);
+    canvas.drawCircle(c.translate(6 * scale, -5 * scale), 28 * scale, puff);
+    canvas.drawCircle(c.translate(30 * scale, 2 * scale), 22 * scale, puff);
+  }
+
+  static void _paintGlyph(Canvas canvas, String text, double cx, double cy, double fontSize, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(covariant _DailyPlaygroundPainter oldDelegate) => oldDelegate.phase != phase;
+}
+
+class _DailySparklePainter extends CustomPainter {
+  _DailySparklePainter({required this.phase});
+
+  final double phase;
+
+  static final List<double> _sx = [0.08, 0.22, 0.38, 0.52, 0.68, 0.82, 0.92, 0.14, 0.44, 0.74, 0.3, 0.6];
+  static final List<double> _sy = [0.12, 0.28, 0.48, 0.18, 0.62, 0.38, 0.78, 0.52, 0.88, 0.68, 0.22, 0.92];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (var i = 0; i < _sx.length; i++) {
+      final o = 0.04 + 0.1 * (0.5 + 0.5 * math.sin(phase * math.pi * 2 + i * 0.75));
+      paint.color = Colors.white.withOpacity(o);
+      final r = 1.4 + (i % 4) * 0.65;
+      canvas.drawCircle(Offset(_sx[i] * size.width, _sy[i] * size.height), r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DailySparklePainter oldDelegate) => oldDelegate.phase != phase;
 }
 
 class _ChallengeQuestion {

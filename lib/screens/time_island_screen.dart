@@ -236,6 +236,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
         _sessCorrect++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
+        if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
         _score += 10;
         _audio.playAnswerFeedback(true);
         _feedback = '🎉 Harika! Doğru saat!';

@@ -707,8 +707,7 @@ class _GameStartScreenState extends State<GameStartScreen>
               ),
             ),
             const SizedBox(width: 12),
-            // Günün Görevi - 3 CAN EKLENDİ
-            // Günün Görevi kartı (can göstergesi olmadan)
+            // Günün Görevi
             Expanded(
               child: _buildQuickStartCard(
                 emoji: '🎯',
@@ -716,8 +715,6 @@ class _GameStartScreenState extends State<GameStartScreen>
                 subtitle: localizations.get('surprise_reward'),
                 color: const Color(0xFF4ECDC4),
                 onTap: () => _startQuickGame('daily'),
-                // showLives: true,    → kaldırıldı
-                // livesCount: _mechanicsService.livesSystem.currentLives,  → kaldırıldı
               ),
             ),
 

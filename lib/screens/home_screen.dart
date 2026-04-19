@@ -415,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen>
           Expanded(
             child: BottomActionButton(
               text: localizations.parentPanel,
-              emoji: '👨‍👩‍👧',
+              icon: const ParentPanelLeadingIcon(),
               onPressed: () => _openParentPanelScreen(context),
             ),
           ),

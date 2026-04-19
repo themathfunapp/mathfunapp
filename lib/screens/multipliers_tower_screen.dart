@@ -225,6 +225,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
 
       if (correct) {
         _sessCorrect++;
+        if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _comboCount++;
@@ -491,6 +492,8 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
       animation: _glowController,
       builder: (context, child) {
         final glow = 0.7 + 0.3 * math.sin(_glowController.value * math.pi * 2);
+        final w = MediaQuery.sizeOf(context).width;
+        final targetFont = _targetB > 0 ? (w < 340 ? 22.0 : 28.0) : (w < 340 ? 28.0 : 36.0);
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(16),
@@ -501,22 +504,32 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
             boxShadow: [BoxShadow(color: _gold.withOpacity(0.5), blurRadius: 15 * glow, spreadRadius: glow)],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(crystalEmoji, style: const TextStyle(fontSize: 36)),
+              Text(crystalEmoji, style: TextStyle(fontSize: w < 340 ? 30 : 36)),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('✨ ${loc.get('multipliers_tower_target')}', style: _textStyle(Colors.white, size: 12)),
-                  if (_targetB > 0)
-                    Text('$_targetNumber & $_targetB', style: _textStyle(_gold, size: 28, bold: true))
-                  else
-                    Text('$_targetNumber', style: _textStyle(_gold, size: 36, bold: true)),
-                  if (_questionType == 1) Text(loc.get('multipliers_tower_find_divisors'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-                  if (_questionType == 2) Text(loc.get('multipliers_tower_find_lcm'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-                  if (_questionType == 3) Text(loc.get('multipliers_tower_find_gcd'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('✨ ${loc.get('multipliers_tower_target')}', style: _textStyle(Colors.white, size: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    if (_targetB > 0)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text('$_targetNumber & $_targetB', style: _textStyle(_gold, size: targetFont, bold: true)),
+                      )
+                    else
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text('$_targetNumber', style: _textStyle(_gold, size: targetFont, bold: true)),
+                      ),
+                    if (_questionType == 1) Text(loc.get('multipliers_tower_find_divisors'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11), maxLines: 3),
+                    if (_questionType == 2) Text(loc.get('multipliers_tower_find_lcm'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11), maxLines: 3),
+                    if (_questionType == 3) Text(loc.get('multipliers_tower_find_gcd'), style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 11), maxLines: 3),
+                  ],
+                ),
               ),
             ],
           ),
@@ -563,18 +576,32 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
             ),
           ],
           const SizedBox(height: 16),
-          Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center, children: _stepOptions.map((n) => _buildStepCard(loc, n)).toList()),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final innerW = constraints.maxWidth;
+              const gap = 10.0;
+              final cardW = ((innerW - 2 * gap) / 3).floorToDouble().clamp(72.0, 108.0);
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                alignment: WrapAlignment.center,
+                children: _stepOptions.map((n) => _buildStepCard(loc, n, cardW)).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStepCard(AppLocalizations loc, int number) {
+  Widget _buildStepCard(AppLocalizations loc, int number, double cardWidth) {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final canTap = !_isAnswered && mechanicsService.hasLives;
     final isCorrect = number == _correctAnswer;
     final isSelected = _isAnswered && isCorrect;
     final obj = stepObjects[number] ?? {'emoji': '🔢', 'nameKey': null};
+    final emojiSize = (cardWidth * 0.34).clamp(26.0, 36.0);
+    final numSize = (cardWidth * 0.22).clamp(16.0, 22.0);
 
     Color bgColor = Colors.white;
     if (_isAnswered) bgColor = isCorrect ? Colors.green.shade100 : Colors.red.shade50;
@@ -590,8 +617,8 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
             child: GestureDetector(
               onTap: canTap ? () => _checkAnswer(number) : null,
               child: Container(
-                width: 100,
-                padding: const EdgeInsets.all(12),
+                width: cardWidth,
+                padding: EdgeInsets.all((cardWidth * 0.1).clamp(6.0, 12.0)),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(16),
@@ -601,10 +628,10 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(obj['emoji'] as String, style: const TextStyle(fontSize: 36)),
-                    const SizedBox(height: 4),
-                    Text('$number', style: _textStyle(Colors.black87, size: 22, bold: true)),
-                    Text(obj['nameKey'] != null ? loc.get(obj['nameKey'] as String) : '$number', style: TextStyle(fontSize: 10, color: Colors.grey.shade700), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(obj['emoji'] as String, style: TextStyle(fontSize: emojiSize)),
+                    SizedBox(height: (cardWidth * 0.04).clamp(2.0, 6.0)),
+                    Text('$number', style: _textStyle(Colors.black87, size: numSize, bold: true)),
+                    Text(obj['nameKey'] != null ? loc.get(obj['nameKey'] as String) : '$number', style: TextStyle(fontSize: (numSize * 0.45).clamp(9.0, 11.0), color: Colors.grey.shade700), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -659,21 +686,30 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   }
 
   Widget _buildMuzAdasi(AppLocalizations loc) {
+    final w = MediaQuery.sizeOf(context).width;
+    final islandEmoji = (48 + math.min(_bananas, 12)).toDouble().clamp(44.0, 64.0);
+    final titleSize = w < 360 ? 18.0 : 24.0;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12).copyWith(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _gold.withOpacity(0.6)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text('🏝️', style: TextStyle(fontSize: (56 + _bananas).clamp(56, 72).toDouble())),
-          const SizedBox(width: 12),
-          Text(loc.get('ziki_banana_island'), style: _textStyle(Colors.white, size: 24, bold: true)),
+          Text('🏝️', style: TextStyle(fontSize: islandEmoji)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              loc.get('ziki_banana_island'),
+              style: _textStyle(Colors.white, size: titleSize, bold: true),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

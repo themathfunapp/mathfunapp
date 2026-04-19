@@ -127,6 +127,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     final isGuest = authService.isGuest;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -1048,29 +1049,44 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           ),
         ),
 
-        // SONUÇLAR
+        // SONUÇLAR (klavye açıkken taşmayı önlemek için kaydırılabilir boş durum)
         Expanded(
-          child: _isSearching
-              ? const Center(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (_isSearching) {
+                return const Center(
                   child: CircularProgressIndicator(color: Colors.white),
-                )
-              : _searchResults.isEmpty
-                  ? _buildEmptyState(
-                      emoji: '🔍',
-                      title: localizations.get('search_users_title'),
-                      description: localizations.get('search_users_description'),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        return _buildSearchResultCard(
-                          _searchResults[index],
-                          friendService,
-                          localizations,
-                        );
-                      },
+                );
+              }
+              if (_searchResults.isEmpty) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Center(
+                      child: _buildEmptyState(
+                        emoji: '🔍',
+                        title: localizations.get('search_users_title'),
+                        description: localizations.get('search_users_description'),
+                      ),
                     ),
+                  ),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _searchResults.length,
+                itemBuilder: (context, index) {
+                  return _buildSearchResultCard(
+                    _searchResults[index],
+                    friendService,
+                    localizations,
+                  );
+                },
+              );
+            },
+          ),
         ),
       ],
     );

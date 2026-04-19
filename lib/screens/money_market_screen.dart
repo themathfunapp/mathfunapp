@@ -28,6 +28,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
   int _currentLevel = 1;
   int _stars = 0;
   int _coins = 0;
+  int _sessCorrect = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _hasShownNoLivesDialog = false;
@@ -113,6 +114,8 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
       _isCorrect = correct;
       if (correct) {
         _stars++;
+        _sessCorrect++;
+        if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
         _coins += _correctAnswer;
         _celebrationController.forward(from: 0);
         Future.delayed(const Duration(seconds: 2), () {

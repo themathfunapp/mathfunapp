@@ -35,7 +35,13 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   late Animation<double> _floatAnimation;
   late Animation<double> _bgAnimation;
 
-  int _currentLevel = 1;
+  /// Tur içindeki adım (1–10). Her 10 adımda tur biter; puan tur sonunda verilir.
+  int _stepInRound = 1;
+  /// İlk girişte false; "Tekrar oyna" ile başlayan turlarda true (bonus adım + tur sonunda +6 puan).
+  bool _replayRound = false;
+  /// 1–10 arası; sadece [_replayRound] true iken rastgele atanır (bir bonus soru).
+  int? _bonusStepSlot;
+
   int _score = 0;
   int _stars = 0;
   bool _isAnswered = false;
@@ -60,7 +66,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     {'type': ShapeType.roundedRect, 'nameKey': 'geometry_castle_shape_rounded_rect', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF42A5F5)},
     {'type': ShapeType.triangle, 'nameKey': 'geometry_castle_shape_triangle', 'vertices': 3, 'equalEdges': true, 'color': Color(0xFF4CAF50)},
     {'type': ShapeType.rightTriangle, 'nameKey': 'geometry_castle_shape_right_triangle', 'vertices': 3, 'equalEdges': false, 'color': Color(0xFF81C784)},
-    {'type': ShapeType.diamond, 'nameKey': 'geometry_castle_shape_diamond', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF26A69A)},
+    {'type': ShapeType.diamond, 'nameKey': 'geometry_castle_shape_diamond', 'vertices': 4, 'equalEdges': true, 'color': Color(0xFF80DEEA)},
     {'type': ShapeType.kite, 'nameKey': 'geometry_castle_shape_kite', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF8D6E63)},
     {'type': ShapeType.trapezoid, 'nameKey': 'geometry_castle_shape_trapezoid', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFFA1887F)},
     {'type': ShapeType.parallelogram, 'nameKey': 'geometry_castle_shape_parallelogram', 'vertices': 4, 'equalEdges': false, 'color': Color(0xFF7E57C2)},
@@ -93,7 +99,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
 
   /// Seviyeye göre kapı tipi (her 2 seviyede bir değişir)
   CastleDoorType get _currentDoorType =>
-      _doorTypes[(_currentLevel - 1) % _doorTypes.length];
+      _doorTypes[(_stepInRound - 1) % _doorTypes.length];
 
   @override
   void initState() {
@@ -158,13 +164,13 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   List<Map<String, dynamic>> _getAvailableShapes() {
-    if (_currentLevel <= 2) {
+    if (_stepInRound <= 2) {
       return _shapes.take(4).toList();
-    } else if (_currentLevel <= 4) {
+    } else if (_stepInRound <= 4) {
       return _shapes.take(8).toList();
-    } else if (_currentLevel <= 6) {
+    } else if (_stepInRound <= 6) {
       return _shapes.take(14).toList();
-    } else if (_currentLevel <= 8) {
+    } else if (_stepInRound <= 8) {
       return _shapes.take(18).toList();
     }
     return _shapes;
@@ -174,7 +180,8 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     final random = math.Random();
     final available = _getAvailableShapes();
 
-    _isBonusLevel = _currentLevel % 5 == 0 && _currentLevel > 0;
+    _isBonusLevel =
+        _replayRound && _bonusStepSlot != null && _stepInRound == _bonusStepSlot;
 
     if (_isBonusLevel) {
       _generateBonusLevel(loc);
@@ -192,10 +199,10 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
     _options.shuffle(random);
     _correctOption = target;
 
-    if (_currentLevel >= 4 && (target['vertices'] as int) > 0 && random.nextBool()) {
+    if (_stepInRound >= 4 && (target['vertices'] as int) > 0 && random.nextBool()) {
       _questionType = QuestionType.vertexCount;
       _questionText = loc.get('geometry_castle_find_vertices').replaceAll('{0}', '${target['vertices']}');
-    } else if (_currentLevel >= 6) {
+    } else if (_stepInRound >= 6) {
       final equalEdgesShapes = available.where((s) => s['equalEdges'] == true).toList();
       final eqWrong = available.where((s) => s['equalEdges'] != true).toList();
       if (equalEdgesShapes.isNotEmpty && eqWrong.length >= 2 && random.nextBool()) {
@@ -258,15 +265,23 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
         _sessCorrect++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
-        _score += _isBonusLevel ? 25 : 10;
-        _stars += _isBonusLevel ? 2 : 1;
         _audio.playAnswerFeedback(true);
         _bgController.forward(from: 0);
         _celebrationController.forward(from: 0);
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            _currentLevel++;
+          if (!mounted) return;
+          if (_stepInRound < 10) {
+            setState(() {
+              _stepInRound++;
+            });
             _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
+          } else {
+            final gained = _replayRound ? 6 : 5;
+            setState(() {
+              _score += gained;
+              _stars += 1;
+            });
+            _showRoundCompleteDialog(gained);
           }
         });
       } else {
@@ -336,6 +351,66 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
               widget.onBack();
             },
             child: Text(loc.get('profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRoundCompleteDialog(int pointsEarned) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🏰', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 8),
+            Flexible(child: Text(loc.get('geometry_castle_round_complete_title'), textAlign: TextAlign.center)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              loc.get('geometry_castle_round_complete_body').replaceAll('{0}', '$pointsEarned'),
+              textAlign: TextAlign.center,
+              style: _textStyle(Colors.black87, size: 16),
+            ),
+            if (!_replayRound) ...[
+              const SizedBox(height: 12),
+              Text(
+                loc.get('geometry_castle_round_complete_replay_hint'),
+                textAlign: TextAlign.center,
+                style: _textStyle(Colors.black54, size: 13),
+              ),
+            ],
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              setState(() {
+                _stepInRound = 1;
+                _replayRound = true;
+                _bonusStepSlot = math.Random().nextInt(10) + 1;
+              });
+              _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
+            },
+            child: Text(loc.get('play_again')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              widget.onBack();
+            },
+            child: Text(loc.get('exit')),
           ),
         ],
       ),
@@ -435,8 +510,8 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   Widget _buildProgressPath(AppLocalizations loc) {
-    final totalFloors = 10;
-    final currentFloor = (_currentLevel - 1) % totalFloors;
+    const totalFloors = 10;
+    final currentFloor = _stepInRound - 1;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -704,7 +779,8 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                           Text(
                             _isBonusLevel ? '⭐ BONUS: $_questionText' : '${loc.get('geometry_castle_open_door')}$_questionText',
                             style: _textStyle(Colors.black87, size: 14),
-                            maxLines: 2,
+                            maxLines: 5,
+                            softWrap: true,
                           ),
                         ],
                       ),
@@ -723,13 +799,27 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('🔐', style: const TextStyle(fontSize: 20)),
-                          const SizedBox(width: 6),
-                          Text(loc.get('geometry_castle_secret_door'), style: _textStyle(_castlePurple, size: 15, bold: true)),
-                          const SizedBox(width: 6),
-                          Text('(${loc.get(_currentDoorType.localizationKey)})', style: _textStyle(_castlePurple.withOpacity(0.7), size: 12)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                style: _textStyle(_castlePurple, size: 14, bold: true),
+                                children: [
+                                  TextSpan(text: loc.get('geometry_castle_secret_door')),
+                                  TextSpan(
+                                    text: ' (${loc.get(_targetShapeNameKey)})',
+                                    style: _textStyle(_castlePurple.withOpacity(0.75), size: 12, bold: false),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              maxLines: 4,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -749,11 +839,18 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                 // Anahtarlar - her birinde küçük geometrik şekil
                 Text(loc.get('geometry_castle_keys'), style: _textStyle(_castlePurple, size: 14, bold: true)),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: _options.map((opt) => _buildKeyButton(opt)).toList(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _options
+                      .map(
+                        (opt) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _buildKeyButton(opt),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -784,7 +881,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
       onTap: canTap ? () => _checkAnswer(shape) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 88,
+        width: double.infinity,
         height: 100,
         child: Column(
           mainAxisSize: MainAxisSize.min,

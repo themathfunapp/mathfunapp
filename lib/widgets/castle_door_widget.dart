@@ -68,10 +68,11 @@ class CastleDoorPainter extends CustomPainter {
       center.dx - shapeCanvasSize / 2,
       center.dy - shapeCanvasSize / 2,
     );
+    final bool gemDiamond = targetShape == ShapeType.diamond;
     ShapePainter(
       shapeType: targetShape,
-      fillColor: Colors.grey.shade700,
-      strokeColor: Colors.grey.shade900,
+      fillColor: gemDiamond ? const Color(0xFF80DEEA) : Colors.grey.shade700,
+      strokeColor: gemDiamond ? const Color(0xFF006064) : Colors.grey.shade900,
       strokeWidth: 2,
       size: shapeSize,
     ).paint(canvas, Size(shapeCanvasSize, shapeCanvasSize));

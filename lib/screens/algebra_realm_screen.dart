@@ -34,6 +34,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
   late Animation<double> _shakeAnimation;
 
   int _keysCollected = 0;
+  int _sessCorrect = 0;
   int _currentQuestionInRegion = 0;
   static const int _questionsPerRegion = 5;
   AlgebraRegion _currentRegion = AlgebraRegion.bilinmeyenOrmani;
@@ -197,6 +198,8 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     setState(() => _isAnswered = true);
 
     if (correct) {
+      _sessCorrect++;
+      if (_sessCorrect % 10 == 0) mechanics.addCoins(5);
       _jumpController.forward(from: 0).then((_) {
         if (!mounted) return;
         _currentQuestionInRegion++;
@@ -422,13 +425,34 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
           if (_isBossQuestion) const SizedBox(height: 16),
           _buildWhatIsPrompt(loc),
           const SizedBox(height: 16),
-          Text(_questionDisplay, style: GoogleFonts.quicksand(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fs = MediaQuery.sizeOf(context).width < 360 ? 22.0 : 28.0;
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: Text(
+                    _questionDisplay,
+                    style: GoogleFonts.quicksand(fontSize: fs, fontWeight: FontWeight.bold, color: Colors.black87),
+                    textAlign: TextAlign.center,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: _options.map((n) => _buildOptionButton(n, canTap)).toList(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < _options.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: _buildOptionButton(_options[i], canTap)),
+              ],
+            ],
           ),
         ],
       ),
@@ -453,15 +477,17 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
           child: GestureDetector(
             onTap: canTap ? () => _checkAnswer(value) : null,
             child: Container(
-              width: 80,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: showResult && isCorrect ? Colors.green : _purple.withOpacity(0.4), width: 2),
               ),
-              child: Center(
-                child: Text('$value', style: _textStyle(Colors.black87, size: 24, bold: true)),
+              alignment: Alignment.center,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('$value', style: _textStyle(Colors.black87, size: 24, bold: true), textAlign: TextAlign.center),
               ),
             ),
           ),

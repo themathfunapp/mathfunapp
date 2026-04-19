@@ -155,7 +155,8 @@ class ParentModeGamesHub extends StatelessWidget {
             Expanded(
               child: BottomActionButton(
                 text: _embeddedInPanel ? 'Gelişim özeti' : localizations.parentPanel,
-                emoji: _embeddedInPanel ? '📊' : '👨‍👩‍👧',
+                emoji: _embeddedInPanel ? '📊' : '',
+                icon: _embeddedInPanel ? null : const ParentPanelLeadingIcon(),
                 onPressed: () {
                   if (_embeddedInPanel) {
                     _onJumpToGelisimTab?.call();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async';
@@ -82,7 +83,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   late AnimationController _bounceController;
   late AnimationController _shakeController;
   late AnimationController _pulseController;
-  late AnimationController _confettiController;
   late AnimationController _emojiFloatController;
   late AnimationController _lifeShakeController;
 
@@ -105,6 +105,13 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   List<_Particle> _particles = [];
   Timer? _particleTimer;
 
+  /// Anında Matematik: kısa konfeti patlaması
+  ConfettiController? _burstConfetti;
+  /// Anında Matematik: yanlış / süre bittiğinde üzgün emoji
+  String? _reactionEmoji;
+
+  bool get _isInstantMath => widget.gameType == 'instant';
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +122,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
 
     _initializeAnimations();
+    if (_isInstantMath) {
+      _burstConfetti = ConfettiController(duration: const Duration(milliseconds: 550));
+    }
     _generateQuestions();
     _currentQuestion = _questions[0];
     _startParticles();
@@ -144,11 +154,6 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     )..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _confettiController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
     );
 
     _emojiFloatController = AnimationController(
@@ -254,7 +259,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _bounceController.dispose();
     _shakeController.dispose();
     _pulseController.dispose();
-    _confettiController.dispose();
+    _burstConfetti?.dispose();
     _emojiFloatController.dispose();
     _lifeShakeController.dispose();
     super.dispose();
@@ -379,10 +384,12 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _fastAnswersSession++;
     }
 
+    final wasCorrect = !isTimeout && answer == _currentQuestion.correctAnswer;
     setState(() {
       _isAnswered = true;
       _selectedAnswer = answer;
-      _isCorrect = !isTimeout && answer == _currentQuestion.correctAnswer;
+      _isCorrect = wasCorrect;
+      _reactionEmoji = _isInstantMath && !wasCorrect ? '🥺' : null;
     });
 
     if (_isCorrect) {
@@ -390,14 +397,23 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       if (_runStreak > _bestRunStreak) _bestRunStreak = _runStreak;
       _score += _calculateScore();
       _correctAnswers++;
-      _audio.playAnswerFeedback(true);
+      if (_isInstantMath) {
+        _audio.playSound(SoundEffect.characterHappy);
+        _burstConfetti?.stop();
+        _burstConfetti?.play();
+      } else {
+        _audio.playAnswerFeedback(true);
+      }
       _bounceController.forward(from: 0);
       _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
-      _confettiController.forward(from: 0);
     } else {
       _runStreak = 0;
       _wrongAnswers++;
-      _audio.playAnswerFeedback(false);
+      if (_isInstantMath) {
+        _audio.playSound(SoundEffect.characterSad);
+      } else {
+        _audio.playAnswerFeedback(false);
+      }
       final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
       if (!kDebugMode) {
         mechanicsService.onWrongAnswer();
@@ -437,7 +453,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         _currentQuestion = _questions[_currentQuestionIndex];
         _isAnswered = false;
         _selectedAnswer = null;
+        _reactionEmoji = null;
       });
+      _burstConfetti?.stop();
       _startTimer();
     } else {
       _showResults();
@@ -446,6 +464,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   void _showGameOverDialog() {
     _timer?.cancel();
+    _burstConfetti?.stop();
     _reportSessionToBadges();
 
     showDialog(
@@ -1026,6 +1045,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       onExit: () {
         _timer?.cancel();
         _particleTimer?.cancel();
+        _burstConfetti?.stop();
         widget.onBack();
       },
     );
@@ -1040,6 +1060,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
     _timer?.cancel();
     _particleTimer?.cancel();
+    _burstConfetti?.stop();
     _reportSessionToBadges();
 
     showDialog(
@@ -1310,7 +1331,9 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _currentQuestion = _questions[0];
       _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
       _particles.clear();
+      _reactionEmoji = null;
     });
+    _burstConfetti?.stop();
     _startTimer();
     _startParticles();
   }
@@ -1329,26 +1352,89 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         child: Stack(
           children: [
             _buildBackgroundParticles(),
+            if (_isInstantMath && _burstConfetti != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: LayoutBuilder(
+                    builder: (context, c) {
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          height: c.maxHeight,
+                          width: c.maxWidth,
+                          child: ConfettiWidget(
+                            confettiController: _burstConfetti!,
+                            blastDirectionality: BlastDirectionality.explosive,
+                            shouldLoop: false,
+                            emissionFrequency: 0.35,
+                            numberOfParticles: 14,
+                            gravity: 0.38,
+                            colors: const [
+                              Color(0xFFFFD54F),
+                              Color(0xFFFF80AB),
+                              Color(0xFF80DEEA),
+                              Color(0xFFA5D6A7),
+                              Color(0xFFB39DDB),
+                              Color(0xFFFFAB91),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
             SafeArea(
-              child: Column(
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  _buildTopBar(),
-                  const SizedBox(height: 8),
-                  _buildProgressBar(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 12),
-                          _buildQuestion(),
-                          const SizedBox(height: 16),
-                          _buildOptions(),
-                        ],
+                  Column(
+                    children: [
+                      _buildTopBar(),
+                      const SizedBox(height: 8),
+                      _buildProgressBar(),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              _buildQuestion(),
+                              const SizedBox(height: 16),
+                              _buildOptions(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isInstantMath && _reactionEmoji != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Center(
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey('${_currentQuestionIndex}_$_selectedAnswer'),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 420),
+                            curve: Curves.elasticOut,
+                            builder: (context, t, _) {
+                              return Opacity(
+                                opacity: (0.4 + 0.6 * t).clamp(0.0, 1.0),
+                                child: Transform.scale(
+                                  scale: 0.35 + 0.65 * t,
+                                  child: Text(
+                                    _reactionEmoji!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 96),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

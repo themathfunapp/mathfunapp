@@ -348,17 +348,31 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                   _buildProgressPath(loc),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildQuestionCard(loc),
-                          const SizedBox(height: 24),
-                          _buildVisualDisplay(loc),
-                          const SizedBox(height: 24),
-                          _buildOptionsGrid(loc),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, viewportConstraints) {
+                        return SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: viewportConstraints.maxHeight,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildQuestionCard(loc, viewportConstraints),
+                                  SizedBox(height: (viewportConstraints.maxHeight * 0.02).clamp(12.0, 24.0)),
+                                  _buildVisualDisplay(loc, viewportConstraints),
+                                  SizedBox(height: (viewportConstraints.maxHeight * 0.02).clamp(12.0, 24.0)),
+                                  _buildOptionsGrid(loc, viewportConstraints),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -384,70 +398,49 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 430;
-          final dotSize = compact ? 14.0 : 20.0;
-          final iconSize = compact ? 10.0 : 12.0;
-          final levelText = loc
-              .get('measurement_level_format')
-              .replaceAll('{0}', '${currentFloor + 1}')
-              .replaceAll('{1}', '$totalFloors');
+          final w = constraints.maxWidth;
+          final dotSize = ((w - 72) / totalFloors).clamp(11.0, 18.0);
+          final iconSize = (dotSize * 0.65).clamp(7.0, 11.0);
+          final levelLabel = '${currentFloor + 1}/$totalFloors';
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Row(
             children: [
-              if (!compact)
-                Text(
-                  levelText,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.95),
-                    fontSize: 12,
-                  ),
-                ),
-              if (!compact) const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text('📏', style: TextStyle(fontSize: compact ? 18 : 20)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(totalFloors, (i) {
-                        final isPassed = i < currentFloor;
-                        final isCurrent = i == currentFloor;
-                        return Container(
-                          width: dotSize,
-                          height: dotSize,
-                          decoration: BoxDecoration(
-                            color: isPassed
-                                ? _yellow
-                                : (isCurrent
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.4)),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: isCurrent ? 2 : 1,
-                            ),
-                          ),
-                          child: isPassed
-                              ? Icon(Icons.check,
-                                  size: iconSize, color: _orange)
-                              : null,
-                        );
-                      }),
-                    ),
-                  ),
-                  if (compact) const SizedBox(width: 8),
-                  if (compact)
-                    Text(
-                      '${currentFloor + 1}/$totalFloors',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.95),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+              Text('📏', style: TextStyle(fontSize: (18 * (w / 400)).clamp(16.0, 22.0))),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(totalFloors, (i) {
+                    final isPassed = i < currentFloor;
+                    final isCurrent = i == currentFloor;
+                    return Container(
+                      width: dotSize,
+                      height: dotSize,
+                      decoration: BoxDecoration(
+                        color: isPassed
+                            ? _yellow
+                            : (isCurrent ? Colors.white : Colors.white.withOpacity(0.4)),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: isCurrent ? 2 : 1,
+                        ),
                       ),
-                    ),
-                ],
+                      child: isPassed
+                          ? Icon(Icons.check, size: iconSize, color: _orange)
+                          : null,
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                levelLabel,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.95),
+                  fontSize: (11 * (w / 400)).clamp(10.0, 13.0),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           );
@@ -497,21 +490,26 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 430;
+          final w = constraints.maxWidth;
+          final scale = (w / 400.0).clamp(0.82, 1.0);
+          final titleSize = (20 * scale).clamp(15.0, 20.0);
+          final descSize = (12 * scale).clamp(10.0, 12.0);
+          final starSize = (16 * scale).clamp(12.0, 16.0);
+          final turtleEmoji = (20 * scale).clamp(16.0, 22.0);
           return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
                 onTap: widget.onBack,
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: (44 * scale).clamp(40.0, 46.0),
+                  height: (44 * scale).clamp(40.0, 46.0),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.3),
                     shape: BoxShape.circle,
                     border: Border.all(color: _orange.withOpacity(0.6)),
                   ),
-                  child:
-                      const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 22 * scale),
                 ),
               ),
               const SizedBox(width: 10),
@@ -521,58 +519,38 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                   children: [
                     Text(
                       '📏 ${loc.get('world_measurement_land')}',
-                      style: _textStyle(
-                        Colors.white,
-                        size: compact ? 16 : 20,
-                        bold: true,
-                      ),
+                      style: _textStyle(Colors.white, size: titleSize, bold: true),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (!compact)
-                      Text(
-                        loc.get('world_measurement_land_desc'),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 2),
+                    Text(
+                      loc.get('world_measurement_land_desc'),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: descSize,
+                        height: 1.2,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Consumer<GameMechanicsService>(
                 builder: (context, mechanicsService, _) {
                   final lives = mechanicsService.currentLives;
                   final maxLives = mechanicsService.maxLives;
-                  if (compact) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.35), width: 1),
-                      ),
-                      child: Text(
-                        '🐢 $lives/$maxLives',
-                        style: _textStyle(Colors.white, size: 12, bold: true),
-                      ),
-                    );
-                  }
-
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(
                       maxLives,
                       (i) => Padding(
-                        padding: const EdgeInsets.only(left: 2),
+                        padding: const EdgeInsets.only(left: 1),
                         child: Text(
                           i < lives ? '🐢' : '🐚',
-                          style: const TextStyle(fontSize: 20),
+                          style: TextStyle(fontSize: turtleEmoji),
                         ),
                       ),
                     ),
@@ -582,8 +560,8 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
               const SizedBox(width: 6),
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 8 : 12,
-                  vertical: compact ? 5 : 6,
+                  horizontal: (10 * scale).clamp(8.0, 12.0),
+                  vertical: (6 * scale).clamp(4.0, 7.0),
                 ),
                 decoration: BoxDecoration(
                   color: _yellow.withOpacity(0.4),
@@ -591,11 +569,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                 ),
                 child: Text(
                   '⭐ $_stars',
-                  style: _textStyle(
-                    Colors.amber,
-                    size: compact ? 13 : 16,
-                    bold: true,
-                  ),
+                  style: _textStyle(Colors.amber, size: starSize, bold: true),
                 ),
               ),
             ],
@@ -605,17 +579,28 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildQuestionCard(AppLocalizations loc) {
+  Widget _buildQuestionCard(AppLocalizations loc, BoxConstraints viewportConstraints) {
+    final w = viewportConstraints.maxWidth;
+    final scale = (w / 400.0).clamp(0.75, 1.05);
+    final avatar = (56 * scale).clamp(44.0, 64.0);
+    final turtleEmoji = (32 * scale).clamp(24.0, 38.0);
+    final nameSize = (16 * scale).clamp(13.0, 18.0);
+    final questionSize = (18 * scale).clamp(14.0, 20.0);
+    final pad = (16 * scale).clamp(12.0, 20.0);
+    final gap = (14 * scale).clamp(10.0, 16.0);
+    final radius = (20 * scale).clamp(16.0, 22.0);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(pad),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: _orange.withOpacity(0.6), width: 2),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 15)],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AnimatedBuilder(
             animation: _pulseAnimation,
@@ -623,29 +608,30 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
               return Transform.scale(
                 scale: _pulseAnimation.value,
                 child: Container(
-                  width: 56,
-                  height: 56,
+                  width: avatar,
+                  height: avatar,
                   decoration: BoxDecoration(
                     color: _yellow.withOpacity(0.4),
                     shape: BoxShape.circle,
                     border: Border.all(color: _orange, width: 2),
                   ),
-                  child: const Center(child: Text('🐢', style: TextStyle(fontSize: 32))),
+                  child: Center(child: Text('🐢', style: TextStyle(fontSize: turtleEmoji))),
                 ),
               );
             },
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: gap),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(loc.get('helper_turtle_name'), style: _textStyle(_orange, size: 16, bold: true)),
-                const SizedBox(height: 6),
+                Text(loc.get('helper_turtle_name'), style: _textStyle(_orange, size: nameSize, bold: true)),
+                SizedBox(height: (6 * scale).clamp(4.0, 8.0)),
                 Text(
                   _questionText,
-                  style: _textStyle(Colors.black87, size: 18),
-                  maxLines: 2,
+                  style: _textStyle(Colors.black87, size: questionSize),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -655,7 +641,14 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildVisualDisplay(AppLocalizations loc) {
+  Widget _buildVisualDisplay(AppLocalizations loc, BoxConstraints viewportConstraints) {
+    final w = viewportConstraints.maxWidth;
+    final scale = (w / 400.0).clamp(0.75, 1.05);
+    final gap = (10 * scale).clamp(6.0, 12.0);
+    final pad = (14 * scale).clamp(10.0, 18.0);
+    final emojiSize = (40 * scale).clamp(30.0, 52.0);
+    final headerSize = (16 * scale).clamp(13.0, 17.0);
+
     return AnimatedBuilder(
       animation: _bounceAnimation,
       builder: (context, child) {
@@ -663,7 +656,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
           offset: Offset(0, _bounceAnimation.value * 0.3),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all((24 * scale).clamp(16.0, 28.0)),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.9),
               borderRadius: BorderRadius.circular(24),
@@ -672,21 +665,33 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             ),
             child: Column(
               children: [
-                Text('🔍 ${loc.get('measurement_look_carefully')}', style: _textStyle(_orange, size: 16, bold: true)),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  alignment: WrapAlignment.center,
+                Text(
+                  '🔍 ${loc.get('measurement_look_carefully')}',
+                  style: _textStyle(_orange, size: headerSize, bold: true),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: (18 * scale).clamp(12.0, 22.0)),
+                Row(
                   children: _options.map((emoji) {
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _orange.withOpacity(0.3)),
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: gap / 2),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: Container(
+                            padding: EdgeInsets.all(pad),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: _orange.withOpacity(0.3)),
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
+                            ),
+                          ),
+                        ),
                       ),
-                      child: Text(emoji, style: const TextStyle(fontSize: 48)),
                     );
                   }).toList(),
                 ),
@@ -698,10 +703,15 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildOptionsGrid(AppLocalizations loc) {
+  Widget _buildOptionsGrid(AppLocalizations loc, BoxConstraints viewportConstraints) {
+    final w = viewportConstraints.maxWidth;
+    final scale = (w / 400.0).clamp(0.75, 1.05);
+    final labelSize = (16 * scale).clamp(13.0, 17.0);
+    final gap = (10 * scale).clamp(6.0, 12.0);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all((20 * scale).clamp(14.0, 24.0)),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
@@ -709,20 +719,24 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       ),
       child: Column(
         children: [
-          Text(loc.get('choose_answer'), style: _textStyle(_orange, size: 16, bold: true)),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: _options.map((emoji) => _buildOptionButton(emoji)).toList(),
+          Text(loc.get('choose_answer'), style: _textStyle(_orange, size: labelSize, bold: true)),
+          SizedBox(height: (14 * scale).clamp(10.0, 18.0)),
+          Row(
+            children: _options.map((emoji) {
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gap / 2),
+                  child: _buildOptionButton(emoji, scale),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOptionButton(String emoji) {
+  Widget _buildOptionButton(String emoji, double scale) {
     final isCorrect = emoji == _correctAnswer;
     final isSelected = _isAnswered && isCorrect;
 
@@ -733,23 +747,30 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
+    final emojiSize = (44 * scale).clamp(32.0, 52.0);
+
     return GestureDetector(
       onTap: canTap ? () => _checkAnswer(emoji) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 90,
-        height: 90,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? Colors.green : _orange.withOpacity(0.5),
-            width: isSelected ? 3 : 2,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? Colors.green : _orange.withOpacity(0.5),
+              width: isSelected ? 3 : 2,
+            ),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
-        ),
-        child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 48)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
+            ),
+          ),
         ),
       ),
     );

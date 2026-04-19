@@ -238,15 +238,40 @@ class ShapePainter extends CustomPainter {
     canvas.drawPath(path, stroke);
   }
 
+  /// Elmas (eşkenar dörtgen): yüzeyleri farklı tonlarda çizilir (mücevher hissi).
   void _drawDiamond(Canvas canvas, Offset center, double r, Paint fill, Paint stroke) {
-    final path = Path()
-      ..moveTo(center.dx, center.dy - r)
-      ..lineTo(center.dx + r * 0.9, center.dy)
-      ..lineTo(center.dx, center.dy + r)
-      ..lineTo(center.dx - r * 0.9, center.dy)
+    final top = Offset(center.dx, center.dy - r);
+    final right = Offset(center.dx + r * 0.9, center.dy);
+    final bottom = Offset(center.dx, center.dy + r);
+    final left = Offset(center.dx - r * 0.9, center.dy);
+    final o = center;
+    final base = fill.color;
+
+    Paint facet(Color c) => Paint()
+      ..color = c
+      ..style = PaintingStyle.fill;
+
+    void tri(Offset a, Offset b, Offset c, Paint p) {
+      final path = Path()
+        ..moveTo(a.dx, a.dy)
+        ..lineTo(b.dx, b.dy)
+        ..lineTo(c.dx, c.dy)
+        ..close();
+      canvas.drawPath(path, p);
+    }
+
+    tri(top, left, o, facet(Color.lerp(base, Colors.white, 0.52)!));
+    tri(top, o, right, facet(Color.lerp(base, Colors.white, 0.68)!));
+    tri(left, bottom, o, facet(Color.lerp(base, const Color(0xFF0277BD), 0.45)!));
+    tri(o, bottom, right, facet(Color.lerp(base, const Color(0xFF01579B), 0.38)!));
+
+    final outline = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(right.dx, right.dy)
+      ..lineTo(bottom.dx, bottom.dy)
+      ..lineTo(left.dx, left.dy)
       ..close();
-    canvas.drawPath(path, fill);
-    canvas.drawPath(path, stroke);
+    canvas.drawPath(outline, stroke);
   }
 
   void _drawTrapezoid(Canvas canvas, Offset center, double r, Paint fill, Paint stroke) {
