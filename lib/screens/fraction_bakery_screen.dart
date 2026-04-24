@@ -8,13 +8,20 @@ import '../providers/locale_provider.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Kesir Pastanesi - Şef Sincap ile Pastane Temalı Kesir Oyunu
 /// Pastaları eşit parçalara böl, partiyi hazırla!
 class FractionBakeryScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const FractionBakeryScreen({super.key, required this.onBack});
+  const FractionBakeryScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<FractionBakeryScreen> createState() => _FractionBakeryScreenState();
@@ -397,6 +404,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
               Column(
                 children: [
             _buildTopBar(loc),
+            storyParentInviteStrip(widget.parentPanelStoryInvite),
             const SizedBox(height: 8),
             Expanded(
               child: SingleChildScrollView(

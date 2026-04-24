@@ -9,13 +9,20 @@ import '../providers/locale_provider.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Çarpanlar Kulesi - Ziki'nin Muz Adası'na Yolculuğu
 /// Göklerdeki Matematik Hazinesi - Katlar, bölenler, EKOK, EBOB öğrenme
 class MultipliersTowerScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const MultipliersTowerScreen({super.key, required this.onBack});
+  const MultipliersTowerScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<MultipliersTowerScreen> createState() => _MultipliersTowerScreenState();
@@ -350,6 +357,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
+                  storyParentInviteStrip(widget.parentPanelStoryInvite),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(

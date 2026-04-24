@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
-import '../services/daily_reward_service.dart';
-import '../services/game_mechanics_service.dart';
 import '../services/ad_service.dart';
 import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'world_map_screen.dart';
-import 'avatar_creator_screen.dart';
 
 class StoryModeScreen extends StatefulWidget {
-  const StoryModeScreen({super.key});
+  /// true: Ebeveyn paneli → Oyun Oyna sekmesinden açılan tam ekran önizleme (çocuk hikâye akışı).
+  /// false: Ana sayfadaki normal Hikaye Modu girişi — davranış aynı kalır.
+  final bool openedFromParentPanel;
+
+  const StoryModeScreen({
+    super.key,
+    this.openedFromParentPanel = false,
+  });
 
   @override
   State<StoryModeScreen> createState() => _StoryModeScreenState();
@@ -90,8 +94,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
           ),
         ),
         child: SafeArea(
-          child: Consumer2<StoryService, DailyRewardService>(
-            builder: (context, storyService, dailyRewardService, child) {
+          child: Consumer<StoryService>(
+            builder: (context, storyService, child) {
               if (storyService.isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.white),
@@ -102,7 +106,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                 return _buildAgeSelection(localizations, storyService);
               }
 
-              return _buildMainContent(localizations, storyService, dailyRewardService);
+              return _buildMainContent(localizations, storyService);
             },
           ),
         ),
@@ -412,27 +416,28 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   Widget _buildMainContent(
     AppLocalizations localizations,
     StoryService storyService,
-    DailyRewardService dailyRewardService,
   ) {
     final progress = storyService.progress;
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
         setState(() {
           _showAgeSelection = true;
         });
-        return false;
       },
       child: Column(
         children: [
           // Top Bar
-          _buildTopBar(localizations, progress, dailyRewardService),
+          _buildTopBar(localizations),
 
           // World Map
           Expanded(
             child: WorldMapScreen(
               worlds: storyService.worlds,
               progress: progress,
+              openedFromParentPanel: widget.openedFromParentPanel,
             ),
           ),
 
@@ -440,28 +445,16 @@ class _StoryModeScreenState extends State<StoryModeScreen>
           const BannerAdWidget(
             padding: EdgeInsets.symmetric(vertical: 8),
           ),
-
-          // Alt 6 öğe — Sayı Maceraları ve Matematik Krallığı'nda gizli; sadece Matematik Gezginleri (6-8).
-          if (progress?.selectedAgeGroup == AgeGroup.earlyElementary)
-            _buildBottomNav(localizations, storyService, dailyRewardService),
         ],
       ),
     );
   }
 
-  Widget _buildTopBar(
-    AppLocalizations localizations,
-    StoryProgress? progress,
-    DailyRewardService dailyRewardService,
-  ) {
-    final bonusStars = dailyRewardService.profileBonusStars;
-    final displayStars = (progress?.totalStars ?? 0) + bonusStars;
-
+  Widget _buildTopBar(AppLocalizations localizations) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          // Back button
           IconButton(
             onPressed: () {
               setState(() {
@@ -477,481 +470,45 @@ class _StoryModeScreenState extends State<StoryModeScreen>
               child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
             ),
           ),
-
-          // Avatar
-          // TODO: Avatar düzenleme yayın sonrası güncellemede aktif edilecek
-          GestureDetector(
-            onTap: () {
-              // Avatar düzenleme geçici olarak devre dışı
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${localizations.get('avatar_coming_soon')} 🎨'),
-                  backgroundColor: Colors.purple,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              );
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => AvatarCreatorScreen(
-              //       ageGroup: progress?.selectedAgeGroup ?? AgeGroup.preschool,
-              //       isEditing: true,
-              //     ),
-              //   ),
-              // );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                ),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1a1a2e),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Text('🦸', style: TextStyle(fontSize: 28)),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Level & Name
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getDisplayName(progress?.avatar.odername, localizations),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50),
-                        borderRadius: BorderRadius.circular(10),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${localizations.get('avatar_coming_soon')} 🎨'),
+                      backgroundColor: Colors.purple,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'Lv.${progress?.avatar.level ?? 1}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: LinearProgressIndicator(
-                          value: ((progress?.avatar.experience ?? 0) % 100) / 100,
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                          valueColor: const AlwaysStoppedAnimation(Color(0xFF4CAF50)),
-                          minHeight: 6,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Stars (hikâye + günlük ödül / çark yıldızları)
-          _buildStatItem('⭐', '$displayStars'),
-          const SizedBox(width: 12),
-          // Coins
-          _buildStatItem('💰', '${progress?.totalCoins ?? 0}'),
-        ],
-      ),
-    );
-  }
-
-  /// Varsayılan "Kahraman" adı seçili dilde gösterilir
-  String _getDisplayName(String? odername, AppLocalizations localizations) {
-    if (odername == null || odername.isEmpty || odername == 'Kahraman') {
-      return localizations.get('hero');
-    }
-    return odername;
-  }
-
-  Widget _buildStatItem(String emoji, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav(
-    AppLocalizations localizations,
-    StoryService storyService,
-    DailyRewardService dailyRewardService,
-  ) {
-    final progress = storyService.progress;
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
-
-    // Gerçek veriler
-    final totalStars = (progress?.totalStars ?? 0) + dailyRewardService.profileBonusStars;
-    final totalCoins = (progress?.totalCoins ?? 0) > mechanicsService.inventory.coins
-        ? (progress?.totalCoins ?? 0) : mechanicsService.inventory.coins;
-    final totalGems = (progress?.totalGems ?? 0) > mechanicsService.inventory.gems
-        ? (progress?.totalGems ?? 0) : mechanicsService.inventory.gems;
-    final earnedBadges = progress?.earnedBadges.length ?? 0;
-    final completedQuests = storyService.activeQuests.where((q) => q.currentValue >= q.targetValue).length;
-    final totalQuests = storyService.activeQuests.length;
-    final completedWorlds = progress?.worldProgress.values.where((w) => w.totalStars > 0).length ?? 0;
-    final totalWorlds = storyService.worlds.isEmpty ? 1 : storyService.worlds.length;
-    final currentLives = mechanicsService.currentLives;
-    final maxLives = mechanicsService.maxLives;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildNavItem(
-              icon: '🏆',
-              label: localizations.get('achievements'),
-              value: '$earnedBadges',
-              isSelected: false,
-              onTap: () {},
-            ),
-            _buildNavItem(
-              icon: '📋',
-              label: localizations.get('quests'),
-              value: '$completedQuests/$totalQuests',
-              isSelected: false,
-              onTap: () => _showQuestsSheet(localizations, storyService),
-            ),
-            _buildNavItem(
-              icon: '🎒',
-              label: localizations.get('inventory'),
-              value: '$totalCoins',
-              isSelected: false,
-              onTap: () {},
-            ),
-            _buildNavItem(
-              icon: '🗺️',
-              label: localizations.get('worlds'),
-              value: '$completedWorlds/$totalWorlds',
-              isSelected: true,
-              onTap: () {},
-            ),
-            _buildNavItem(
-              icon: '⚡',
-              label: localizations.get('energy'),
-              value: '$currentLives/$maxLives',
-              isSelected: false,
-              onTap: () {},
-            ),
-            _buildNavItem(
-              icon: '📊',
-              label: localizations.get('statistics'),
-              value: '⭐$totalStars',
-              isSelected: false,
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required String icon,
-    required String label,
-    required String value,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF4CAF50).withOpacity(0.7)
-              : Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.white24,
-            width: isSelected ? 1.5 : 0.5,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade200,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showQuestsSheet(AppLocalizations localizations, StoryService storyService) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: const BoxDecoration(
-          color: Color(0xFF1a1a2e),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  const Text('📋', style: TextStyle(fontSize: 28)),
-                  const SizedBox(width: 12),
-                  Text(
-                    localizations.get('daily_quests'),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: storyService.activeQuests.length,
-                itemBuilder: (context, index) {
-                  final quest = storyService.activeQuests[index];
-                  return _buildQuestCard(quest, localizations);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuestCard(StoryQuest quest, AppLocalizations localizations) {
-    String questName = '';
-    String questDesc = '';
-
-    // Quest isimlerini lokalizasyondan al
-    switch (quest.nameKey) {
-      case 'quest_complete_levels':
-        questName = localizations.get('complete_3_levels');
-        questDesc = localizations.get('complete_3_levels_desc');
-        break;
-      case 'quest_earn_stars':
-        questName = localizations.get('earn_5_stars');
-        questDesc = localizations.get('earn_5_stars_desc');
-        break;
-      case 'quest_correct_answers':
-        questName = localizations.get('correct_20_answers');
-        questDesc = localizations.get('correct_20_answers_desc');
-        break;
-      default:
-        questName = quest.nameKey;
-        questDesc = quest.descriptionKey;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: quest.isCompleted
-              ? const Color(0xFF4CAF50)
-              : Colors.white.withOpacity(0.1),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: quest.isCompleted
-                      ? const Color(0xFF4CAF50).withOpacity(0.2)
-                      : Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  quest.isCompleted ? '✅' : '🎯',
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      questName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      questDesc,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: quest.progress.clamp(0.0, 1.0),
-              backgroundColor: Colors.white.withOpacity(0.1),
-              valueColor: AlwaysStoppedAnimation(
-                quest.isCompleted ? const Color(0xFF4CAF50) : Colors.orange,
-              ),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${quest.currentValue}/${quest.targetValue}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
-                ),
-              ),
-              Row(
-                children: quest.rewards.map((reward) {
-                  String emoji = '';
-                  switch (reward.type) {
-                    case RewardType.coins:
-                      emoji = '💰';
-                      break;
-                    case RewardType.gems:
-                      emoji = '💎';
-                      break;
-                    case RewardType.experience:
-                      emoji = '⭐';
-                      break;
-                    default:
-                      emoji = '🎁';
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Row(
-                      children: [
-                        Text(emoji, style: const TextStyle(fontSize: 14)),
-                        const SizedBox(width: 2),
-                        Text(
-                          '+${reward.amount}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber,
-                          ),
-                        ),
-                      ],
                     ),
                   );
-                }).toList(),
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1a1a2e),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text('🦸', style: TextStyle(fontSize: 28)),
+                    ),
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
+          const SizedBox(width: 48),
         ],
       ),
     );

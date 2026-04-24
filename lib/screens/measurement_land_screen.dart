@@ -8,12 +8,19 @@ import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Ölçüm Diyarı - Büyük-küçük, uzun-kısa kavramlarını öğren!
 class MeasurementLandScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const MeasurementLandScreen({super.key, required this.onBack});
+  const MeasurementLandScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<MeasurementLandScreen> createState() => _MeasurementLandScreenState();
@@ -345,6 +352,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
+                  storyParentInviteStrip(widget.parentPanelStoryInvite),
                   _buildProgressPath(loc),
                   const SizedBox(height: 12),
                   Expanded(

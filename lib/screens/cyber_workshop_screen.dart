@@ -7,13 +7,20 @@ import '../providers/locale_provider.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Siber Atölye - Robot Laboratuvarı Temalı Sayma Oyunu
 /// Matematik Gezginleri - Tekno-Sincap ile matematik çipleri
 class CyberWorkshopScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const CyberWorkshopScreen({super.key, required this.onBack});
+  const CyberWorkshopScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<CyberWorkshopScreen> createState() => _CyberWorkshopScreenState();
@@ -297,6 +304,7 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
+                  storyParentInviteStrip(widget.parentPanelStoryInvite),
                   const SizedBox(height: 20),
                   Expanded(
                     child: SingleChildScrollView(

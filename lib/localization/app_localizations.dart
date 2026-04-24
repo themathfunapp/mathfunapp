@@ -806,6 +806,16 @@ class AppLocalizations {
       'earn_5_stars_desc': 'Toplamda 5 yıldız kazan',
       'correct_20_answers': '20 Doğru Cevap',
       'correct_20_answers_desc': '20 doğru soru cevapla',
+      'family_story_invite_button': 'Aileye istek gönder',
+      'family_story_invite_login_required': 'Bu özellik için giriş yapmalısınız.',
+      'family_story_invite_no_members':
+          'Kayıtlı aile üyesi yok. Profil veya aile ayarlarından üye ekleyin.',
+      'family_story_invite_pick_member': 'İstek gönderilecek aile üyesini seçin',
+      'family_story_invite_sent': 'İstek gönderildi: {0}',
+      'family_story_invite_failed': 'İstek gönderilemedi. Tekrar deneyin.',
+      'family_story_invite_incoming': '{0} bir hikâye önerdi: {1}',
+      'family_story_invite_incoming_short': '{0} sana bir hikâye önerdi.',
+      'family_story_invite_open': 'Hikâyeye git',
       
       'world_map': 'Dünya Haritası',
       'worlds_coming_soon': 'Dünyalar yakında geliyor!',
@@ -2195,6 +2205,16 @@ class AppLocalizations {
       'earn_5_stars_desc': 'Earn a total of 5 stars',
       'correct_20_answers': '20 Correct Answers',
       'correct_20_answers_desc': 'Answer 20 questions correctly',
+      'family_story_invite_button': 'Send family request',
+      'family_story_invite_login_required': 'Please sign in to use this feature.',
+      'family_story_invite_no_members':
+          'No family members on file. Add members from profile or family settings.',
+      'family_story_invite_pick_member': 'Choose a family member to notify',
+      'family_story_invite_sent': 'Request sent: {0}',
+      'family_story_invite_failed': 'Could not send request. Try again.',
+      'family_story_invite_incoming': '{0} suggested a story: {1}',
+      'family_story_invite_incoming_short': '{0} suggested a story for you.',
+      'family_story_invite_open': 'Open story mode',
       
       'world_map': 'World Map',
       'worlds_coming_soon': 'Worlds coming soon!',

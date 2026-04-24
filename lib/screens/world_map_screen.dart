@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/story_mode.dart';
+import '../models/story_invite_payload.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'chapter_screen.dart';
@@ -19,11 +20,14 @@ import 'algebra_realm_screen.dart';
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
   final StoryProgress? progress;
+  /// Ebeveyn paneli hikâye önizlemesinden açıldıysa bölüm ekranında aile daveti gösterilir.
+  final bool openedFromParentPanel;
 
   const WorldMapScreen({
     super.key,
     required this.worlds,
     this.progress,
+    this.openedFromParentPanel = false,
   });
 
   @override
@@ -74,106 +78,71 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
     final localizations = AppLocalizations(localeProvider.locale);
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1a237e),
-              Color(0xFF4a148c),
-              Color(0xFF880e4f),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Üst navigasyon barı
-              _buildTopBar(localizations),
-
-              // Ana içerik
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Başlık
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              localizations.get('world_map'),
-                              style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black26,
-                                    blurRadius: 10,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              localizations.get('every_world_adventure'),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Dünya kartları
-                      ..._buildWorldCards(localizations),
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    // İç Scaffold kullanma: StoryModeScreen zaten Scaffold; iç içe Scaffold bazı cihazlarda ikinci geri / yanlış pop davranışına yol açabiliyor.
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1a237e),
+            Color(0xFF4a148c),
+            Color(0xFF880e4f),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTopBar(AppLocalizations localizations) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          // Geri butonu
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 20,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            localizations.get('world_map'),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black26,
+                                  blurRadius: 10,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            localizations.get('every_world_adventure'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ..._buildWorldCards(localizations),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -506,6 +475,9 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   }
 
   void _openWorld(StoryWorld world) {
+    final StoryInvitePayload? parentInvite =
+        widget.openedFromParentPanel ? StoryInvitePayload.fromWorld(world) : null;
+
     // Siber Atölye / Sayı Ormanı teması - özel ekrana yönlendir
     // NOT: Sadece Matematik Gezginleri (6-8 yaş) için Siber Atölye
     if ((world.nameKey == 'world_siber_atolye' ||
@@ -517,6 +489,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => CyberWorkshopScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -531,6 +504,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => FairyLandScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -545,6 +519,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => FractionBakeryScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -558,6 +533,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => GeometryCastleScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -571,6 +547,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => MeasurementLandScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -585,6 +562,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => TimeAdventureScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -599,6 +577,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => MoneyMarketScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -613,6 +592,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => MultipliersTowerScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -626,6 +606,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         MaterialPageRoute(
           builder: (context) => AlgebraRealmScreen(
             onBack: () => Navigator.pop(context),
+            parentPanelStoryInvite: parentInvite,
           ),
         ),
       );
@@ -639,6 +620,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         builder: (context) => ChapterScreen(
           world: world,
           progress: widget.progress,
+          openedFromParentPanel: widget.openedFromParentPanel,
         ),
       ),
     );

@@ -19,6 +19,7 @@ import 'package:mathfun/services/premium_service_export.dart';
 import 'package:mathfun/services/ad_service.dart';
 import 'package:mathfun/services/family_service.dart';
 import 'package:mathfun/services/family_remote_duel_service.dart';
+import 'package:mathfun/services/family_story_invite_service.dart';
 import 'package:mathfun/services/parent_mode_service.dart';
 import 'package:mathfun/services/parent_pin_service.dart';
 import 'package:mathfun/services/audio_service.dart';
@@ -170,6 +171,9 @@ Future<void> main() async {
         ),
         Provider<FamilyRemoteDuelService>(
           create: (_) => FamilyRemoteDuelService(),
+        ),
+        Provider<FamilyStoryInviteService>(
+          create: (_) => FamilyStoryInviteService(),
         ),
         ChangeNotifierProxyProvider<AuthService, ParentPinService>(
           create: (_) => ParentPinService(),

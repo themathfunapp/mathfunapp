@@ -17,6 +17,7 @@ import '../utils/constants.dart';
 import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/family_remote_duel_service.dart';
+import '../services/family_story_invite_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/parent_mode_service.dart';
 import '../services/premium_service_export.dart';
@@ -197,8 +198,16 @@ class _HomeScreenState extends State<HomeScreen>
                   elevation: 8,
                   borderRadius: BorderRadius.circular(12),
                   clipBehavior: Clip.antiAlias,
-                  child: _FamilyRemoteDuelInviteBar(
-                    userId: authService.currentUser!.uid,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _FamilyRemoteDuelInviteBar(
+                        userId: authService.currentUser!.uid,
+                      ),
+                      _FamilyStoryInviteBar(
+                        userId: authService.currentUser!.uid,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -925,6 +934,79 @@ class _HomeScreenState extends State<HomeScreen>
           onBack: () => Navigator.pop(context),
         ),
       ),
+    );
+  }
+}
+
+/// Ana sayfa: gelen hikâye daveti (ebeveyn paneli önizlemesinden).
+class _FamilyStoryInviteBar extends StatelessWidget {
+  final String userId;
+
+  const _FamilyStoryInviteBar({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Provider.of<FamilyStoryInviteService>(context, listen: false);
+    final loc = AppLocalizations.of(context);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: svc.pendingInvitesStream(userId),
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final pending = snap.data!.docs
+            .where((d) => (d.data()['status'] as String?) == 'pending')
+            .toList();
+        if (pending.isEmpty) return const SizedBox.shrink();
+
+        final doc = pending.first;
+        final m = doc.data();
+        final from = m['fromDisplayName'] as String? ?? 'Ailen';
+        final wKey = m['worldNameKey'] as String? ?? '';
+        final cKey = m['chapterNameKey'] as String? ?? '';
+        final place = (wKey.isNotEmpty && cKey.isNotEmpty)
+            ? '${loc.get(wKey)} · ${loc.get(cKey)}'
+            : '';
+        final line = place.isEmpty
+            ? loc.get('family_story_invite_incoming_short').replaceAll('{0}', from)
+            : loc
+                .get('family_story_invite_incoming')
+                .replaceAll('{0}', from)
+                .replaceAll('{1}', place);
+
+        return Container(
+          color: const Color(0xFF2d4a3e),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.menu_book, color: Colors.lightGreenAccent, size: 22),
+              Expanded(
+                child: Text(
+                  line,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.2),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await svc.dismissInvite(doc.id, userId);
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (ctx) => const StoryModeScreen(),
+                    ),
+                  );
+                },
+                child: Text(
+                  loc.get('family_story_invite_open'),
+                  style: const TextStyle(color: Colors.lightGreenAccent),
+                ),
+              ),
+              TextButton(
+                onPressed: () => svc.dismissInvite(doc.id, userId),
+                child: Text(loc.get('close'), style: const TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

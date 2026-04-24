@@ -5,13 +5,20 @@ import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/game_mechanics_service.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Para Pazarı - Antik pazarda alışveriş yap!
 /// Matematik Gezginleri (6-8 yaş) için animasyonlu para öğrenme ekranı
 class MoneyMarketScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const MoneyMarketScreen({super.key, required this.onBack});
+  const MoneyMarketScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<MoneyMarketScreen> createState() => _MoneyMarketScreenState();
@@ -250,6 +257,7 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
               Column(
                 children: [
                   _buildTopBar(loc),
+                  storyParentInviteStrip(widget.parentPanelStoryInvite),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.only(

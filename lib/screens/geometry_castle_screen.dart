@@ -11,12 +11,19 @@ import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
 import '../widgets/castle_door_widget.dart';
 import '../widgets/shape_painter.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Geometri Şatosu - Şekilleri kullanarak gizli kapıları aç!
 class GeometryCastleScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const GeometryCastleScreen({super.key, required this.onBack});
+  const GeometryCastleScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<GeometryCastleScreen> createState() => _GeometryCastleScreenState();
@@ -487,6 +494,7 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                   Column(
                     children: [
                       _buildTopBar(loc),
+                      storyParentInviteStrip(widget.parentPanelStoryInvite),
                       _buildProgressPath(loc),
                       const SizedBox(height: 8),
                       Expanded(

@@ -7,13 +7,17 @@ import '../providers/locale_provider.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 class TimeIslandScreen extends StatefulWidget {
   final String ageGroup;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
   const TimeIslandScreen({
     Key? key,
     required this.ageGroup,
+    this.parentPanelStoryInvite,
   }) : super(key: key);
 
   @override
@@ -460,6 +464,7 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
           child: Column(
             children: [
               _buildTopBar(),
+              storyParentInviteStrip(widget.parentPanelStoryInvite),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

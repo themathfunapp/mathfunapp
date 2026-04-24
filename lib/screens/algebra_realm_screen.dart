@@ -5,13 +5,20 @@ import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/game_mechanics_service.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 /// Cebir Diyarı - Ziki'nin Bilinmeyen Hazine Avı
 /// Eşitlikler, bilinmeyenler ve denklemler öğrenme oyunu
 class AlgebraRealmScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const AlgebraRealmScreen({super.key, required this.onBack});
+  const AlgebraRealmScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<AlgebraRealmScreen> createState() => _AlgebraRealmScreenState();
@@ -287,6 +294,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
           child: Column(
             children: [
               _buildTopBar(loc, mechanics),
+              storyParentInviteStrip(widget.parentPanelStoryInvite),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(

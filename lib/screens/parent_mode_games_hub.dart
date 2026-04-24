@@ -12,6 +12,7 @@ import '../widgets/parent_mode_regions_map.dart';
 import '../widgets/shiny_button.dart';
 import 'family_duel_race_screen.dart';
 import 'family_remote_duel_setup_screen.dart';
+import 'story_mode_screen.dart';
 
 /// Ebeveyn modu oyun merkezi — ana sayfa veya Ebeveyn Paneli → Oyun Oyna.
 class ParentModeGamesHub extends StatelessWidget {
@@ -131,6 +132,30 @@ class ParentModeGamesHub extends StatelessWidget {
           onPickRegion: (TopicType t) => _openFamilyRace(context, presetTopic: t),
         ),
         const SizedBox(height: 28),
+        if (_embeddedInPanel) ...[
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white38),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            icon: const Icon(Icons.menu_book_outlined, color: Colors.amber),
+            label: const Text(
+              'Hikâye modunu önizle (çocuk ekranı)',
+              textAlign: TextAlign.center,
+            ),
+            onPressed: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (ctx) => const StoryModeScreen(
+                    openedFromParentPanel: true,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
         ShinyButton(
           text: '🏁 Birlikte yarış',
           onPressed: () => _openFamilyRace(context),

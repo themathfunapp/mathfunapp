@@ -4,17 +4,21 @@ import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
+import '../models/story_invite_payload.dart';
 import '../localization/app_localizations.dart';
+import '../widgets/parent_story_invite_bar.dart';
 import 'level_play_screen.dart';
 
 class ChapterScreen extends StatefulWidget {
   final StoryWorld world;
   final StoryProgress? progress;
+  final bool openedFromParentPanel;
 
   const ChapterScreen({
     super.key,
     required this.world,
     this.progress,
+    this.openedFromParentPanel = false,
   });
 
   @override
@@ -54,11 +58,27 @@ class _ChapterScreenState extends State<ChapterScreen> {
           child: Column(
             children: [
               // Header
-              _buildHeader(localizations, gradientColors, currentProgress),
+              _buildHeader(localizations, currentProgress),
 
               // Chapters tabs
               if (widget.world.chapters.length > 1)
                 _buildChapterTabs(localizations, currentProgress),
+
+              if (widget.openedFromParentPanel && widget.world.chapters.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ParentStoryInviteBar(
+                    key: ValueKey<String>(
+                      widget.world.chapters[_selectedChapterIndex].id,
+                    ),
+                    payload: StoryInvitePayload.forChapter(
+                      widget.world,
+                      widget.world.chapters[_selectedChapterIndex],
+                    ),
+                  ),
+                ),
+              ],
 
               // Levels
               Expanded(
@@ -78,7 +98,10 @@ class _ChapterScreenState extends State<ChapterScreen> {
     );
   }
 
-  Widget _buildHeader(AppLocalizations localizations, List<Color> colors, StoryProgress? progress) {
+  Widget _buildHeader(
+    AppLocalizations localizations,
+    StoryProgress? progress,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(

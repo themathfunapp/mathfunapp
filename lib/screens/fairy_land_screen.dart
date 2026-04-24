@@ -10,6 +10,8 @@ import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../models/story_invite_payload.dart';
+import '../widgets/story_parent_invite_strip.dart';
 
 // ============================================================================
 // NESNE TANIMLARI (GameObject Sistemi)
@@ -109,8 +111,13 @@ class FairyLandQuestion {
 
 class FairyLandScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final StoryInvitePayload? parentPanelStoryInvite;
 
-  const FairyLandScreen({super.key, required this.onBack});
+  const FairyLandScreen({
+    super.key,
+    required this.onBack,
+    this.parentPanelStoryInvite,
+  });
 
   @override
   State<FairyLandScreen> createState() => _FairyLandScreenState();
@@ -726,6 +733,7 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                 Column(
                   children: [
                     _buildTopBar(loc),
+                    storyParentInviteStrip(widget.parentPanelStoryInvite),
                     const SizedBox(height: 8),
                     Expanded(
                       child: SingleChildScrollView(

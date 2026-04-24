@@ -182,6 +182,37 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Hikâye modu: ebeveyn → ailedeki çocuğa bölüm daveti ---
+    match /familyStoryInvites/{inviteId} {
+      allow read: if signedIn()
+        && (request.auth.uid == resource.data.fromUserId
+            || request.auth.uid == resource.data.toUserId);
+
+      allow create: if signedIn()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.worldId is string
+        && request.resource.data.chapterId is string
+        && request.resource.data.worldNameKey is string
+        && request.resource.data.chapterNameKey is string
+        && request.resource.data.toUserId is string
+        && parentLinkedChild(
+          request.resource.data.fromUserId,
+          request.resource.data.toUserId
+        );
+
+      allow update: if signedIn()
+        && resource.data.status == 'pending'
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && request.resource.data.toUserId == resource.data.toUserId
+        && request.resource.data.worldId == resource.data.worldId
+        && request.resource.data.chapterId == resource.data.chapterId
+        && request.resource.data.status == 'dismissed'
+        && request.auth.uid == resource.data.toUserId;
+
+      allow delete: if false;
+    }
+
     // --- Oyun ilerlemesi (kayıtlı kullanıcı veya misafir MTN belge kimliği) ---
     match /story_progress/{docId} {
       allow read, write: if (signedIn() && request.auth.uid == docId)
