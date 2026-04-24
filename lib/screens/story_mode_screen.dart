@@ -110,6 +110,12 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     );
   }
 
+  /// ~390dp referans genişliğine göre kart/padding oranını sabitler; farklı telefonlarda benzer "ince" görünüm.
+  double _ageSelectionLayoutScale(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    return (w / 390.0).clamp(0.86, 1.0);
+  }
+
   Widget _buildAgeSelection(AppLocalizations localizations, StoryService storyService) {
     return PopScope(
       canPop: false,
@@ -117,131 +123,158 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         if (didPop) return;
         Navigator.pop(context);
       },
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: MediaQuery.textScalerOf(context).clamp(
+            minScaleFactor: 0.92,
+            maxScaleFactor: 1.12,
+          ),
+        ),
+        child: Builder(
+          builder: (context) {
+            final scale = _ageSelectionLayoutScale(context);
+            final hPad = 18.0 * scale;
+            final heroH = (88 * scale).clamp(72.0, 96.0);
+            final heroEmoji = (62 * scale).clamp(52.0, 72.0);
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(12 * scale, 12 * scale, 12 * scale, 8 * scale),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                          constraints: BoxConstraints(minWidth: 40 * scale, minHeight: 40 * scale),
+                          padding: EdgeInsets.all(8 * scale),
+                        ),
+                        Expanded(
+                          child: Text(
+                            localizations.storyMode,
+                            style: TextStyle(
+                              fontSize: (22 * scale).clamp(18.0, 24.0),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(width: 40 * scale),
+                      ],
+                    ),
                   ),
-                  Expanded(
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: heroH,
+                    child: ClipRect(
+                      child: AnimatedBuilder(
+                        animation: _floatAnimation,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, _floatAnimation.value),
+                            child: Center(
+                              child: Text(
+                                '🦸',
+                                style: TextStyle(fontSize: heroEmoji),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 8 * scale)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
                     child: Text(
-                      localizations.storyMode,
-                      style: const TextStyle(
-                        fontSize: 24,
+                      localizations.get('choose_adventure'),
+                      style: TextStyle(
+                        fontSize: (24 * scale).clamp(20.0, 28.0),
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 100,
-              child: ClipRect(
-                child: AnimatedBuilder(
-                  animation: _floatAnimation,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: Offset(0, _floatAnimation.value),
-                      child: const Center(
-                        child: Text(
-                          '🦸',
-                          style: TextStyle(fontSize: 80),
-                        ),
+                ),
+                SliverToBoxAdapter(child: SizedBox(height: 6 * scale)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: hPad + 4),
+                    child: Text(
+                      localizations.get('age_appropriate_adventure'),
+                      style: TextStyle(
+                        fontSize: (14 * scale).clamp(12.0, 16.0),
+                        color: Colors.white.withOpacity(0.8),
+                        height: 1.25,
                       ),
-                    );
-                  },
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                localizations.get('choose_adventure'),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                SliverToBoxAdapter(child: SizedBox(height: 16 * scale)),
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildAgeCard(
+                        context: context,
+                        scale: scale,
+                        title: localizations.get('number_adventures'),
+                        subtitle: localizations.get('colorful_animals_discovery'),
+                        ageRange: '3-5',
+                        yearsOld: localizations.get('years_old'),
+                        emoji: '🧒',
+                        colors: [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
+                        storyService: storyService,
+                        ageGroup: AgeGroup.preschool,
+                      ),
+                      SizedBox(height: 11 * scale),
+                      _buildAgeCard(
+                        context: context,
+                        scale: scale,
+                        title: localizations.get('math_explorers'),
+                        subtitle: localizations.get('time_space_journey'),
+                        ageRange: '6-8',
+                        yearsOld: localizations.get('years_old'),
+                        emoji: '🚀',
+                        colors: [const Color(0xFF2196F3), const Color(0xFF03A9F4)],
+                        storyService: storyService,
+                        ageGroup: AgeGroup.earlyElementary,
+                      ),
+                      SizedBox(height: 11 * scale),
+                      _buildAgeCard(
+                        context: context,
+                        scale: scale,
+                        title: localizations.get('math_kingdom'),
+                        subtitle: localizations.get('kingdom_rescue_mission'),
+                        ageRange: '9-11',
+                        yearsOld: localizations.get('years_old'),
+                        emoji: '🏰',
+                        colors: [const Color(0xFF9C27B0), const Color(0xFFE91E63)],
+                        storyService: storyService,
+                        ageGroup: AgeGroup.lateElementary,
+                      ),
+                      SizedBox(height: 24 * scale),
+                    ]),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 10)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                localizations.get('age_appropriate_adventure'),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildAgeCard(
-                  title: localizations.get('number_adventures'),
-                  subtitle: localizations.get('colorful_animals_discovery'),
-                  ageRange: '3-5',
-                  yearsOld: localizations.get('years_old'),
-                  emoji: '🧒',
-                  colors: [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
-                  storyService: storyService,
-                  ageGroup: AgeGroup.preschool,
-                ),
-                const SizedBox(height: 16),
-                _buildAgeCard(
-                  title: localizations.get('math_explorers'),
-                  subtitle: localizations.get('time_space_journey'),
-                  ageRange: '6-8',
-                  yearsOld: localizations.get('years_old'),
-                  emoji: '🚀',
-                  colors: [const Color(0xFF2196F3), const Color(0xFF03A9F4)],
-                  storyService: storyService,
-                  ageGroup: AgeGroup.earlyElementary,
-                ),
-                const SizedBox(height: 16),
-                _buildAgeCard(
-                  title: localizations.get('math_kingdom'),
-                  subtitle: localizations.get('kingdom_rescue_mission'),
-                  ageRange: '9-11',
-                  yearsOld: localizations.get('years_old'),
-                  emoji: '🏰',
-                  colors: [const Color(0xFF9C27B0), const Color(0xFFE91E63)],
-                  storyService: storyService,
-                  ageGroup: AgeGroup.lateElementary,
-                ),
-                const SizedBox(height: 32),
-              ]),
-            ),
-          ),
-        ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildAgeCard({
+    required BuildContext context,
+    required double scale,
     required String title,
     required String subtitle,
     required String ageRange,
@@ -251,6 +284,11 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     required StoryService storyService,
     required AgeGroup ageGroup,
   }) {
+    final iconBox = (52 * scale).clamp(46.0, 58.0);
+    final emojiSize = (30 * scale).clamp(26.0, 36.0);
+    final padH = (14 * scale).clamp(12.0, 16.0);
+    final padV = (12 * scale).clamp(10.0, 14.0);
+
     return GestureDetector(
       onTap: () async {
         await storyService.selectAgeGroup(ageGroup);
@@ -280,56 +318,57 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: colors),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular((18 * scale).clamp(16.0, 20.0)),
           boxShadow: [
             BoxShadow(
-              color: colors[0].withOpacity(0.4),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+              color: colors[0].withOpacity(0.35),
+              blurRadius: 12 * scale,
+              offset: Offset(0, 5 * scale),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Emoji
             Container(
-              width: 70,
-              height: 70,
+              width: iconBox,
+              height: iconBox,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular((12 * scale).clamp(10.0, 14.0)),
               ),
               child: Center(
                 child: Text(
                   emoji,
-                  style: const TextStyle(fontSize: 40),
+                  style: TextStyle(fontSize: emojiSize),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            // Content
+            SizedBox(width: 12 * scale),
             Expanded(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: (16.5 * scale).clamp(15.0, 18.0),
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      height: 1.15,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 4 * scale),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (7 * scale).clamp(6.0, 9.0),
+                      vertical: (3 * scale).clamp(2.0, 4.0),
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
@@ -337,30 +376,32 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                     ),
                     child: Text(
                       '$ageRange $yearsOld',
-                      style: const TextStyle(
-                        fontSize: 11,
+                      style: TextStyle(
+                        fontSize: (10.5 * scale).clamp(10.0, 12.0),
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 4 * scale),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: (12.5 * scale).clamp(11.0, 14.0),
                       color: Colors.white.withOpacity(0.9),
+                      height: 1.2,
                     ),
-                    maxLines: 3,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const Icon(
+            SizedBox(width: 4 * scale),
+            Icon(
               Icons.arrow_forward_ios,
               color: Colors.white,
-              size: 20,
+              size: (17 * scale).clamp(15.0, 20.0),
             ),
           ],
         ),
