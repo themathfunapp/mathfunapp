@@ -12,10 +12,14 @@ class StoryModeScreen extends StatefulWidget {
   /// true: Ebeveyn paneli → Oyun Oyna sekmesinden açılan tam ekran önizleme (çocuk hikâye akışı).
   /// false: Ana sayfadaki normal Hikaye Modu girişi — davranış aynı kalır.
   final bool openedFromParentPanel;
+  final String? initialWorldId;
+  final String? initialChapterId;
 
   const StoryModeScreen({
     super.key,
     this.openedFromParentPanel = false,
+    this.initialWorldId,
+    this.initialChapterId,
   });
 
   @override
@@ -27,6 +31,9 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
   bool _showAgeSelection = true;
+  bool get _openedFromStoryInvite =>
+      (widget.initialWorldId?.isNotEmpty ?? false) ||
+      (widget.initialChapterId?.isNotEmpty ?? false);
 
   @override
   void initState() {
@@ -431,6 +438,32 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         children: [
           // Top Bar
           _buildTopBar(localizations),
+          if (_openedFromStoryInvite)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.lightGreenAccent.withOpacity(0.16),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.lightGreenAccent.withOpacity(0.55)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.mark_chat_read_rounded, size: 16, color: Colors.lightGreenAccent),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Aile davetinden açıldı.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // World Map
           Expanded(
@@ -438,6 +471,8 @@ class _StoryModeScreenState extends State<StoryModeScreen>
               worlds: storyService.worlds,
               progress: progress,
               openedFromParentPanel: widget.openedFromParentPanel,
+              initialWorldId: widget.initialWorldId,
+              initialChapterId: widget.initialChapterId,
             ),
           ),
 

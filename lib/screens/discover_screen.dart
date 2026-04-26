@@ -31,7 +31,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Beyin jimnastiği yap, matematiksel düşünme becerilerini geliştir!',
       color: Color(0xFF00CEC9),
       isNew: true,
-      isPremium: true,
+      isPremium: false,
     ),
     DiscoverItem(
       emoji: '🎨',
@@ -40,7 +40,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Renklerle matematik öğren, görsel hafızana hitap eden oyunlar!',
       color: Color(0xFF74B9FF),
       isNew: true,
-      isPremium: true,
+      isPremium: false,
     ),
     DiscoverItem(
       emoji: '🎵',
@@ -390,42 +390,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isLocked)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              margin: EdgeInsets.only(right: 4),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 4,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('👑', style: TextStyle(fontSize: 8)),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    loc.get('premium_badge'),
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      color: Color(0xFF8B4513),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           if (item.isNew)
                             Container(
                               padding: EdgeInsets.symmetric(

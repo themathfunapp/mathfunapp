@@ -65,6 +65,7 @@ class FamilyService extends ChangeNotifier {
         userId: _parentUid!,
         displayName: _parentDisplayName ?? 'Oyuncu',
         isParent: true,
+        profileEmoji: null,
       ));
 
       // 2. Firestore'dan eklenen çocukları yükle
@@ -220,6 +221,10 @@ class FamilyService extends ChangeNotifier {
 
     final parentPts = parentCorrect * 10;
     final childPts = childCorrect * 10;
+    final parentStatsRef =
+        _firestore.collection('users').doc(parentUserId).collection('stats').doc('gameStats');
+    final childStatsRef =
+        _firestore.collection('users').doc(childUserId).collection('stats').doc('gameStats');
 
     try {
       await _firestore.runTransaction((tx) async {
@@ -251,12 +256,114 @@ class FamilyService extends ChangeNotifier {
           },
           SetOptions(merge: true),
         );
+        tx.set(
+          parentStatsRef,
+          {
+            'totalGamesPlayed': FieldValue.increment(1),
+            'totalQuestionsAnswered': FieldValue.increment(rounds),
+            'totalCorrectAnswers': FieldValue.increment(parentCorrect),
+            'totalWrongAnswers': FieldValue.increment(rounds - parentCorrect),
+            'totalScore': FieldValue.increment(parentPts),
+            'lastPlayedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+        tx.set(
+          childStatsRef,
+          {
+            'totalGamesPlayed': FieldValue.increment(1),
+            'totalQuestionsAnswered': FieldValue.increment(rounds),
+            'totalCorrectAnswers': FieldValue.increment(childCorrect),
+            'totalWrongAnswers': FieldValue.increment(rounds - childCorrect),
+            'totalScore': FieldValue.increment(childPts),
+            'lastPlayedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
       });
       if (_parentUid == parentUserId) {
         await loadMembers();
       }
     } catch (e) {
       debugPrint('FamilyService recordRemoteFamilyDuelResult: $e');
+    }
+  }
+
+  /// Çoklu uzaktan düello: ebeveyn + birden çok çocuk için puanları yazar.
+  Future<void> recordRemoteFamilyDuelGroupResult({
+    required String parentUserId,
+    required List<String> childUserIds,
+    required Map<String, int> participantCorrectByUser,
+    required String topicKey,
+    required int rounds,
+  }) async {
+    if (parentUserId.isEmpty || participantCorrectByUser.isEmpty) return;
+    final ref = _firestore
+        .collection('users')
+        .doc(parentUserId)
+        .collection('family')
+        .doc('aggregates');
+
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final data = snap.data() ?? <String, dynamic>{};
+        final raw = data['duelPointsByUser'];
+        final map = <String, int>{};
+        if (raw is Map) {
+          for (final e in raw.entries) {
+            map[e.key.toString()] = (e.value as num?)?.toInt() ?? 0;
+          }
+        }
+
+        for (final entry in participantCorrectByUser.entries) {
+          final uid = entry.key;
+          final points = entry.value * 10;
+          map[uid] = (map[uid] ?? 0) + points;
+        }
+
+        tx.set(
+          ref,
+          {
+            'duelPointsByUser': map,
+            'lastFamilyDuel': {
+              'at': FieldValue.serverTimestamp(),
+              'topic': topicKey,
+              'rounds': rounds,
+              'childUserIds': childUserIds,
+              'participantCorrectByUser': participantCorrectByUser,
+              'remote': true,
+              'group': true,
+            },
+          },
+          SetOptions(merge: true),
+        );
+
+        for (final entry in participantCorrectByUser.entries) {
+          final uid = entry.key;
+          final correct = entry.value;
+          final points = correct * 10;
+          final statsRef =
+              _firestore.collection('users').doc(uid).collection('stats').doc('gameStats');
+          tx.set(
+            statsRef,
+            {
+              'totalGamesPlayed': FieldValue.increment(1),
+              'totalQuestionsAnswered': FieldValue.increment(rounds),
+              'totalCorrectAnswers': FieldValue.increment(correct),
+              'totalWrongAnswers': FieldValue.increment(rounds - correct),
+              'totalScore': FieldValue.increment(points),
+              'lastPlayedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        }
+      });
+      if (_parentUid == parentUserId) {
+        await loadMembers();
+      }
+    } catch (e) {
+      debugPrint('FamilyService recordRemoteFamilyDuelGroupResult: $e');
     }
   }
 
@@ -291,6 +398,7 @@ class FamilyService extends ChangeNotifier {
         isParent: e.value.isParent,
         earnedBadges: e.value.earnedBadges,
         weeklyValues: e.value.weeklyValues,
+        profileEmoji: e.value.profileEmoji,
       );
     }).toList();
   }
@@ -349,6 +457,7 @@ class FamilyService extends ChangeNotifier {
         isParent: member.isParent,
         earnedBadges: earnedBadges,
         weeklyValues: weeklyValues,
+        profileEmoji: member.profileEmoji,
       );
     } catch (e) {
       debugPrint('FamilyService fetch stats error for ${member.userId}: $e');
@@ -360,6 +469,7 @@ class FamilyService extends ChangeNotifier {
         accuracy: 0,
         lastPlayedAt: null,
         isParent: member.isParent,
+        profileEmoji: member.profileEmoji,
       );
     }
   }
@@ -432,6 +542,7 @@ class FamilyService extends ChangeNotifier {
         'userId': childUid,
         'displayName': name,
         'isParent': false,
+        'profileEmoji': childData['profileEmoji'] as String?,
       });
 
       final childIds = _linkedChildUserIds(list);
@@ -447,5 +558,71 @@ class FamilyService extends ChangeNotifier {
   /// Verileri yenile
   Future<void> refresh() async {
     await loadMembers();
+  }
+
+  Future<void> updateMemberEmoji({
+    required String userId,
+    required String profileEmoji,
+  }) async {
+    if (_parentUid == null || _parentUid!.isEmpty) return;
+    if (userId.isEmpty || profileEmoji.trim().isEmpty) return;
+
+    try {
+      final membersRef = _firestore
+          .collection('users')
+          .doc(_parentUid)
+          .collection('family')
+          .doc('members');
+      final doc = await membersRef.get();
+      final current = doc.data();
+      final list = (current?['members'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      bool changed = false;
+      for (var i = 0; i < list.length; i++) {
+        if ((list[i]['userId'] as String?) == userId) {
+          list[i]['profileEmoji'] = profileEmoji;
+          changed = true;
+          break;
+        }
+      }
+
+      if (changed) {
+        await membersRef.set({'members': list}, SetOptions(merge: true));
+      }
+
+      _members = _members
+          .map((m) => m.userId == userId
+              ? FamilyMember(
+                  userId: m.userId,
+                  displayName: m.displayName,
+                  isParent: m.isParent,
+                  profileEmoji: profileEmoji,
+                )
+              : m)
+          .toList();
+
+      _leaderboard = _leaderboard
+          .map((e) => e.userId == userId
+              ? LeaderboardEntry(
+                  rank: e.rank,
+                  userId: e.userId,
+                  displayName: e.displayName,
+                  score: e.score,
+                  accuracy: e.accuracy,
+                  lastPlayedAt: e.lastPlayedAt,
+                  isParent: e.isParent,
+                  earnedBadges: e.earnedBadges,
+                  weeklyValues: e.weeklyValues,
+                  profileEmoji: profileEmoji,
+                )
+              : e)
+          .toList();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('FamilyService updateMemberEmoji error: $e');
+    }
   }
 }

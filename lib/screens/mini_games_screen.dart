@@ -8,7 +8,6 @@ import '../models/mini_game.dart';
 import '../localization/app_localizations.dart';
 import 'games/balloon_pop_game.dart';
 import 'games/fruit_collect_game.dart';
-import 'games/puzzle_piece_game.dart';
 import 'games/magic_clock_game.dart';
 import 'games/magic_machine_game.dart';
 import 'games/train_journey_game.dart';
@@ -26,18 +25,25 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   GameCategory _selectedCategory = GameCategory.counting;
+  static const List<GameCategory> _visibleCategories = [
+    GameCategory.counting,
+    GameCategory.shapes,
+    GameCategory.operations,
+    GameCategory.creative,
+    GameCategory.special,
+  ];
 
-  static const Set<String> _playableGameIds = {'balloon_pop', 'fruit_collect', 'puzzle_piece'};
+  static const Set<String> _playableGameIds = {'balloon_pop', 'fruit_collect'};
   bool _isComingSoon(MiniGame game) => !_playableGameIds.contains(game.id);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: _visibleCategories.length, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
-          _selectedCategory = GameCategory.values[_tabController.index];
+          _selectedCategory = _visibleCategories[_tabController.index];
         });
       }
     });
@@ -182,7 +188,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
         indicatorSize: TabBarIndicatorSize.label,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
-        tabs: GameCategory.values.map((category) {
+        tabs: _visibleCategories.map((category) {
           final info = service.getCategoryInfo(category);
           return Tab(
             child: Row(
@@ -209,7 +215,16 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
   }
 
   Widget _buildGamesGrid(AppLocalizations localizations, MiniGameService service) {
-    final games = service.getGamesByCategory(_selectedCategory);
+    final baseGames = service
+        .getGamesByCategory(_selectedCategory)
+        .where((g) => g.id != 'puzzle_piece')
+        .toList();
+    final playable = baseGames.where((g) => !_isComingSoon(g)).toList();
+    final comingSoon = baseGames.where((g) => _isComingSoon(g)).toList();
+    final games = <MiniGame>[
+      ...playable,
+      if (comingSoon.isNotEmpty) comingSoon.first,
+    ];
     final progress = service.progress;
 
     if (games.isEmpty) {
@@ -478,9 +493,6 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
         break;
       case 'fruit_collect':
         gameScreen = FruitCollectGame(game: game, onBack: () => Navigator.pop(context));
-        break;
-      case 'puzzle_piece':
-        gameScreen = PuzzlePieceGame(game: game, onBack: () => Navigator.pop(context));
         break;
       case 'magic_clock':
         gameScreen = MagicClockGame(game: game, onBack: () => Navigator.pop(context));

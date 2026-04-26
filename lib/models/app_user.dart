@@ -6,6 +6,7 @@ class AppUser {
   final String? email;
   final String? displayName;
   final String? photoURL;
+  final String? profileEmoji;
 
   // Dil
   final String? selectedLanguage;
@@ -33,6 +34,7 @@ class AppUser {
     this.email,
     this.displayName,
     this.photoURL,
+    this.profileEmoji,
     this.selectedLanguage,
     this.createdAt,
     this.lastSignInTime,
@@ -53,6 +55,7 @@ class AppUser {
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
+      profileEmoji: null,
       selectedLanguage: 'tr',
       createdAt: user.metadata.creationTime,
       lastSignInTime: user.metadata.lastSignInTime,
@@ -72,6 +75,7 @@ class AppUser {
       email: map['email'],
       displayName: map['displayName'],
       photoURL: map['photoURL'],
+      profileEmoji: map['profileEmoji'],
       selectedLanguage: map['selectedLanguage'] ?? 'tr',
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
@@ -99,6 +103,7 @@ class AppUser {
       'email': email,
       'displayName': displayName,
       'photoURL': photoURL,
+      'profileEmoji': profileEmoji,
       'selectedLanguage': selectedLanguage ?? 'tr',
       'createdAt': createdAt?.toIso8601String(),
       'lastSignInTime': lastSignInTime?.toIso8601String(),
@@ -121,6 +126,7 @@ class AppUser {
     String? email,
     String? displayName,
     String? photoURL,
+    String? profileEmoji,
     String? selectedLanguage,
     DateTime? createdAt,
     DateTime? lastSignInTime,
@@ -136,6 +142,7 @@ class AppUser {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       photoURL: photoURL ?? this.photoURL,
+      profileEmoji: profileEmoji ?? this.profileEmoji,
       selectedLanguage: selectedLanguage ?? this.selectedLanguage,
       createdAt: createdAt ?? this.createdAt,
       lastSignInTime: lastSignInTime ?? this.lastSignInTime,

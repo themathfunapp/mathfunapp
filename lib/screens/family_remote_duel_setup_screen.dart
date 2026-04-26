@@ -11,15 +11,20 @@ import 'family_remote_duel_waiting_screen.dart';
 /// Premium: ailedeki çocuğa uzaktan düello daveti (aynı sorular, iki telefon).
 class FamilyRemoteDuelSetupScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final TopicType? initialTopic;
 
-  const FamilyRemoteDuelSetupScreen({super.key, required this.onBack});
+  const FamilyRemoteDuelSetupScreen({
+    super.key,
+    required this.onBack,
+    this.initialTopic,
+  });
 
   @override
   State<FamilyRemoteDuelSetupScreen> createState() => _FamilyRemoteDuelSetupScreenState();
 }
 
 class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScreen> {
-  FamilyMember? _child;
+  final Set<String> _selectedChildIds = {};
   TopicType? _topic;
   bool _busy = false;
   Set<String> _linkedChildIds = {};
@@ -73,6 +78,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
   @override
   void initState() {
     super.initState();
+    _topic = widget.initialTopic;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadLinkedChildIds());
   }
 
@@ -88,48 +94,54 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
     setState(() {
       _linkedChildIds = ids;
       _loadingLinkedIds = false;
-      if (_child != null && !_linkedChildIds.contains(_child!.userId)) {
-        _child = null;
-      }
+      _selectedChildIds.removeWhere((id) => !_linkedChildIds.contains(id));
     });
   }
 
   Future<void> _sendInvite() async {
     final auth = context.read<AuthService>();
-    final child = _child;
     final topic = _topic;
     final uid = auth.currentUser?.uid;
-    if (child == null || topic == null || uid == null || uid.isEmpty) {
+    if (_selectedChildIds.isEmpty || topic == null || uid == null || uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Çocuk ve konu seçin.')),
+        const SnackBar(content: Text('En az bir aile üyesi ve konu seçin.')),
       );
       return;
     }
 
     final svc = context.read<FamilyRemoteDuelService>();
-    final linkedOk = await svc.hostHasLinkedChildOnAccount(uid, child.userId);
-    if (!linkedOk) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Bu hesaptan uzaktan düello gönderilemez. Aynı cihazda çocuk hesabıyla oturum açıksanız, '
-            'daveti ebeveyn hesabınızla (aile verisinin bulunduğu hesap) göndermeniz gerekir.',
+    for (final childId in _selectedChildIds) {
+      final linkedOk = await svc.hostHasLinkedChildOnAccount(uid, childId);
+      if (!linkedOk) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Bu hesaptan uzaktan düello gönderilemez. Aynı cihazda çocuk hesabıyla oturum açıksanız, '
+              'daveti ebeveyn hesabınızla (aile verisinin bulunduğu hesap) göndermeniz gerekir.',
+            ),
           ),
-        ),
-      );
-      return;
+        );
+        return;
+      }
     }
 
     setState(() => _busy = true);
     final hostName =
         auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Ebeveyn';
+    final family = context.read<FamilyService>();
+    final selectedMembers = family.members
+        .where((m) => _selectedChildIds.contains(m.userId))
+        .toList();
+    final namesById = <String, String>{
+      for (final m in selectedMembers) m.userId: m.displayName,
+    };
 
     final res = await svc.createInvite(
       hostUserId: uid,
       hostDisplayName: hostName,
-      guestUserId: child.userId,
-      guestDisplayName: child.displayName,
+      guestUserIds: _selectedChildIds.toList(),
+      guestDisplayNamesById: namesById,
       topic: topic,
     );
 
@@ -265,13 +277,13 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                       padding: const EdgeInsets.all(20),
                       children: [
                         Text(
-                          'Merhaba ${auth.currentUser?.displayName ?? 'Ebeveyn'} — davet gönderilecek çocuğu seçin '
-                          '(yalnızca hesabınıza bağlı çocuklar).',
+                          'Merhaba ${auth.currentUser?.displayName ?? 'Ebeveyn'} — davet gönderilecek aile üyelerini seçin '
+                          '(yalnızca hesabınıza bağlı çocuklar). İstek süresi 90 saniyedir.',
                           style: const TextStyle(color: Colors.white70, fontSize: 15),
                         ),
                         const SizedBox(height: 16),
                         ...eligible.map((c) {
-                          final sel = _child?.userId == c.userId;
+                          final sel = _selectedChildIds.contains(c.userId);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Material(
@@ -281,7 +293,15 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                               borderRadius: BorderRadius.circular(14),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(14),
-                                onTap: () => setState(() => _child = c),
+                                onTap: () {
+                                  setState(() {
+                                    if (sel) {
+                                      _selectedChildIds.remove(c.userId);
+                                    } else {
+                                      _selectedChildIds.add(c.userId);
+                                    }
+                                  });
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.all(14),
                                   child: Row(
@@ -298,8 +318,10 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                                           ),
                                         ),
                                       ),
-                                      if (sel)
-                                        const Icon(Icons.check_circle, color: Colors.amber),
+                                      Icon(
+                                        sel ? Icons.check_circle : Icons.circle_outlined,
+                                        color: sel ? Colors.amber : Colors.white38,
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -308,31 +330,67 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                           );
                         }),
                         const SizedBox(height: 20),
-                        const Text(
-                          'Konu',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        if (widget.initialTopic == null) ...[
+                          const Text(
+                            'Konu',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _topics.map((t) {
-                            final sel = _topic == t;
-                            final col = _topicColor(t);
-                            return FilterChip(
-                              selected: sel,
-                              label: Text(_topicLabel(t)),
-                              onSelected: (_) => setState(() => _topic = t),
-                              selectedColor: col.withValues(alpha: 0.5),
-                              checkmarkColor: Colors.white,
-                              labelStyle: const TextStyle(color: Colors.white),
-                            );
-                          }).toList(),
-                        ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _topics.map((t) {
+                              final sel = _topic == t;
+                              final col = _topicColor(t);
+                              return FilterChip(
+                                selected: sel,
+                                label: Text(_topicLabel(t)),
+                                onSelected: (_) => setState(() => _topic = t),
+                                selectedColor: col.withValues(alpha: 0.5),
+                                checkmarkColor: Colors.white,
+                                labelStyle: const TextStyle(color: Colors.white),
+                              );
+                            }).toList(),
+                          ),
+                        ] else ...[
+                          const Text(
+                            'Seçilen Konu',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _topicColor(widget.initialTopic!).withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _topicColor(widget.initialTopic!).withValues(alpha: 0.85),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.lock, color: Colors.white70, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _topicLabel(widget.initialTopic!),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 28),
                         FilledButton.icon(
                           onPressed: _busy ? null : _sendInvite,
@@ -343,7 +401,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.send),
-                          label: Text(_busy ? 'Gönderiliyor…' : 'Davet gönder'),
+                          label: Text(_busy ? 'Gönderiliyor…' : 'Davet gönder (${_selectedChildIds.length})'),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             backgroundColor: Colors.teal.shade600,
@@ -351,7 +409,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Çocuğun hesabında ana sayfanın üstünde bildirim çıkar; kabul edince aynı 5 soruyu kendi telefonunuzdan oynarsınız.',
+                          'Tüm seçilen üyeler 90 saniye içinde kabul etmeden oyun başlamaz. Süre dolarsa yeniden davet gönderin.',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.65),
                             fontSize: 13,

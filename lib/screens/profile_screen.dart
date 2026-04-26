@@ -561,47 +561,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: stats.map((stat) {
-              return Container(
-                width: (MediaQuery.of(context).size.width - 80) / 2,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 6.0;
+              final w = constraints.maxWidth;
+              // Tek satırda 4 kutu; çok dar ekranda 2x2 (Wrap, genişlik kartın içinden hesaplanır).
+              final useFourAcross = w >= 340;
+              final tileWTwoCol = (w - spacing) / 2;
+
+              Widget tile(Map<String, String> stat) {
+                return SizedBox(
+                  height: useFourAcross ? 70 : 80,
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      vertical: useFourAcross ? 4 : 7,
+                      horizontal: useFourAcross ? 3 : 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(stat['emoji']!, style: const TextStyle(fontSize: 16)),
-                        const SizedBox(width: 8),
-                        Text(
-                          stat['value']!,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF5A4FCF),
+                        Text(stat['emoji']!, style: const TextStyle(fontSize: 11)),
+                        const SizedBox(height: 1),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            stat['value']!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF5A4FCF),
+                            ),
+                            maxLines: 1,
                           ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          stat['label']!,
+                          style: TextStyle(
+                            fontSize: useFourAcross ? 7.5 : 8.5,
+                            color: const Color(0xFF1A1A1A),
+                            height: 1.05,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: useFourAcross ? 1 : 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      stat['label']!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
+                  ),
+                );
+              }
+
+              if (useFourAcross) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < stats.length; i++) ...[
+                      if (i > 0) const SizedBox(width: spacing),
+                      Expanded(child: tile(stats[i])),
+                    ],
                   ],
-                ),
+                );
+              }
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: stats
+                    .map(
+                      (stat) => SizedBox(
+                        width: tileWTwoCol,
+                        child: tile(stat),
+                      ),
+                    )
+                    .toList(),
               );
-            }).toList(),
+            },
           ),
         ],
       ),

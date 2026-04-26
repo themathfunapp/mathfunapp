@@ -244,7 +244,7 @@ class PushNotificationService {
   }
 
   Future<void> _persistToken(String uid, String? token) async {
-    if (token == null || token.isEmpty) return;
+    if (uid.isEmpty || token == null || token.isEmpty) return;
     try {
       await FirebaseFirestore.instance
           .doc('users/$uid/private/fcm/current')

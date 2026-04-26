@@ -13,12 +13,14 @@ class ChapterScreen extends StatefulWidget {
   final StoryWorld world;
   final StoryProgress? progress;
   final bool openedFromParentPanel;
+  final String? initialChapterId;
 
   const ChapterScreen({
     super.key,
     required this.world,
     this.progress,
     this.openedFromParentPanel = false,
+    this.initialChapterId,
   });
 
   @override
@@ -27,6 +29,17 @@ class ChapterScreen extends StatefulWidget {
 
 class _ChapterScreenState extends State<ChapterScreen> {
   int _selectedChapterIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final chapterId = widget.initialChapterId;
+    if (chapterId == null || chapterId.isEmpty) return;
+    final idx = widget.world.chapters.indexWhere((c) => c.id == chapterId);
+    if (idx >= 0) {
+      _selectedChapterIndex = idx;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

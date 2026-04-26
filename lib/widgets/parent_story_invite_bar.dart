@@ -68,66 +68,94 @@ class FamilyStoryInviteFlow {
       return;
     }
 
-    if (candidates.length == 1) {
-      await _send(context, payload, localizations, user, candidates.first);
-      return;
-    }
-
     if (!context.mounted) return;
-    final picked = await showModalBottomSheet<FamilyMember>(
+    final picked = await showModalBottomSheet<List<FamilyMember>>(
       context: context,
       backgroundColor: const Color(0xFF1a1a2e),
       builder: (ctx) {
+        final selectedIds = <String>{};
+        if (candidates.length == 1) {
+          selectedIds.add(candidates.first.userId);
+        }
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  localizations.get('family_story_invite_pick_member'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+          child: StatefulBuilder(
+            builder: (context, setState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    localizations.get('family_story_invite_pick_member'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              ...candidates.map(
-                (m) => ListTile(
-                  leading: Icon(
-                    m.isParent ? Icons.person : Icons.child_care,
-                    color: Colors.amber,
+                ...candidates.map(
+                  (m) => CheckboxListTile(
+                    value: selectedIds.contains(m.userId),
+                    activeColor: Colors.lightGreenAccent,
+                    checkColor: Colors.black,
+                    title: Text(m.displayName, style: const TextStyle(color: Colors.white)),
+                    secondary: Icon(
+                      m.isParent ? Icons.person : Icons.child_care,
+                      color: Colors.amber,
+                    ),
+                    onChanged: (_) {
+                      setState(() {
+                        if (selectedIds.contains(m.userId)) {
+                          selectedIds.remove(m.userId);
+                        } else {
+                          selectedIds.add(m.userId);
+                        }
+                      });
+                    },
                   ),
-                  title: Text(m.displayName, style: const TextStyle(color: Colors.white)),
-                  onTap: () => Navigator.pop(ctx, m),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: FilledButton.icon(
+                    onPressed: selectedIds.isEmpty
+                        ? null
+                        : () {
+                            final selected = candidates
+                                .where((m) => selectedIds.contains(m.userId))
+                                .toList();
+                            Navigator.pop(ctx, selected);
+                          },
+                    icon: const Icon(Icons.send_rounded),
+                    label: Text('Davet gönder (${selectedIds.length})'),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
-    if (picked != null && context.mounted) {
-      await _send(context, payload, localizations, user, picked);
+    if (picked != null && picked.isNotEmpty && context.mounted) {
+      await _sendGroup(context, payload, localizations, user, picked);
     }
   }
 
-  static Future<void> _send(
+  static Future<void> _sendGroup(
     BuildContext context,
     StoryInvitePayload payload,
     AppLocalizations localizations,
     AppUser user,
-    FamilyMember member,
+    List<FamilyMember> members,
   ) async {
     final fromName = user.displayName ?? user.username ?? 'Ebeveyn';
     final inviteSvc = Provider.of<FamilyStoryInviteService>(context, listen: false);
-    final ok = await inviteSvc.createInvite(
+    final ok = await inviteSvc.createGroupInvites(
       fromUserId: user.uid,
       fromDisplayName: fromName,
-      toUserId: member.userId,
-      toDisplayName: member.displayName,
+      invites: members
+          .map((m) => StoryInviteTarget(userId: m.userId, displayName: m.displayName))
+          .toList(),
       worldId: payload.worldId,
       worldNameKey: payload.worldNameKey,
       chapterId: payload.chapterId,
@@ -138,7 +166,9 @@ class FamilyStoryInviteFlow {
       SnackBar(
         content: Text(
           ok
-              ? localizations.get('family_story_invite_sent').replaceAll('{0}', member.displayName)
+              ? (members.length == 1
+                  ? localizations.get('family_story_invite_sent').replaceAll('{0}', members.first.displayName)
+                  : '${members.length} aile üyesine hikâye daveti gönderildi.')
               : localizations.get('family_story_invite_failed'),
         ),
         behavior: SnackBarBehavior.floating,

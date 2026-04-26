@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:printing/printing.dart';
@@ -39,10 +40,24 @@ class ParentPanelScreen extends StatefulWidget {
 
 class _ParentPanelScreenState extends State<ParentPanelScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  static const int _tabCount = 5;
+  static const int _tabCount = 4;
+  static const List<String> _profileEmojiChoices = [
+    '😀',
+    '😎',
+    '🤓',
+    '🦊',
+    '🐼',
+    '🐯',
+    '🦄',
+    '🚀',
+    '⚽',
+    '🎮',
+    '🌟',
+    '🧠',
+  ];
 
-  late TabController _tabController;
   Timer? _sessionCheckTimer;
+  int _activeTab = 0;
   
   // Ayarlar
   bool _dailyLimitEnabled = true;
@@ -87,13 +102,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   bool _successMessagesEnabled = true;
   bool _weeklySummaryEnabled = true;
   bool _inactivityWarningEnabled = true;
-  List<DateTime> _reportHistory = [];
+  List<_ReportHistoryEntry> _reportHistory = [];
+  bool _showReportHistory = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: _tabCount, vsync: this);
     unawaited(_bootstrapNotificationPrefs());
     _loadReportHistory();
     _startSessionCheck();
@@ -103,23 +118,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   void dispose() {
     _sessionCheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _tabController.dispose();
     super.dispose();
-  }
-
-  /// Hot reload sonrası TabController eski uzunlukta kalmasın (4 vs 5 sekme uyumsuzluğu).
-  @override
-  void reassemble() {
-    super.reassemble();
-    if (_tabController.length != _tabCount) {
-      final oldIndex = _tabController.index.clamp(0, _tabCount - 1);
-      _tabController.dispose();
-      _tabController = TabController(
-        length: _tabCount,
-        vsync: this,
-        initialIndex: oldIndex,
-      );
-    }
   }
 
   void _startSessionCheck() {
@@ -157,17 +156,43 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         final list = jsonDecode(json) as List<dynamic>;
         setState(() {
           _reportHistory = list
-              .map((e) => DateTime.tryParse(e.toString()))
-              .whereType<DateTime>()
-              .toList();
+              .map((e) {
+                if (e is Map<String, dynamic>) {
+                  return _ReportHistoryEntry.fromMap(e);
+                }
+                if (e is Map) {
+                  return _ReportHistoryEntry.fromMap(Map<String, dynamic>.from(e));
+                }
+                final legacy = DateTime.tryParse(e.toString());
+                if (legacy == null) return null;
+                return _ReportHistoryEntry(
+                  createdAt: legacy,
+                  data: const PdfReportData(
+                    childName: 'Oyuncu',
+                    totalScore: 0,
+                    totalQuestions: 0,
+                    correctAnswers: 0,
+                    accuracy: 0,
+                    earnedBadgesCount: 0,
+                    weeklyValues: [0, 0, 0, 0, 0, 0, 0],
+                    badgeNames: [],
+                    recommendations: [],
+                  ),
+                );
+              })
+              .whereType<_ReportHistoryEntry>()
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          _reportHistory = _reportHistory.take(4).toList();
         });
+        await _saveReportHistory();
       } catch (_) {}
     }
   }
 
   Future<void> _saveReportHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    final list = _reportHistory.take(4).map((d) => d.toIso8601String()).toList();
+    final list = _reportHistory.take(4).map((e) => e.toMap()).toList();
     await prefs.setString(_prefReportHistory, jsonEncode(list));
   }
 
@@ -256,60 +281,106 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2C3E50),
-              Color(0xFF3498DB),
-            ],
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFE8F5FF),
+                Color(0xFFFFF3E0),
+                Color(0xFFFFF8F8),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Üst bar
-              _buildTopBar(),
-
-              // Panel giriş - Gerçek kullanıcı verisi
-              Consumer4<AuthService, BadgeService, GameMechanicsService, DailyRewardService>(
-                builder: (context, auth, badge, mechanics, reward, _) {
-                  return _buildPanelEntryCard(
-                    childName: auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu',
-                    loginStreak: reward.loginStreak,
-                  );
-                },
-              ),
-
-              // Tab bar
-              _buildTabBar(),
-
-              // Tab içerikleri - Gerçek verilerle
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildStatsTab(), // Consumer içinde gerçek veri
-                    _buildReportsTab(),
-                    _buildPlayGamesTab(),
-                    _buildFamilyGameTab(),
-                    _buildSettingsTab(),
-                  ],
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 24,
+                  left: 18,
+                  child: Text('⭐', style: TextStyle(fontSize: 22, color: Colors.orange.shade300)),
                 ),
-              ),
-            ],
+                Positioned(
+                  top: 62,
+                  right: 18,
+                  child: Text('🎈', style: TextStyle(fontSize: 24, color: Colors.pink.shade300)),
+                ),
+                NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverToBoxAdapter(
+                        child: _buildCollapsibleHeader(),
+                      ),
+                    ];
+                  },
+                  body: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.06, 0.0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_activeTab),
+                      child: _buildTabContent(_activeTab),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
-  Widget _buildTopBar() {
+  Widget _buildCollapsibleHeader() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE7DDFD)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildTopBar(unifiedCard: true),
+          Consumer4<AuthService, BadgeService, GameMechanicsService, DailyRewardService>(
+            builder: (context, auth, badge, mechanics, reward, _) {
+              return _buildPanelEntryCard(
+                childName: auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu',
+                loginStreak: reward.loginStreak,
+                userEmoji: auth.currentUser?.profileEmoji,
+                onEmojiTap: () => _showProfileEmojiPicker(auth),
+                unifiedCard: true,
+              );
+            },
+          ),
+          _buildTabBar(unifiedCard: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar({bool unifiedCard = false}) {
     final now = DateTime.now();
     final dateStr = '${now.day} ${_getMonthName(now.month)}';
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: unifiedCard
+          ? const EdgeInsets.fromLTRB(8, 6, 8, 6)
+          : const EdgeInsets.all(16),
       child: Row(
         children: [
           GestureDetector(
@@ -318,12 +389,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white,
                 shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+                ],
               ),
               child: const Icon(
                 Icons.arrow_back_ios_new,
-                color: Colors.white,
+                color: Color(0xFF6A4FBF),
                 size: 20,
               ),
             ),
@@ -333,19 +407,19 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Matematik Dünyası: Ebeveyn Paneli',
-                  style: TextStyle(
+                Text(
+                  'Matematik Dünyası – Ebeveyn Köşesi',
+                  style: GoogleFonts.quicksand(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF6A4FBF),
                   ),
                 ),
-                const Text(
-                  'Aile oyunlaştırma paneli',
+                Text(
+                  'Çocuğunun macerasını takip et, birlikte yarış! 🚀',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white70,
+                    color: Colors.deepPurple.shade300,
                   ),
                 ),
               ],
@@ -353,14 +427,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           ),
           Row(
             children: [
-              Icon(Icons.calendar_today, color: Colors.white.withValues(alpha: 0.9), size: 18),
+              Icon(Icons.calendar_today, color: Colors.deepPurple.shade300, size: 18),
               const SizedBox(width: 6),
               Text(
                 dateStr,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.deepPurple.shade300,
                 ),
               ),
             ],
@@ -370,25 +444,50 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildPanelEntryCard({required String childName, required int loginStreak}) {
+  Widget _buildPanelEntryCard({
+    required String childName,
+    required int loginStreak,
+    String? userEmoji,
+    VoidCallback? onEmojiTap,
+    bool unifiedCard = false,
+  }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
+      margin: unifiedCard
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 8)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        gradient: unifiedCard
+            ? const LinearGradient(
+                colors: [Color(0xFFFFF7E6), Color(0xFFFFFDF7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 6)),
+        ],
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.3),
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: onEmojiTap,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(userEmoji?.trim().isNotEmpty == true ? userEmoji! : '😀', style: const TextStyle(fontSize: 22)),
+              ),
             ),
-            child: const Center(child: Text('👧', style: TextStyle(fontSize: 22))),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -400,19 +499,19 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color(0xFF6A4FBF),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('🔥', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                    Text('🔥', style: TextStyle(fontSize: 12, color: Colors.deepOrange.shade400)),
                     const SizedBox(width: 4),
                     Text(
                       '$loginStreak gün seri',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.deepPurple.shade400,
                       ),
                     ),
                   ],
@@ -420,51 +519,220 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ],
             ),
           ),
-          Row(
-            children: [
-              const Text('🌟', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-              Text(
-                'Aile Modu',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.amber.shade200,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: -0.06, end: 0.06),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeInOut,
+            builder: (context, angle, child) {
+              return Transform.rotate(angle: angle, child: child);
+            },
+            child: const Text('🤖', style: TextStyle(fontSize: 34)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
+  Future<void> _showProfileEmojiPicker(AuthService auth) async {
+    if (auth.currentUser == null || auth.currentUser!.isGuest) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emoji seçimi için kayıtlı hesapla giriş yapmalısın.'),
+          backgroundColor: Colors.orange,
         ),
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.white60,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        tabs: const [
-          Tab(icon: Icon(Icons.dashboard), text: 'Gelişim'),
-          Tab(icon: Icon(Icons.bar_chart), text: 'İstatistik'),
-          Tab(icon: Icon(Icons.sports_esports), text: 'Oyun Oyna'),
-          Tab(icon: Icon(Icons.groups), text: 'Aile Oyunu'),
-          Tab(icon: Icon(Icons.settings), text: 'Ayarlar'),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profil emojisi seç',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.deepPurple.shade700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _profileEmojiChoices.map((emoji) {
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(sheetContext).pop(emoji),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F2FF),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFD7C9FF)),
+                        ),
+                        child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+    await auth.updateProfile(profileEmoji: selected);
+  }
+
+  Future<void> _showMemberEmojiPicker({
+    required AuthService auth,
+    required FamilyService familyService,
+    required LeaderboardEntry entry,
+  }) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${entry.displayName} için emoji seç',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.deepPurple.shade700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _profileEmojiChoices.map((emoji) {
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(sheetContext).pop(emoji),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F2FF),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFD7C9FF)),
+                        ),
+                        child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+    if (entry.userId == auth.userId) {
+      await auth.updateProfile(profileEmoji: selected);
+      return;
+    }
+    await familyService.updateMemberEmoji(userId: entry.userId, profileEmoji: selected);
+  }
+
+  Widget _buildTabBar({bool unifiedCard = false}) {
+    return Container(
+      margin: unifiedCard
+          ? const EdgeInsets.fromLTRB(8, 4, 8, 4)
+          : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: unifiedCard ? const Color(0xFFF8F3FF) : Colors.white.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE7DDFD)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: List.generate(_tabCount, (index) {
+          const labels = ['Gelişim', 'İstatistik', 'Aile Oyunu', 'Ayarlar'];
+          const icons = [Icons.dashboard, Icons.bar_chart, Icons.groups, Icons.settings];
+          final active = _activeTab == index;
+          return _PressScaleButton(
+            onTap: () => setState(() => _activeTab = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: active ? const Color(0xFFFFEB3B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: active ? const Color(0xFFE2C600) : const Color(0xFFE8DFFB),
+                ),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icons[index], size: active ? 20 : 18, color: const Color(0xFF6A4FBF)),
+                  const SizedBox(width: 8),
+                  Text(
+                    labels[index],
+                    style: TextStyle(
+                      fontSize: active ? 14 : 13,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      color: const Color(0xFF6A4FBF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
     );
+  }
+
+  Widget _buildTabContent(int index) {
+    switch (index) {
+      case 0:
+        return _buildStatsTab();
+      case 1:
+        return _buildReportsTab();
+      case 2:
+        return _buildFamilyGameTab();
+      case 3:
+      default:
+        return _buildSettingsTab();
+    }
   }
 
   /// Oyun Oyna — ebeveyn modu oyun merkezi (birlikte yarış, bölge haritası).
@@ -472,12 +740,24 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        ParentModeGamesHub.forParentPanelTab(
-          onJumpToGelisimTab: () {
-            if (_tabController.index != 0) {
-              _tabController.animateTo(0);
-            }
-          },
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF243B55), Color(0xFF141E30)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 6)),
+            ],
+          ),
+          child: ParentModeGamesHub.forParentPanelTab(
+            onJumpToGelisimTab: () {
+              if (_activeTab != 0) setState(() => _activeTab = 0);
+            },
+          ),
         ),
       ],
     );
@@ -490,39 +770,31 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _buildSectionTitle('🎮 Oyun Merkezi'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF243B55), Color(0xFF141E30)],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 6)),
+                ],
+              ),
+              child: ParentModeGamesHub.forParentPanelTab(
+                onJumpToGelisimTab: () {
+                  if (_activeTab != 0) setState(() => _activeTab = 0);
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
             _buildSectionTitle('🏆 Aile Liderlik Tablosu'),
             const SizedBox(height: 12),
             _buildFamilyLeaderboard(familyService),
-            const SizedBox(height: 24),
-            _buildSectionTitle('🎮 Aile Oyun Modu'),
-            const SizedBox(height: 12),
-            _buildFamilyGameCard(
-              '🏁 Birebir Yarış',
-              'Çocuk vs Ebeveyn - Kim daha hızlı?',
-              Icons.emoji_events,
-              onTap: () => _openFamilyDuelRace(context),
-            ),
-            const SizedBox(height: 12),
-            _buildFamilyGameCard(
-              '📱 Uzaktan düello (Premium)',
-              'İki telefon, aynı sorular; davet çocuğun ana sayfasında bildirim olarak çıkar.',
-              Icons.phonelink,
-              onTap: () => _openRemoteFamilyDuel(context),
-            ),
-            const SizedBox(height: 12),
-            _buildFamilyGameCard(
-              '👨‍👩‍👧 Takım Modu',
-              'Aile vs Bilgisayar - Birlikte kazanın!',
-              Icons.groups,
-              onTap: () => _showFamilyModeSoon(context, 'Takım modu yakında.'),
-            ),
-            const SizedBox(height: 12),
-            _buildFamilyGameCard(
-              '🔄 Sırayla Oyna',
-              'Herkes sırayla soru çözer',
-              Icons.swap_horiz,
-              onTap: () => _showFamilyModeSoon(context, 'Sırayla oyna yakında.'),
-            ),
           ],
         );
       },
@@ -534,9 +806,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFFEDE7F6)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +861,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.95),
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -708,12 +983,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.amber.withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.1),
+              : const Color(0xFFF4F1FF),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? Colors.amber
-                : Colors.white.withValues(alpha: 0.2),
+                : const Color(0xFFE0D7FF),
           ),
         ),
         child: Text(
@@ -721,7 +996,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: Colors.white,
+            color: isSelected ? const Color(0xFF4E342E) : const Color(0xFF5E35B1),
           ),
         ),
       ),
@@ -729,35 +1004,58 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   Widget _buildLeaderboardTable(List<LeaderboardEntry> entries) {
-    return Column(
-      children: [
-        // Başlık satırı
-        Row(
+    final screenW = MediaQuery.of(context).size.width;
+    final compact = screenW < 900;
+    final tableWidth = compact ? 520.0 : 620.0;
+    final nameWidth = compact ? 180.0 : 220.0;
+    final scoreWidth = compact ? 52.0 : 56.0;
+    final accuracyWidth = compact ? 44.0 : 48.0;
+    final activityWidth = compact ? 140.0 : 180.0;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: tableWidth,
+        child: Column(
           children: [
-            SizedBox(width: 36, child: Text('Sıra', style: _leaderboardHeaderStyle)),
-            const SizedBox(width: 8),
-            Expanded(flex: 2, child: Text('İsim', style: _leaderboardHeaderStyle)),
-            SizedBox(width: 56, child: Text('Puan', style: _leaderboardHeaderStyle)),
-            SizedBox(width: 48, child: Text('Başarı', style: _leaderboardHeaderStyle)),
-            Expanded(child: Text('Son Aktivite', style: _leaderboardHeaderStyle)),
+            // Başlık satırı
+            Row(
+              children: [
+                SizedBox(width: 36, child: Text('Sıra', style: _leaderboardHeaderStyle)),
+                const SizedBox(width: 8),
+                SizedBox(width: nameWidth, child: Text('İsim', style: _leaderboardHeaderStyle)),
+                SizedBox(width: scoreWidth, child: Text('Puan', style: _leaderboardHeaderStyle)),
+                SizedBox(width: accuracyWidth, child: Text('Başarı', style: _leaderboardHeaderStyle)),
+                SizedBox(width: activityWidth, child: Text('Son Aktivite', style: _leaderboardHeaderStyle)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Divider(color: Colors.deepPurple.shade100, height: 1),
+            const SizedBox(height: 8),
+            ...entries.map((e) => _buildLeaderboardRow(e, compact: compact)),
           ],
         ),
-        const SizedBox(height: 12),
-        const Divider(color: Colors.white24, height: 1),
-        const SizedBox(height: 8),
-        ...entries.map((e) => _buildLeaderboardRow(e)),
-      ],
+      ),
     );
   }
 
   TextStyle get _leaderboardHeaderStyle => TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.bold,
-        color: Colors.white.withValues(alpha: 0.9),
+        color: Colors.deepPurple.shade300,
       );
 
-  Widget _buildLeaderboardRow(LeaderboardEntry entry) {
-    Color rankColor = Colors.white;
+  Widget _buildLeaderboardRow(LeaderboardEntry entry, {bool compact = false}) {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final familyService = Provider.of<FamilyService>(context, listen: false);
+    final resolvedEmoji = entry.userId == auth.userId
+        ? auth.currentUser?.profileEmoji
+        : entry.profileEmoji;
+    final nameWidth = compact ? 180.0 : 220.0;
+    final scoreWidth = compact ? 52.0 : 56.0;
+    final accuracyWidth = compact ? 44.0 : 48.0;
+    final activityWidth = compact ? 140.0 : 180.0;
+    final baseFont = compact ? 12.0 : 13.0;
+    Color rankColor = const Color(0xFF5E35B1);
     if (entry.rank == 1) rankColor = const Color(0xFFFFD700); // Altın
     if (entry.rank == 2) rankColor = const Color(0xFFC0C0C0); // Gümüş
     if (entry.rank == 3) rankColor = const Color(0xFFCD7F32); // Bronz
@@ -778,20 +1076,27 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: nameWidth,
             child: Row(
               children: [
-                Text(
-                  entry.isParent ? '👑 ' : '🧒 ',
-                  style: const TextStyle(fontSize: 14),
+                GestureDetector(
+                  onTap: () => _showMemberEmojiPicker(
+                    auth: auth,
+                    familyService: familyService,
+                    entry: entry,
+                  ),
+                  child: Text(
+                    '${(resolvedEmoji != null && resolvedEmoji.trim().isNotEmpty) ? resolvedEmoji : (entry.isParent ? '👑' : '🧒')} ',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
                 Expanded(
                   child: Text(
                     entry.displayName,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white,
+                    style: TextStyle(
+                      fontSize: baseFont,
+                      color: Color(0xFF5E35B1),
                       fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -801,33 +1106,34 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ),
           ),
           SizedBox(
-            width: 56,
+            width: scoreWidth,
             child: Text(
               '${entry.score}',
-              style: const TextStyle(
-                fontSize: 13,
+              style: TextStyle(
+                fontSize: baseFont,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: Color(0xFF4E342E),
               ),
             ),
           ),
           SizedBox(
-            width: 48,
+            width: accuracyWidth,
             child: Text(
               '%${entry.accuracy}',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: baseFont,
                 fontWeight: FontWeight.w600,
                 color: _getSuccessColor(entry.accuracy),
               ),
             ),
           ),
-          Expanded(
+          SizedBox(
+            width: activityWidth,
             child: Text(
               _formatLastActivity(entry.lastPlayedAt),
               style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: compact ? 10 : 11,
+                color: Colors.deepPurple.shade300,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -899,9 +1205,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            border: Border.all(color: const Color(0xFFEDE7F6)),
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+            ],
           ),
           child: Row(
             children: [
@@ -912,7 +1221,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   color: Colors.green.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: Colors.white, size: 24),
+                child: Icon(icon, color: const Color(0xFF5E35B1), size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -924,7 +1233,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF5E35B1),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -932,13 +1241,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.deepPurple.shade300,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+              Icon(Icons.arrow_forward_ios, color: Colors.deepPurple.shade200, size: 16),
             ],
           ),
         ),
@@ -983,8 +1292,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
   // ============= GELİŞİM TAB (Çoklu Çocuk - FamilyService) =============
   Widget _buildStatsTab() {
-    return Consumer4<FamilyService, DailyRewardService, BadgeService, GameMechanicsService>(
-      builder: (context, familyService, reward, badge, mechanics, _) {
+    return Consumer5<AuthService, FamilyService, DailyRewardService, BadgeService, GameMechanicsService>(
+      builder: (context, auth, familyService, reward, badge, mechanics, _) {
         final solve5Progress = reward.taskProgress['solve_5'];
         final dailyTarget = 5;
         final dailySolved = solve5Progress?.currentValue ?? 0;
@@ -1033,6 +1342,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     weeklyValues: entry.weeklyValues,
                     isParent: entry.isParent,
                     userId: entry.userId,
+                    userEmoji: entry.userId == auth.userId
+                        ? auth.currentUser?.profileEmoji
+                        : entry.profileEmoji,
+                    onEmojiTap: () => _showMemberEmojiPicker(
+                      auth: auth,
+                      familyService: familyService,
+                      entry: entry,
+                    ),
                   ),
                 )),
             const SizedBox(height: 20),
@@ -1149,6 +1466,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     required List<int> weeklyValues,
     bool isParent = false,
     String? userId,
+    String? userEmoji,
+    VoidCallback? onEmojiTap,
   }) {
     final successColor = _getSuccessColor(accuracy);
     final heroTag = 'child_card_${userId ?? childName}';
@@ -1193,16 +1512,19 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white.withValues(alpha: 0.2),
-              Colors.white.withValues(alpha: 0.08),
+              Color(0xFFFFFFFF),
+              Color(0xFFFFF7E6),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          border: Border.all(color: const Color(0xFFFFE0B2)),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1210,17 +1532,22 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           children: [
               Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        isParent ? '👑' : '🧒',
-                        style: const TextStyle(fontSize: 24),
+                  GestureDetector(
+                    onTap: onEmojiTap,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          (userEmoji != null && userEmoji.trim().isNotEmpty)
+                              ? userEmoji
+                              : (isParent ? '👑' : '🧒'),
+                          style: const TextStyle(fontSize: 24),
+                        ),
                       ),
                     ),
                   ),
@@ -1231,23 +1558,23 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                       children: [
                         Text(
                           childName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: Colors.deepPurple.shade500,
                           ),
                         ),
                         Text(
                           'Son aktivite: $lastActivity',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.deepPurple.shade300,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                  Icon(Icons.arrow_forward_ios, color: Colors.deepPurple.shade200, size: 16),
                 ],
               ),
               const SizedBox(height: 16),
@@ -1269,12 +1596,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.flag, size: 14, color: Colors.white.withValues(alpha: 0.9)),
+                  Icon(Icons.flag, size: 14, color: Colors.deepPurple.shade300),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       'Günlük hedef: $dailyTarget soru ($dailySolved çözüldü)',
-                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9)),
+                      style: TextStyle(fontSize: 12, color: Colors.deepPurple.shade400),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -1286,7 +1613,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.deepPurple.shade400,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1315,7 +1642,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           const SizedBox(height: 4),
                           Text(
                             days[i],
-                            style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.8)),
+                            style: TextStyle(fontSize: 9, color: Colors.deepPurple.shade300),
                           ),
                         ],
                       ),
@@ -1339,23 +1666,29 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.deepPurple.shade300,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           isNumeric
               ? AnimatedCounter(
                   value: value,
                   prefix: prefix,
                   suffix: suffix,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -1363,7 +1696,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               : Text(
                   '$prefix$value$suffix',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -1396,7 +1729,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             title,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.deepPurple.shade300,
             ),
           ),
           isNumeric
@@ -1406,7 +1739,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color(0xFF5E35B1),
                   ),
                 )
               : Text(
@@ -1414,7 +1747,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color(0xFF5E35B1),
                   ),
                 ),
         ],
@@ -1587,8 +1920,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1615,35 +1951,207 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           ),
           if (_reportHistory.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Divider(color: Colors.white24),
+            Divider(color: Colors.deepPurple.shade100),
             const SizedBox(height: 8),
-            Text(
-              'Rapor Geçmişi (Son 4 hafta)',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.white.withOpacity(0.9),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _showReportHistory = !_showReportHistory),
+                icon: Icon(
+                  _showReportHistory ? Icons.expand_less : Icons.history,
+                  size: 18,
+                  color: Colors.deepPurple.shade400,
+                ),
+                label: Text(
+                  _showReportHistory
+                      ? 'Rapor Geçmişini Gizle'
+                      : 'Rapor Geçmişi (Son 4 hafta)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.deepPurple.shade500,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.deepPurple.shade100),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            ..._reportHistory.take(4).map((d) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.history, size: 16, color: Colors.white.withOpacity(0.7)),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${d.day}.${d.month}.${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: _showReportHistory
+                  ? Padding(
+                      key: const ValueKey('report_history_open'),
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Column(
+                        children: _reportHistory.take(4).map((entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _openReportHistoryEntry(entry),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.history, size: 16, color: Colors.deepPurple.shade300),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '${entry.createdAt.day}.${entry.createdAt.month}.${entry.createdAt.year} ${entry.createdAt.hour.toString().padLeft(2, '0')}:${entry.createdAt.minute.toString().padLeft(2, '0')}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.deepPurple.shade300,
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () => _confirmDeleteReportHistoryEntry(entry),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(4),
+                                            child: Icon(Icons.delete_outline, size: 16, color: Color(0xFFE53935)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )).toList(),
                       ),
-                    ],
-                  ),
-                )),
+                    )
+                  : const SizedBox(key: ValueKey('report_history_closed')),
+            ),
           ],
         ],
+      ),
+    );
+  }
+
+  Future<void> _openReportHistoryEntry(_ReportHistoryEntry entry) async {
+    try {
+      final bytes = await PdfReportService.generateReport(entry.data);
+      final fileName =
+          'mathfun_rapor_${entry.data.childName.replaceAll(' ', '_')}_${entry.createdAt.millisecondsSinceEpoch}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Rapor açılamadı: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteReportHistoryEntry(_ReportHistoryEntry target) async {
+    final shouldDelete = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Silme onayı',
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 360,
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF6FB),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFFFFCFE2)),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 18, offset: Offset(0, 10)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE3EE),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text('🗑️', style: TextStyle(fontSize: 18)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Rapor geçmişi silinsin mi?',
+                            style: TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.deepPurple.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Bu rapor kaydını silmek istediğinizden emin misiniz?',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.deepPurple.shade500,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(false),
+                          child: const Text('Hayır'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE53935),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          child: const Text('Evet, sil'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: Tween<double>(begin: 0.9, end: 1.0).animate(curved), child: child),
+        );
+      },
+    );
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() {
+      _reportHistory.remove(target);
+    });
+    await _saveReportHistory();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Rapor geçmişi kaydı silindi.'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -1656,6 +2164,19 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     required int accuracy,
     required BadgeService badge,
   }) async {
+    final now = DateTime.now();
+    final isSunday = now.weekday == DateTime.sunday;
+    if (!isSunday) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Haftalık rapor henüz hazır değil. Pazar gününü bekleyin.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final locale = Localizations.localeOf(context);
     final localizations = AppLocalizations(locale);
 
@@ -1697,7 +2218,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       );
 
       setState(() {
-        _reportHistory.insert(0, DateTime.now());
+        _reportHistory.insert(
+          0,
+          _ReportHistoryEntry(
+            createdAt: DateTime.now(),
+            data: data,
+          ),
+        );
         _reportHistory = _reportHistory.take(4).toList();
       });
       await _saveReportHistory();
@@ -1747,8 +2274,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: [
@@ -1779,8 +2309,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: topics.map((topic) {
@@ -1812,9 +2345,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                         children: [
                           Text(
                             topic['name'] as String,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Colors.white,
+                              color: Colors.deepPurple.shade500,
                             ),
                           ),
                           Text(
@@ -1836,7 +2369,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: value,
-                            backgroundColor: Colors.white.withOpacity(0.2),
+                            backgroundColor: Colors.deepPurple.shade50,
                             valueColor: AlwaysStoppedAnimation(color),
                             minHeight: 6,
                           ),
@@ -1873,9 +2406,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.2),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1884,12 +2420,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             children: [
               const Icon(Icons.lightbulb, color: Colors.amber, size: 24),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Öneriler',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.deepPurple.shade500,
                 ),
               ),
             ],
@@ -1907,14 +2443,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('•', style: TextStyle(color: Colors.white70)),
+          Text('•', style: TextStyle(color: Colors.deepPurple.shade300)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Colors.white70,
+                color: Colors.deepPurple.shade300,
               ),
             ),
           ),
@@ -1970,23 +2506,26 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+            ],
           ),
           child: ListTile(
             leading: Text(
               currentLang['flag'] as String,
               style: const TextStyle(fontSize: 28),
             ),
-            title: const Text(
+            title: Text(
               'Uygulama Dili',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: TextStyle(color: Colors.deepPurple.shade500, fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
               currentLang['name'] as String,
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            trailing: Icon(Icons.chevron_right, color: Colors.deepPurple.shade300),
             onTap: () => _showLanguageDialog(localeProvider, authService),
           ),
         );
@@ -2082,21 +2621,24 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: [
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Günlük Süre Limiti',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
               _dailyLimitEnabled
                   ? '$_dailyLimitMinutes dakika'
                   : 'Kapalı',
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _dailyLimitEnabled,
             onChanged: (value) {
@@ -2107,14 +2649,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             activeColor: Colors.green,
           ),
           if (_dailyLimitEnabled) ...[
-            const Divider(color: Colors.white24),
+            Divider(color: Colors.deepPurple.shade100),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Süre (dakika)',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: Colors.deepPurple.shade300),
                 ),
                 Row(
                   children: [
@@ -2126,15 +2668,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           });
                         }
                       },
-                      icon: const Icon(Icons.remove_circle,
-                          color: Colors.white70),
+                      icon: Icon(Icons.remove_circle, color: Colors.deepPurple.shade300),
                     ),
                     Text(
                       '$_dailyLimitMinutes',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Colors.deepPurple.shade500,
                       ),
                     ),
                     IconButton(
@@ -2145,7 +2686,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           });
                         }
                       },
-                      icon: const Icon(Icons.add_circle, color: Colors.white70),
+                      icon: Icon(Icons.add_circle, color: Colors.deepPurple.shade300),
                     ),
                   ],
                 ),
@@ -2161,22 +2702,25 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Günlük Hatırlatıcı',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
               _dailyReminderEnabled
                   ? 'Her gün ${_dailyReminderHour.toString().padLeft(2, '0')}:${_dailyReminderMinute.toString().padLeft(2, '0')}'
                   : 'Kapalı',
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _dailyReminderEnabled,
             onChanged: (value) async {
@@ -2186,12 +2730,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             activeColor: Colors.green,
           ),
           if (_dailyReminderEnabled) ...[
-            const Divider(color: Colors.white24),
+            Divider(color: Colors.deepPurple.shade100),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Hatırlatma saati',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: Colors.deepPurple.shade300, fontSize: 13),
               ),
               trailing: TextButton.icon(
                 onPressed: () async {
@@ -2221,11 +2765,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     await _saveNotificationPrefs();
                   }
                 },
-                icon: const Icon(Icons.access_time, color: Colors.white70, size: 20),
+                icon: Icon(Icons.access_time, color: Colors.deepPurple.shade300, size: 20),
                 label: Text(
                   '${_dailyReminderHour.toString().padLeft(2, '0')}:${_dailyReminderMinute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Colors.deepPurple.shade500,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -2233,15 +2777,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ),
             ),
           ],
-          const Divider(color: Colors.white24),
+          Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Başarı Mesajları',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Yeni rozet, seri vb. bildirimleri',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _successMessagesEnabled,
             onChanged: (value) async {
@@ -2250,15 +2794,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             },
             activeColor: Colors.green,
           ),
-          const Divider(color: Colors.white24),
+          Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Haftalık Özet Raporu',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Pazartesi sabahı haftalık özet',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _weeklySummaryEnabled,
             onChanged: (value) async {
@@ -2267,15 +2811,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             },
             activeColor: Colors.green,
           ),
-          const Divider(color: Colors.white24),
+          Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Çalışma Arası Uyarısı',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               '3 günden fazla ara varsa hatırlat',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _inactivityWarningEnabled,
             onChanged: (value) async {
@@ -2293,19 +2837,22 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: [
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Sesler',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Oyun içi sesler',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _soundEnabled,
             onChanged: (value) {
@@ -2315,15 +2862,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             },
             activeColor: Colors.green,
           ),
-          const Divider(color: Colors.white24),
+          Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Bildirimler',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Günlük hatırlatmalar',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _notificationsEnabled,
             onChanged: (value) async {
@@ -2345,19 +2892,22 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
       ),
       child: Column(
         children: [
           SwitchListTile(
-            title: const Text(
+            title: Text(
               'Güvenli Mod',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Reklamsız, sosyal özellikler kapalı',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _safeMode,
             onChanged: (value) {
@@ -2367,18 +2917,18 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             },
             activeColor: Colors.green,
           ),
-          const Divider(color: Colors.white24),
+          Divider(color: Colors.deepPurple.shade100),
           ListTile(
-            leading: const Icon(Icons.lock, color: Colors.white70),
-            title: const Text(
+            leading: Icon(Icons.lock, color: Colors.deepPurple.shade300),
+            title: Text(
               'PIN Değiştir',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.deepPurple.shade500),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Ebeveyn paneli erişim PIN\'i',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.deepPurple.shade300),
             ),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            trailing: Icon(Icons.chevron_right, color: Colors.deepPurple.shade300),
             onTap: () => _showPinDialog(),
           ),
         ],
@@ -2478,12 +3028,75 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+    final firstSpace = title.indexOf(' ');
+    final firstToken = firstSpace > 0 ? title.substring(0, firstSpace) : title;
+    final hasEmojiPrefix = firstSpace > 0 && _looksLikeEmojiPrefix(firstToken);
+    final emoji = hasEmojiPrefix ? title.substring(0, firstSpace) : '✨';
+    final text = hasEmojiPrefix ? title.substring(firstSpace + 1) : title;
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF3B0),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(emoji, style: const TextStyle(fontSize: 16)),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple.shade500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _looksLikeEmojiPrefix(String token) {
+    final value = token.trim();
+    if (value.isEmpty) return false;
+    return value.runes.any(
+      (rune) =>
+          rune >= 0x1F000 || // çoğu modern emoji bloğu
+          (rune >= 0x2600 && rune <= 0x27BF), // misc symbols / dingbats
+    );
+  }
+}
+
+/// Sekme/butonlarda hafif basma-kalkma efekti.
+class _PressScaleButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _PressScaleButton({required this.onTap, required this.child});
+
+  @override
+  State<_PressScaleButton> createState() => _PressScaleButtonState();
+}
+
+class _PressScaleButtonState extends State<_PressScaleButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 110),
+        scale: _pressed ? 0.96 : 1.0,
+        child: widget.child,
       ),
     );
   }
@@ -2511,13 +3124,14 @@ class _AnimatedBar extends StatelessWidget {
       curve: Curves.easeOutCubic,
       builder: (context, t, _) {
         final height = targetHeight * t;
+        final showStar = value >= 80;
         return Column(
           children: [
             AnimatedCounter(
               value: value,
               prefix: '%',
               duration: const Duration(milliseconds: 600),
-              style: const TextStyle(fontSize: 10, color: Colors.white70),
+              style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade300),
             ),
             const SizedBox(height: 4),
             Container(
@@ -2535,14 +3149,73 @@ class _AnimatedBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
+            if (showStar)
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.7, end: 1.0),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.easeInOutBack,
+                builder: (context, scale, child) {
+                  return Transform.scale(scale: scale, child: child);
+                },
+                child: const Text('🌟', style: TextStyle(fontSize: 11)),
+              )
+            else
+              const SizedBox(height: 11),
             const SizedBox(height: 4),
             Text(
               dayLabel,
-              style: const TextStyle(fontSize: 10, color: Colors.white70),
+              style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade300),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+class _ReportHistoryEntry {
+  final DateTime createdAt;
+  final PdfReportData data;
+
+  const _ReportHistoryEntry({
+    required this.createdAt,
+    required this.data,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'createdAt': createdAt.toIso8601String(),
+        'data': {
+          'childName': data.childName,
+          'totalScore': data.totalScore,
+          'totalQuestions': data.totalQuestions,
+          'correctAnswers': data.correctAnswers,
+          'accuracy': data.accuracy,
+          'earnedBadgesCount': data.earnedBadgesCount,
+          'weeklyValues': data.weeklyValues,
+          'badgeNames': data.badgeNames,
+          'recommendations': data.recommendations,
+        },
+      };
+
+  factory _ReportHistoryEntry.fromMap(Map<String, dynamic> map) {
+    final rawData = (map['data'] as Map?) ?? const {};
+    final m = <String, dynamic>{for (final e in rawData.entries) e.key.toString(): e.value};
+    return _ReportHistoryEntry(
+      createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      data: PdfReportData(
+        childName: (m['childName']?.toString() ?? 'Oyuncu'),
+        totalScore: (m['totalScore'] as num?)?.toInt() ?? 0,
+        totalQuestions: (m['totalQuestions'] as num?)?.toInt() ?? 0,
+        correctAnswers: (m['correctAnswers'] as num?)?.toInt() ?? 0,
+        accuracy: (m['accuracy'] as num?)?.toInt() ?? 0,
+        earnedBadgesCount: (m['earnedBadgesCount'] as num?)?.toInt() ?? 0,
+        weeklyValues: (m['weeklyValues'] as List<dynamic>? ?? const [])
+            .map((e) => (e as num?)?.toInt() ?? 0)
+            .toList(),
+        badgeNames: (m['badgeNames'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
+        recommendations:
+            (m['recommendations'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
+      ),
     );
   }
 }

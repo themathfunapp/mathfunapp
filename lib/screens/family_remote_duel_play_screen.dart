@@ -43,18 +43,23 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
 
     _leaderboardSyncing = true;
     try {
-      final guestUid = d['guestUserId'] as String? ?? '';
       final topicKey = d['topicKey'] as String? ?? 'addition';
-      final hp = (d['hostCorrectCount'] as num?)?.toInt() ?? 0;
-      final gp = (d['guestCorrectCount'] as num?)?.toInt() ?? 0;
+      final rounds = (decodeQuestionsList(d['questions']).length).clamp(1, 100);
+      final rawCounts = (d['correctCounts'] as Map?) ?? const {};
+      final counts = <String, int>{
+        for (final e in rawCounts.entries) e.key.toString(): (e.value as num?)?.toInt() ?? 0,
+      };
+      final invitedUserIds = (d['invitedUserIds'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
 
-      await context.read<FamilyService>().recordRemoteFamilyDuelResult(
+      await context.read<FamilyService>().recordRemoteFamilyDuelGroupResult(
             parentUserId: hostUid,
-            childUserId: guestUid,
+            participantCorrectByUser: counts,
+            childUserIds: invitedUserIds,
             topicKey: topicKey,
-            parentCorrect: hp,
-            childCorrect: gp,
-            rounds: 5,
+            rounds: rounds,
           );
       await context.read<FamilyRemoteDuelService>().markLeaderboardSynced(widget.sessionId);
       _leaderboardSyncAttempted = true;
@@ -71,18 +76,16 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
     _summaryShown = true;
 
     final hostName = d['hostDisplayName'] as String? ?? 'Ebeveyn';
-    final guestName = d['guestDisplayName'] as String? ?? 'Çocuk';
-    final hp = (d['hostCorrectCount'] as num?)?.toInt() ?? 0;
-    final gp = (d['guestCorrectCount'] as num?)?.toInt() ?? 0;
-
-    String winner;
-    if (hp == gp) {
-      winner = 'Berabere!';
-    } else if (hp > gp) {
-      winner = 'Kazanan: $hostName';
-    } else {
-      winner = 'Kazanan: $guestName';
-    }
+    final namesRaw = (d['participantDisplayNames'] as Map?) ?? const {};
+    final names = <String, String>{for (final e in namesRaw.entries) e.key.toString(): e.value?.toString() ?? 'Oyuncu'};
+    final countsRaw = (d['correctCounts'] as Map?) ?? const {};
+    final counts = <String, int>{for (final e in countsRaw.entries) e.key.toString(): (e.value as num?)?.toInt() ?? 0};
+    final top = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topScore = top.isEmpty ? 0 : top.first.value;
+    final winners = top.where((e) => e.value == topScore).map((e) => names[e.key] ?? 'Oyuncu').toList();
+    final winner = winners.length > 1 ? 'Berabere: ${winners.join(', ')}' : 'Kazanan: ${winners.first}';
+    final scoreLines = top.map((e) => '${names[e.key] ?? e.key}: ${e.value}').join('\n');
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -92,7 +95,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
         builder: (ctx) => AlertDialog(
           title: const Text('Düello bitti'),
           content: Text(
-            '$winner\n\nDoğru cevaplar\n$hostName: $hp\n$guestName: $gp',
+            '$winner\n\nDoğru cevaplar\n$scoreLines',
           ),
           actions: [
             TextButton(
@@ -113,13 +116,10 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
     final status = d['status'] as String?;
     if (status != 'active') return;
 
-    final hostUid = d['hostUserId'] as String? ?? '';
-    final guestUid = d['guestUserId'] as String? ?? '';
-    final isHost = uid == hostUid;
-    final hostDone = d['roundHostAnswered'] == true;
-    final guestDone = d['roundGuestAnswered'] == true;
-    if (isHost && hostDone) return;
-    if (!isHost && guestDone) return;
+    final answered = (d['roundAnsweredUserIds'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString())
+        .toSet();
+    if (answered.contains(uid)) return;
 
     setState(() => _busy = true);
     final ok = await context.read<FamilyRemoteDuelService>().submitAnswer(
@@ -187,9 +187,16 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
               }
 
               final hostName = d['hostDisplayName'] as String? ?? 'Ebeveyn';
-              final guestName = d['guestDisplayName'] as String? ?? 'Çocuk';
+              final namesRaw = (d['participantDisplayNames'] as Map?) ?? const {};
+              final names = <String, String>{
+                for (final e in namesRaw.entries) e.key.toString(): e.value?.toString() ?? 'Oyuncu',
+              };
               final hostUid = d['hostUserId'] as String? ?? '';
-              final guestUid = d['guestUserId'] as String? ?? '';
+              final invitedUserIds = (d['invitedUserIds'] as List<dynamic>? ?? const [])
+                  .map((e) => e.toString())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+              final participantUserIds = <String>[hostUid, ...invitedUserIds];
               final isHost = uid == hostUid;
               final roundIdx = (d['currentRoundIndex'] as num?)?.toInt() ?? 0;
               final questions = decodeQuestionsList(d['questions']);
@@ -197,14 +204,16 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                   ? questions[roundIdx]
                   : null;
 
-              final hp = (d['hostCorrectCount'] as num?)?.toInt() ?? 0;
-              final gp = (d['guestCorrectCount'] as num?)?.toInt() ?? 0;
-              final hostDone = d['roundHostAnswered'] == true;
-              final guestDone = d['roundGuestAnswered'] == true;
-
-              final myTurnDone = isHost ? hostDone : guestDone;
+              final countsRaw = (d['correctCounts'] as Map?) ?? const {};
+              final counts = <String, int>{
+                for (final e in countsRaw.entries) e.key.toString(): (e.value as num?)?.toInt() ?? 0,
+              };
+              final answeredSet = (d['roundAnsweredUserIds'] as List<dynamic>? ?? const [])
+                  .map((e) => e.toString())
+                  .toSet();
+              final myTurnDone = answeredSet.contains(uid);
               final waitingOther =
-                  status == 'active' && myTurnDone && !(isHost ? guestDone : hostDone);
+                  status == 'active' && myTurnDone && answeredSet.length < participantUserIds.length;
 
               final line = familyDuelQuestionLine(q);
               final opts = familyDuelOptionList(q);
@@ -245,7 +254,9 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                           style: const TextStyle(color: Colors.white70),
                         ),
                         Text(
-                          '$hostName $hp  ·  $gp $guestName',
+                          participantUserIds
+                              .map((id) => '${names[id] ?? id} ${counts[id] ?? 0}')
+                              .join('  ·  '),
                           style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -262,7 +273,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                         ),
                         child: Text(
                           waitingOther
-                              ? 'Cevabın kaydedildi; rakibin cevabı bekleniyor.'
+                              ? 'Cevabın kaydedildi; diğer aile üyeleri bekleniyor.'
                               : 'Sıra sende — şıkkını seç.',
                           style: const TextStyle(color: Colors.white, fontSize: 15),
                         ),

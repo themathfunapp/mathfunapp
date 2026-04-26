@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/story_mode.dart';
 import '../models/story_invite_payload.dart';
+import '../models/game_mechanics.dart' show TopicType;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'chapter_screen.dart';
@@ -16,18 +17,23 @@ import 'time_adventure_screen.dart';
 import 'money_market_screen.dart';
 import 'multipliers_tower_screen.dart';
 import 'algebra_realm_screen.dart';
+import 'family_remote_duel_setup_screen.dart';
 
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
   final StoryProgress? progress;
   /// Ebeveyn paneli hikâye önizlemesinden açıldıysa bölüm ekranında aile daveti gösterilir.
   final bool openedFromParentPanel;
+  final String? initialWorldId;
+  final String? initialChapterId;
 
   const WorldMapScreen({
     super.key,
     required this.worlds,
     this.progress,
     this.openedFromParentPanel = false,
+    this.initialWorldId,
+    this.initialChapterId,
   });
 
   @override
@@ -40,6 +46,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   late AnimationController _floatController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _floatAnimation;
+  bool _handledInitialDeepLink = false;
 
   @override
   void initState() {
@@ -64,6 +71,22 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleInitialDeepLink();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant WorldMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_handledInitialDeepLink &&
+        widget.worlds.isNotEmpty &&
+        oldWidget.worlds.length != widget.worlds.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleInitialDeepLink();
+      });
+    }
   }
 
   @override
@@ -71,6 +94,22 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     _pulseController.dispose();
     _floatController.dispose();
     super.dispose();
+  }
+
+  void _handleInitialDeepLink() {
+    if (!mounted || _handledInitialDeepLink) return;
+    final worldId = widget.initialWorldId;
+    if (worldId == null || worldId.isEmpty || widget.worlds.isEmpty) return;
+    StoryWorld? world;
+    for (final w in widget.worlds) {
+      if (w.id == worldId) {
+        world = w;
+        break;
+      }
+    }
+    if (world == null) return;
+    _handledInitialDeepLink = true;
+    _openWorld(world, forcedChapterId: widget.initialChapterId);
   }
 
   @override
@@ -474,7 +513,115 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 
-  void _openWorld(StoryWorld world) {
+  TopicType? _topicForWorld(StoryWorld world) {
+    if (world.theme == WorldTheme.numberForest ||
+        world.nameKey == 'world_number_forest' ||
+        world.nameKey == 'world_fairy_land' ||
+        world.id == 'periler_diyari') {
+      return TopicType.counting;
+    }
+    if (world.theme == WorldTheme.geometryCastle) return TopicType.geometry;
+    if (world.theme == WorldTheme.measurementLand) return TopicType.measurements;
+    if (world.theme == WorldTheme.timeAdventure ||
+        world.nameKey == 'world_time_adventure') {
+      return TopicType.time;
+    }
+    if (world.theme == WorldTheme.moneyMarket ||
+        world.nameKey == 'world_money_market') {
+      return TopicType.addition;
+    }
+    if (world.theme == WorldTheme.multipliersTower ||
+        world.nameKey == 'world_multipliers_tower') {
+      return TopicType.multiplication;
+    }
+    if (world.nameKey == 'world_fraction_bakery' ||
+        world.theme == WorldTheme.fractionBakery) {
+      return TopicType.fractions;
+    }
+    if (world.id == 'algebra_realm' || world.nameKey == 'world_algebra_realm') {
+      return TopicType.algebra;
+    }
+    return null;
+  }
+
+  Future<void> _openWorld(StoryWorld world, {String? forcedChapterId}) async {
+    if (widget.openedFromParentPanel) {
+      final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+      final localizations = AppLocalizations(localeProvider.locale);
+      final worldTitle = localizations.get(world.nameKey);
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: const Color(0xFF1F2A5A),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetContext) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${world.iconEmoji} $worldTitle',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Nasıl başlatmak istersiniz?',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(sheetContext).pop('local'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                      backgroundColor: const Color(0xFF34A853),
+                    ),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Bu cihazda başlat'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(sheetContext).pop('remote'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF7AA7FF)),
+                    ),
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('Aile üyelerine istek gönder (uzaktan)'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      if (!mounted || choice == null) return;
+      if (choice == 'remote') {
+        final topic = _topicForWorld(world) ?? TopicType.counting;
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (ctx) => FamilyRemoteDuelSetupScreen(
+              onBack: () => Navigator.of(ctx).pop(),
+              initialTopic: topic,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final StoryInvitePayload? parentInvite =
         widget.openedFromParentPanel ? StoryInvitePayload.fromWorld(world) : null;
 
@@ -621,6 +768,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           world: world,
           progress: widget.progress,
           openedFromParentPanel: widget.openedFromParentPanel,
+          initialChapterId: forcedChapterId,
         ),
       ),
     );

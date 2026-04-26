@@ -3,11 +3,13 @@ class FamilyMember {
   final String userId;
   final String displayName;
   final bool isParent;
+  final String? profileEmoji;
 
   const FamilyMember({
     required this.userId,
     required this.displayName,
     this.isParent = false,
+    this.profileEmoji,
   });
 
   factory FamilyMember.fromMap(Map<String, dynamic> map) {
@@ -15,6 +17,7 @@ class FamilyMember {
       userId: map['userId'] ?? '',
       displayName: map['displayName'] ?? 'Oyuncu',
       isParent: map['isParent'] ?? false,
+      profileEmoji: map['profileEmoji'] as String?,
     );
   }
 
@@ -22,6 +25,7 @@ class FamilyMember {
         'userId': userId,
         'displayName': displayName,
         'isParent': isParent,
+        'profileEmoji': profileEmoji,
       };
 }
 
@@ -36,6 +40,7 @@ class LeaderboardEntry {
   final bool isParent;
   final int earnedBadges;
   final List<int> weeklyValues;
+  final String? profileEmoji;
 
   const LeaderboardEntry({
     required this.rank,
@@ -47,6 +52,7 @@ class LeaderboardEntry {
     this.isParent = false,
     this.earnedBadges = 0,
     this.weeklyValues = const [],
+    this.profileEmoji,
   });
 }
 

@@ -762,7 +762,7 @@ class AuthService extends ChangeNotifier {
   }
 
   // Update user profile
-  Future<void> updateProfile({String? displayName}) async {
+  Future<void> updateProfile({String? displayName, String? profileEmoji}) async {
     if (_currentUser == null || _currentUser!.isGuest) return;
 
     try {
@@ -779,6 +779,9 @@ class AuthService extends ChangeNotifier {
       if (displayName != null && displayName.isNotEmpty) {
         updateData['displayName'] = displayName;
       }
+      if (profileEmoji != null && profileEmoji.isNotEmpty) {
+        updateData['profileEmoji'] = profileEmoji;
+      }
 
       await _firestore.collection('users').doc(_currentUser!.uid).set(
         updateData,
@@ -786,7 +789,10 @@ class AuthService extends ChangeNotifier {
       );
 
       // Update current user
-      _currentUser = _currentUser!.copyWith(displayName: displayName);
+      _currentUser = _currentUser!.copyWith(
+        displayName: displayName,
+        profileEmoji: profileEmoji,
+      );
       notifyListeners();
     } catch (e) {
       debugPrint("Update profile error: $e");

@@ -8,7 +8,6 @@ import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
 import '../utils/constants.dart';
 import '../widgets/bottom_action_button.dart';
-import '../widgets/parent_mode_regions_map.dart';
 import '../widgets/shiny_button.dart';
 import 'family_duel_race_screen.dart';
 import 'family_remote_duel_setup_screen.dart';
@@ -101,6 +100,33 @@ class ParentModeGamesHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final actionCards = [
+      _ActionCardData(
+        title: 'Birlikte Yarış',
+        subtitle: 'Aynı sorularda kafa kafaya eğlenceli yarış',
+        icon: Icons.emoji_events,
+        emoji: '🏁',
+        onTap: () => _openFamilyRace(context),
+        colors: const [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+      ),
+      if (_embeddedInPanel)
+        _ActionCardData(
+          title: 'Hikaye Önizleme',
+          subtitle: 'Çocuk ekranındaki hikaye modunu aç',
+          icon: Icons.menu_book_outlined,
+          emoji: '📖',
+          onTap: () {
+            Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (ctx) => const StoryModeScreen(
+                  openedFromParentPanel: true,
+                ),
+              ),
+            );
+          },
+          colors: const [Color(0xFF8360C3), Color(0xFF2EBF91)],
+        ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,74 +152,51 @@ class ParentModeGamesHub extends StatelessWidget {
           textAlign: TextAlign.center,
           style: subtitleStyle,
         ),
-        const SizedBox(height: 28),
-        ParentModeRegionsMap(
-          onExploreAll: () => _openFamilyRace(context),
-          onPickRegion: (TopicType t) => _openFamilyRace(context, presetTopic: t),
+        const SizedBox(height: 18),
+        Text(
+          'Hızlı Başlat',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        const SizedBox(height: 28),
-        if (_embeddedInPanel) ...[
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white38),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            icon: const Icon(Icons.menu_book_outlined, color: Colors.amber),
-            label: const Text(
-              'Hikâye modunu önizle (çocuk ekranı)',
-              textAlign: TextAlign.center,
-            ),
-            onPressed: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (ctx) => const StoryModeScreen(
-                    openedFromParentPanel: true,
-                  ),
+        const SizedBox(height: 10),
+        ...List.generate(actionCards.length, (index) {
+          final card = actionCards[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 320 + (index * 100)),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - value) * 14),
+                  child: child,
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-        ],
-        ShinyButton(
-          text: '🏁 Birlikte yarış',
-          onPressed: () => _openFamilyRace(context),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.white54),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-          icon: const Icon(Icons.phonelink, color: Colors.amber),
-          label: const Text(
-            '📱 Uzaktan düello (Premium)',
-            textAlign: TextAlign.center,
-          ),
-          onPressed: () => _openRemoteDuel(context),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: BottomActionButton(
-                text: _embeddedInPanel ? 'Gelişim özeti' : localizations.parentPanel,
-                emoji: _embeddedInPanel ? '📊' : '',
-                icon: _embeddedInPanel ? null : const ParentPanelLeadingIcon(),
-                onPressed: () {
-                  if (_embeddedInPanel) {
-                    _onJumpToGelisimTab?.call();
-                  } else {
-                    _onOpenParentPanelFromHome?.call();
-                  }
-                },
               ),
+              child: _ActionModeCard(data: card),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
+          );
+        }),
+        if (!_embeddedInPanel) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: BottomActionButton(
+                  text: localizations.parentPanel,
+                  emoji: '',
+                  icon: const ParentPanelLeadingIcon(),
+                  onPressed: () => _onOpenParentPanelFromHome?.call(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         TextButton(
           onPressed: () => _exitToChildMode(context),
           child: Text(
@@ -202,6 +205,108 @@ class ParentModeGamesHub extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ActionCardData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String emoji;
+  final VoidCallback onTap;
+  final List<Color> colors;
+
+  const _ActionCardData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.emoji,
+    required this.onTap,
+    required this.colors,
+  });
+}
+
+class _ActionModeCard extends StatefulWidget {
+  final _ActionCardData data;
+  const _ActionModeCard({required this.data});
+
+  @override
+  State<_ActionModeCard> createState() => _ActionModeCardState();
+}
+
+class _ActionModeCardState extends State<_ActionModeCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = widget.data;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: data.onTap,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 110),
+        scale: _pressed ? 0.98 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 86,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: data.colors),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: data.colors.first.withValues(alpha: 0.32),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text(data.emoji, style: const TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      data.subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.92),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(data.icon, color: Colors.white, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

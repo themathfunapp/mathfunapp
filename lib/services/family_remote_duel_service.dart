@@ -19,6 +19,8 @@ class FamilyRemoteDuelService {
 
   static const String invitesCol = 'familyRemoteDuelInvites';
   static const String sessionsCol = 'familyRemoteDuelSessions';
+  static const int inviteTtlSeconds = 90;
+  static const int remoteQuestionCount = 10;
 
   /// Çocuk hesabı: davetler (istemci tarafında `status == pending` süzülür; ek indeks gerekmez).
   Stream<QuerySnapshot<Map<String, dynamic>>> pendingInvitesStream(String userId) {
@@ -85,7 +87,7 @@ class FamilyRemoteDuelService {
 
   List<Map<String, dynamic>> _generateQuestions(TopicType topic, int seed) {
     final out = <Map<String, dynamic>>[];
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < remoteQuestionCount; i++) {
       final r = math.Random(seed + i * 1000003);
       final q = TopicGameManager.generateTopicQuestion(
         topic,
@@ -97,62 +99,98 @@ class FamilyRemoteDuelService {
     return out;
   }
 
-  /// Premium ebeveyn çocuğa davet oluşturur; sorular sunucuda tek sefer üretilir.
-  Future<({String sessionId, String inviteId})?> createInvite({
+  int _nowMs() => DateTime.now().millisecondsSinceEpoch;
+
+  bool _isExpiredFromData(Map<String, dynamic> data) {
+    final expiresAtMs = (data['expiresAtMs'] as num?)?.toInt() ?? 0;
+    return expiresAtMs > 0 && _nowMs() > expiresAtMs;
+  }
+
+  /// Premium ebeveyn bir veya daha fazla çocuğa davet oluşturur.
+  /// Oturum, tüm davetliler kabul edince `active` olur.
+  Future<({String sessionId, List<String> inviteIds})?> createInvite({
     required String hostUserId,
     required String hostDisplayName,
-    required String guestUserId,
-    required String guestDisplayName,
+    required List<String> guestUserIds,
+    required Map<String, String> guestDisplayNamesById,
     required TopicType topic,
   }) async {
-    if (hostUserId.isEmpty || guestUserId.isEmpty || hostUserId == guestUserId) {
+    final normalizedGuests = guestUserIds
+        .where((id) => id.isNotEmpty && id != hostUserId)
+        .toSet()
+        .toList();
+    if (hostUserId.isEmpty || normalizedGuests.isEmpty) {
       return null;
     }
 
     final hostPremium = await readUserPremiumFlag(hostUserId);
-    final guestPremium = await readUserPremiumFlag(guestUserId);
-    if (!hostPremium || !guestPremium) {
+    if (!hostPremium) {
       debugPrint('FamilyRemoteDuel: her iki hesapta da Premium (Firestore isPremium) gerekli.');
       return null;
     }
+    for (final guestUserId in normalizedGuests) {
+      final guestPremium = await readUserPremiumFlag(guestUserId);
+      if (!guestPremium) return null;
+    }
 
-    final seed = DateTime.now().millisecondsSinceEpoch ^ hostUserId.hashCode ^ guestUserId.hashCode;
+    final seed = DateTime.now().millisecondsSinceEpoch ^
+        hostUserId.hashCode ^
+        normalizedGuests.fold<int>(0, (a, b) => a ^ b.hashCode);
     final questions = _generateQuestions(topic, seed);
     final sessionRef = _db.collection(sessionsCol).doc();
-    final inviteRef = _db.collection(invitesCol).doc();
+    final expiresAtMs = _nowMs() + inviteTtlSeconds * 1000;
+    final inviteRefs = normalizedGuests.map((_) => _db.collection(invitesCol).doc()).toList();
 
     try {
       await _db.runTransaction((tx) async {
+        final participantUserIds = <String>[hostUserId, ...normalizedGuests];
+        final participantDisplayNames = <String, String>{
+          hostUserId: hostDisplayName,
+          for (final id in normalizedGuests)
+            id: guestDisplayNamesById[id] ?? 'Aile üyesi',
+        };
         tx.set(sessionRef, {
           'hostUserId': hostUserId,
-          'guestUserId': guestUserId,
           'hostDisplayName': hostDisplayName,
-          'guestDisplayName': guestDisplayName,
+          'guestUserId': normalizedGuests.first,
+          'guestDisplayName': guestDisplayNamesById[normalizedGuests.first] ?? 'Çocuk',
+          'invitedUserIds': normalizedGuests,
+          'acceptedUserIds': <String>[],
+          'participantUserIds': participantUserIds,
+          'participantDisplayNames': participantDisplayNames,
           'topicKey': topic.name,
           'questionSeed': seed,
           'questions': questions,
           'status': 'waiting_accept',
           'currentRoundIndex': 0,
-          'roundHostAnswered': false,
-          'roundGuestAnswered': false,
-          'hostCorrectCount': 0,
-          'guestCorrectCount': 0,
+          'roundAnsweredUserIds': <String>[],
+          'correctCounts': <String, int>{
+            for (final id in participantUserIds) id: 0,
+          },
           'leaderboardSynced': false,
+          'expiresAtMs': expiresAtMs,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        tx.set(inviteRef, {
-          'fromUserId': hostUserId,
-          'fromDisplayName': hostDisplayName,
-          'toUserId': guestUserId,
-          'toDisplayName': guestDisplayName,
-          'topicKey': topic.name,
-          'sessionId': sessionRef.id,
-          'status': 'pending',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        for (var i = 0; i < normalizedGuests.length; i++) {
+          final guestUserId = normalizedGuests[i];
+          tx.set(inviteRefs[i], {
+            'fromUserId': hostUserId,
+            'fromDisplayName': hostDisplayName,
+            'toUserId': guestUserId,
+            'toDisplayName': guestDisplayNamesById[guestUserId] ?? 'Çocuk',
+            'topicKey': topic.name,
+            'sessionId': sessionRef.id,
+            'status': 'pending',
+            'expiresAtMs': expiresAtMs,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
       });
-      return (sessionId: sessionRef.id, inviteId: inviteRef.id);
+      return (
+        sessionId: sessionRef.id,
+        inviteIds: inviteRefs.map((e) => e.id).toList(),
+      );
     } catch (e) {
       debugPrint('FamilyRemoteDuel createInvite: $e');
       return null;
@@ -173,6 +211,13 @@ class FamilyRemoteDuelService {
         final d = inv.data()!;
         if (d['toUserId'] != acceptingUserId) throw Exception('not_receiver');
         if (d['status'] != 'pending') throw Exception('not_pending');
+        if (_isExpiredFromData(d)) {
+          tx.update(inviteRef, {
+            'status': 'expired',
+            'respondedAt': FieldValue.serverTimestamp(),
+          });
+          throw Exception('invite_expired');
+        }
         final sessionId = d['sessionId'] as String? ?? '';
         if (sessionId.isEmpty) throw Exception('no_session');
 
@@ -181,14 +226,38 @@ class FamilyRemoteDuelService {
         if (!s.exists) throw Exception('no_session_doc');
         final sd = s.data()!;
         if (sd['status'] != 'waiting_accept') throw Exception('bad_session_status');
+        if (_isExpiredFromData(sd)) {
+          tx.update(inviteRef, {
+            'status': 'expired',
+            'respondedAt': FieldValue.serverTimestamp(),
+          });
+          tx.update(sessionRef, {
+            'status': 'expired',
+            'cancelReason': 'invite_timeout',
+          });
+          throw Exception('session_expired');
+        }
 
+        final invited = (sd['invitedUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toSet();
+        if (!invited.contains(acceptingUserId)) throw Exception('not_invited');
+        final accepted = (sd['acceptedUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toSet();
+        accepted.add(acceptingUserId);
+
+        final everyoneAccepted = accepted.length == invited.length && invited.isNotEmpty;
         tx.update(inviteRef, {
           'status': 'accepted',
           'respondedAt': FieldValue.serverTimestamp(),
         });
         tx.update(sessionRef, {
-          'status': 'active',
-          'startedAt': FieldValue.serverTimestamp(),
+          'acceptedUserIds': accepted.toList(),
+          if (everyoneAccepted) 'status': 'active',
+          if (everyoneAccepted) 'startedAt': FieldValue.serverTimestamp(),
         });
       });
       return true;
@@ -201,24 +270,40 @@ class FamilyRemoteDuelService {
   Future<void> declineInvite(String inviteId, String userId) async {
     try {
       final ref = _db.collection(invitesCol).doc(inviteId);
+      String sessionId = '';
       await _db.runTransaction((tx) async {
         final inv = await tx.get(ref);
         if (!inv.exists) return;
         final d = inv.data()!;
         if (d['toUserId'] != userId) return;
         if (d['status'] != 'pending') return;
-        final sessionId = d['sessionId'] as String?;
+        sessionId = (d['sessionId'] as String?) ?? '';
         tx.update(ref, {
           'status': 'declined',
           'respondedAt': FieldValue.serverTimestamp(),
         });
-        if (sessionId != null && sessionId.isNotEmpty) {
+        if (sessionId.isNotEmpty) {
           tx.update(_db.collection(sessionsCol).doc(sessionId), {
             'status': 'cancelled',
             'cancelReason': 'declined',
           });
         }
       });
+
+      // Bir üye reddettiyse aynı oturuma ait diğer bekleyen davetleri de kapat.
+      if (sessionId.isNotEmpty) {
+        final pending = await _db
+            .collection(invitesCol)
+            .where('sessionId', isEqualTo: sessionId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+        for (final doc in pending.docs) {
+          await doc.reference.update({
+            'status': 'cancelled',
+            'respondedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
     } catch (e) {
       debugPrint('FamilyRemoteDuel declineInvite: $e');
     }
@@ -239,65 +324,60 @@ class FamilyRemoteDuelService {
         final data = snap.data()!;
         if (data['status'] != 'active') return;
 
-        final hostUid = data['hostUserId'] as String? ?? '';
-        final guestUid = data['guestUserId'] as String? ?? '';
-        final isHost = userId == hostUid;
-        final isGuest = userId == guestUid;
-        if (!isHost && !isGuest) return;
+        final participantUserIds = (data['participantUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (!participantUserIds.contains(userId)) return;
 
         final roundIdx = (data['currentRoundIndex'] as num?)?.toInt() ?? 0;
         final questionsRaw = data['questions'];
         final questions = decodeQuestionsList(questionsRaw);
         if (questions.isEmpty || roundIdx >= questions.length) return;
 
-        final hostDone = data['roundHostAnswered'] == true;
-        final guestDone = data['roundGuestAnswered'] == true;
-
-        if (isHost && hostDone) return;
-        if (isGuest && guestDone) return;
+        final answeredSet = (data['roundAnsweredUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .toSet();
+        if (answeredSet.contains(userId)) return;
 
         final q = questions[roundIdx];
         final correct = familyDuelIsCorrect(q, pickedValue);
 
-        var hostCorrect = (data['hostCorrectCount'] as num?)?.toInt() ?? 0;
-        var guestCorrect = (data['guestCorrectCount'] as num?)?.toInt() ?? 0;
-        var hostAnswered = hostDone;
-        var guestAnswered = guestDone;
-
-        if (isHost) {
-          if (correct) hostCorrect++;
-          hostAnswered = true;
-        } else {
-          if (correct) guestCorrect++;
-          guestAnswered = true;
+        final countsRaw = (data['correctCounts'] as Map?) ?? const {};
+        final counts = <String, int>{
+          for (final entry in countsRaw.entries)
+            entry.key.toString(): (entry.value as num?)?.toInt() ?? 0,
+        };
+        for (final id in participantUserIds) {
+          counts.putIfAbsent(id, () => 0);
         }
+        if (correct) counts[userId] = (counts[userId] ?? 0) + 1;
+        answeredSet.add(userId);
 
         var nextRound = roundIdx;
-        var resetHost = hostAnswered;
-        var resetGuest = guestAnswered;
+        var nextAnswered = answeredSet.toList();
 
-        if (hostAnswered && guestAnswered) {
+        if (answeredSet.length == participantUserIds.length) {
           if (roundIdx >= questions.length - 1) {
+            final hostUid = data['hostUserId'] as String? ?? '';
+            final guestUid = data['guestUserId'] as String? ?? '';
             tx.update(sessionRef, {
-              'roundHostAnswered': true,
-              'roundGuestAnswered': true,
-              'hostCorrectCount': hostCorrect,
-              'guestCorrectCount': guestCorrect,
+              'roundAnsweredUserIds': answeredSet.toList(),
+              'correctCounts': counts,
+              'hostCorrectCount': counts[hostUid] ?? 0,
+              'guestCorrectCount': counts[guestUid] ?? 0,
               'status': 'finished',
               'finishedAt': FieldValue.serverTimestamp(),
             });
             return;
           }
           nextRound = roundIdx + 1;
-          resetHost = false;
-          resetGuest = false;
+          nextAnswered = <String>[];
         }
 
         tx.update(sessionRef, {
-          'roundHostAnswered': resetHost,
-          'roundGuestAnswered': resetGuest,
-          'hostCorrectCount': hostCorrect,
-          'guestCorrectCount': guestCorrect,
+          'roundAnsweredUserIds': nextAnswered,
+          'correctCounts': counts,
           'currentRoundIndex': nextRound,
         });
       });

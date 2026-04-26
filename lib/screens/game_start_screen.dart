@@ -1151,7 +1151,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 subtitle: localizations.get('brain_games'),
                 color: const Color(0xFF00CEC9),
                 onTap: () => _openDiscoverItem('intelligence_games'),
-                isPremium: true,
+                isPremium: false,
               ),
             ),
             const SizedBox(width: 10),
@@ -1163,7 +1163,7 @@ class _GameStartScreenState extends State<GameStartScreen>
                 subtitle: localizations.get('fun_design'),
                 color: const Color(0xFF74B9FF),
                 onTap: () => _openDiscoverItem('colorful_math'),
-                isPremium: true,
+                isPremium: false,
               ),
             ),
           ],
@@ -1834,15 +1834,10 @@ class _GameStartScreenState extends State<GameStartScreen>
   void _openDiscoverItem(String itemKey) {
     debugPrint('Opening discover item: $itemKey');
 
-    final authService = Provider.of<AuthService>(context, listen: false);
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     final localizations = AppLocalizations(localeProvider.locale);
     
-    const premiumFeatures = ['intelligence_games', 'colorful_math'];
-    if (premiumFeatures.contains(itemKey) && !authService.isPremium) {
-      _showPremiumRequiredDialog(localizations.get(itemKey));
-      return;
-    }
+    // Geliştirme aşamasında premium kilidi devre dışı.
 
     if (itemKey == 'colorful_math') {
       Navigator.push(
