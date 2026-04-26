@@ -29,6 +29,7 @@ import '../screens/story_mode_screen.dart';
 import '../screens/mini_games_screen.dart';
 import '../screens/game_start_screen.dart';
 import '../screens/parent_panel_screen.dart';
+import '../screens/world_leaderboard_screen.dart';
 import '../screens/parent_mode_games_hub.dart';
 import '../screens/ai_storyteller_screen.dart';
 import '../screens/voice_commands_screen.dart';
@@ -435,6 +436,22 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
 
+      // Dünya sıralaması (kayıtlı hesap; misafirde gizli — Profil içinde de var)
+      if (authService.currentUser?.isGuest != true) ...[
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: BottomActionButton(
+                text: localizations.get('world_leaderboard_title'),
+                emoji: '🌍',
+                onPressed: () => _openWorldLeaderboardScreen(context),
+              ),
+            ),
+          ],
+        ),
+      ],
+
       if (authService.currentUser?.isGuest != true)
         Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -687,6 +704,15 @@ class _HomeScreenState extends State<HomeScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+      ),
+    );
+  }
+
+  void _openWorldLeaderboardScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const WorldLeaderboardScreen(),
       ),
     );
   }

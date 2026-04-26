@@ -330,5 +330,33 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
+
+    // Dünya sıralaması: liste herkese açık okunur (orderBy sorgusu); yazma yalnızca kendi UID belgesi.
+    // Not: read için signedIn() bazı istemcilerde token senkronu gecikince permission-denied verebiliyor.
+    match /worldCoinsLeaderboard/{userId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.coins is int
+        && request.resource.data.coins >= 0
+        && request.resource.data.coins < 1000000000
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /worldDiamondsLeaderboard/{userId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diamonds is int
+        && request.resource.data.diamonds >= 0
+        && request.resource.data.diamonds < 1000000000
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
   }
 }

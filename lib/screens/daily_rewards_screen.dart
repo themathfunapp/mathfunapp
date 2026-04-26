@@ -54,7 +54,6 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (context) => WelcomeScreen(
-            initialPageIsLoginOptions: true,
             onSignInComplete: () {
               Navigator.pushReplacement(
                 context,

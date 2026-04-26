@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/daily_reward.dart';
 import '../models/app_user.dart';
+import 'world_leaderboard_sync.dart';
 
 class DailyRewardService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -10,6 +12,8 @@ class DailyRewardService extends ChangeNotifier {
   
   String? _userId;
   bool _isGuest = true;
+  String? _leaderboardDisplayName;
+  String? _leaderboardProfileEmoji;
   
   UserRewards? _userRewards;
   Map<String, UserTaskProgress> _taskProgress = {};
@@ -30,33 +34,33 @@ class DailyRewardService extends ChangeNotifier {
   
   static const List<StreakReward> streakRewards = [
     StreakReward(day: 1, rewards: [
-      RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙'),
+      RewardItem(type: RewardType.coins, amount: 8, emoji: '🪙'),
       RewardItem(type: RewardType.stars, amount: 1, emoji: '⭐'),
     ]),
     StreakReward(day: 2, rewards: [
-      RewardItem(type: RewardType.coins, amount: 100, emoji: '🪙'),
-      RewardItem(type: RewardType.coins, amount: 50, emoji: '⚡'),
+      RewardItem(type: RewardType.coins, amount: 10, emoji: '🪙'),
+      RewardItem(type: RewardType.coins, amount: 8, emoji: '⚡'),
     ]),
     StreakReward(day: 3, rewards: [
-      RewardItem(type: RewardType.coins, amount: 150, emoji: '🪙'),
-      RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.halfOptions, emoji: '✂️'),
+      RewardItem(type: RewardType.coins, amount: 12, emoji: '🪙'),
+      RewardItem(type: RewardType.stars, amount: 1, emoji: '⭐'),
     ]),
     StreakReward(day: 4, rewards: [
-      RewardItem(type: RewardType.coins, amount: 200, emoji: '🪙'),
-      RewardItem(type: RewardType.diamonds, amount: 5, emoji: '💎'),
+      RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
+      RewardItem(type: RewardType.diamonds, amount: 1, emoji: '💎'),
     ]),
     StreakReward(day: 5, rewards: [
-      RewardItem(type: RewardType.coins, amount: 300, emoji: '🪙'),
-      RewardItem(type: RewardType.powerUp, amount: 2, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
+      RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
+      RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
     ], isSpecial: true),
     StreakReward(day: 6, rewards: [
-      RewardItem(type: RewardType.coins, amount: 400, emoji: '🪙'),
-      RewardItem(type: RewardType.diamonds, amount: 8, emoji: '💎'),
+      RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
+      RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
     ]),
     StreakReward(day: 7, rewards: [
-      RewardItem(type: RewardType.coins, amount: 1000, emoji: '🪙'),
-      RewardItem(type: RewardType.diamonds, amount: 20, emoji: '💎'),
-      RewardItem(type: RewardType.stars, amount: 5, emoji: '⭐'),
+      RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
+      RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
+      RewardItem(type: RewardType.stars, amount: 2, emoji: '⭐'),
       RewardItem(type: RewardType.badge, amount: 1, itemId: 'weekly_streak', emoji: '🏆'),
     ], isSpecial: true),
   ];
@@ -72,7 +76,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '🎯',
       type: TaskType.solveQuestions,
       targetValue: 5,
-      rewards: [RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 8, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     DailyTask(
@@ -82,7 +86,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '🎮',
       type: TaskType.playGames,
       targetValue: 3,
-      rewards: [RewardItem(type: RewardType.coins, amount: 30, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 10, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     DailyTask(
@@ -92,7 +96,7 @@ class DailyRewardService extends ChangeNotifier {
       emoji: '📅',
       type: TaskType.dailyLogin,
       targetValue: 1,
-      rewards: [RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙')],
+      rewards: [RewardItem(type: RewardType.coins, amount: 8, emoji: '🪙')],
       difficulty: TaskDifficulty.easy,
     ),
     // Orta görevler
@@ -104,8 +108,8 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.correctStreak,
       targetValue: 5,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 30, emoji: '🪙'),
-        RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
+        RewardItem(type: RewardType.coins, amount: 12, emoji: '🪙'),
+        RewardItem(type: RewardType.diamonds, amount: 1, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.medium,
     ),
@@ -117,7 +121,7 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.solveQuestions,
       targetValue: 10,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 40, emoji: '🪙'),
+        RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
         RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.medium,
@@ -131,7 +135,7 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.perfectGame,
       targetValue: 1,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 40, emoji: '🪙'),
+        RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
         RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
       ],
       difficulty: TaskDifficulty.hard,
@@ -144,7 +148,7 @@ class DailyRewardService extends ChangeNotifier {
       type: TaskType.fastAnswers,
       targetValue: 10,
       rewards: [
-        RewardItem(type: RewardType.coins, amount: 50, emoji: '🪙'),
+        RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
         RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
       ],
       difficulty: TaskDifficulty.hard,
@@ -155,43 +159,43 @@ class DailyRewardService extends ChangeNotifier {
   
   static const List<WheelSlice> wheelSlices = [
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 10, emoji: '🪙'),
-      probability: 0.17,
+      reward: RewardItem(type: RewardType.coins, amount: 8, emoji: '🪙'),
+      probability: 0.22,
       colorIndex: 0,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 15, emoji: '🪙'),
-      probability: 0.20,
+      reward: RewardItem(type: RewardType.coins, amount: 10, emoji: '🪙'),
+      probability: 0.22,
       colorIndex: 1,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 20, emoji: '🪙'),
-      probability: 0.15,
+      reward: RewardItem(type: RewardType.coins, amount: 12, emoji: '🪙'),
+      probability: 0.20,
       colorIndex: 2,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 30, emoji: '⚡'),
-      probability: 0.15,
+      reward: RewardItem(type: RewardType.coins, amount: 15, emoji: '⚡'),
+      probability: 0.16,
       colorIndex: 3,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.diamonds, amount: 5, emoji: '💎'),
-      probability: 0.10,
+      reward: RewardItem(type: RewardType.diamonds, amount: 1, emoji: '💎'),
+      probability: 0.12,
       colorIndex: 4,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
-      probability: 0.08,
+      reward: RewardItem(type: RewardType.diamonds, amount: 2, emoji: '💎'),
+      probability: 0.04,
       colorIndex: 5,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.coins, amount: 20, emoji: '💰'),
-      probability: 0.05,
+      reward: RewardItem(type: RewardType.powerUp, amount: 1, powerUpType: PowerUpType.doublePoints, emoji: '✨'),
+      probability: 0.02,
       colorIndex: 6,
     ),
     WheelSlice(
-      reward: RewardItem(type: RewardType.stars, amount: 10, emoji: '⭐'),
-      probability: 0.10,
+      reward: RewardItem(type: RewardType.stars, amount: 2, emoji: '⭐'),
+      probability: 0.02,
       colorIndex: 7,
     ),
   ];
@@ -204,12 +208,16 @@ class DailyRewardService extends ChangeNotifier {
       _isGuest = true;
       _userRewards = null;
       _taskProgress = {};
+      _leaderboardDisplayName = null;
+      _leaderboardProfileEmoji = null;
       notifyListeners();
       return;
     }
 
     _userId = user.uid;
     _isGuest = user.isGuest;
+    _leaderboardDisplayName = user.isGuest ? null : user.username;
+    _leaderboardProfileEmoji = user.isGuest ? null : user.profileEmoji;
 
     if (!_isGuest) {
       _loadUserRewards();
@@ -230,7 +238,8 @@ class DailyRewardService extends ChangeNotifier {
           .doc('daily')
           .get();
 
-      if (doc.exists && doc.data() != null) {
+      final hadExistingDoc = doc.exists && doc.data() != null;
+      if (hadExistingDoc) {
         _userRewards = UserRewards.fromMap(doc.data()!, _userId!);
         await _checkAndResetDaily();
       } else {
@@ -238,6 +247,22 @@ class DailyRewardService extends ChangeNotifier {
         await _saveUserRewards();
       }
       notifyListeners();
+
+      // Mevcut kayıt yüklendiğinde sıralamayı güncelle (_saveUserRewards zaten yayımlıyorsa tekrar etme)
+      if (_userRewards != null && hadExistingDoc) {
+        unawaited(
+          publishWorldLeaderboardScores(
+            firestore: _firestore,
+            userId: _userId!,
+            coins: _userRewards!.coins,
+            diamonds: _userRewards!.diamonds,
+            displayName: _leaderboardDisplayName,
+            profileEmoji: _leaderboardProfileEmoji,
+          ).catchError((Object e) {
+            debugPrint('World leaderboard publish: $e');
+          }),
+        );
+      }
     } catch (e) {
       debugPrint('Load user rewards error: $e');
       _userRewards = UserRewards(userId: _userId!);
@@ -468,23 +493,25 @@ class DailyRewardService extends ChangeNotifier {
     final rand = _random.nextDouble();
 
     if (rand < 0.40) {
-      // %40 - Coin (düşük aralık)
-      final amounts = [20, 25, 30, 35, 40];
+      // %40 - Altın (5–15)
+      final amounts = [5, 6, 8, 10, 12, 15];
       return RewardItem(
         type: RewardType.coins,
         amount: amounts[_random.nextInt(amounts.length)],
         emoji: '🪙',
       );
     } else if (rand < 0.60) {
-      // %20 - Ekstra altın
+      // %20 - Altın (5–15)
       return RewardItem(
         type: RewardType.coins,
-        amount: 25 + _random.nextInt(16),
+        amount: 5 + _random.nextInt(11),
         emoji: '⚡',
       );
     } else if (rand < 0.72) {
-      // %12 - Güçlendirici
-      final powerUps = PowerUpType.values;
+      // %12 - Güçlendirici (makas / halfOptions hariç — oyunda kullanılmıyor)
+      final powerUps = PowerUpType.values
+          .where((p) => p != PowerUpType.halfOptions)
+          .toList();
       return RewardItem(
         type: RewardType.powerUp,
         amount: 1,
@@ -495,21 +522,21 @@ class DailyRewardService extends ChangeNotifier {
       // %10 - Profil yıldızı
       return RewardItem(
         type: RewardType.stars,
-        amount: 1 + _random.nextInt(3),
+        amount: 1 + _random.nextInt(2),
         emoji: '⭐',
       );
     } else if (rand < 0.86) {
-      // %4 - Elmas (azaltildi)
+      // %4 - Elmas (en fazla 2)
       return RewardItem(
         type: RewardType.diamonds,
         amount: 1 + _random.nextInt(2),
         emoji: '💎',
       );
     } else {
-      // %14 - Biraz daha yüksek altın (yine sınırlı: 40–50)
+      // %14 - Altın (5–15)
       return RewardItem(
         type: RewardType.coins,
-        amount: 40 + _random.nextInt(11),
+        amount: 5 + _random.nextInt(11),
         emoji: '💰',
       );
     }
@@ -663,6 +690,17 @@ class DailyRewardService extends ChangeNotifier {
           .collection('rewards')
           .doc('daily')
           .set(_userRewards!.toMap());
+
+      if (!_isGuest && _userId != null && _userId!.isNotEmpty) {
+        await publishWorldLeaderboardScores(
+          firestore: _firestore,
+          userId: _userId!,
+          coins: _userRewards!.coins,
+          diamonds: _userRewards!.diamonds,
+          displayName: _leaderboardDisplayName,
+          profileEmoji: _leaderboardProfileEmoji,
+        );
+      }
     } catch (e) {
       debugPrint('Save user rewards error: $e');
     }

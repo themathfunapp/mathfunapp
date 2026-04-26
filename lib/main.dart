@@ -330,7 +330,6 @@ class AuthWrapper extends StatelessWidget {
               case ConnectionState.active:
               case ConnectionState.done:
                 return WelcomeScreen(
-                  initialPageIsLoginOptions: authService.showLoginOptionsOnWelcome,
                   onSignInComplete: () {
                     Navigator.pushReplacement(
                       context,

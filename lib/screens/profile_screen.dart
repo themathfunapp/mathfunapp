@@ -13,6 +13,7 @@ import '../widgets/bottom_action_button.dart';
 import 'parent_panel_screen.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
+import 'world_leaderboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -93,6 +94,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // İSTATİSTİKLER
                         _buildStatisticsCard(localizations),
                         const SizedBox(height: 24),
+
+                        if (!user.isGuest) ...[
+                          _buildWorldLeaderboardCard(context, localizations),
+                          const SizedBox(height: 24),
+                        ],
 
                         // BAŞARILAR
                         _buildAchievementsCard(localizations),
@@ -507,6 +513,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWorldLeaderboardCard(BuildContext context, AppLocalizations localizations) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const WorldLeaderboardScreen(),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Text('🌍', style: TextStyle(fontSize: 28)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        localizations.get('world_leaderboard_title'),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2d3436),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        localizations.get('world_leaderboard_subtitle'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade600, size: 28),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1037,7 +1107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Oturum açma sayfasına yönlendir (Matematiğe Hoş Geldiniz! - Google/E-posta/Misafir)
+  /// Oturum açma sayfasına yönlendir (Google / e-posta / misafir)
   Future<void> _navigateToLoginScreen(AuthService authService) async {
     if (_isLoading) return;
     try {
@@ -1046,7 +1116,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (context) => WelcomeScreen(
-            initialPageIsLoginOptions: true,
             onSignInComplete: () {
               Navigator.pushReplacement(
                 context,

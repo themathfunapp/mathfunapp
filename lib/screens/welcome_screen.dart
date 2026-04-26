@@ -8,23 +8,17 @@ import 'package:mathfun/models/app_user.dart';
 import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/screens/home_screen.dart';
 import 'package:mathfun/services/auth_service.dart';
-import 'package:mathfun/widgets/shiny_button.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'dart:ui';
 
 
 
 class WelcomeScreen extends StatefulWidget {
   final VoidCallback onSignInComplete;
   final VoidCallback onSkip;
-  /// Profilde "Hesap Oluştur" tıklandığında true; giriş seçenekleri sayfasına (index 1) başlar
-  final bool initialPageIsLoginOptions;
 
   const WelcomeScreen({
     super.key,
     required this.onSignInComplete,
     required this.onSkip,
-    this.initialPageIsLoginOptions = false,
   });
 
   @override
@@ -32,9 +26,6 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  late final PageController _pageController;
-  bool _initialized = false;
-  late int _currentPage;
   bool _isLoading = false;
   String _selectedOption = '';
 
@@ -67,22 +58,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     {'code': 'it', 'name': 'Italiano', 'flag': '🇮🇹'},
     {'code': 'pl', 'name': 'Polski', 'flag': '🇵🇱'},
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    final initialPage = widget.initialPageIsLoginOptions ? 1 : 0;
-    _currentPage = initialPage;
-    _pageController = PageController(initialPage: initialPage);
-    _initFirebase();
-  }
-
-  Future<void> _initFirebase() async {
-    await Firebase.initializeApp();
-    setState(() {
-      _initialized = true;
-    });
-  }
 
   String _platformTitle(Locale locale) {
     if (_isIOS || _isMacOS) return AppLocalizations(locale).get('apple_signin_title');
@@ -453,215 +428,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildFeatureItem({
-    required IconData icon,
-    required Color color,
-    required String text,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 12),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 15,
-            color: Colors.grey[700],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWelcomePage(AppLocalizations localizations) {
-    const imagePath = 'assets/images/welcome_illustration.png';
-
-    return Stack(
-      children: [
-        // 1) ARKA PLAN: cover + blur + karartma (ekranı doldurur)
-        Positioned.fill(
-          child: Stack(
-            children: [
-              Image.asset(
-                imagePath,
-                fit: BoxFit.cover, // ekran dolsun
-                alignment: Alignment.center,
-              ),
-              BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                child: Container(color: Colors.black.withOpacity(0.25)),
-              ),
-            ],
-          ),
-        ),
-
-        // 2) ÖN PLAN: görselin tamamı (kırpma yok)
-        Positioned.fill(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(48, 100, 48, 140),
-              child: AspectRatio(
-                aspectRatio: 1.0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.30),
-                        blurRadius: 60,
-                        spreadRadius: -20,
-                        offset: const Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: ShaderMask(
-                      shaderCallback: (Rect rect) {
-                        return RadialGradient(
-                          center: Alignment.center,
-                          radius: 0.75,
-                          colors: [
-                            Colors.black,
-                            Colors.black,
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.85, 1.0],
-                        ).createShader(rect);
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: Image.asset(
-                        imagePath,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // 3) ÜSTTEKİ YAZILAR + BUTONLAR (senin mevcut content’in)
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.menu_book, color: Colors.white, size: 28),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        localizations.get('app_name'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  localizations.get('app_motto'),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const Spacer(),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    localizations.get('welcome_title'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
-                    ),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.visible,
-                    softWrap: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    localizations.get('welcome_description'),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      height: 1.4,
-                      shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
-                    ),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.visible,
-                    softWrap: true,
-                  ),
-                ),
-
-                const Spacer(),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _pageController.animateToPage(
-                          1,
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orangeAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 8,
-                        shadowColor: Colors.black54,
-                      ),
-                      child: Text(
-                        localizations.get('continue_button'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-
-
   Widget _buildLanguageSelector(Locale currentLocale) {
     final current = _supportedLanguages.firstWhere(
       (l) => l['code'] == currentLocale.languageCode,
@@ -1003,30 +769,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Consumer<LocaleProvider>(
       builder: (context, localeProvider, _) {
         final currentLocale = localeProvider.locale;
         final localizations = AppLocalizations(currentLocale);
 
         return Scaffold(
-          body: PageView(
-            controller: _pageController,
-            physics: const ClampingScrollPhysics(),
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-            },
-            children: [
-              _buildWelcomePage(localizations),
-              _buildLoginOptions(localizations, currentLocale),
-            ],
+          body: SafeArea(
+            child: _buildLoginOptions(localizations, currentLocale),
           ),
         );
       },
@@ -1034,9 +784,4 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
 }

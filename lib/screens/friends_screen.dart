@@ -53,7 +53,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (context) => WelcomeScreen(
-            initialPageIsLoginOptions: true,
             onSignInComplete: () {
               Navigator.pushReplacement(
                 context,

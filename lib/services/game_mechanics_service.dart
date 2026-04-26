@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_mechanics.dart';
 import '../models/daily_reward.dart' show UserRewards;
+import 'world_leaderboard_sync.dart';
 
 /// Oyun Mekanikleri Servisi
 /// Combo, Can, İpucu, Güç-Up, Günlük Challenge yönetimi
@@ -313,6 +314,13 @@ class GameMechanicsService extends ChangeNotifier {
         'coins': inventory.coins,
         'diamonds': inventory.gems,
       }, SetOptions(merge: true));
+
+      await publishWorldLeaderboardScores(
+        firestore: _firestore,
+        userId: _userId!,
+        coins: inventory.coins,
+        diamonds: inventory.gems,
+      );
     } catch (e) {
       debugPrint('Sync currency to rewards error: $e');
     }
