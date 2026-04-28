@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/friend_service.dart';
 import '../models/friendship.dart';
 import 'topic_selection_screen.dart';
+import 'specialized_game_screen.dart';
 import 'math_regions_screen.dart';
 import 'quick_math_screen.dart';
 import 'endless_mode_screen.dart';
@@ -892,40 +893,53 @@ class _GameStartScreenState extends State<GameStartScreen>
             scrollDirection: Axis.horizontal,
             children: [
               _buildTopicCard(
+                emoji: '🔢',
+                title: localizations.get('counting'),
+                stars: 1,
+                color: const Color(0xFF2ECC71),
+                topicType: TopicType.counting,
+              ),
+              _buildTopicCard(
                 emoji: '➕',
                 title: localizations.get('addition'),
                 stars: 1,
-                color: const Color(0xFF2ECC71),
+                color: const Color(0xFF3498DB),
+                topicType: TopicType.addition,
               ),
               _buildTopicCard(
                 emoji: '➖',
                 title: localizations.get('subtraction'),
                 stars: 1,
                 color: const Color(0xFFE74C3C),
+                topicType: TopicType.subtraction,
               ),
               _buildTopicCard(
                 emoji: '✖️',
                 title: localizations.get('multiplication'),
                 stars: 2,
-                color: const Color(0xFF3498DB),
+                color: const Color(0xFF9B59B6),
+                topicType: TopicType.multiplication,
               ),
               _buildTopicCard(
                 emoji: '➗',
                 title: localizations.get('division'),
                 stars: 2,
-                color: const Color(0xFF9B59B6),
+                color: const Color(0xFF34495E),
+                topicType: TopicType.division,
               ),
               _buildTopicCard(
                 emoji: '🔺',
                 title: localizations.get('geometry'),
-                stars: 2,
+                stars: 1,
                 color: const Color(0xFFE67E22),
+                topicType: TopicType.geometry,
               ),
               _buildTopicCard(
-                emoji: '½',
-                title: localizations.get('fractions'),
-                stars: 3,
+                emoji: '🕰',
+                title: localizations.get('topic_time'),
+                stars: 2,
                 color: const Color(0xFF1ABC9C),
+                topicType: TopicType.time,
               ),
             ],
           ),
@@ -939,9 +953,10 @@ class _GameStartScreenState extends State<GameStartScreen>
     required String title,
     required int stars,
     required Color color,
+    required TopicType topicType,
   }) {
     return GestureDetector(
-      onTap: () => _startTopicGame(title),
+      onTap: () => _startTopicGame(topicType),
       child: Container(
         width: 90,
         margin: const EdgeInsets.only(right: 12),
@@ -1782,14 +1797,27 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  void _startTopicGame(String topic) {
-    debugPrint('Starting topic game: $topic');
+  void _startTopicGame(TopicType topicType) {
+    debugPrint('Starting topic game: $topicType');
+
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanicsService.hasLives) {
+      _showNoLivesDialog();
+      return;
+    }
+
+    final topicSettings = TopicGameManager.getTopicSettings()[topicType]!;
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TopicSelectionScreen(
+        builder: (context) => SpecializedGameScreen(
+          topicSettings: topicSettings,
           ageGroup: _selectedAgeGroup,
+          difficulty: 'easy',
+          difficultyDisplay: loc.get('level_easy'),
           onBack: () => Navigator.pop(context),
         ),
       ),

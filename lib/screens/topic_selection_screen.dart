@@ -162,9 +162,6 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
               Expanded(
                 child: _buildTopicCarousel(topics, theme, localizations),
               ),
-
-              // Alt navigasyon
-              _buildBottomNavigation(theme, localizations),
             ],
           ),
         ),
@@ -215,101 +212,40 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
             ),
           ),
 
-          const Spacer(),
-
-          // Ana başlık - Büyük ve renkli
-          Column(
-            children: [
-              Text(
-                localizations.get('choose_topic'),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 3,
-                      color: Colors.black.withOpacity(0.2),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    localizations.get('choose_topic'),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 3,
+                          color: Colors.black.withOpacity(0.2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              Text(
-                localizations.get('select_topic_to_practice'),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          // Envanter gösterimi
-          Row(
-            children: [
-              _buildInventoryBubble(
-                icon: Icons.attach_money,
-                count: Provider.of<GameMechanicsService>(context, listen: false).inventory.coins,
-                color: Colors.amber,
-                theme: theme,
-              ),
-            ],
-          ),
-
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInventoryBubble({
-    required IconData icon,
-    required int count,
-    required Color color,
-    required Map<String, dynamic> theme,
-  }) {
-    return Container(
-      width: 45,
-      height: 45,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: (theme['accentColor'] as Color).withOpacity(0.2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Icon(
-              icon,
-              color: color,
-              size: 22,
-            ),
-          ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                count.toString(),
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                  ),
+                  Text(
+                    localizations.get('select_topic_to_practice'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+
+          // Geri butonu ile simetri (sağ üstte altın göstergesi kaldırıldı)
+          const SizedBox(width: 50),
+
         ],
       ),
     );
@@ -748,82 +684,6 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
             ),
           );
         }),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigation(Map<String, dynamic> theme, AppLocalizations localizations) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey[200]!,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildBottomButton(
-            icon: Icons.help_outline,
-            label: localizations.get('help'),
-            color: Colors.blue,
-            onTap: () => _showHelpDialog(),
-          ),
-          _buildBottomButton(
-            icon: Icons.flash_on,
-            label: localizations.get('powers'),
-            color: Colors.purple,
-            onTap: () => _showPowerUps(),
-          ),
-          _buildBottomButton(
-            icon: Icons.school,
-            label: localizations.get('level_label'),
-            color: Colors.green,
-            onTap: () => _showLevelSelection(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 45,
-            height: 45,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.3), width: 2),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1282,99 +1142,6 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     }
   }
 
-  void _showHelpDialog() {
-    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '🎮 OYUN KURALLARI',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: theme['accentColor'] as Color,
-                ),
-              ),
-              const SizedBox(height: 15),
-              _buildHelpItem('📊', 'Her konunun zorluk seviyesi var'),
-              _buildHelpItem('⭐', 'Yıldız sayısı zorluğu gösterir'),
-              _buildHelpItem('❤️', 'Canlar bittiğinde beklemelisin'),
-              _buildHelpItem('🪙', 'Doğru cevaplarla altın kazan'),
-              _buildHelpItem('🏆', 'Yüksek puanlarla liderlikte yer al'),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme['accentColor'] as Color,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                ),
-                child: const Text('ANLADIM'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHelpItem(String emoji, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPowerUps() {
-    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Güçlendirme ekranı yakında!'),
-        backgroundColor: theme['accentColor'] as Color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
-  void _showLevelSelection() {
-    final theme = _getAgeTheme(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Seviye seçimi ekranı yakında!'),
-        backgroundColor: theme['accentColor'] as Color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
 }
 
 // Parçacık painter

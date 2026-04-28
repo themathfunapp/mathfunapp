@@ -1301,6 +1301,11 @@ class AppLocalizations {
       'rewards_locked_title': 'Ödüller Kilitli',
       'rewards_locked_desc': 'Günlük ödüller kazanmak için hesap oluşturmanız gerekiyor.',
       'daily_bonus': 'Günlük Bonus',
+      'clock_daily_bonus_main': 'Tebrikler! 10 altın kazandınız!',
+      'clock_game_help_title': 'Saat oyunu',
+      'clock_game_help_daily': 'Her gün gel, oyna — 10 altın kazan!',
+      'clock_game_help_about':
+          'Saatin ibrelerine bak, soruları cevapla ve doğru saati seç. Zamanı okumayı eğlenerek öğrenirsin!',
       'day': 'Gün',
       'special': 'Özel',
       'claim_reward': 'Ödülü Al',
@@ -2684,6 +2689,11 @@ class AppLocalizations {
       'rewards_locked_title': 'Rewards Locked',
       'rewards_locked_desc': 'You need to create an account to earn daily rewards.',
       'daily_bonus': 'Daily Bonus',
+      'clock_daily_bonus_main': 'Congratulations! You earned 10 gold coins!',
+      'clock_game_help_title': 'Clock game',
+      'clock_game_help_daily': 'Come back every day to play and earn 10 gold coins!',
+      'clock_game_help_about':
+          'Look at the clock hands, read the time, and pick the right answer. Learn to tell time while having fun!',
       'day': 'Day',
       'special': 'Special',
       'claim_reward': 'Claim Reward',

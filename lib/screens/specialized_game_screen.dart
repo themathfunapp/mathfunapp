@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
@@ -10,6 +11,7 @@ import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
 import '../services/game_session_report.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
 
@@ -57,6 +59,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
 
+  late ConfettiController _confettiController;
+  late AnimationController _wrongShakeController;
+  String? _wrongReactionEmoji;
+
   bool _isGameOver = false; // Oyun bitti mi?
   bool _gamePaused = false; // Oyun duraklatıldı mı?
 
@@ -66,6 +72,13 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _audio = context.read<AudioService>();
     _questions = [];
     _generateQuestions();
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 750),
+    );
+    _wrongShakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -88,6 +101,64 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
 
     _startTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantDailyClockBonus());
+  }
+
+  bool get _isTimeTopic => widget.topicSettings.topicType == GameMechanics.TopicType.time;
+
+  Future<void> _maybeGrantDailyClockBonus() async {
+    if (!_isTimeTopic || !mounted) return;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final granted = await mechanics.tryGrantDailyClockGameEntryBonus();
+    if (!mounted || !granted) return;
+
+    try {
+      final daily = Provider.of<DailyRewardService>(context, listen: false);
+      await daily.refresh();
+    } catch (_) {}
+
+    if (!mounted) return;
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    _confettiController.stop();
+    _confettiController.play();
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 520),
+      pageBuilder: (ctx, animation, secondaryAnimation) {
+        return Center(
+          child: _KidClockDailyRewardDialog(
+            loc: loc,
+            onOk: () => Navigator.of(ctx).pop(),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.elasticOut);
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.65, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showClockGameHelp(BuildContext context) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+        child: _KidClockHelpDialog(loc: loc, onClose: () => Navigator.of(ctx).pop()),
+      ),
+    );
   }
 
   /// TopicType'a göre lokalize konu adını döndürür.
@@ -129,6 +200,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     _timer?.cancel();
     _animationController.dispose();
     _heartController.dispose();
+    _confettiController.dispose();
+    _wrongShakeController.dispose();
     _audio.cancelAmbientSync();
     super.dispose();
   }
@@ -200,6 +273,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _isAnswered = true;
       _selectedAnswer = answer;
       _isCorrect = answer == currentQuestion['correctAnswer'];
+      _wrongReactionEmoji = _isCorrect ? null : '🥺';
     });
 
     final timeUsed = _getTimeLimit() - _timeLeft;
@@ -208,12 +282,15 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     else if (timeUsed <= 10) _fastAnswersCount++;
 
     if (_isCorrect) {
+      _wrongShakeController.reset();
       _score += _calculateScore();
       _correctAnswers++;
       _currentStreak++;
       if (_currentStreak > _bestStreak) _bestStreak = _currentStreak;
       _animationController.forward(from: 0);
       _audio.playAnswerFeedback(true);
+      _confettiController.stop();
+      _confettiController.play();
 
       // Biraz bekle ve sonraki soruya geç
       Future.delayed(const Duration(milliseconds: 600), () {
@@ -224,6 +301,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _wrongAnswers++;
       _currentStreak = 0;
       _audio.playAnswerFeedback(false);
+      _wrongShakeController.forward(from: 0);
       _loseLife();
     }
   }
@@ -245,15 +323,18 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         setState(() {
           _isAnswered = false;
           _selectedAnswer = null;
+          _wrongReactionEmoji = null;
           _gamePaused = false;
         });
+        _wrongShakeController.reset();
         _startTimer();
       });
     }
   }
 
   int _calculateScore() {
-    return 10; // Her doğru cevap için 10 puan
+    if (_isTimeTopic) return 0;
+    return 10;
   }
 
   void _nextQuestion() {
@@ -262,7 +343,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         _currentQuestionIndex++;
         _isAnswered = false;
         _selectedAnswer = null;
+        _wrongReactionEmoji = null;
       });
+      _confettiController.stop();
+      _wrongShakeController.reset();
       _startTimer();
     } else {
       _showResults();
@@ -275,6 +359,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _gamePaused = true;
     });
     _timer?.cancel();
+    _confettiController.stop();
     _reportGameCompletion();
     _showGameOverDialog();
   }
@@ -362,8 +447,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                     child: Column(
                       children: [
                         _buildStatRow(loc.get('correct_answers'), '$_correctAnswers / ${_currentQuestionIndex + 1}'),
-                        const Divider(color: Colors.white24),
-                        _buildStatRow(loc.get('score'), '$_score'),
+                        if (!_isTimeTopic) ...[
+                          const Divider(color: Colors.white24),
+                          _buildStatRow(loc.get('score'), '$_score'),
+                        ],
                       ],
                     ),
                   ),
@@ -1408,26 +1495,27 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 20),
-                const SizedBox(width: 4),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+          if (!_isTimeTopic)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_score',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           const SizedBox(width: 8),
           // Canlar - GameMechanicsService ile profil senkron
           Consumer<GameMechanicsService>(
@@ -1553,12 +1641,14 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   void _showResults() {
     _timer?.cancel();
+    _confettiController.stop();
     _reportGameCompletion();
 
     final percentage = _questions.isNotEmpty
         ? (_correctAnswers / _questions.length * 100).round()
         : 0;
     final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
+    final isTime = _isTimeTopic;
 
     showDialog(
       context: context,
@@ -1604,20 +1694,22 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      index < stars ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 48,
-                    ),
-                  );
-                }),
-              ),
+              if (!isTime) ...[
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        index < stars ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 48,
+                      ),
+                    );
+                  }),
+                ),
+              ],
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -1628,8 +1720,10 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                 child: Column(
                   children: [
                     _buildStatRow('Doğru Cevaplar', '$_correctAnswers / ${_questions.length}'),
-                    const Divider(color: Colors.white24),
-                    _buildStatRow('Skor', '$_score'),
+                    if (!isTime) ...[
+                      const Divider(color: Colors.white24),
+                      _buildStatRow('Skor', '$_score'),
+                    ],
                     const Divider(color: Colors.white24),
                     _buildStatRow('Başarı Oranı', '%$percentage'),
                   ],
@@ -1729,8 +1823,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       _gamePaused = false;
       _isAnswered = false;
       _selectedAnswer = null;
+      _wrongReactionEmoji = null;
       _generateQuestions();
     });
+    _confettiController.stop();
+    _wrongShakeController.reset();
     _startTimer();
   }
 
@@ -1742,49 +1839,389 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         ? _questions[_currentQuestionIndex]
         : <String, dynamic>{};
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1ABC9C), // Turkuaz
-              Color(0xFF16A085), // Koyu turkuaz
-            ],
-          ),
+    final mainLayer = Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1ABC9C), // Turkuaz
+            Color(0xFF16A085), // Koyu turkuaz
+          ],
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(),
-              _buildProgressBar(),
-              const SizedBox(height: 12),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                        child: Center(
-                          child: _questions.isNotEmpty
-                              ? AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 500),
-                                  child: _buildQuestionContent(currentQuestion, loc),
-                                )
-                              : const CircularProgressIndicator(color: Colors.white),
-                        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            _buildProgressBar(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Center(
+                        child: _questions.isNotEmpty
+                            ? AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 500),
+                                child: _buildQuestionContent(currentQuestion, loc),
+                              )
+                            : const CircularProgressIndicator(color: Colors.white),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    return Scaffold(
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _wrongShakeController,
+              builder: (context, child) {
+                final t = _wrongShakeController.value;
+                final dx = math.sin(t * math.pi * 10) * 14 * (1 - t);
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: child,
+                );
+              },
+              child: mainLayer,
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _wrongShakeController,
+                builder: (context, _) {
+                  final t = _wrongShakeController.value;
+                  final opacity = 0.28 * math.sin(t * math.pi);
+                  if (opacity < 0.02) return const SizedBox.shrink();
+                  return ColoredBox(color: Colors.red.withOpacity(opacity));
+                },
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      height: c.maxHeight,
+                      width: c.maxWidth,
+                      child: ConfettiWidget(
+                        confettiController: _confettiController,
+                        blastDirectionality: BlastDirectionality.explosive,
+                        shouldLoop: false,
+                        emissionFrequency: 0.32,
+                        numberOfParticles: 18,
+                        gravity: 0.36,
+                        colors: const [
+                          Color(0xFFFFD54F),
+                          Color(0xFFFF80AB),
+                          Color(0xFF80DEEA),
+                          Color(0xFFA5D6A7),
+                          Color(0xFFB39DDB),
+                          Color(0xFFFFAB91),
+                          Color(0xFFFFF59D),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          if (_wrongReactionEmoji != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey('${_currentQuestionIndex}_$_selectedAnswer'),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.elasticOut,
+                    builder: (context, t, _) {
+                      return Opacity(
+                        opacity: (0.4 + 0.6 * t).clamp(0.0, 1.0),
+                        child: Transform.scale(
+                          scale: 0.35 + 0.65 * t,
+                          child: Text(
+                            _wrongReactionEmoji!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 96),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
+            ),
+          if (_isTimeTopic)
+            Positioned(
+              right: 10,
+              bottom: MediaQuery.paddingOf(context).bottom + 10,
+              child: Material(
+                elevation: 10,
+                shadowColor: Colors.black45,
+                shape: const CircleBorder(),
+                color: const Color(0xFFFFD54F),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _showClockGameHelp(context),
+                  customBorder: const CircleBorder(),
+                  child: const SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: Center(
+                      child: Text(
+                        '?',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF4527A0),
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Günlük saat bonusu — renkli, çocuk dostu kutlama kartı
+class _KidClockDailyRewardDialog extends StatefulWidget {
+  final AppLocalizations loc;
+  final VoidCallback onOk;
+
+  const _KidClockDailyRewardDialog({
+    required this.loc,
+    required this.onOk,
+  });
+
+  @override
+  State<_KidClockDailyRewardDialog> createState() => _KidClockDailyRewardDialogState();
+}
+
+class _KidClockDailyRewardDialogState extends State<_KidClockDailyRewardDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _bounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF7C4DFF),
+                Color(0xFFFF4081),
+                Color(0xFFFFC107),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF9800).withValues(alpha: 0.55),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 56)),
               const SizedBox(height: 8),
+              AnimatedBuilder(
+                animation: _bounce,
+                builder: (context, child) {
+                  final y = -6 * math.sin(_bounce.value * math.pi);
+                  return Transform.translate(
+                    offset: Offset(0, y),
+                    child: child,
+                  );
+                },
+                child: const Text('🪙', style: TextStyle(fontSize: 48)),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                widget.loc.get('clock_daily_bonus_main'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1.25,
+                  shadows: [
+                    Shadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: widget.onOk,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF6A1B9A),
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: Text(
+                    widget.loc.get('ok'),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _KidClockHelpDialog extends StatelessWidget {
+  final AppLocalizations loc;
+  final VoidCallback onClose;
+
+  const _KidClockHelpDialog({
+    required this.loc,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF00ACC1),
+            Color(0xFF5E35B1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white, width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.help_outline, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  loc.get('clock_game_help_title'),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '🌟 ${loc.get('clock_game_help_daily')}',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFFFFF59D),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            loc.get('clock_game_help_about'),
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.45,
+              color: Colors.white.withValues(alpha: 0.92),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onClose,
+              child: Text(
+                loc.get('ok'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

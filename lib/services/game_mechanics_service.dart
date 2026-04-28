@@ -53,6 +53,8 @@ class GameMechanicsService extends ChangeNotifier {
   String? _userId;
   bool _isGuest = false;
   bool _isLoading = false;
+  /// Son "Saat oyunu günlük giriş" altın ödülü (24 saatte bir).
+  DateTime? _lastClockGameDailyRewardAt;
   /// Premium: can düşmez, her zaman oynanabilir (reklam / can zamanlayıcısı yok).
   bool _premiumUnlimited = false;
   bool get isLoading => _isLoading;
@@ -215,6 +217,7 @@ class GameMechanicsService extends ChangeNotifier {
     if (_userId == null) return;
 
     try {
+      _lastClockGameDailyRewardAt = null;
       if (_isGuest) {
         final prefs = await SharedPreferences.getInstance();
         final jsonStr = prefs.getString(_guestMechanicsKey);
@@ -233,6 +236,7 @@ class GameMechanicsService extends ChangeNotifier {
             bonusWheelSpins = (data['bonusWheelSpins'] is int) ? data['bonusWheelSpins'] as int : 0;
             _pendingSpinRewardMultiplier =
                 (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
+            _lastClockGameDailyRewardAt = _parseClockDailyRewardAt(data['lastClockGameDailyRewardAt']);
           } catch (_) {}
         }
       } else {
@@ -259,11 +263,18 @@ class GameMechanicsService extends ChangeNotifier {
           bonusWheelSpins = (data['bonusWheelSpins'] is int) ? data['bonusWheelSpins'] as int : 0;
           _pendingSpinRewardMultiplier =
               (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
+          _lastClockGameDailyRewardAt = _parseClockDailyRewardAt(data['lastClockGameDailyRewardAt']);
         }
       }
     } catch (e) {
       debugPrint('Error loading user mechanics data: $e');
     }
+  }
+
+  static DateTime? _parseClockDailyRewardAt(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    return DateTime.tryParse(value.toString());
   }
 
   /// Kullanıcı verisini kaydet
@@ -281,6 +292,7 @@ class GameMechanicsService extends ChangeNotifier {
           'lastPlayDate': lastPlayDate?.toIso8601String(),
           'bonusWheelSpins': bonusWheelSpins,
           'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
+          'lastClockGameDailyRewardAt': _lastClockGameDailyRewardAt?.toIso8601String(),
         };
         await prefs.setString(_guestMechanicsKey, jsonEncode(data));
       } else {
@@ -292,6 +304,7 @@ class GameMechanicsService extends ChangeNotifier {
           'lastPlayDate': lastPlayDate?.toIso8601String(),
           'bonusWheelSpins': bonusWheelSpins,
           'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
+          'lastClockGameDailyRewardAt': _lastClockGameDailyRewardAt?.toIso8601String(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
         await _syncCurrencyToRewards();
@@ -746,6 +759,26 @@ class GameMechanicsService extends ChangeNotifier {
     inventory.coins += amount;
     _saveUserData();
     notifyListeners();
+  }
+
+  static const int clockDailyEntryBonusCoins = 10;
+  static const Duration clockDailyEntryCooldown = Duration(hours: 24);
+
+  bool _canClaimClockDailyEntryBonus() {
+    final last = _lastClockGameDailyRewardAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= clockDailyEntryCooldown;
+  }
+
+  /// Saat konusu oyununa her girişte (24 saatte bir) 10 altın. Profil / `user_mechanics` + `rewards/daily` senkronu.
+  Future<bool> tryGrantDailyClockGameEntryBonus() async {
+    if (_userId == null) return false;
+    if (!_canClaimClockDailyEntryBonus()) return false;
+    _lastClockGameDailyRewardAt = DateTime.now();
+    inventory.coins += clockDailyEntryBonusCoins;
+    await _saveUserData();
+    notifyListeners();
+    return true;
   }
 
   /// Gems ekle
