@@ -101,15 +101,21 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
 
     _startTimer();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantDailyClockBonus());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantDailyEntryBonus());
   }
 
   bool get _isTimeTopic => widget.topicSettings.topicType == GameMechanics.TopicType.time;
+  bool get _isCountingTopic => widget.topicSettings.topicType == GameMechanics.TopicType.counting;
+  bool get _isAdditionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.addition;
+  bool get _isSubtractionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.subtraction;
+  bool get _isDivisionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.division;
+  bool get _isGeometryTopic => widget.topicSettings.topicType == GameMechanics.TopicType.geometry;
+  bool get _isMultiplicationTopic => widget.topicSettings.topicType == GameMechanics.TopicType.multiplication;
 
-  Future<void> _maybeGrantDailyClockBonus() async {
-    if (!_isTimeTopic || !mounted) return;
+  Future<void> _maybeGrantDailyEntryBonus() async {
+    if (!mounted) return;
     final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
-    final granted = await mechanics.tryGrantDailyClockGameEntryBonus();
+    final granted = await mechanics.tryGrantDailyTopicGameEntryBonus();
     if (!mounted || !granted) return;
 
     try {
@@ -150,13 +156,42 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   void _showClockGameHelp(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    String titleKey;
+    String aboutKey;
+    if (_isTimeTopic) {
+      titleKey = 'clock_game_help_title';
+      aboutKey = 'clock_game_help_about';
+    } else if (_isCountingTopic) {
+      titleKey = 'counting_game_help_title';
+      aboutKey = 'counting_game_help_about';
+    } else if (_isSubtractionTopic) {
+      titleKey = 'subtraction_game_help_title';
+      aboutKey = 'subtraction_game_help_about';
+    } else if (_isDivisionTopic) {
+      titleKey = 'division_game_help_title';
+      aboutKey = 'division_game_help_about';
+    } else if (_isGeometryTopic) {
+      titleKey = 'geometry_game_help_title';
+      aboutKey = 'geometry_game_help_about';
+    } else if (_isMultiplicationTopic) {
+      titleKey = 'multiplication_game_help_title';
+      aboutKey = 'multiplication_game_help_about';
+    } else {
+      titleKey = 'addition_game_help_title';
+      aboutKey = 'addition_game_help_about';
+    }
     showDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 22),
-        child: _KidClockHelpDialog(loc: loc, onClose: () => Navigator.of(ctx).pop()),
+        child: _KidTopicHelpDialog(
+          loc: loc,
+          titleKey: titleKey,
+          aboutKey: aboutKey,
+          onClose: () => Navigator.of(ctx).pop(),
+        ),
       ),
     );
   }
@@ -1495,27 +1530,6 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ],
           ),
           const Spacer(),
-          if (!_isTimeTopic)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$_score',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           const SizedBox(width: 8),
           // Canlar - GameMechanicsService ile profil senkron
           Consumer<GameMechanicsService>(
@@ -1972,7 +1986,13 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                 ),
               ),
             ),
-          if (_isTimeTopic)
+          if (_isTimeTopic ||
+              _isCountingTopic ||
+              _isAdditionTopic ||
+              _isSubtractionTopic ||
+              _isDivisionTopic ||
+              _isGeometryTopic ||
+              _isMultiplicationTopic)
             Positioned(
               right: 10,
               bottom: MediaQuery.paddingOf(context).bottom + 10,
@@ -2128,12 +2148,16 @@ class _KidClockDailyRewardDialogState extends State<_KidClockDailyRewardDialog>
   }
 }
 
-class _KidClockHelpDialog extends StatelessWidget {
+class _KidTopicHelpDialog extends StatelessWidget {
   final AppLocalizations loc;
+  final String titleKey;
+  final String aboutKey;
   final VoidCallback onClose;
 
-  const _KidClockHelpDialog({
+  const _KidTopicHelpDialog({
     required this.loc,
+    required this.titleKey,
+    required this.aboutKey,
     required this.onClose,
   });
 
@@ -2177,7 +2201,7 @@ class _KidClockHelpDialog extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  loc.get('clock_game_help_title'),
+                  loc.get(titleKey),
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -2189,7 +2213,7 @@ class _KidClockHelpDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '🌟 ${loc.get('clock_game_help_daily')}',
+            '🌟 ${loc.get('daily_entry_bonus_line')}',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -2199,7 +2223,7 @@ class _KidClockHelpDialog extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            loc.get('clock_game_help_about'),
+            loc.get(aboutKey),
             style: TextStyle(
               fontSize: 15,
               height: 1.45,

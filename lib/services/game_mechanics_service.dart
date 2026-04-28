@@ -55,6 +55,38 @@ class GameMechanicsService extends ChangeNotifier {
   bool _isLoading = false;
   /// Son "Saat oyunu günlük giriş" altın ödülü (24 saatte bir).
   DateTime? _lastClockGameDailyRewardAt;
+  /// Son "Zeka Oyunları günlük giriş" altın ödülü (24 saatte bir).
+  DateTime? _lastBrainGamesDailyRewardAt;
+
+  // Zeka oyunları: günlük kazanım limiti (farm engeli)
+  String? _brainGamesCoinsDateKey;
+  int _brainGamesCoinsEarnedToday = 0;
+
+  // Renkli Matematik: günlük giriş + günlük kazanım limiti
+  DateTime? _lastColorMathDailyRewardAt;
+  String? _colorMathCoinsDateKey;
+  int _colorMathCoinsEarnedToday = 0;
+  int _colorMathNumberProgress = 0; // 0-30
+  int _colorMathShapeProgress = 0; // 0-20
+  int _colorMathLabProgress = 0; // 0-15
+
+  // Matematik Dünyası (Harita): günlük bonus + bilet + streak + milestone
+  DateTime? _lastWorldMapDailyRewardAt;
+  int _worldMapTickets = 0;
+  int _worldMapDailyStreak = 0;
+  String? _worldMapLastVisitDateKey;
+  int _worldMapMilestonesClaimedMask = 0; // bitmask for star milestones
+  // Hızlı modlar için Günlük Macera Pasosu
+  String? _adventurePassDateKey;
+  int _adventurePassChestTierClaimed = 0; // 0:none, 1:small, 2:medium, 3:large
+  Map<String, int> _adventurePassBadgesByMode = {
+    'instant': 0,
+    'daily': 0,
+    'endless': 0,
+    'boss': 0,
+  };
+  int _adventureWeeklyStreak = 0;
+  String? _adventureLastQualifiedDateKey;
   /// Premium: can düşmez, her zaman oynanabilir (reklam / can zamanlayıcısı yok).
   bool _premiumUnlimited = false;
   bool get isLoading => _isLoading;
@@ -218,6 +250,25 @@ class GameMechanicsService extends ChangeNotifier {
 
     try {
       _lastClockGameDailyRewardAt = null;
+      _lastBrainGamesDailyRewardAt = null;
+      _brainGamesCoinsDateKey = null;
+      _brainGamesCoinsEarnedToday = 0;
+      _lastColorMathDailyRewardAt = null;
+      _colorMathCoinsDateKey = null;
+      _colorMathCoinsEarnedToday = 0;
+      _colorMathNumberProgress = 0;
+      _colorMathShapeProgress = 0;
+      _colorMathLabProgress = 0;
+      _lastWorldMapDailyRewardAt = null;
+      _worldMapTickets = 0;
+      _worldMapDailyStreak = 0;
+      _worldMapLastVisitDateKey = null;
+      _worldMapMilestonesClaimedMask = 0;
+      _adventurePassDateKey = null;
+      _adventurePassChestTierClaimed = 0;
+      _adventurePassBadgesByMode = {'instant': 0, 'daily': 0, 'endless': 0, 'boss': 0};
+      _adventureWeeklyStreak = 0;
+      _adventureLastQualifiedDateKey = null;
       if (_isGuest) {
         final prefs = await SharedPreferences.getInstance();
         final jsonStr = prefs.getString(_guestMechanicsKey);
@@ -237,6 +288,34 @@ class GameMechanicsService extends ChangeNotifier {
             _pendingSpinRewardMultiplier =
                 (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
             _lastClockGameDailyRewardAt = _parseClockDailyRewardAt(data['lastClockGameDailyRewardAt']);
+            _lastBrainGamesDailyRewardAt = _parseClockDailyRewardAt(data['lastBrainGamesDailyRewardAt']);
+            _brainGamesCoinsDateKey = (data['brainGamesCoinsDateKey'] as String?)?.trim();
+            _brainGamesCoinsEarnedToday = (data['brainGamesCoinsEarnedToday'] is int)
+                ? data['brainGamesCoinsEarnedToday'] as int
+                : 0;
+            _lastColorMathDailyRewardAt = _parseClockDailyRewardAt(data['lastColorMathDailyRewardAt']);
+            _colorMathCoinsDateKey = (data['colorMathCoinsDateKey'] as String?)?.trim();
+            _colorMathCoinsEarnedToday = (data['colorMathCoinsEarnedToday'] is int)
+                ? data['colorMathCoinsEarnedToday'] as int
+                : 0;
+            _colorMathNumberProgress = (data['colorMathNumberProgress'] is int) ? data['colorMathNumberProgress'] as int : 0;
+            _colorMathShapeProgress = (data['colorMathShapeProgress'] is int) ? data['colorMathShapeProgress'] as int : 0;
+            _colorMathLabProgress = (data['colorMathLabProgress'] is int) ? data['colorMathLabProgress'] as int : 0;
+            _lastWorldMapDailyRewardAt = _parseClockDailyRewardAt(data['lastWorldMapDailyRewardAt']);
+            _worldMapTickets = (data['worldMapTickets'] is int) ? data['worldMapTickets'] as int : 0;
+            _worldMapDailyStreak = (data['worldMapDailyStreak'] is int) ? data['worldMapDailyStreak'] as int : 0;
+            _worldMapLastVisitDateKey = (data['worldMapLastVisitDateKey'] as String?)?.trim();
+            _worldMapMilestonesClaimedMask = (data['worldMapMilestonesClaimedMask'] is int)
+                ? data['worldMapMilestonesClaimedMask'] as int
+                : 0;
+            _adventurePassDateKey = (data['adventurePassDateKey'] as String?)?.trim();
+            _adventurePassChestTierClaimed = (data['adventurePassChestTierClaimed'] is int)
+                ? (data['adventurePassChestTierClaimed'] as int).clamp(0, 3)
+                : 0;
+            _adventurePassBadgesByMode = _parseAdventureModeMap(data['adventurePassBadgesByMode']);
+            _adventureWeeklyStreak =
+                (data['adventureWeeklyStreak'] is int) ? data['adventureWeeklyStreak'] as int : 0;
+            _adventureLastQualifiedDateKey = (data['adventureLastQualifiedDateKey'] as String?)?.trim();
           } catch (_) {}
         }
       } else {
@@ -264,6 +343,34 @@ class GameMechanicsService extends ChangeNotifier {
           _pendingSpinRewardMultiplier =
               (data['pendingSpinRewardMultiplier'] is int) ? (data['pendingSpinRewardMultiplier'] as int).clamp(1, 10) : 1;
           _lastClockGameDailyRewardAt = _parseClockDailyRewardAt(data['lastClockGameDailyRewardAt']);
+          _lastBrainGamesDailyRewardAt = _parseClockDailyRewardAt(data['lastBrainGamesDailyRewardAt']);
+          _brainGamesCoinsDateKey = (data['brainGamesCoinsDateKey'] as String?)?.trim();
+          _brainGamesCoinsEarnedToday = (data['brainGamesCoinsEarnedToday'] is int)
+              ? data['brainGamesCoinsEarnedToday'] as int
+              : 0;
+          _lastColorMathDailyRewardAt = _parseClockDailyRewardAt(data['lastColorMathDailyRewardAt']);
+          _colorMathCoinsDateKey = (data['colorMathCoinsDateKey'] as String?)?.trim();
+          _colorMathCoinsEarnedToday = (data['colorMathCoinsEarnedToday'] is int)
+              ? data['colorMathCoinsEarnedToday'] as int
+              : 0;
+          _colorMathNumberProgress = (data['colorMathNumberProgress'] is int) ? data['colorMathNumberProgress'] as int : 0;
+          _colorMathShapeProgress = (data['colorMathShapeProgress'] is int) ? data['colorMathShapeProgress'] as int : 0;
+          _colorMathLabProgress = (data['colorMathLabProgress'] is int) ? data['colorMathLabProgress'] as int : 0;
+          _lastWorldMapDailyRewardAt = _parseClockDailyRewardAt(data['lastWorldMapDailyRewardAt']);
+          _worldMapTickets = (data['worldMapTickets'] is int) ? data['worldMapTickets'] as int : 0;
+          _worldMapDailyStreak = (data['worldMapDailyStreak'] is int) ? data['worldMapDailyStreak'] as int : 0;
+          _worldMapLastVisitDateKey = (data['worldMapLastVisitDateKey'] as String?)?.trim();
+          _worldMapMilestonesClaimedMask = (data['worldMapMilestonesClaimedMask'] is int)
+              ? data['worldMapMilestonesClaimedMask'] as int
+              : 0;
+          _adventurePassDateKey = (data['adventurePassDateKey'] as String?)?.trim();
+          _adventurePassChestTierClaimed = (data['adventurePassChestTierClaimed'] is int)
+              ? (data['adventurePassChestTierClaimed'] as int).clamp(0, 3)
+              : 0;
+          _adventurePassBadgesByMode = _parseAdventureModeMap(data['adventurePassBadgesByMode']);
+          _adventureWeeklyStreak =
+              (data['adventureWeeklyStreak'] is int) ? data['adventureWeeklyStreak'] as int : 0;
+          _adventureLastQualifiedDateKey = (data['adventureLastQualifiedDateKey'] as String?)?.trim();
         }
       }
     } catch (e) {
@@ -275,6 +382,47 @@ class GameMechanicsService extends ChangeNotifier {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();
     return DateTime.tryParse(value.toString());
+  }
+
+  String _todayKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  void _resetBrainGamesDailyIfNeeded() {
+    final key = _todayKey();
+    if (_brainGamesCoinsDateKey != key) {
+      _brainGamesCoinsDateKey = key;
+      _brainGamesCoinsEarnedToday = 0;
+    }
+  }
+
+  void _resetColorMathDailyIfNeeded() {
+    final key = _todayKey();
+    if (_colorMathCoinsDateKey != key) {
+      _colorMathCoinsDateKey = key;
+      _colorMathCoinsEarnedToday = 0;
+    }
+  }
+
+  Map<String, int> _parseAdventureModeMap(dynamic raw) {
+    const keys = ['instant', 'daily', 'endless', 'boss'];
+    final map = <String, int>{for (final k in keys) k: 0};
+    if (raw is Map) {
+      for (final key in keys) {
+        final v = raw[key];
+        if (v is int) map[key] = v.clamp(0, 99);
+      }
+    }
+    return map;
+  }
+
+  void _resetAdventurePassDailyIfNeeded() {
+    final today = _todayKey();
+    if (_adventurePassDateKey == today) return;
+    _adventurePassDateKey = today;
+    _adventurePassChestTierClaimed = 0;
+    _adventurePassBadgesByMode = {'instant': 0, 'daily': 0, 'endless': 0, 'boss': 0};
   }
 
   /// Kullanıcı verisini kaydet
@@ -293,6 +441,25 @@ class GameMechanicsService extends ChangeNotifier {
           'bonusWheelSpins': bonusWheelSpins,
           'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
           'lastClockGameDailyRewardAt': _lastClockGameDailyRewardAt?.toIso8601String(),
+          'lastBrainGamesDailyRewardAt': _lastBrainGamesDailyRewardAt?.toIso8601String(),
+          'brainGamesCoinsDateKey': _brainGamesCoinsDateKey,
+          'brainGamesCoinsEarnedToday': _brainGamesCoinsEarnedToday,
+          'lastColorMathDailyRewardAt': _lastColorMathDailyRewardAt?.toIso8601String(),
+          'colorMathCoinsDateKey': _colorMathCoinsDateKey,
+          'colorMathCoinsEarnedToday': _colorMathCoinsEarnedToday,
+          'colorMathNumberProgress': _colorMathNumberProgress,
+          'colorMathShapeProgress': _colorMathShapeProgress,
+          'colorMathLabProgress': _colorMathLabProgress,
+          'lastWorldMapDailyRewardAt': _lastWorldMapDailyRewardAt?.toIso8601String(),
+          'worldMapTickets': _worldMapTickets,
+          'worldMapDailyStreak': _worldMapDailyStreak,
+          'worldMapLastVisitDateKey': _worldMapLastVisitDateKey,
+          'worldMapMilestonesClaimedMask': _worldMapMilestonesClaimedMask,
+          'adventurePassDateKey': _adventurePassDateKey,
+          'adventurePassChestTierClaimed': _adventurePassChestTierClaimed,
+          'adventurePassBadgesByMode': _adventurePassBadgesByMode,
+          'adventureWeeklyStreak': _adventureWeeklyStreak,
+          'adventureLastQualifiedDateKey': _adventureLastQualifiedDateKey,
         };
         await prefs.setString(_guestMechanicsKey, jsonEncode(data));
       } else {
@@ -305,6 +472,25 @@ class GameMechanicsService extends ChangeNotifier {
           'bonusWheelSpins': bonusWheelSpins,
           'pendingSpinRewardMultiplier': _pendingSpinRewardMultiplier,
           'lastClockGameDailyRewardAt': _lastClockGameDailyRewardAt?.toIso8601String(),
+          'lastBrainGamesDailyRewardAt': _lastBrainGamesDailyRewardAt?.toIso8601String(),
+          'brainGamesCoinsDateKey': _brainGamesCoinsDateKey,
+          'brainGamesCoinsEarnedToday': _brainGamesCoinsEarnedToday,
+          'lastColorMathDailyRewardAt': _lastColorMathDailyRewardAt?.toIso8601String(),
+          'colorMathCoinsDateKey': _colorMathCoinsDateKey,
+          'colorMathCoinsEarnedToday': _colorMathCoinsEarnedToday,
+          'colorMathNumberProgress': _colorMathNumberProgress,
+          'colorMathShapeProgress': _colorMathShapeProgress,
+          'colorMathLabProgress': _colorMathLabProgress,
+          'lastWorldMapDailyRewardAt': _lastWorldMapDailyRewardAt?.toIso8601String(),
+          'worldMapTickets': _worldMapTickets,
+          'worldMapDailyStreak': _worldMapDailyStreak,
+          'worldMapLastVisitDateKey': _worldMapLastVisitDateKey,
+          'worldMapMilestonesClaimedMask': _worldMapMilestonesClaimedMask,
+          'adventurePassDateKey': _adventurePassDateKey,
+          'adventurePassChestTierClaimed': _adventurePassChestTierClaimed,
+          'adventurePassBadgesByMode': _adventurePassBadgesByMode,
+          'adventureWeeklyStreak': _adventureWeeklyStreak,
+          'adventureLastQualifiedDateKey': _adventureLastQualifiedDateKey,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
         await _syncCurrencyToRewards();
@@ -776,6 +962,286 @@ class GameMechanicsService extends ChangeNotifier {
     if (!_canClaimClockDailyEntryBonus()) return false;
     _lastClockGameDailyRewardAt = DateTime.now();
     inventory.coins += clockDailyEntryBonusCoins;
+    await _saveUserData();
+    notifyListeners();
+    return true;
+  }
+
+  /// Konu oyununa her girişte (24 saatte bir) 10 altın.
+  ///
+  /// Not: Geriye dönük uyumluluk için aynı timestamp alanını kullanır.
+  Future<bool> tryGrantDailyTopicGameEntryBonus() async {
+    return tryGrantDailyClockGameEntryBonus();
+  }
+
+  static const int brainGamesDailyEntryBonusCoins = 10;
+  static const int brainGamesDailyCoinsCap = 60;
+
+  bool _canClaimBrainGamesDailyEntryBonus() {
+    final last = _lastBrainGamesDailyRewardAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= clockDailyEntryCooldown;
+  }
+
+  /// Zeka Oyunları ekranına her girişte (24 saatte bir) 10 altın.
+  Future<bool> tryGrantDailyBrainGamesEntryBonus() async {
+    if (_userId == null) return false;
+    if (!_canClaimBrainGamesDailyEntryBonus()) return false;
+    _lastBrainGamesDailyRewardAt = DateTime.now();
+    inventory.coins += brainGamesDailyEntryBonusCoins;
+    await _saveUserData();
+    notifyListeners();
+    return true;
+  }
+
+  /// Zeka oyunu bitiş ödülü: (base + bonus), günlük toplam en fazla 60 altın.
+  Future<int> grantBrainGameCompletionCoins({required int baseCoins, required int bonusCoins}) async {
+    if (_userId == null) return 0;
+    _resetBrainGamesDailyIfNeeded();
+    final want = (baseCoins + bonusCoins).clamp(0, 9999);
+    if (want <= 0) return 0;
+    final remaining = (brainGamesDailyCoinsCap - _brainGamesCoinsEarnedToday).clamp(0, brainGamesDailyCoinsCap);
+    final grant = want.clamp(0, remaining);
+    if (grant <= 0) return 0;
+
+    _brainGamesCoinsEarnedToday += grant;
+    inventory.coins += grant;
+    await _saveUserData();
+    notifyListeners();
+    return grant;
+  }
+
+  // ================== RENKLİ MATEMATİK ÖDÜLLERİ ==================
+
+  static const int colorMathDailyEntryBonusCoins = 10;
+  static const int colorMathDailyCoinsCap = 60;
+
+  bool _canClaimColorMathDailyEntryBonus() {
+    final last = _lastColorMathDailyRewardAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= clockDailyEntryCooldown;
+  }
+
+  Future<bool> tryGrantDailyColorMathEntryBonus() async {
+    if (_userId == null) return false;
+    if (!_canClaimColorMathDailyEntryBonus()) return false;
+    _lastColorMathDailyRewardAt = DateTime.now();
+    inventory.coins += colorMathDailyEntryBonusCoins;
+    await _saveUserData();
+    notifyListeners();
+    return true;
+  }
+
+  /// Renkli Matematik ilerleme ödülü: (base + bonus), günlük toplam en fazla 60 altın.
+  Future<int> grantColorMathProgressCoins({required int baseCoins, required int bonusCoins}) async {
+    if (_userId == null) return 0;
+    _resetColorMathDailyIfNeeded();
+    final want = (baseCoins + bonusCoins).clamp(0, 9999);
+    if (want <= 0) return 0;
+    final remaining = (colorMathDailyCoinsCap - _colorMathCoinsEarnedToday).clamp(0, colorMathDailyCoinsCap);
+    final grant = want.clamp(0, remaining);
+    if (grant <= 0) return 0;
+
+    _colorMathCoinsEarnedToday += grant;
+    inventory.coins += grant;
+    await _saveUserData();
+    notifyListeners();
+    return grant;
+  }
+
+  int get colorMathNumberProgress => _colorMathNumberProgress;
+  int get colorMathShapeProgress => _colorMathShapeProgress;
+  int get colorMathLabProgress => _colorMathLabProgress;
+  int get adventureWeeklyStreak => _adventureWeeklyStreak;
+  int get adventurePassTodayBadges =>
+      _adventurePassBadgesByMode.values.fold<int>(0, (currentTotal, v) => currentTotal + v);
+  Map<String, int> get adventurePassBadgesByMode =>
+      Map<String, int>.from(_adventurePassBadgesByMode);
+
+  static const Map<String, int> adventureDailyModeCaps = {
+    'instant': 3,
+    'daily': 2,
+    'endless': 3,
+    'boss': 3,
+  };
+
+  Future<int> grantAdventurePassBadges({
+    required String mode,
+    required int earnedBadges,
+  }) async {
+    if (_userId == null) return 0;
+    final modeKey = mode.trim().toLowerCase();
+    if (!adventureDailyModeCaps.containsKey(modeKey)) return 0;
+    if (earnedBadges <= 0) return 0;
+
+    _resetAdventurePassDailyIfNeeded();
+    final current = _adventurePassBadgesByMode[modeKey] ?? 0;
+    final modeCap = adventureDailyModeCaps[modeKey]!;
+    final add = earnedBadges.clamp(0, modeCap - current);
+    if (add <= 0) return 0;
+
+    _adventurePassBadgesByMode[modeKey] = current + add;
+    int awardedCoins = 0;
+    final total = adventurePassTodayBadges;
+
+    if (total >= 2 && _adventurePassChestTierClaimed < 1) {
+      _adventurePassChestTierClaimed = 1;
+      awardedCoins += 5;
+    }
+    if (total >= 4 && _adventurePassChestTierClaimed < 2) {
+      _adventurePassChestTierClaimed = 2;
+      awardedCoins += 10;
+    }
+    if (total >= 6 && _adventurePassChestTierClaimed < 3) {
+      _adventurePassChestTierClaimed = 3;
+      awardedCoins += 20;
+      final random = Random().nextInt(4);
+      if (random == 0) {
+        inventory.addPowerUp(PowerUpType.showHint);
+      } else if (random == 1) {
+        inventory.addPowerUp(PowerUpType.freezeTime);
+      } else if (random == 2) {
+        inventory.addPowerUp(PowerUpType.doublePoints);
+      } else {
+        inventory.addPowerUp(PowerUpType.shield);
+      }
+    }
+
+    final distinctModesPlayed = _adventurePassBadgesByMode.values.where((v) => v > 0).length;
+    final today = _todayKey();
+    if (distinctModesPlayed >= 2 && _adventureLastQualifiedDateKey != today) {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final yesterdayKey =
+          '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+      if (_adventureLastQualifiedDateKey == yesterdayKey) {
+        _adventureWeeklyStreak += 1;
+      } else {
+        _adventureWeeklyStreak = 1;
+      }
+      _adventureLastQualifiedDateKey = today;
+
+      if (_adventureWeeklyStreak % 7 == 0) {
+        awardedCoins += 40;
+      } else if (_adventureWeeklyStreak % 3 == 0) {
+        awardedCoins += 15;
+      }
+    }
+
+    if (awardedCoins > 0) {
+      inventory.coins += awardedCoins;
+    }
+    await _saveUserData();
+    notifyListeners();
+    return add;
+  }
+
+  Future<void> setColorMathProgress({
+    required String module,
+    required int completedLevel,
+    required int totalLevels,
+  }) async {
+    if (_userId == null) return;
+    final clamped = completedLevel.clamp(0, totalLevels);
+    bool changed = false;
+    switch (module) {
+      case 'number':
+        if (clamped > _colorMathNumberProgress) {
+          _colorMathNumberProgress = clamped;
+          changed = true;
+        }
+        break;
+      case 'shape':
+        if (clamped > _colorMathShapeProgress) {
+          _colorMathShapeProgress = clamped;
+          changed = true;
+        }
+        break;
+      case 'lab':
+        if (clamped > _colorMathLabProgress) {
+          _colorMathLabProgress = clamped;
+          changed = true;
+        }
+        break;
+      default:
+        return;
+    }
+    if (!changed) return;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  // ================== WORLD MAP ÖDÜLLERİ ==================
+
+  int get worldMapTickets => _worldMapTickets;
+  int get worldMapDailyStreak => _worldMapDailyStreak;
+
+  static const int worldMapDailyCoins = 10;
+
+  bool _canClaimWorldMapDailyBonus() {
+    final last = _lastWorldMapDailyRewardAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= clockDailyEntryCooldown;
+  }
+
+  bool _isConsecutiveDay(String? lastKey, String todayKey) {
+    if (lastKey == null || lastKey.isEmpty) return false;
+    final last = DateTime.tryParse(lastKey);
+    if (last == null) return false;
+    final today = DateTime.tryParse(todayKey);
+    if (today == null) return false;
+    final lastDate = DateTime(last.year, last.month, last.day);
+    final todayDate = DateTime(today.year, today.month, today.day);
+    return todayDate.difference(lastDate).inDays == 1;
+  }
+
+  /// Haritaya günlük giriş: 10 altın + 1 bilet. Ayrıca streak (seri) güncellenir.
+  Future<bool> tryGrantDailyWorldMapBonus({required int currentStoryStars}) async {
+    if (_userId == null) return false;
+    if (!_canClaimWorldMapDailyBonus()) return false;
+
+    final today = _todayKey();
+    if (_isConsecutiveDay(_worldMapLastVisitDateKey, today)) {
+      _worldMapDailyStreak += 1;
+    } else {
+      _worldMapDailyStreak = 1;
+    }
+    _worldMapLastVisitDateKey = today;
+
+    _lastWorldMapDailyRewardAt = DateTime.now();
+    inventory.coins += worldMapDailyCoins;
+    _worldMapTickets += 1;
+
+    // Star milestones (one-time): 10/30/60
+    int milestoneCoins = 0;
+    milestoneCoins += _tryClaimMilestoneCoins(currentStoryStars, threshold: 10, bit: 0, coins: 20);
+    milestoneCoins += _tryClaimMilestoneCoins(currentStoryStars, threshold: 30, bit: 1, coins: 30);
+    milestoneCoins += _tryClaimMilestoneCoins(currentStoryStars, threshold: 60, bit: 2, coins: 40);
+    if (milestoneCoins > 0) {
+      inventory.coins += milestoneCoins;
+    }
+
+    // 7-day streak bonus
+    if (_worldMapDailyStreak > 0 && _worldMapDailyStreak % 7 == 0) {
+      inventory.coins += 40;
+    }
+
+    await _saveUserData();
+    notifyListeners();
+    return true;
+  }
+
+  int _tryClaimMilestoneCoins(int stars, {required int threshold, required int bit, required int coins}) {
+    final mask = 1 << bit;
+    if ((_worldMapMilestonesClaimedMask & mask) != 0) return 0;
+    if (stars < threshold) return 0;
+    _worldMapMilestonesClaimedMask |= mask;
+    return coins;
+  }
+
+  Future<bool> spendWorldMapTicket() async {
+    if (_userId == null) return false;
+    if (_worldMapTickets <= 0) return false;
+    _worldMapTickets -= 1;
     await _saveUserData();
     notifyListeners();
     return true;

@@ -569,6 +569,16 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   void _reportBossSession() {
     if (_sessionReported || !mounted) return;
     _sessionReported = true;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if ((_sessionCorrect + _sessionWrong) > 0) {
+      var badges = 1;
+      if (_bossHealth <= 0) badges += 1;
+      if (_bestStreak >= 5 || _sessionCorrect >= 8) badges += 1;
+      mechanicsService.grantAdventurePassBadges(
+        mode: 'boss',
+        earnedBadges: badges.clamp(1, 3),
+      );
+    }
     final q = (_sessionCorrect + _sessionWrong).clamp(1, 9999);
     final avg = q > 0 ? _totalAnswerSeconds / q : 0.0;
     try {

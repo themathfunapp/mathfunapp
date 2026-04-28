@@ -8,6 +8,8 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
+import '../services/daily_reward_service.dart';
+import '../models/daily_reward.dart' show TaskType;
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
 import '../widgets/child_exit_dialog.dart';
@@ -367,7 +369,20 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
     _saveHighScore(_score);
     _timeAttackActive = false;
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final rewardService = Provider.of<DailyRewardService>(context, listen: false);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+
+    // Brain games: completion reward (base 2 + level-based bonus up to 6)
+    final bonus = ((_level - 1) ~/ 2).clamp(0, 6);
+    // ignore: discarded_futures
+    mechanicsService.grantBrainGameCompletionCoins(baseCoins: _score > 0 ? 2 : 0, bonusCoins: bonus);
+    // Daily tasks
+    // ignore: discarded_futures
+    rewardService.updateTaskProgress(TaskType.playBrainGame, 1);
+    if (_level >= 8) {
+      // ignore: discarded_futures
+      rewardService.updateTaskProgress(TaskType.simonReachLevel8, 1);
+    }
 
     if (!mechanicsService.hasLives) {
       _showNoLivesDialog(loc);

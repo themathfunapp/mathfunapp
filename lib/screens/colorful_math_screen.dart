@@ -5,6 +5,7 @@ import 'number_coloring_screen.dart';
 import 'shape_coloring_screen.dart';
 import 'color_lab_screen.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
@@ -23,6 +24,7 @@ class ColorfulMathScreen extends StatefulWidget {
 class _ColorfulMathScreenState extends State<ColorfulMathScreen>
     with TickerProviderStateMixin {
   late AnimationController _floatController;
+  late AnimationController _bounce;
   
   @override
   void initState() {
@@ -31,12 +33,59 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
+    _bounce = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    )..repeat(reverse: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantColorMathDailyBonus());
   }
 
   @override
   void dispose() {
     _floatController.dispose();
+    _bounce.dispose();
     super.dispose();
+  }
+
+  Future<void> _maybeGrantColorMathDailyBonus() async {
+    if (!mounted) return;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final granted = await mechanics.tryGrantDailyColorMathEntryBonus();
+    if (!mounted || !granted) return;
+
+    try {
+      final daily = Provider.of<DailyRewardService>(context, listen: false);
+      await daily.refresh();
+    } catch (_) {}
+
+    if (!mounted) return;
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 520),
+      pageBuilder: (ctx, animation, secondaryAnimation) {
+        return Center(
+          child: _KidColorMathDailyRewardDialog(
+            loc: loc,
+            bounce: _bounce,
+            onOk: () => Navigator.of(ctx).pop(),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.elasticOut);
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.65, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -66,34 +115,46 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
                     children: [
                       _buildTitle(loc),
                       const SizedBox(height: 30),
-                      _buildModuleCard(
-                        title: loc.get('number_coloring'),
-                        subtitle: loc.get('number_coloring_subtitle'),
-                        icon: '🔢',
-                        color: Colors.orange,
-                        progress: 0,
-                        totalLevels: 30,
-                        onTap: () => _showNumberColoringModeDialog(),
+                      Consumer<GameMechanicsService>(
+                        builder: (context, mechanicsService, _) {
+                          return _buildModuleCard(
+                            title: loc.get('number_coloring'),
+                            subtitle: loc.get('number_coloring_subtitle'),
+                            icon: '🔢',
+                            color: Colors.orange,
+                            progress: mechanicsService.colorMathNumberProgress,
+                            totalLevels: 30,
+                            onTap: () => _showNumberColoringModeDialog(),
+                          );
+                        },
                       ),
                       const SizedBox(height: 20),
-                      _buildModuleCard(
-                        title: loc.get('shape_coloring'),
-                        subtitle: loc.get('shape_coloring_subtitle'),
-                        icon: '🔺',
-                        color: Colors.green,
-                        progress: 0,
-                        totalLevels: 20,
-                        onTap: () => _showShapeColoringModeDialog(),
+                      Consumer<GameMechanicsService>(
+                        builder: (context, mechanicsService, _) {
+                          return _buildModuleCard(
+                            title: loc.get('shape_coloring'),
+                            subtitle: loc.get('shape_coloring_subtitle'),
+                            icon: '🔺',
+                            color: Colors.green,
+                            progress: mechanicsService.colorMathShapeProgress,
+                            totalLevels: 20,
+                            onTap: () => _showShapeColoringModeDialog(),
+                          );
+                        },
                       ),
                       const SizedBox(height: 20),
-                      _buildModuleCard(
-                        title: loc.get('color_lab'),
-                        subtitle: loc.get('color_lab_subtitle'),
-                        icon: '🧪',
-                        color: Colors.purple,
-                        progress: 0,
-                        totalLevels: 15,
-                        onTap: () => _showColorLabModeDialog(),
+                      Consumer<GameMechanicsService>(
+                        builder: (context, mechanicsService, _) {
+                          return _buildModuleCard(
+                            title: loc.get('color_lab'),
+                            subtitle: loc.get('color_lab_subtitle'),
+                            icon: '🧪',
+                            color: Colors.purple,
+                            progress: mechanicsService.colorMathLabProgress,
+                            totalLevels: 15,
+                            onTap: () => _showColorLabModeDialog(),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -137,7 +198,6 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('${loc.get('lives')}: ', style: GoogleFonts.quicksand(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600)),
                     ...List.generate(
                       maxLives,
                       (i) => Padding(
@@ -153,28 +213,6 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
                 ),
               );
             },
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.emoji_events, color: Colors.amber),
-                SizedBox(width: 8),
-                Text(
-                  '0/65',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -652,6 +690,100 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KidColorMathDailyRewardDialog extends StatelessWidget {
+  final AppLocalizations loc;
+  final Animation<double> bounce;
+  final VoidCallback onOk;
+
+  const _KidColorMathDailyRewardDialog({
+    required this.loc,
+    required this.bounce,
+    required this.onOk,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF7C4DFF),
+                Color(0xFFFF4081),
+                Color(0xFFFFC107),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF4081).withValues(alpha: 0.45),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎨', style: TextStyle(fontSize: 56)),
+              const SizedBox(height: 8),
+              AnimatedBuilder(
+                animation: bounce,
+                builder: (context, child) {
+                  final y = -6 * (1 - (bounce.value * 2 - 1).abs());
+                  return Transform.translate(offset: Offset(0, y), child: child);
+                },
+                child: const Text('🪙', style: TextStyle(fontSize: 46)),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                loc.get('color_math_daily_bonus_main'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1.25,
+                  shadows: [
+                    Shadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onOk,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF6A1B9A),
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: Text(
+                    loc.get('ok'),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),

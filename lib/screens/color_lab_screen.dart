@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:confetti/confetti.dart';
 import 'dart:math' as math;
 import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
+import '../models/daily_reward.dart' show TaskType;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/child_exit_dialog.dart';
@@ -130,6 +132,10 @@ class _ColorLabScreenState extends State<ColorLabScreen>
       // 2 saniye sonra bir sonraki seviyeye geç
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted && _currentLevel < widget.totalLevels) {
+          // Bu seviyeyi tamamlandı say
+          final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+          // ignore: discarded_futures
+          mechanicsService.setColorMathProgress(module: 'lab', completedLevel: _currentLevel, totalLevels: widget.totalLevels);
           setState(() {
             _currentLevel++;
             _loadLevel();
@@ -169,13 +175,22 @@ class _ColorLabScreenState extends State<ColorLabScreen>
   
   void _showCompleteDialog() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    Provider.of<GameMechanicsService>(context, listen: false).addCoins(10);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+
+    // Renkli Matematik: mod tamamlama bonusu (büyük)
+    // ignore: discarded_futures
+    mechanicsService.grantColorMathProgressCoins(baseCoins: 15, bonusCoins: 0);
+    // ignore: discarded_futures
+    mechanicsService.setColorMathProgress(module: 'lab', completedLevel: widget.totalLevels, totalLevels: widget.totalLevels);
+    // ignore: discarded_futures
+    rewardService.updateTaskProgress(TaskType.completeColorMath, 1);
     showDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       builder: (context) => _ColorLabCompleteDialog(
-        coinsEarned: 10,
+        coinsEarned: 15,
         loc: loc,
         onFinish: () {
           Navigator.pop(context);

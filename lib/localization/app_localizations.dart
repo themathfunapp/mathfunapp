@@ -1302,10 +1302,48 @@ class AppLocalizations {
       'rewards_locked_desc': 'Günlük ödüller kazanmak için hesap oluşturmanız gerekiyor.',
       'daily_bonus': 'Günlük Bonus',
       'clock_daily_bonus_main': 'Tebrikler! 10 altın kazandınız!',
+      'brain_daily_bonus_main': 'Tebrikler! 10 altın kazandınız!',
       'clock_game_help_title': 'Saat oyunu',
-      'clock_game_help_daily': 'Her gün gel, oyna — 10 altın kazan!',
+      'daily_entry_bonus_line': 'Her gün gel, oyna — 10 altın kazan!',
       'clock_game_help_about':
           'Saatin ibrelerine bak, soruları cevapla ve doğru saati seç. Zamanı okumayı eğlenerek öğrenirsin!',
+      'counting_game_help_title': 'Sayma oyunu',
+      'counting_game_help_about':
+          'Rakamları tanı, doğru sayıyı seç ve sayma becerini güçlendir. Hazır mısın? 🔢',
+      'addition_game_help_title': 'Toplama oyunu',
+      'addition_game_help_about':
+          'Sayıları birleştir, doğru sonucu seç ve toplama becerini geliştir. Haydi başlayalım! ➕',
+      'subtraction_game_help_title': 'Çıkarma oyunu',
+      'subtraction_game_help_about':
+          'Sayıları azalt, doğru sonucu seç ve çıkarma becerini geliştir. Hazır mısın? ➖',
+      'division_game_help_title': 'Bölme oyunu',
+      'division_game_help_about':
+          'Paylaştır, böl ve doğru sonucu seç. Bölme becerini eğlenerek geliştir! ➗',
+      'geometry_game_help_title': 'Geometri oyunu',
+      'geometry_game_help_about':
+          'Şekilleri tanı, doğru olanı seç ve geometri dünyasında eğlenerek öğren! 🔺',
+      'multiplication_game_help_title': 'Çarpma oyunu',
+      'multiplication_game_help_about':
+          'Grupla, çarp ve doğru sonucu seç. Çarpma becerini hızla geliştir! ✖️',
+
+      // Daily tasks (Brain games)
+      'task_brain_play_2': '2 zeka oyunu oyna',
+      'task_brain_play_2_desc': 'Zeka oyunlarından 2 tane oyna ve ödül kazan.',
+      'task_simon_level_8': 'Simon’da seviye 8',
+      'task_simon_level_8_desc': 'Simon Says oyununda 8. seviyeye ulaş.',
+      'task_memory_under_60': 'Hafıza: 60 sn altında',
+      'task_memory_under_60_desc': 'Hafıza Kartları oyununu 60 saniyenin altında bitir.',
+      'task_color_math_steps_5': 'Renkli Matematik: 5 adım',
+      'task_color_math_steps_5_desc': 'Renkli Matematikte 5 adım tamamla.',
+      'task_color_math_complete_1': 'Renkli Matematik: 1 mod bitir',
+      'task_color_math_complete_1_desc': 'Renkli Matematikte bir modu tamamen bitir.',
+      'color_math_daily_bonus_main': 'Tebrikler! 10 altın kazandınız!',
+      'task_world_map_visit': 'Matematik Dünyası’na gir',
+      'task_world_map_visit_desc': 'Matematik Dünyası haritasını ziyaret et.',
+      'world_daily_bonus_main': 'Tebrikler! 10 altın + 1 dünya bileti kazandınız!',
+      'world_ticket': 'Dünya Bileti',
+      'use_ticket': 'Bilet kullan',
+      'tickets': 'Bilet',
       'day': 'Gün',
       'special': 'Özel',
       'claim_reward': 'Ödülü Al',
@@ -2690,10 +2728,48 @@ class AppLocalizations {
       'rewards_locked_desc': 'You need to create an account to earn daily rewards.',
       'daily_bonus': 'Daily Bonus',
       'clock_daily_bonus_main': 'Congratulations! You earned 10 gold coins!',
+      'brain_daily_bonus_main': 'Congratulations! You earned 10 gold coins!',
       'clock_game_help_title': 'Clock game',
-      'clock_game_help_daily': 'Come back every day to play and earn 10 gold coins!',
+      'daily_entry_bonus_line': 'Come back every day to play and earn 10 gold coins!',
       'clock_game_help_about':
           'Look at the clock hands, read the time, and pick the right answer. Learn to tell time while having fun!',
+      'counting_game_help_title': 'Counting game',
+      'counting_game_help_about':
+          'Learn numbers, pick the correct answer, and boost your counting skills. Ready? 🔢',
+      'addition_game_help_title': 'Addition game',
+      'addition_game_help_about':
+          'Add numbers together, pick the correct result, and grow your addition skills. Let’s go! ➕',
+      'subtraction_game_help_title': 'Subtraction game',
+      'subtraction_game_help_about':
+          'Subtract numbers, pick the correct result, and build your subtraction skills. Ready? ➖',
+      'division_game_help_title': 'Division game',
+      'division_game_help_about':
+          'Divide, share equally, and pick the correct result. Improve your division skills with fun! ➗',
+      'geometry_game_help_title': 'Geometry game',
+      'geometry_game_help_about':
+          'Recognize shapes, choose the right one, and learn geometry while having fun! 🔺',
+      'multiplication_game_help_title': 'Multiplication game',
+      'multiplication_game_help_about':
+          'Multiply, group numbers, and pick the correct result. Level up your multiplication skills! ✖️',
+
+      // Daily tasks (Brain games)
+      'task_brain_play_2': 'Play 2 brain games',
+      'task_brain_play_2_desc': 'Play 2 brain games and earn a reward.',
+      'task_simon_level_8': 'Simon: reach level 8',
+      'task_simon_level_8_desc': 'Reach level 8 in Simon Says.',
+      'task_memory_under_60': 'Memory: under 60s',
+      'task_memory_under_60_desc': 'Finish Memory Cards in under 60 seconds.',
+      'task_color_math_steps_5': 'Colorful Math: 5 steps',
+      'task_color_math_steps_5_desc': 'Complete 5 steps in Colorful Math.',
+      'task_color_math_complete_1': 'Colorful Math: finish 1 module',
+      'task_color_math_complete_1_desc': 'Fully complete one Colorful Math module.',
+      'color_math_daily_bonus_main': 'Congratulations! You earned 10 gold coins!',
+      'task_world_map_visit': 'Open Math World Map',
+      'task_world_map_visit_desc': 'Visit the Math World Map.',
+      'world_daily_bonus_main': 'Congratulations! You earned 10 gold coins + 1 world ticket!',
+      'world_ticket': 'World Ticket',
+      'use_ticket': 'Use ticket',
+      'tickets': 'Tickets',
       'day': 'Day',
       'special': 'Special',
       'claim_reward': 'Claim Reward',

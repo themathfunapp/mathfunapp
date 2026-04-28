@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/child_exit_dialog.dart';
+import '../models/daily_reward.dart' show TaskType;
 
 class ShapeColoringScreen extends StatefulWidget {
   final String ageGroup;
@@ -394,8 +396,16 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
         child: ElevatedButton(
           onPressed: isShapeColored
               ? () {
+                  final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+                  final rewardService = Provider.of<DailyRewardService>(context, listen: false);
                   // Sonraki seviyeye geç
                   if (_currentLevel < widget.totalLevels) {
+                    // ignore: discarded_futures
+                    mechanicsService.grantColorMathProgressCoins(baseCoins: 1, bonusCoins: 0);
+                    // ignore: discarded_futures
+                    mechanicsService.setColorMathProgress(module: 'shape', completedLevel: _currentLevel, totalLevels: widget.totalLevels);
+                    // ignore: discarded_futures
+                    rewardService.updateTaskProgress(TaskType.playColorMathStep, 1);
                     setState(() {
                       _currentLevel++;
                       _loadLevel();
@@ -403,6 +413,13 @@ class _ShapeColoringScreenState extends State<ShapeColoringScreen> {
                       _selectedColor = null;
                     });
                   } else {
+                    // Mod tamam ödülü
+                    // ignore: discarded_futures
+                    mechanicsService.grantColorMathProgressCoins(baseCoins: 15, bonusCoins: 0);
+                    // ignore: discarded_futures
+                    mechanicsService.setColorMathProgress(module: 'shape', completedLevel: widget.totalLevels, totalLevels: widget.totalLevels);
+                    // ignore: discarded_futures
+                    rewardService.updateTaskProgress(TaskType.completeColorMath, 1);
                     // Oyun tamamlandı
                     showDialog(
                       context: context,

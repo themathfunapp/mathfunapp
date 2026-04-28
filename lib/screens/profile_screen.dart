@@ -391,6 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildStatItem('🪙', '$coins', localizations.get('coins')),
                   _buildStatItem('💎', '$diamonds', localizations.get('diamonds')),
                   _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
+                  _buildStatItem('🔥', '${mechanicsService.adventureWeeklyStreak}', 'Macera Serisi'),
                   _buildStatItem('👤', '${stats?.totalGamesPlayed ?? 0}', localizations.get('characters')),
                 ],
               );

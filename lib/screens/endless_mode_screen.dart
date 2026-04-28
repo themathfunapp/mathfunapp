@@ -306,6 +306,16 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   void _reportEndlessSession() {
     if (_sessionReported || !mounted) return;
     _sessionReported = true;
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    if ((_questionsAnswered + _wrongAnswers) > 0) {
+      var badges = 1;
+      if (_level >= 3) badges += 1;
+      if (_maxCombo >= 6 || _score >= 120) badges += 1;
+      mechanicsService.grantAdventurePassBadges(
+        mode: 'endless',
+        earnedBadges: badges.clamp(1, 3),
+      );
+    }
     final total = _questionsAnswered + _wrongAnswers;
     final q = total < 1 ? 1 : total;
     try {

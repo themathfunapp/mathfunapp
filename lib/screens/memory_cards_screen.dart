@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/daily_reward_service.dart';
+import '../models/daily_reward.dart' show TaskType;
+import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
 
 class MemoryCardsScreen extends StatefulWidget {
@@ -29,6 +32,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   int _score = 0;
   int _highScore = 0;
   int _moves = 0;
+  DateTime? _firstMoveAt;
 
   List<String> _cards = [];
   List<int> _cardPairIds = [];
@@ -120,6 +124,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     _firstCardIndex = null;
     _isProcessing = false;
     _canTap = true;
+    _firstMoveAt = null;
   }
 
   void _loadSection(int section) {
@@ -134,6 +139,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
       _showLevelSelect = false;
       _score = 0;
       _currentSection = (bolum - 1) * 10 + 1;
+      _firstMoveAt = null;
     });
     _loadSection(_currentSection);
   }
@@ -707,6 +713,8 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     if (_revealed[index]) return;
     if (_matched[index]) return;
 
+    _firstMoveAt ??= DateTime.now();
+
     if (_firstCardIndex == null) {
       setState(() {
         _revealed[index] = true;
@@ -807,6 +815,22 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
 
   void _showFinalDialog() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+
+    final seconds = _firstMoveAt == null
+        ? 999999
+        : DateTime.now().difference(_firstMoveAt!).inSeconds;
+    final bonus = ((_score / 50).floor()).clamp(0, 6); // basit performans bonusu
+    // ignore: discarded_futures
+    mechanicsService.grantBrainGameCompletionCoins(baseCoins: _score > 0 ? 2 : 0, bonusCoins: bonus);
+    // ignore: discarded_futures
+    rewardService.updateTaskProgress(TaskType.playBrainGame, 1);
+    if (seconds <= 60) {
+      // ignore: discarded_futures
+      rewardService.updateTaskProgress(TaskType.memoryUnder60s, 1);
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,

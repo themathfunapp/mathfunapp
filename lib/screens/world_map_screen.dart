@@ -4,8 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/story_mode.dart';
 import '../models/story_invite_payload.dart';
 import '../models/game_mechanics.dart' show TopicType;
+import '../models/daily_reward.dart' show TaskType;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/daily_reward_service.dart';
+import '../services/game_mechanics_service.dart';
 import 'chapter_screen.dart';
 import 'counting_forest_screen.dart';
 import 'cyber_workshop_screen.dart';
@@ -74,6 +77,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleInitialDeepLink();
+      _maybeGrantWorldMapDailyBonus();
     });
   }
 
@@ -110,6 +114,51 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     if (world == null) return;
     _handledInitialDeepLink = true;
     _openWorld(world, forcedChapterId: widget.initialChapterId);
+  }
+
+  Future<void> _maybeGrantWorldMapDailyBonus() async {
+    if (!mounted) return;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final storyStars = widget.progress?.totalStars ?? 0;
+    final granted = await mechanics.tryGrantDailyWorldMapBonus(currentStoryStars: storyStars);
+    if (!mounted || !granted) return;
+
+    // Daily task progress
+    try {
+      final daily = Provider.of<DailyRewardService>(context, listen: false);
+      // ignore: discarded_futures
+      daily.updateTaskProgress(TaskType.visitWorldMap, 1);
+      await daily.refresh();
+    } catch (_) {}
+
+    if (!mounted) return;
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 520),
+      pageBuilder: (ctx, animation, secondaryAnimation) {
+        return Center(
+          child: _KidWorldMapDailyRewardDialog(
+            loc: loc,
+            tickets: mechanics.worldMapTickets,
+            onOk: () => Navigator.of(ctx).pop(),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.elasticOut);
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.65, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -445,6 +494,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   }
 
   void _showLockedDialog(AppLocalizations localizations, StoryWorld world) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -501,6 +551,21 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           ],
         ),
         actions: [
+          if (mechanics.worldMapTickets > 0)
+            TextButton(
+              onPressed: () async {
+                final ok = await mechanics.spendWorldMapTicket();
+                if (!mounted) return;
+                Navigator.pop(context);
+                if (ok) {
+                  _openWorld(world);
+                }
+              },
+              child: Text(
+                '${localizations.get('use_ticket')} (${mechanics.worldMapTickets})',
+                style: const TextStyle(color: Colors.amber),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
@@ -769,6 +834,117 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           progress: widget.progress,
           openedFromParentPanel: widget.openedFromParentPanel,
           initialChapterId: forcedChapterId,
+        ),
+      ),
+    );
+  }
+}
+
+class _KidWorldMapDailyRewardDialog extends StatelessWidget {
+  final AppLocalizations loc;
+  final int tickets;
+  final VoidCallback onOk;
+
+  const _KidWorldMapDailyRewardDialog({
+    required this.loc,
+    required this.tickets,
+    required this.onOk,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF7C4DFF),
+                Color(0xFF00BCD4),
+                Color(0xFFFFC107),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00BCD4).withValues(alpha: 0.45),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🗺️', style: TextStyle(fontSize: 56)),
+              const SizedBox(height: 10),
+              const Text('🪙', style: TextStyle(fontSize: 44)),
+              const SizedBox(height: 10),
+              Text(
+                loc.get('world_daily_bonus_main'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1.25,
+                  shadows: [
+                    Shadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🎟️', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${loc.get('tickets')}: $tickets',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onOk,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF1565C0),
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: Text(
+                    loc.get('ok'),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

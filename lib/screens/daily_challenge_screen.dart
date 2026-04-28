@@ -316,6 +316,17 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _confettiController.stop();
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final challenge = mechanicsService.todayChallenge;
+    final success = challenge != null &&
+        _score >= challenge.targetScore &&
+        _correctAnswers >= challenge.targetCorrect;
+    if ((_correctAnswers + _wrongAnswers) > 0) {
+      final badges = success ? 2 : 1;
+      mechanicsService.grantAdventurePassBadges(
+        mode: 'daily',
+        earnedBadges: badges,
+      );
+    }
     mechanicsService.completeChallenge(_score, _correctAnswers);
 
     _showResultsDialog();

@@ -395,7 +395,10 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     if (_isCorrect) {
       _runStreak++;
       if (_runStreak > _bestRunStreak) _bestRunStreak = _runStreak;
-      _score += _calculateScore();
+      // Anında modda doğru cevap başına yıldız/puan artışı kapalı.
+      if (!_isInstantMath) {
+        _score += _calculateScore();
+      }
       _correctAnswers++;
       if (_isInstantMath) {
         _audio.playSound(SoundEffect.characterHappy);
@@ -1071,208 +1074,75 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildResultsDialog() {
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    final percentage = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions * 100).round() : 0;
-    final stars = percentage >= 80 ? 3 : percentage >= 60 ? 2 : percentage >= 40 ? 1 : 0;
-
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.7, end: 1),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.elasticOut,
-      builder: (context, scale, child) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.06, vertical: 40),
-        child: Transform.scale(
-          scale: scale,
-          child: child,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade400, Colors.blue.shade400],
+          ),
+          borderRadius: BorderRadius.circular(20),
         ),
-      ),
-      child: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.purple.shade400,
-                Colors.blue.shade400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🎉', style: TextStyle(fontSize: 34)),
+            const SizedBox(height: 8),
+            Text(
+              loc.get('game_over'),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              loc.get('keep_going'),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onBack();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.18),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(loc.get('main_menu')),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _restartGame();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(loc.get('play_again')),
+                  ),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 30,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Başlık ve emoji
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('🎉', style: TextStyle(fontSize: 26)),
-                  const SizedBox(width: 6),
-                  Text(
-                    loc.get('game_over'),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text('🎉', style: TextStyle(fontSize: 26)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                percentage >= 80
-                    ? loc.get('great_job')
-                    : percentage >= 40
-                        ? loc.get('keep_going')
-                        : loc.get('you_can_do_better'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Yıldız animasyonu
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (index) {
-                  return TweenAnimationBuilder<double>(
-                    duration: Duration(milliseconds: 500 + index * 200),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: value,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            index < stars ? Icons.star_rounded : Icons.star_border_rounded,
-                            color: Colors.amber,
-                            size: 32,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Sonuç kartı
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
-                ),
-                child: Column(
-                  children: [
-                    _buildResultRow('📚 ${loc.get('correct_answers')}', '$_correctAnswers / $_totalQuestions'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('❌ ${loc.get('wrong_answers')}', '$_wrongAnswers'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('⭐ ${loc.get('total_score')}', '$_score'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('🎯 ${loc.get('success_rate')}', '%$percentage'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('⏱️ ${loc.get('total_time')}', '${_totalTime}s'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('❤️ ${loc.get('lives_remaining')}', '${mechanicsService.currentLives}/${mechanicsService.maxLives}'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Butonlar
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.18),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.home, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            loc.get('main_menu'),
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      _restartGame();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.refresh, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            loc.get('play_again'),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildResultRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-        ],
       ),
     );
   }
@@ -1280,6 +1150,19 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   void _reportSessionToBadges() {
     if (_hasReportedSession || !mounted) return;
     _hasReportedSession = true;
+    if (_isInstantMath) {
+      final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+      final totalAnswers = _correctAnswers + _wrongAnswers;
+      if (totalAnswers > 0) {
+        var badges = 1;
+        if (_bestRunStreak >= 5) badges += 1;
+        if (_superFastAnswersSession >= 2) badges += 1;
+        mechanicsService.grantAdventurePassBadges(
+          mode: 'instant',
+          earnedBadges: badges.clamp(1, 3),
+        );
+      }
+    }
     final answered = (_correctAnswers + _wrongAnswers).clamp(1, 9999);
     final avg = answered > 0 ? _totalTime / answered : 0.0;
     try {

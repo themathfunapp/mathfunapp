@@ -117,6 +117,12 @@ enum TaskType {
   perfectGame,        // Hatasız oyun
   fastAnswers,        // Hızlı cevap
   playMiniGame,       // Mini oyun oyna
+  playBrainGame,      // Zeka oyunu oyna
+  simonReachLevel8,   // Simon 8. seviyeye ulaş
+  memoryUnder60s,     // Hafıza oyununu 60 sn altında bitir
+  playColorMathStep,  // Renkli Matematikte bir adım tamamla
+  completeColorMath,  // Renkli Matematikte bir mod bitir
+  visitWorldMap,      // Matematik Dünyası (harita) ziyareti
   completeStory,      // Hikaye tamamla
   dailyLogin,         // Günlük giriş
 }

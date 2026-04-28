@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../services/game_mechanics_service.dart';
+import '../services/daily_reward_service.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/child_exit_dialog.dart';
+import '../models/daily_reward.dart' show TaskType;
 
 class NumberColoringScreen extends StatefulWidget {
   final String ageGroup;
@@ -484,6 +486,17 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   
   void _showLevelCompleteDialog() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+
+    // Renkli Matematik: seviye tamam ödülü (küçük)
+    // ignore: discarded_futures
+    mechanicsService.grantColorMathProgressCoins(baseCoins: 1, bonusCoins: 0);
+    // ignore: discarded_futures
+    mechanicsService.setColorMathProgress(module: 'number', completedLevel: _currentLevel, totalLevels: widget.totalLevels);
+    // ignore: discarded_futures
+    rewardService.updateTaskProgress(TaskType.playColorMathStep, 1);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -511,6 +524,17 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   
   void _showGameCompleteDialog() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+
+    // Renkli Matematik: mod tamamlama bonusu (büyük)
+    // ignore: discarded_futures
+    mechanicsService.grantColorMathProgressCoins(baseCoins: 15, bonusCoins: 0);
+    // ignore: discarded_futures
+    mechanicsService.setColorMathProgress(module: 'number', completedLevel: widget.totalLevels, totalLevels: widget.totalLevels);
+    // ignore: discarded_futures
+    rewardService.updateTaskProgress(TaskType.completeColorMath, 1);
+
     showDialog(
       context: context,
       barrierDismissible: false,
