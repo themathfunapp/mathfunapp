@@ -39,8 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final authService = Provider.of<AuthService>(context, listen: true);
     final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentUser = authService.currentUser;
     final localizations = AppLocalizations(Locale(currentLocale));
 
     return Scaffold(
@@ -162,6 +163,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 16),
+
+            if (currentUser != null && !currentUser.isGuest)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  elevation: 8,
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      children: [
+                        const Text('📧', style: TextStyle(fontSize: 22)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations.get('email'),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2d3436),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                currentUser.email ?? '-',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            if (currentUser != null && !currentUser.isGuest) const SizedBox(height: 16),
 
             // Gizlilik, şartlar, reklam tercihleri
             Padding(

@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -35,6 +37,7 @@ class AuthService extends ChangeNotifier {
     }
   }
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     clientId: kIsWeb ? _googleOAuthWebClientId : null,
@@ -752,13 +755,24 @@ class AuthService extends ChangeNotifier {
   }
 
   // Update user profile
-  Future<void> updateProfile({String? displayName, String? profileEmoji}) async {
+  Future<void> updateProfile({
+    String? displayName,
+    String? profileEmoji,
+    String? photoURL,
+  }) async {
     if (_currentUser == null || _currentUser!.isGuest) return;
 
     try {
       // Update in Firebase Auth
       if (displayName != null && displayName.isNotEmpty) {
         await _auth.currentUser!.updateDisplayName(displayName);
+      }
+      // Firebase Auth sadece gerçek URL (http/https) bekler.
+      // data:image base64 avatarları sadece Firestore'da saklıyoruz.
+      if (photoURL != null &&
+          photoURL.isNotEmpty &&
+          (photoURL.startsWith('http://') || photoURL.startsWith('https://'))) {
+        await _auth.currentUser!.updatePhotoURL(photoURL);
       }
 
       // Update in Firestore
@@ -772,6 +786,9 @@ class AuthService extends ChangeNotifier {
       if (profileEmoji != null && profileEmoji.isNotEmpty) {
         updateData['profileEmoji'] = profileEmoji;
       }
+      if (photoURL != null && photoURL.isNotEmpty) {
+        updateData['photoURL'] = photoURL;
+      }
 
       await _firestore.collection('users').doc(_currentUser!.uid).set(
         updateData,
@@ -780,14 +797,34 @@ class AuthService extends ChangeNotifier {
 
       // Update current user
       _currentUser = _currentUser!.copyWith(
-        displayName: displayName,
-        profileEmoji: profileEmoji,
+        displayName: (displayName != null && displayName.isNotEmpty)
+            ? displayName
+            : _currentUser!.displayName,
+        profileEmoji: (profileEmoji != null && profileEmoji.isNotEmpty)
+            ? profileEmoji
+            : _currentUser!.profileEmoji,
+        photoURL: (photoURL != null && photoURL.isNotEmpty)
+            ? photoURL
+            : _currentUser!.photoURL,
       );
       notifyListeners();
     } catch (e) {
       debugPrint("Update profile error: $e");
       rethrow;
     }
+  }
+
+  Future<String> uploadProfilePhoto(Uint8List bytes) async {
+    if (_currentUser == null || _currentUser!.isGuest) {
+      throw Exception('User is not eligible for photo upload');
+    }
+    final uid = _currentUser!.uid;
+    final ref = _storage.ref().child('profile_photos/$uid/avatar.jpg');
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    return ref.getDownloadURL();
   }
 
   // Delete account

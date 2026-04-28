@@ -199,7 +199,14 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       Duration.zero,
       GameDifficulty.easy,
     );
-    final coinsEarned = stars * 10 + _correctAnswers * 3;
+    final previousCorrectTotal =
+        miniGameService.progress?.gameStats[widget.game.id]?.totalCorrectAnswers ??
+            0;
+    final newCorrectTotal = previousCorrectTotal + _correctAnswers;
+    final coinsEarned = _calculateThresholdCoins(
+      previousCorrectTotal,
+      newCorrectTotal,
+    );
 
     miniGameService.saveGameResult(MiniGameResult(
       gameId: widget.game.id,
@@ -214,6 +221,27 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     ));
 
     _showResultDialog(stars, coinsEarned);
+  }
+
+  int _calculateThresholdCoins(int previousTotalCorrect, int newTotalCorrect) {
+    if (newTotalCorrect <= previousTotalCorrect) return 0;
+    var reward = 0;
+
+    // İlk 20 doğru cevap eşiği
+    if (previousTotalCorrect < 20 && newTotalCorrect >= 20) {
+      reward += 5;
+    }
+
+    // 20'den sonraki her +10 doğru cevap (30, 40, 50...) için +3
+    final previousTier = previousTotalCorrect < 30
+        ? 0
+        : ((previousTotalCorrect - 20) ~/ 10);
+    final newTier = newTotalCorrect < 30 ? 0 : ((newTotalCorrect - 20) ~/ 10);
+    if (newTier > previousTier) {
+      reward += (newTier - previousTier) * 3;
+    }
+
+    return reward;
   }
 
   void _showResultDialog(int stars, int coinsEarned) {

@@ -84,6 +84,8 @@ class MiniGameService extends ChangeNotifier {
       bestScore: max(existingStats?.bestScore ?? 0, result.score),
       totalStars: (existingStats?.totalStars ?? 0) + result.stars,
       bestStreak: max(existingStats?.bestStreak ?? 0, result.correctAnswers),
+      totalCorrectAnswers:
+          (existingStats?.totalCorrectAnswers ?? 0) + result.correctAnswers,
       lastPlayedAt: DateTime.now(),
     );
 

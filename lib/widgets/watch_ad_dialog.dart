@@ -100,15 +100,7 @@ class WatchAdForLifeDialog extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                '30 saniyelik bir reklam izlemen yeterli!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13,
-                ),
-              ),
+              const SizedBox(height: 8),
             ],
           ),
           actions: [

@@ -239,6 +239,7 @@ class GameStats {
   final int bestScore;
   final int totalStars;
   final int bestStreak;
+  final int totalCorrectAnswers;
   final DateTime? lastPlayedAt;
 
   const GameStats({
@@ -247,6 +248,7 @@ class GameStats {
     this.bestScore = 0,
     this.totalStars = 0,
     this.bestStreak = 0,
+    this.totalCorrectAnswers = 0,
     this.lastPlayedAt,
   });
 
@@ -257,6 +259,7 @@ class GameStats {
       bestScore: map['bestScore'] ?? 0,
       totalStars: map['totalStars'] ?? 0,
       bestStreak: map['bestStreak'] ?? 0,
+      totalCorrectAnswers: map['totalCorrectAnswers'] ?? 0,
       lastPlayedAt: map['lastPlayedAt'] != null
           ? DateTime.parse(map['lastPlayedAt'])
           : null,
@@ -270,6 +273,7 @@ class GameStats {
       'bestScore': bestScore,
       'totalStars': totalStars,
       'bestStreak': bestStreak,
+      'totalCorrectAnswers': totalCorrectAnswers,
       'lastPlayedAt': lastPlayedAt?.toIso8601String(),
     };
   }

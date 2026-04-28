@@ -1102,7 +1102,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
             ),
             const SizedBox(height: 6),
             Text(
-              loc.get('keep_going'),
+              loc.get('keep_trying'),
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             const SizedBox(height: 18),

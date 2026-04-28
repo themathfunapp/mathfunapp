@@ -268,7 +268,14 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       Duration.zero,
       GameDifficulty.easy,
     );
-    final coinsEarned = stars * 10 + _correctPops * 2;
+    final previousCorrectTotal =
+        miniGameService.progress?.gameStats[widget.game.id]?.totalCorrectAnswers ??
+            0;
+    final newCorrectTotal = previousCorrectTotal + _correctPops;
+    final coinsEarned = _calculateThresholdCoins(
+      previousCorrectTotal,
+      newCorrectTotal,
+    );
 
     // Save result
     miniGameService.saveGameResult(MiniGameResult(
@@ -284,6 +291,27 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     ));
 
     _showResultDialog(stars, coinsEarned);
+  }
+
+  int _calculateThresholdCoins(int previousTotalCorrect, int newTotalCorrect) {
+    if (newTotalCorrect <= previousTotalCorrect) return 0;
+    var reward = 0;
+
+    // İlk 20 doğru cevap eşiği
+    if (previousTotalCorrect < 20 && newTotalCorrect >= 20) {
+      reward += 5;
+    }
+
+    // 20'den sonra her +10 doğru için +3 altın (30,40,50...)
+    final previousTier = previousTotalCorrect < 30
+        ? 0
+        : ((previousTotalCorrect - 20) ~/ 10);
+    final newTier = newTotalCorrect < 30 ? 0 : ((newTotalCorrect - 20) ~/ 10);
+    if (newTier > previousTier) {
+      reward += (newTier - previousTier) * 3;
+    }
+
+    return reward;
   }
 
   void _showResultDialog(int stars, int coinsEarned) {

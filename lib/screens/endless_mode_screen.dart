@@ -1082,36 +1082,65 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   Widget _buildOptions() {
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxWidth = constraints.maxWidth.clamp(280.0, 780.0);
+          final gap = maxWidth < 420 ? 6.0 : 10.0;
+          final buttonWidth = (maxWidth - (gap * 3)) / 4;
+          final buttonHeight = (buttonWidth * 0.72).clamp(48.0, 70.0);
+          final fontSize = (buttonHeight * 0.46).clamp(22.0, 34.0);
+
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+              child: Row(
                 children: [
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[0])),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[1])),
+                  Expanded(
+                    child: _buildOptionButton(
+                      _currentQuestion.options[0],
+                      buttonHeight: buttonHeight,
+                      fontSize: fontSize,
+                    ),
+                  ),
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: _buildOptionButton(
+                      _currentQuestion.options[1],
+                      buttonHeight: buttonHeight,
+                      fontSize: fontSize,
+                    ),
+                  ),
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: _buildOptionButton(
+                      _currentQuestion.options[2],
+                      buttonHeight: buttonHeight,
+                      fontSize: fontSize,
+                    ),
+                  ),
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: _buildOptionButton(
+                      _currentQuestion.options[3],
+                      buttonHeight: buttonHeight,
+                      fontSize: fontSize,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[2])),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildOptionButton(_currentQuestion.options[3])),
-                ],
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildOptionButton(int option) {
+  Widget _buildOptionButton(
+    int option, {
+    double buttonHeight = 68,
+    double fontSize = 32,
+  }) {
     final isSelected = _selectedAnswer == option;
     final isCorrectAnswer = option == _currentQuestion.correctAnswer;
 
@@ -1145,24 +1174,23 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
           : () => _checkAnswer(option),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 62,
+        height: buttonHeight,
         decoration: BoxDecoration(
           gradient: idle
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xE6FFFFFF),
-                    Color(0x66E1BEE7),
-                    Color(0x99B39DDB),
+                    Color(0xFFFDFBFF),
+                    Color(0xFFEDE7F6),
                   ],
                 )
               : null,
           color: idle ? null : bgColor,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: borderColor,
-            width: 3,
+            width: 2.5,
           ),
           boxShadow: [
             BoxShadow(
@@ -1176,7 +1204,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
           child: Text(
             '$option',
             style: TextStyle(
-              fontSize: 30,
+              fontSize: fontSize,
               fontWeight: FontWeight.bold,
               color: textColor,
               shadows: [
