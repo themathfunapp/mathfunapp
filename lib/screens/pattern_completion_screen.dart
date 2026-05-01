@@ -131,7 +131,12 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
     if (!mechanicsService.hasLives) {
       final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.get('no_lives_play')), backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
-      Future.delayed(const Duration(milliseconds: 500), () { if (mounted) Navigator.pop(context); });
+      setState(() {
+        _showLevelSelect = true;
+      });
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _audio.playMenuAmbientLoop();
+      });
       return;
     }
     final sectionPatterns = _allPatterns.where((p) => p.section == section).toList();

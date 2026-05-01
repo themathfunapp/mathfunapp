@@ -820,35 +820,31 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 16),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(height: constraints.maxHeight * 0.04),
-                              AnimatedBuilder(
-                                animation: _shakeAnimation,
-                                builder: (context, child) {
-                                  return Transform.translate(
-                                    offset: Offset(
-                                      _shakeAnimation.value *
-                                          math.sin(_shakeController.value * math.pi * 4),
-                                      0,
-                                    ),
-                                    child: _buildQuestion(loc),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              _buildOptions(),
-                            ],
+                    final verticalGap = (constraints.maxHeight * 0.035).clamp(14.0, 28.0);
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 14),
+                      child: Column(
+                        children: [
+                          const Spacer(),
+                          AnimatedBuilder(
+                            animation: Listenable.merge([_shakeAnimation, _playfulLoopController]),
+                            builder: (context, child) {
+                              final idleFloat =
+                                  math.sin(_playfulLoopController.value * math.pi * 2) * 3.5;
+                              return Transform.translate(
+                                offset: Offset(
+                                  _shakeAnimation.value *
+                                      math.sin(_shakeController.value * math.pi * 4),
+                                  idleFloat,
+                                ),
+                                child: _buildQuestion(loc),
+                              );
+                            },
                           ),
-                        ),
+                          SizedBox(height: verticalGap),
+                          _buildOptions(),
+                          const Spacer(flex: 2),
+                        ],
                       ),
                     );
                   },
@@ -895,10 +891,14 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
   Widget _buildQuestion(AppLocalizations loc) {
     final isLowTime = _timeLeft <= 3;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final questionFont = (screenWidth * 0.07).clamp(38.0, 60.0);
+    final questionCardMaxWidth = (screenWidth * 0.9).clamp(320.0, 980.0);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      constraints: BoxConstraints(maxWidth: questionCardMaxWidth),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -962,11 +962,11 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
               children: [
                 Text(
                   '${_currentQuestion.num1}',
-                  style: const TextStyle(
-                    fontSize: 48,
+                  style: TextStyle(
+                    fontSize: questionFont,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    shadows: [
+                    shadows: const [
                       Shadow(
                         blurRadius: 8,
                         color: Colors.black26,
@@ -978,11 +978,11 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                 const SizedBox(width: 10),
                 Text(
                   _currentQuestion.operator,
-                  style: const TextStyle(
-                    fontSize: 48,
+                  style: TextStyle(
+                    fontSize: questionFont,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    shadows: [
+                    shadows: const [
                       Shadow(
                         blurRadius: 8,
                         color: Colors.black26,
@@ -994,11 +994,11 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                 const SizedBox(width: 10),
                 Text(
                   '${_currentQuestion.num2}',
-                  style: const TextStyle(
-                    fontSize: 48,
+                  style: TextStyle(
+                    fontSize: questionFont,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    shadows: [
+                    shadows: const [
                       Shadow(
                         blurRadius: 8,
                         color: Colors.black26,
@@ -1008,13 +1008,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   '=',
                   style: TextStyle(
-                    fontSize: 48,
+                    fontSize: questionFont,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    shadows: [
+                    shadows: const [
                       Shadow(
                         blurRadius: 8,
                         color: Colors.black26,
@@ -1024,13 +1024,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   '?',
                   style: TextStyle(
-                    fontSize: 48,
+                    fontSize: questionFont,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    shadows: [
+                    shadows: const [
                       Shadow(
                         blurRadius: 8,
                         color: Colors.black26,
@@ -1084,16 +1084,16 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     return Center(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxWidth = constraints.maxWidth.clamp(280.0, 780.0);
-          final gap = maxWidth < 420 ? 6.0 : 10.0;
-          final buttonWidth = (maxWidth - (gap * 3)) / 4;
-          final buttonHeight = (buttonWidth * 0.72).clamp(48.0, 70.0);
-          final fontSize = (buttonHeight * 0.46).clamp(22.0, 34.0);
+          final usableWidth = (constraints.maxWidth - 8).clamp(280.0, 1400.0);
+          final gap = usableWidth < 420 ? 6.0 : (usableWidth < 820 ? 10.0 : 14.0);
+          final buttonWidth = (usableWidth - (gap * 3)) / 4;
+          final buttonHeight = (buttonWidth * 0.68).clamp(52.0, 106.0);
+          final fontSize = (buttonHeight * 0.42).clamp(24.0, 46.0);
 
           return ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
+            constraints: BoxConstraints(maxWidth: usableWidth),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+              padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
               child: Row(
                 children: [
                   Expanded(
@@ -1168,52 +1168,69 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
       textColor = const Color(0xFF4A148C);
     }
 
+    final pulse = idle
+        ? (0.5 + 0.5 * math.sin((_playfulLoopController.value * math.pi * 2) + (option * 0.8)))
+        : 0.0;
+    final glowOpacity = idle ? (0.18 + pulse * 0.18) : 0.0;
+    final idleScale = idle ? (1.0 + pulse * 0.015) : 1.0;
+
     return GestureDetector(
       onTap: (_isAnswered || _isGameOver || _gamePaused || Provider.of<GameMechanicsService>(context, listen: false).currentLives <= 0)
           ? null
           : () => _checkAnswer(option),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: buttonHeight,
-        decoration: BoxDecoration(
-          gradient: idle
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFFDFBFF),
-                    Color(0xFFEDE7F6),
-                  ],
-                )
-              : null,
-          color: idle ? null : bgColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: borderColor,
-            width: 2.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: (_isAnswered ? Colors.black : const Color(0xFF7E57C2)).withOpacity(_isAnswered ? 0.2 : 0.25),
-              blurRadius: _isAnswered ? 10 : 12,
-              offset: const Offset(0, 5),
+      child: Transform.scale(
+        scale: idleScale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: buttonHeight,
+          decoration: BoxDecoration(
+            gradient: idle
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFFDFBFF),
+                      Color(0xFFEDE7F6),
+                    ],
+                  )
+                : null,
+            color: idle ? null : bgColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: borderColor,
+              width: 2.5,
             ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            '$option',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-              shadows: [
-                Shadow(
-                  blurRadius: 3,
-                  color: Colors.black.withOpacity(_isAnswered ? 0.26 : 0.12),
-                  offset: const Offset(2, 2),
+            boxShadow: [
+              BoxShadow(
+                color: (_isAnswered ? Colors.black : const Color(0xFF7E57C2))
+                    .withOpacity(_isAnswered ? 0.2 : 0.25),
+                blurRadius: _isAnswered ? 10 : 12,
+                offset: const Offset(0, 5),
+              ),
+              if (idle)
+                BoxShadow(
+                  color: const Color(0xFFB39DDB).withOpacity(glowOpacity),
+                  blurRadius: 16 + (pulse * 8),
+                  spreadRadius: 0.5 + pulse,
+                  offset: const Offset(0, 0),
                 ),
-              ],
+            ],
+          ),
+          child: Center(
+            child: Text(
+              '$option',
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                shadows: [
+                  Shadow(
+                    blurRadius: 3,
+                    color: Colors.black.withOpacity(_isAnswered ? 0.26 : 0.12),
+                    offset: const Offset(2, 2),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

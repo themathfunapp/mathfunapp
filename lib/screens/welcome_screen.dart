@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mathfun/config/legal_urls.dart';
@@ -8,6 +11,7 @@ import 'package:mathfun/models/app_user.dart';
 import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/screens/home_screen.dart';
 import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/widgets/web_google_sign_in_button.dart';
 
 
 
@@ -28,6 +32,8 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _isLoading = false;
   String _selectedOption = '';
+  StreamSubscription<GoogleSignInAccount?>? _webGoogleSub;
+  bool _webGoogleFlowBusy = false;
 
   // Platform kontrol fonksiyonları
   bool get _isIOS => defaultTargetPlatform == TargetPlatform.iOS;
@@ -36,6 +42,79 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool get _isWindows => defaultTargetPlatform == TargetPlatform.windows;
   bool get _isLinux => defaultTargetPlatform == TargetPlatform.linux;
   bool get _isWeb => kIsWeb;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _attachWebGoogleListener();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _webGoogleSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _attachWebGoogleListener() async {
+    if (!kIsWeb || !mounted) return;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    await authService.prepareWebGoogleIdentitySignIn();
+    if (!mounted) return;
+    await _webGoogleSub?.cancel();
+    _webGoogleSub = authService.googleSignInAccountStream.listen(
+      (account) async {
+        if (!mounted || account == null || _webGoogleFlowBusy) return;
+        _webGoogleFlowBusy = true;
+        setState(() {
+          _selectedOption = 'google';
+          _isLoading = true;
+        });
+        try {
+          final auth = Provider.of<AuthService>(context, listen: false);
+          final user = await auth.signInToFirebaseWithGoogleAccount(account);
+          if (!mounted) return;
+          if (user != null) {
+            await auth.updateUserLanguage(
+              Provider.of<LocaleProvider>(context, listen: false)
+                  .locale
+                  .languageCode,
+            );
+            if (!mounted) return;
+            if (user.isGuest) {
+              _navigateToHomeScreen();
+            } else {
+              widget.onSignInComplete();
+            }
+          } else {
+            setState(() {
+              _isLoading = false;
+              _selectedOption = '';
+              _webGoogleFlowBusy = false;
+            });
+          }
+        } catch (e) {
+          if (!mounted) return;
+          final loc = AppLocalizations(
+            Provider.of<LocaleProvider>(context, listen: false).locale,
+          );
+          if (e is GoogleSignInShaNotRegisteredException) {
+            _showErrorSnackbar(loc.googleSigninShaFirebaseShort);
+          } else {
+            _showErrorSnackbar('${loc.loginError}: $e');
+          }
+          setState(() {
+            _isLoading = false;
+            _selectedOption = '';
+            _webGoogleFlowBusy = false;
+          });
+        }
+      },
+    );
+  }
 
   // Desteklenen diller listesi (LocaleProvider.kSupportedLanguageCodes ile uyumlu)
   static final List<Map<String, dynamic>> _supportedLanguages = [
@@ -104,8 +183,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       switch (optionId) {
         case 'google':
-          // Google Sign-In - auth service içinde hesap seçimi yönetilir
-          user = await authService.signInWithGoogle();
+          if (kIsWeb) {
+            // Web'de Google Identity Services düğmesi kullanılır.
+            user = null;
+          } else {
+            user = await authService.signInWithGoogle();
+          }
           break;
         case 'email':
           await _showEmailDialog();
@@ -119,8 +202,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       if (user != null) {
+        if (!mounted) return;
         // Dil tercihini kaydet
         await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
+        if (!mounted) return;
 
         // Kullanıcı tipine göre yönlendirme
         if (user.isGuest) {
@@ -130,12 +215,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         }
       } else {
         // Kullanıcı giriş yapmadı (hesap seçmedi veya iptal etti)
-        setState(() {
-          _isLoading = false;
-          _selectedOption = '';
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _selectedOption = '';
+          });
+        }
       }
     } catch (e) {
+      if (!mounted) return;
       final loc = AppLocalizations(
         Provider.of<LocaleProvider>(context, listen: false).locale,
       );
@@ -144,10 +232,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       } else {
         _showErrorSnackbar('${loc.loginError}: $e');
       }
-      setState(() {
-        _isLoading = false;
-        _selectedOption = '';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _selectedOption = '';
+        });
+      }
     } finally {
       // Sadece hata durumunda değil, başarılı durumda da isLoading'i false yap
       // Ancak bu kısım zaten yönlendirme yapıldığı için çalışmayabilir
@@ -553,6 +643,65 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           const SizedBox(height: 32),
           ..._loginOptions(locale).map((option) {
             final bool isSelected = _selectedOption == option['id'];
+            final Color optionColor = option['color'] as Color;
+
+            if (option['id'] == 'google' && kIsWeb) {
+              return Padding(
+                key: const ValueKey('web_google_gis'),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: optionColor.withOpacity(isSelected ? 0.6 : 0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    color: optionColor.withOpacity(0.06),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        option['title'] as String,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[900],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        option['description'] as String,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      buildWebGoogleSignInButton(
+                        locale: locale.languageCode,
+                        minWidth: 320,
+                      ),
+                      if (_isLoading && _selectedOption == 'google')
+                        const Padding(
+                          padding: EdgeInsets.only(top: 14),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -561,21 +710,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: isSelected
-                      ? Border.all(color: option['color'], width: 2)
+                      ? Border.all(color: optionColor, width: 2)
                       : null,
                 ),
                 child: ElevatedButton(
                   onPressed: _isLoading
                       ? null
-                      : () => _handleLogin(option['id']),
+                      : () => _handleLogin(option['id'] as String),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: option['color'].withOpacity(isSelected ? 0.15 : 0.1),
-                    foregroundColor: option['color'],
+                    backgroundColor: optionColor.withOpacity(isSelected ? 0.15 : 0.1),
+                    foregroundColor: optionColor,
                     minimumSize: const Size(double.infinity, 58),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: option['color'].withOpacity(isSelected ? 0.5 : 0.3),
+                        color: optionColor.withOpacity(isSelected ? 0.5 : 0.3),
                         width: 1,
                       ),
                     ),
@@ -590,7 +739,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: option['color'].withOpacity(0.2),
+                            color: optionColor.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -598,7 +747,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               option['icon'] as String,
                               style: TextStyle(
                                 fontSize: 16,
-                                color: option['color'],
+                                color: optionColor,
                               ),
                             ),
                           ),
@@ -608,7 +757,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: option['color'],
+                            color: optionColor,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -627,7 +776,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: option['color'],
+                            color: optionColor,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -660,7 +809,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: option['color'],
+                            color: optionColor,
                           ),
                         ),
                     ],

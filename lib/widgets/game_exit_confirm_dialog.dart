@@ -65,13 +65,17 @@ class _GameExitConfirmDialogState extends State<GameExitConfirmDialog>
     _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
+    // Keep this animation in a safe [0,1] curve path to avoid web assert
+    // in TweenSequence transform with overshooting curves.
     _iconBounceAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.8, end: 1.15), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1), weight: 50),
-    ]).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
-    ));
+      TweenSequenceItem(tween: Tween(begin: 0.8, end: 1.08), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1), weight: 50),
+    ]).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
     _controller.forward();
   }
 

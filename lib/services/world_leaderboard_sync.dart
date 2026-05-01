@@ -14,12 +14,16 @@ Future<void> publishWorldLeaderboardScores({
   required int diamonds,
   String? displayName,
   String? profileEmoji,
+  String? photoURL,
 }) async {
   if (userId.isEmpty) return;
 
   var name = (displayName ?? '').trim();
   String? emoji = profileEmoji;
-  if (name.isEmpty) {
+  String? photo = photoURL;
+  final needsProfileFetch =
+      name.isEmpty || (emoji == null || emoji.trim().isEmpty) || (photo == null || photo.trim().isEmpty);
+  if (needsProfileFetch) {
     try {
       final snap = await firestore.collection('users').doc(userId).get();
       final m = snap.data();
@@ -30,6 +34,7 @@ Future<void> publishWorldLeaderboardScores({
         if (at > 0) name = em.substring(0, at);
       }
       emoji ??= m?['profileEmoji'] as String?;
+      photo ??= (m?['photoURL'] as String?)?.trim();
     } catch (_) {}
   }
   if (name.isEmpty) name = 'Oyuncu';
@@ -44,6 +49,7 @@ Future<void> publishWorldLeaderboardScores({
     {
       'displayName': name,
       'profileEmoji': emoji,
+      'photoURL': photo,
       'coins': c,
       'updatedAt': FieldValue.serverTimestamp(),
     },
@@ -54,6 +60,7 @@ Future<void> publishWorldLeaderboardScores({
     {
       'displayName': name,
       'profileEmoji': emoji,
+      'photoURL': photo,
       'diamonds': d,
       'updatedAt': FieldValue.serverTimestamp(),
     },

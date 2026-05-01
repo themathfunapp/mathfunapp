@@ -275,73 +275,86 @@ class AuthService extends ChangeNotifier {
 
 // AuthService.dart içindeki signInWithGoogle metodunu güncelle
 
+  /// Web: [GoogleSignIn.onCurrentUserChanged] akışı (GIS düğmesi).
+  Stream<GoogleSignInAccount?> get googleSignInAccountStream =>
+      _googleSignIn.onCurrentUserChanged;
+
+  /// Web: GIS oturumunu sıfırla; böylece tıklamada hesap seçici açılır.
+  Future<void> prepareWebGoogleIdentitySignIn() async {
+    if (!kIsWeb) return;
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('Firebase signOut (web GIS hazırlık): $e');
+    }
+    try {
+      await _googleSignIn.signOut();
+    } catch (e) {
+      debugPrint('GoogleSignIn.signOut (web GIS hazırlık): $e');
+    }
+  }
+
+  /// [GoogleSignInAccount] ile Firebase oturumu (mobil [signInWithGoogle] ve web GIS).
+  Future<AppUser?> signInToFirebaseWithGoogleAccount(
+    GoogleSignInAccount googleUser,
+  ) async {
+    try {
+      debugPrint('Google kullanıcısı alındı: ${googleUser.email}');
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      debugPrint('Firebase sign-in başarılı: ${userCredential.user?.email}');
+
+      if (userCredential.user != null) {
+        return await _handleGoogleSignInSuccess(userCredential.user!);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('signInToFirebaseWithGoogleAccount hatası: $e');
+      if (_isGoogleSignInDeveloperConfigError(e)) {
+        throw const GoogleSignInShaNotRegisteredException();
+      }
+      rethrow;
+    }
+  }
+
   Future<AppUser?> signInWithGoogle() async {
     try {
       debugPrint('Google Sign-In başlıyor...');
 
       if (kIsWeb) {
-        // Web için - önce mevcut oturumu temizle
-        try {
-          await _auth.signOut();
-        } catch (e) {
-          debugPrint('Önceki oturum temizleme: $e');
-        }
-
-        // Web için - popup ile hesap seçimi
-        final googleProvider = firebase_auth.GoogleAuthProvider();
-        googleProvider.addScope('email');
-        googleProvider.addScope('profile');
-
-        // Her zaman hesap seçme ekranını göster ve şifre isteme
-        googleProvider.setCustomParameters({
-          'prompt': 'select_account',  // Hesap seçim ekranını göster
-          'access_type': 'offline',     // Refresh token al
-          'include_granted_scopes': 'true',
-        });
-
-        final userCredential = await _auth.signInWithPopup(googleProvider);
-
-        if (userCredential.user != null) {
-          return await _handleGoogleSignInSuccess(userCredential.user!);
-        }
-      } else {
-        // Android/iOS için - her zaman hesap seçme ekranını göster
-        await _googleSignIn.signOut(); // Önce çıkış yap (eski hesabı unut)
-        
-        // Ayrıca Firebase Auth'dan da çıkış yap
-        try {
-          await _auth.signOut();
-        } catch (e) {
-          debugPrint('Firebase signOut: $e');
-        }
-
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-        if (googleUser == null) {
-          debugPrint('Kullanıcı Google hesabı seçmedi');
-          return null;
-        }
-
-        debugPrint('Google kullanıcısı alındı: ${googleUser.email}');
-
-        final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
-
-        final credential = firebase_auth.GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
+        // Web: Firebase OAuth yönlendirmesi çoğu masaüstünde "e-posta yaz" ekranına düşer.
+        // Hesap listesi için hoş geldin ekranında GIS [renderButton] kullanılmalıdır.
+        debugPrint(
+          'Web: Google girişi GIS düğmesi ile yapılır (hesap seçici / FedCM).',
         );
-
-        final userCredential = await _auth.signInWithCredential(credential);
-
-        debugPrint('Firebase sign-in başarılı: ${userCredential.user?.email}');
-
-        if (userCredential.user != null) {
-          return await _handleGoogleSignInSuccess(userCredential.user!);
-        }
+        return null;
       }
 
-      return null;
+      await _googleSignIn.signOut();
+
+      try {
+        await _auth.signOut();
+      } catch (e) {
+        debugPrint('Firebase signOut: $e');
+      }
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        debugPrint('Kullanıcı Google hesabı seçmedi');
+        return null;
+      }
+
+      return await signInToFirebaseWithGoogleAccount(googleUser);
     } catch (e) {
       debugPrint('Google Sign-In hatası: $e');
       debugPrint('Hata detayı: ${e.toString()}');

@@ -18,6 +18,7 @@ import '../services/parent_panel_notification_scheduler.dart';
 import '../models/badge.dart';
 import '../models/family_member.dart';
 import '../localization/app_localizations.dart';
+import '../localization/parent_panel_l10n.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/animated_counter.dart';
 import '../widgets/shimmer_loading.dart';
@@ -129,10 +130,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       if (pinService.isSessionExpired) {
         pinService.endSession();
         if (mounted) {
+          final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Güvenlik nedeniyle oturum sonlandırıldı (5 dk işlem yok)'),
+            SnackBar(
+              content: Text(ParentPanelL10n.of(lc, 'pp_session_timeout')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -154,21 +156,24 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     if (json != null) {
       try {
         final list = jsonDecode(json) as List<dynamic>;
+        final lc = mounted
+            ? Provider.of<LocaleProvider>(context, listen: false).locale.languageCode
+            : 'en';
         setState(() {
           _reportHistory = list
               .map((e) {
                 if (e is Map<String, dynamic>) {
-                  return _ReportHistoryEntry.fromMap(e);
+                  return _ReportHistoryEntry.fromMap(e, languageCode: lc);
                 }
                 if (e is Map) {
-                  return _ReportHistoryEntry.fromMap(Map<String, dynamic>.from(e));
+                  return _ReportHistoryEntry.fromMap(Map<String, dynamic>.from(e), languageCode: lc);
                 }
                 final legacy = DateTime.tryParse(e.toString());
                 if (legacy == null) return null;
                 return _ReportHistoryEntry(
                   createdAt: legacy,
-                  data: const PdfReportData(
-                    childName: 'Oyuncu',
+                  data: PdfReportData(
+                    childName: ParentPanelL10n.of(lc, 'pp_player_default'),
                     totalScore: 0,
                     totalQuestions: 0,
                     correctAnswers: 0,
@@ -176,7 +181,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     earnedBadgesCount: 0,
                     weeklyValues: [0, 0, 0, 0, 0, 0, 0],
                     badgeNames: [],
-                    recommendations: [],
+                    recommendations: const [],
                   ),
                 );
               })
@@ -228,16 +233,25 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     await ParentPanelNotificationScheduler.instance.syncFromDisk();
   }
 
+  String _pp(BuildContext context, String key) => ParentPanelL10n.of(
+        Provider.of<LocaleProvider>(context).locale.languageCode,
+        key,
+      );
+
   /// Son aktivite metnini formatla (gerçek veri)
-  String _formatLastActivity(DateTime? lastPlayedAt) {
-    if (lastPlayedAt == null) return 'Henüz oynamadı';
+  String _formatLastActivity(DateTime? lastPlayedAt, BuildContext context) {
+    final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+    if (lastPlayedAt == null) return ParentPanelL10n.of(lc, 'pp_never_played');
     final diff = DateTime.now().difference(lastPlayedAt);
-    if (diff.inMinutes < 1) return 'Az önce';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} dakika önce';
-    if (diff.inHours < 24) return '${diff.inHours} saat önce';
-    if (diff.inDays == 1) return 'Dün';
-    if (diff.inDays < 7) return '${diff.inDays} gün önce';
-    return '${diff.inDays} gün önce';
+    if (diff.inMinutes < 1) return ParentPanelL10n.of(lc, 'pp_just_now');
+    if (diff.inMinutes < 60) {
+      return ParentPanelL10n.of(lc, 'pp_minutes_ago').replaceAll('{n}', '${diff.inMinutes}');
+    }
+    if (diff.inHours < 24) {
+      return ParentPanelL10n.of(lc, 'pp_hours_ago').replaceAll('{n}', '${diff.inHours}');
+    }
+    if (diff.inDays == 1) return ParentPanelL10n.of(lc, 'pp_yesterday');
+    return ParentPanelL10n.of(lc, 'pp_days_ago').replaceAll('{n}', '${diff.inDays}');
   }
 
   /// Haftalık ilerleme - consecutiveDays'a göre (gerçek veri)
@@ -360,7 +374,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Consumer4<AuthService, BadgeService, GameMechanicsService, DailyRewardService>(
             builder: (context, auth, badge, mechanics, reward, _) {
               return _buildPanelEntryCard(
-                childName: auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu',
+                childName: auth.currentUser?.displayName ??
+                    auth.currentUser?.username ??
+                    _pp(context, 'pp_player_default'),
                 loginStreak: reward.loginStreak,
                 userEmoji: auth.currentUser?.profileEmoji,
                 onEmojiTap: () => _showProfileEmojiPicker(auth),
@@ -376,7 +392,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
   Widget _buildTopBar({bool unifiedCard = false}) {
     final now = DateTime.now();
-    final dateStr = '${now.day} ${_getMonthName(now.month)}';
+    final dateStr = '${now.day} ${_getMonthName(context, now.month)}';
     return Padding(
       padding: unifiedCard
           ? const EdgeInsets.fromLTRB(8, 6, 8, 6)
@@ -408,7 +424,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Matematik Dünyası – Ebeveyn Köşesi',
+                  _pp(context, 'pp_corner_title'),
                   style: GoogleFonts.quicksand(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -416,7 +432,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   ),
                 ),
                 Text(
-                  'Çocuğunun macerasını takip et, birlikte yarış! 🚀',
+                  _pp(context, 'pp_corner_subtitle'),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.deepPurple.shade300,
@@ -508,7 +524,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     Text('🔥', style: TextStyle(fontSize: 12, color: Colors.deepOrange.shade400)),
                     const SizedBox(width: 4),
                     Text(
-                      '$loginStreak gün seri',
+                      _pp(context, 'pp_day_streak').replaceAll('{n}', '$loginStreak'),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.deepPurple.shade400,
@@ -536,8 +552,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   Future<void> _showProfileEmojiPicker(AuthService auth) async {
     if (auth.currentUser == null || auth.currentUser!.isGuest) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Emoji seçimi için kayıtlı hesapla giriş yapmalısın.'),
+        SnackBar(
+          content: Text(_pp(context, 'pp_emoji_need_login')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -559,7 +575,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Profil emojisi seç',
+                  _pp(sheetContext, 'pp_pick_emoji_title'),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -619,7 +635,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${entry.displayName} için emoji seç',
+                  _pp(sheetContext, 'pp_pick_emoji_for').replaceAll('{name}', entry.displayName),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -681,7 +697,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         spacing: 10,
         runSpacing: 10,
         children: List.generate(_tabCount, (index) {
-          const labels = ['Gelişim', 'İstatistik', 'Aile Oyunu', 'Ayarlar'];
+          final labels = [
+            _pp(context, 'pp_tab_progress'),
+            _pp(context, 'pp_tab_stats'),
+            _pp(context, 'pp_tab_family'),
+            _pp(context, 'pp_tab_settings'),
+          ];
           const icons = [Icons.dashboard, Icons.bar_chart, Icons.groups, Icons.settings];
           final active = _activeTab == index;
           return _PressScaleButton(
@@ -770,7 +791,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSectionTitle('🎮 Oyun Merkezi'),
+            _buildSectionTitle(_pp(context, 'pp_section_game_center')),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(14),
@@ -792,7 +813,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ),
             ),
             const SizedBox(height: 24),
-            _buildSectionTitle('🏆 Aile Liderlik Tablosu'),
+            _buildSectionTitle(_pp(context, 'pp_section_family_lb')),
             const SizedBox(height: 12),
             _buildFamilyLeaderboard(familyService),
           ],
@@ -827,17 +848,17 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     _buildLeaderboardFilterChip(
                       familyService,
                       LeaderboardFilter.weekly,
-                      'Haftalık',
+                      _pp(context, 'pp_filter_weekly'),
                     ),
                     _buildLeaderboardFilterChip(
                       familyService,
                       LeaderboardFilter.monthly,
-                      'Aylık',
+                      _pp(context, 'pp_filter_monthly'),
                     ),
                     _buildLeaderboardFilterChip(
                       familyService,
                       LeaderboardFilter.allTime,
-                      'Tüm Zamanlar',
+                      _pp(context, 'pp_filter_all_time'),
                     ),
                   ],
                 ),
@@ -857,7 +878,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                       Icon(Icons.person_add, size: 18, color: Colors.white.withValues(alpha: 0.95)),
                       const SizedBox(width: 6),
                       Text(
-                        'Çocuk Ekle',
+                        _pp(context, 'pp_add_child'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -894,7 +915,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             Padding(
               padding: const EdgeInsets.all(24),
               child: EmptyStateLottie(
-                message: 'Henüz aile üyesi yok. Oynamaya devam edin!',
+                message: _pp(context, 'pp_empty_family'),
                 size: 120,
                 fallbackIcon: Icons.people_outline_rounded,
               ),
@@ -912,16 +933,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2C3E50),
-        title: const Text(
-          'Çocuk Ekle',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          _pp(context, 'pp_add_child_title'),
+          style: const TextStyle(color: Colors.white),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Çocuğun oyuncu kodunu girin (örn: MTN1234567890)',
+              _pp(context, 'pp_add_child_desc'),
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.white.withValues(alpha: 0.9),
@@ -945,7 +966,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal', style: TextStyle(color: Colors.white.withValues(alpha: 0.8))),
+            child: Text(_pp(context, 'pp_cancel'), style: TextStyle(color: Colors.white.withValues(alpha: 0.8))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -956,14 +977,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(ok ? 'Çocuk eklendi!' : 'Oyuncu bulunamadı veya zaten ekli.'),
+                    content: Text(
+                      ok ? _pp(context, 'pp_child_added') : _pp(context, 'pp_child_add_fail'),
+                    ),
                     backgroundColor: ok ? Colors.green : Colors.orange,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               }
             },
-            child: const Text('Ekle'),
+            child: Text(_pp(context, 'pp_add')),
           ),
         ],
       ),
@@ -1020,12 +1043,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             // Başlık satırı
             Row(
               children: [
-                SizedBox(width: 36, child: Text('Sıra', style: _leaderboardHeaderStyle)),
+                SizedBox(width: 36, child: Text(_pp(context, 'pp_lb_rank'), style: _leaderboardHeaderStyle)),
                 const SizedBox(width: 8),
-                SizedBox(width: nameWidth, child: Text('İsim', style: _leaderboardHeaderStyle)),
-                SizedBox(width: scoreWidth, child: Text('Puan', style: _leaderboardHeaderStyle)),
-                SizedBox(width: accuracyWidth, child: Text('Başarı', style: _leaderboardHeaderStyle)),
-                SizedBox(width: activityWidth, child: Text('Son Aktivite', style: _leaderboardHeaderStyle)),
+                SizedBox(width: nameWidth, child: Text(_pp(context, 'pp_lb_name'), style: _leaderboardHeaderStyle)),
+                SizedBox(width: scoreWidth, child: Text(_pp(context, 'pp_lb_score'), style: _leaderboardHeaderStyle)),
+                SizedBox(width: accuracyWidth, child: Text(_pp(context, 'pp_lb_accuracy'), style: _leaderboardHeaderStyle)),
+                SizedBox(width: activityWidth, child: Text(_pp(context, 'pp_lb_last_activity'), style: _leaderboardHeaderStyle)),
               ],
             ),
             const SizedBox(height: 12),
@@ -1130,7 +1153,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           SizedBox(
             width: activityWidth,
             child: Text(
-              _formatLastActivity(entry.lastPlayedAt),
+              _formatLastActivity(entry.lastPlayedAt, context),
               style: TextStyle(
                 fontSize: compact ? 10 : 11,
                 color: Colors.deepPurple.shade300,
@@ -1163,11 +1186,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     if (!context.mounted) return;
     if (linked.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Uzaktan düello için ebeveyn hesabınızla giriş yapın. '
-            'Bu özellik, hesabınızdaki aile bağlantısı (childUserIds) ile çalışır.',
-          ),
+        SnackBar(
+          content: Text(_pp(context, 'pp_remote_duel_login')),
         ),
       );
       return;
@@ -1260,7 +1280,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSectionTitle('🧒 Gelişim Özeti'),
+          _buildSectionTitle(_pp(context, 'pp_section_progress')),
           const SizedBox(height: 12),
           ShimmerCard(height: 180, borderRadius: 20),
           const SizedBox(height: 12),
@@ -1274,7 +1294,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ],
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle('📊 Detaylı İstatistikler'),
+          _buildSectionTitle(_pp(context, 'pp_section_detailed_stats')),
           const SizedBox(height: 12),
           SizedBox(
             height: 140,
@@ -1307,19 +1327,19 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _buildSectionTitle('🧒 Gelişim Özeti'),
+              _buildSectionTitle(_pp(context, 'pp_section_progress')),
               const SizedBox(height: 24),
               Center(
                 child: EmptyStateLottie(
-                  message: 'Henüz aile verisi yok. Oynamaya başlayın!',
+                  message: _pp(context, 'pp_empty_family_stats'),
                   size: 140,
                   fallbackIcon: Icons.group_off_rounded,
                 ),
               ),
               const SizedBox(height: 20),
-              _buildSectionTitle('📊 Detaylı İstatistikler'),
+              _buildSectionTitle(_pp(context, 'pp_section_detailed_stats')),
               const SizedBox(height: 12),
-              _buildDetailedStats(badge, mechanics),
+              _buildDetailedStats(context, badge, mechanics),
             ],
           );
         }
@@ -1327,15 +1347,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSectionTitle('🧒 Gelişim Özeti'),
+            _buildSectionTitle(_pp(context, 'pp_section_progress')),
             const SizedBox(height: 12),
             ...entries.map((entry) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildRealChildCard(
+                    context,
                     childName: entry.displayName,
                     totalScore: entry.score,
                     accuracy: entry.accuracy,
-                    lastActivity: _formatLastActivity(entry.lastPlayedAt),
+                    lastActivity: _formatLastActivity(entry.lastPlayedAt, context),
                     dailyTarget: dailyTarget,
                     dailySolved: dailySolved,
                     earnedBadges: entry.earnedBadges,
@@ -1358,7 +1379,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 Expanded(
                   child: _buildStatCard(
                     '🏆',
-                    'Aile Üyesi',
+                    _pp(context, 'pp_stat_family_members'),
                     entries.length,
                     Colors.purple,
                     suffix: '',
@@ -1368,18 +1389,18 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 Expanded(
                   child: _buildStatCard(
                     '🔥',
-                    'Giriş Serisi',
+                    _pp(context, 'pp_stat_login_streak'),
                     reward.loginStreak,
                     Colors.orange,
-                    suffix: ' gün',
+                    suffix: _pp(context, 'pp_suffix_days'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            _buildSectionTitle('📊 Detaylı İstatistikler'),
+            _buildSectionTitle(_pp(context, 'pp_section_detailed_stats')),
             const SizedBox(height: 12),
-            _buildDetailedStats(badge, mechanics),
+            _buildDetailedStats(context, badge, mechanics),
           ],
         );
       },
@@ -1387,7 +1408,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   /// Yatay kaydırılabilir detaylı istatistik kartları
-  Widget _buildDetailedStats(BadgeService badge, GameMechanicsService mechanics) {
+  Widget _buildDetailedStats(
+    BuildContext context,
+    BadgeService badge,
+    GameMechanicsService mechanics,
+  ) {
     final stats = badge.userStats;
     final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
     final totalCorrect = stats?.totalCorrectAnswers ?? 0;
@@ -1397,42 +1422,45 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
     // Tahmini toplam süre: soru başına ~12 sn
     final totalMinutes = totalQuestions > 0 ? (totalQuestions * 12 / 60).round() : 0;
-    final avgTimeStr = bestAvgTime < 999 ? '${bestAvgTime.toStringAsFixed(1)} sn' : '-';
+    final avgTimeStr = bestAvgTime < 999
+        ? '${bestAvgTime.toStringAsFixed(1)}${_pp(context, 'pp_suffix_seconds')}'
+        : '-';
+    final sufDays = _pp(context, 'pp_suffix_days');
 
     final cards = [
       _DetailedStatCard(
         emoji: '⏱️',
-        title: 'Toplam Süre',
-        value: totalMinutes > 0 ? '$totalMinutes dk' : '-',
-        tooltip: 'Tahmini toplam oyun süresi (soru başına ~12 sn varsayımı)',
+        title: _pp(context, 'pp_det_stat_total_time'),
+        value: totalMinutes > 0 ? '$totalMinutes${_pp(context, 'pp_suffix_minutes')}' : '-',
+        tooltip: _pp(context, 'pp_det_tooltip_total_time'),
         color: Colors.blue,
       ),
       _DetailedStatCard(
         emoji: '⚡',
-        title: 'Ort. Çözüm Süresi',
+        title: _pp(context, 'pp_det_stat_avg_time'),
         value: avgTimeStr,
-        tooltip: 'En iyi ortalama soru çözüm süresi (saniye/soru)',
+        tooltip: _pp(context, 'pp_det_tooltip_avg'),
         color: Colors.teal,
       ),
       _DetailedStatCard(
         emoji: '📅',
-        title: 'En Başarılı Gün',
-        value: bestDailyStreak > 0 ? '$bestDailyStreak gün' : '-',
-        tooltip: 'Ardışık en uzun günlük giriş serisi',
+        title: _pp(context, 'pp_det_stat_best_day'),
+        value: bestDailyStreak > 0 ? '$bestDailyStreak$sufDays' : '-',
+        tooltip: _pp(context, 'pp_det_tooltip_streak'),
         color: Colors.amber,
       ),
       _DetailedStatCard(
         emoji: '✅',
-        title: 'En Çok Doğru',
+        title: _pp(context, 'pp_det_stat_correct'),
         value: '$totalCorrect',
-        tooltip: 'Toplam doğru cevap sayısı',
+        tooltip: _pp(context, 'pp_det_tooltip_correct'),
         color: Colors.green,
       ),
       _DetailedStatCard(
         emoji: '💎',
-        title: 'Hatasız Oyun',
+        title: _pp(context, 'pp_det_stat_perfect'),
         value: '$perfectGames',
-        tooltip: 'Hiç yanlış yapmadan tamamlanan oyun sayısı',
+        tooltip: _pp(context, 'pp_det_tooltip_perfect'),
         color: Colors.purple,
       ),
     ];
@@ -1455,7 +1483,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return const Color(0xFFE53935); // Kırmızı: Zorlanıyor
   }
 
-  Widget _buildRealChildCard({
+  Widget _buildRealChildCard(
+    BuildContext context, {
     required String childName,
     required int totalScore,
     required int accuracy,
@@ -1565,7 +1594,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           ),
                         ),
                         Text(
-                          'Son aktivite: $lastActivity',
+                          '${_pp(context, 'pp_last_activity_prefix')}$lastActivity',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.deepPurple.shade300,
@@ -1581,11 +1610,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               Row(
                 children: [
                   Expanded(
-                    child: _buildMiniStat('⭐ Puan', totalScore, Colors.amber),
+                    child: _buildMiniStat(_pp(context, 'pp_mini_points'), totalScore, Colors.amber),
                   ),
                   Expanded(
                     child: _buildMiniStat(
-                      '📊 Başarı',
+                      _pp(context, 'pp_mini_success'),
                       accuracy,
                       successColor,
                       prefix: '%',
@@ -1600,7 +1629,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      'Günlük hedef: $dailyTarget soru ($dailySolved çözüldü)',
+                      _pp(context, 'pp_daily_goal_template')
+                          .replaceAll('{target}', '$dailyTarget')
+                          .replaceAll('{solved}', '$dailySolved'),
                       style: TextStyle(fontSize: 12, color: Colors.deepPurple.shade400),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1609,7 +1640,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                'Haftalık İlerleme:',
+                _pp(context, 'pp_weekly_progress_label'),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -1622,7 +1653,10 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(7, (i) {
-                    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+                    final days = List.generate(
+                      7,
+                      (d) => _pp(context, 'pp_weekday_$d'),
+                    );
                     final v = weeklyValues[i];
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -1706,10 +1740,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  String _getMonthName(int month) {
-    const names = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-    return names[month - 1];
-  }
+  String _getMonthName(BuildContext context, int month) =>
+      _pp(context, 'pp_month_$month');
 
   Widget _buildStatCard(String emoji, String title, dynamic value, Color color, {String suffix = ''}) {
     final isNumeric = value is int;
@@ -1870,12 +1902,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         final accuracy = totalQuestions > 0
             ? (correctAnswers / totalQuestions * 100).round()
             : 0;
-        final childName = auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Oyuncu';
+        final childName = auth.currentUser?.displayName ??
+            auth.currentUser?.username ??
+            _pp(context, 'pp_player_default');
 
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSectionTitle('PDF Rapor'),
+            _buildSectionTitle(_pp(context, 'pp_report_pdf_title')),
             const SizedBox(height: 12),
             _buildPdfReportSection(
               context,
@@ -1888,21 +1922,21 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle('Haftalık İlerleme'),
+            _buildSectionTitle(_pp(context, 'pp_report_weekly_chart')),
             const SizedBox(height: 12),
-            _buildWeeklyChart(weeklyValues),
+            _buildWeeklyChart(context, weeklyValues),
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle('Konu Bazlı Performans'),
+            _buildSectionTitle(_pp(context, 'pp_report_topic')),
             const SizedBox(height: 12),
-            _buildTopicPerformance(accuracy),
+            _buildTopicPerformance(context, accuracy),
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle('Öneriler'),
+            _buildSectionTitle(_pp(context, 'pp_recommendations_title')),
             const SizedBox(height: 12),
-            _buildRecommendations(stats, accuracy),
+            _buildRecommendations(context, stats, accuracy),
           ],
         );
       },
@@ -1941,7 +1975,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 badge: badge,
               ),
               icon: const Icon(Icons.picture_as_pdf),
-              label: const Text('PDF Rapor Oluştur'),
+              label: Text(_pp(context, 'pp_report_generate')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE53935),
                 foregroundColor: Colors.white,
@@ -1964,8 +1998,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 ),
                 label: Text(
                   _showReportHistory
-                      ? 'Rapor Geçmişini Gizle'
-                      : 'Rapor Geçmişi (Son 4 hafta)',
+                      ? _pp(context, 'pp_report_history_hide')
+                      : _pp(context, 'pp_report_history_show'),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -2041,7 +2075,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Rapor açılamadı: $e')),
+        SnackBar(content: Text('${_pp(context, 'pp_report_open_fail')}$e')),
       );
     }
   }
@@ -2050,7 +2084,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     final shouldDelete = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Silme onayı',
+      barrierLabel: _pp(context, 'pp_barrier_delete_confirm'),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return SafeArea(
@@ -2088,7 +2122,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Rapor geçmişi silinsin mi?',
+                            _pp(context, 'pp_report_delete_title'),
                             style: TextStyle(
                               fontSize: 21,
                               fontWeight: FontWeight.w800,
@@ -2100,7 +2134,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Bu rapor kaydını silmek istediğinizden emin misiniz?',
+                      _pp(context, 'pp_report_delete_body'),
                       style: TextStyle(
                         fontSize: 15,
                         color: Colors.deepPurple.shade500,
@@ -2113,7 +2147,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                       children: [
                         TextButton(
                           onPressed: () => Navigator.of(dialogContext).pop(false),
-                          child: const Text('Hayır'),
+                          child: Text(_pp(context, 'pp_no')),
                         ),
                         const SizedBox(width: 8),
                         FilledButton(
@@ -2122,7 +2156,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                             foregroundColor: Colors.white,
                           ),
                           onPressed: () => Navigator.of(dialogContext).pop(true),
-                          child: const Text('Evet, sil'),
+                          child: Text(_pp(context, 'pp_yes_delete')),
                         ),
                       ],
                     ),
@@ -2149,9 +2183,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     await _saveReportHistory();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Rapor geçmişi kaydı silindi.'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(_pp(context, 'pp_report_deleted')),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -2169,8 +2203,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     if (!isSunday) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Haftalık rapor henüz hazır değil. Pazar gününü bekleyin.'),
+        SnackBar(
+          content: Text(_pp(context, 'pp_report_sunday_only')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -2185,7 +2219,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       return def != null ? localizations.get(def.nameKey) : e.badgeId;
     }).toList();
 
-    final recommendations = _getRecommendationsList(stats, accuracy);
+    final recommendations = _getRecommendationsList(context, stats, accuracy);
 
     final data = PdfReportData(
       childName: childName,
@@ -2202,9 +2236,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     try {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF oluşturuluyor...'),
-          duration: Duration(seconds: 1),
+        SnackBar(
+          content: Text(_pp(context, 'pp_pdf_generating')),
+          duration: const Duration(seconds: 1),
         ),
       );
 
@@ -2231,8 +2265,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF rapor paylaşıma hazır!'),
+          SnackBar(
+            content: Text(_pp(context, 'pp_pdf_ready')),
             backgroundColor: Colors.green,
           ),
         );
@@ -2241,7 +2275,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF oluşturma hatası: $e'),
+            content: Text('${_pp(context, 'pp_pdf_error')}$e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -2249,27 +2283,31 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     }
   }
 
-  List<String> _getRecommendationsList(UserStats? stats, int accuracy) {
+  List<String> _getRecommendationsList(
+    BuildContext context,
+    UserStats? stats,
+    int accuracy,
+  ) {
     final items = <String>[];
     if (accuracy >= 80) {
-      items.add('Harika gidiyorsun! Başarını korumaya devam et');
+      items.add(_pp(context, 'pp_rec_great'));
     } else if (accuracy >= 60) {
-      items.add('Daha fazla pratik yaparak başarını artırabilirsin');
+      items.add(_pp(context, 'pp_rec_practice'));
     } else {
-      items.add('Temel konuları tekrar etmek faydalı olacaktır');
+      items.add(_pp(context, 'pp_rec_basics'));
     }
     final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
     if (totalQuestions < 50) {
-      items.add('Daha fazla soru çözerek pratik yap');
+      items.add(_pp(context, 'pp_rec_more_questions'));
     }
     if (items.isEmpty) {
-      items.add('Oyun oynamaya devam et!');
+      items.add(_pp(context, 'pp_rec_keep_playing'));
     }
     return items;
   }
 
-  Widget _buildWeeklyChart(List<int> values) {
-    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  Widget _buildWeeklyChart(BuildContext context, List<int> values) {
+    final days = List.generate(7, (d) => _pp(context, 'pp_weekday_$d'));
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2301,9 +2339,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildTopicPerformance(int overallAccuracy) {
+  Widget _buildTopicPerformance(BuildContext context, int overallAccuracy) {
     final topics = [
-      {'name': 'Genel Başarı', 'emoji': '📊', 'score': overallAccuracy},
+      {'name': _pp(context, 'pp_topic_general'), 'emoji': '📊', 'score': overallAccuracy},
     ];
 
     return Container(
@@ -2386,21 +2424,21 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     );
   }
 
-  Widget _buildRecommendations(UserStats? stats, int accuracy) {
+  Widget _buildRecommendations(BuildContext context, UserStats? stats, int accuracy) {
     final items = <String>[];
     if (accuracy >= 80) {
-      items.add('⭐ Harika gidiyorsun! Başarını korumaya devam et');
+      items.add(_pp(context, 'pp_rec_star_great'));
     } else if (accuracy >= 60) {
-      items.add('📚 Daha fazla pratik yaparak başarını artırabilirsin');
+      items.add(_pp(context, 'pp_rec_book_practice'));
     } else {
-      items.add('🎯 Temel konuları tekrar etmek faydalı olacaktır');
+      items.add(_pp(context, 'pp_rec_target_basics'));
     }
     final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
     if (totalQuestions < 50) {
-      items.add('📝 Daha fazla soru çözerek pratik yap');
+      items.add(_pp(context, 'pp_rec_note_questions'));
     }
     if (items.isEmpty) {
-      items.add('🎮 Oyun oynamaya devam et!');
+      items.add(_pp(context, 'pp_rec_game_keep'));
     }
 
     return Container(
@@ -2421,7 +2459,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               const Icon(Icons.lightbulb, color: Colors.amber, size: 24),
               const SizedBox(width: 8),
               Text(
-                'Öneriler',
+                _pp(context, 'pp_recommendations_title'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -2464,31 +2502,31 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildSectionTitle('Süre Kontrolü'),
+        _buildSectionTitle(_pp(context, 'pp_settings_time')),
         const SizedBox(height: 12),
         _buildTimeControlSettings(),
 
         const SizedBox(height: 24),
 
-        _buildSectionTitle('Bildirim ve Hatırlatıcılar'),
+        _buildSectionTitle(_pp(context, 'pp_settings_notifications')),
         const SizedBox(height: 12),
         _buildNotificationSettings(),
 
         const SizedBox(height: 24),
 
-        _buildSectionTitle('Dil'),
+        _buildSectionTitle(_pp(context, 'pp_settings_language')),
         const SizedBox(height: 12),
         _buildLanguageSettings(),
 
         const SizedBox(height: 24),
 
-        _buildSectionTitle('Uygulama Ayarları'),
+        _buildSectionTitle(_pp(context, 'pp_settings_app')),
         const SizedBox(height: 12),
         _buildAppSettings(),
 
         const SizedBox(height: 24),
 
-        _buildSectionTitle('Güvenlik'),
+        _buildSectionTitle(_pp(context, 'pp_settings_security')),
         const SizedBox(height: 12),
         _buildSecuritySettings(),
       ],
@@ -2518,7 +2556,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               style: const TextStyle(fontSize: 28),
             ),
             title: Text(
-              'Uygulama Dili',
+              _pp(context, 'pp_lang_app_title'),
               style: TextStyle(color: Colors.deepPurple.shade500, fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
@@ -2549,7 +2587,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Dil Seçin',
+                  _pp(ctx, 'pp_lang_choose_title'),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -2588,7 +2626,9 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                             localeProvider.changeLanguage(Locale(code));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Dil değiştirildi: ${lang['name']}'),
+                                content: Text(
+                                  _pp(context, 'pp_lang_changed').replaceAll('{name}', '${lang['name']}'),
+                                ),
                                 backgroundColor: Colors.green,
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -2598,7 +2638,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Hata: $e'),
+                                content: Text('${_pp(context, 'pp_error_prefix')}$e'),
                                 backgroundColor: Colors.red,
                                 behavior: SnackBarBehavior.floating,
                               ),
@@ -2631,13 +2671,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         children: [
           SwitchListTile(
             title: Text(
-              'Günlük Süre Limiti',
+              _pp(context, 'pp_daily_limit_title'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
               _dailyLimitEnabled
-                  ? '$_dailyLimitMinutes dakika'
-                  : 'Kapalı',
+                  ? '$_dailyLimitMinutes${_pp(context, 'pp_suffix_minutes')}'
+                  : _pp(context, 'pp_off'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _dailyLimitEnabled,
@@ -2655,7 +2695,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Süre (dakika)',
+                  _pp(context, 'pp_duration_label'),
                   style: TextStyle(color: Colors.deepPurple.shade300),
                 ),
                 Row(
@@ -2713,13 +2753,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         children: [
           SwitchListTile(
             title: Text(
-              'Günlük Hatırlatıcı',
+              _pp(context, 'pp_reminder_daily'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
               _dailyReminderEnabled
-                  ? 'Her gün ${_dailyReminderHour.toString().padLeft(2, '0')}:${_dailyReminderMinute.toString().padLeft(2, '0')}'
-                  : 'Kapalı',
+                  ? '${_pp(context, 'pp_every_day')}${_dailyReminderHour.toString().padLeft(2, '0')}:${_dailyReminderMinute.toString().padLeft(2, '0')}'
+                  : _pp(context, 'pp_off'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _dailyReminderEnabled,
@@ -2734,7 +2774,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'Hatırlatma saati',
+                _pp(context, 'pp_reminder_time'),
                 style: TextStyle(color: Colors.deepPurple.shade300, fontSize: 13),
               ),
               trailing: TextButton.icon(
@@ -2780,11 +2820,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
             title: Text(
-              'Başarı Mesajları',
+              _pp(context, 'pp_success_msgs'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Yeni rozet, seri vb. bildirimleri',
+              _pp(context, 'pp_success_msgs_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _successMessagesEnabled,
@@ -2797,11 +2837,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
             title: Text(
-              'Haftalık Özet Raporu',
+              _pp(context, 'pp_weekly_summary'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Pazartesi sabahı haftalık özet',
+              _pp(context, 'pp_weekly_summary_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _weeklySummaryEnabled,
@@ -2814,11 +2854,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
             title: Text(
-              'Çalışma Arası Uyarısı',
+              _pp(context, 'pp_inactivity'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              '3 günden fazla ara varsa hatırlat',
+              _pp(context, 'pp_inactivity_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _inactivityWarningEnabled,
@@ -2847,11 +2887,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         children: [
           SwitchListTile(
             title: Text(
-              'Sesler',
+              _pp(context, 'pp_sounds'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Oyun içi sesler',
+              _pp(context, 'pp_sounds_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _soundEnabled,
@@ -2865,11 +2905,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Divider(color: Colors.deepPurple.shade100),
           SwitchListTile(
             title: Text(
-              'Bildirimler',
+              _pp(context, 'pp_notifications_toggle'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Günlük hatırlatmalar',
+              _pp(context, 'pp_notifications_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _notificationsEnabled,
@@ -2902,11 +2942,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         children: [
           SwitchListTile(
             title: Text(
-              'Güvenli Mod',
+              _pp(context, 'pp_safe_mode'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Reklamsız, sosyal özellikler kapalı',
+              _pp(context, 'pp_safe_mode_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             value: _safeMode,
@@ -2921,11 +2961,11 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           ListTile(
             leading: Icon(Icons.lock, color: Colors.deepPurple.shade300),
             title: Text(
-              'PIN Değiştir',
+              _pp(context, 'pp_change_pin'),
               style: TextStyle(color: Colors.deepPurple.shade500),
             ),
             subtitle: Text(
-              'Ebeveyn paneli erişim PIN\'i',
+              _pp(context, 'pp_change_pin_sub'),
               style: TextStyle(color: Colors.deepPurple.shade300),
             ),
             trailing: Icon(Icons.chevron_right, color: Colors.deepPurple.shade300),
@@ -2941,10 +2981,10 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     final newController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: const Color(0xFF2C3E50),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('PIN Değiştir', style: TextStyle(color: Colors.white)),
+        title: Text(_pp(context, 'pp_pin_title'), style: const TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2956,7 +2996,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Mevcut PIN',
+                labelText: _pp(context, 'pp_pin_current'),
                 labelStyle: const TextStyle(color: Colors.white70),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
@@ -2977,7 +3017,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Yeni PIN',
+                labelText: _pp(context, 'pp_pin_new'),
                 labelStyle: const TextStyle(color: Colors.white70),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
@@ -2993,8 +3033,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İPTAL', style: TextStyle(color: Colors.white70)),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(_pp(context, 'pp_cancel_caps'), style: const TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () async {
@@ -3002,8 +3042,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               final newPin = newController.text.trim();
               if (current.length != 4 || newPin.length != 4) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('PIN 4 haneli olmalıdır'),
+                  SnackBar(
+                    content: Text(_pp(context, 'pp_pin_must_4')),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -3011,16 +3051,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               }
               final pinService = Provider.of<ParentPinService>(context, listen: false);
               final ok = await pinService.changePin(current, newPin);
-              if (!context.mounted) return;
-              Navigator.pop(context);
+              if (!dialogCtx.mounted) return;
+              Navigator.pop(dialogCtx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(ok ? 'PIN değiştirildi' : 'Mevcut PIN yanlış'),
+                  content: Text(ok ? _pp(context, 'pp_pin_changed') : _pp(context, 'pp_pin_wrong')),
                   backgroundColor: ok ? Colors.green : Colors.red,
                 ),
               );
             },
-            child: const Text('KAYDET', style: TextStyle(color: Colors.blue)),
+            child: Text(_pp(context, 'pp_save_caps'), style: const TextStyle(color: Colors.blue)),
           ),
         ],
       ),
@@ -3197,13 +3237,16 @@ class _ReportHistoryEntry {
         },
       };
 
-  factory _ReportHistoryEntry.fromMap(Map<String, dynamic> map) {
+  factory _ReportHistoryEntry.fromMap(Map<String, dynamic> map, {String? languageCode}) {
     final rawData = (map['data'] as Map?) ?? const {};
     final m = <String, dynamic>{for (final e in rawData.entries) e.key.toString(): e.value};
+    final cn = m['childName']?.toString().trim();
     return _ReportHistoryEntry(
       createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? '') ?? DateTime.now(),
       data: PdfReportData(
-        childName: (m['childName']?.toString() ?? 'Oyuncu'),
+        childName: (cn != null && cn.isNotEmpty)
+            ? cn
+            : ParentPanelL10n.of(languageCode, 'pp_player_default'),
         totalScore: (m['totalScore'] as num?)?.toInt() ?? 0,
         totalQuestions: (m['totalQuestions'] as num?)?.toInt() ?? 0,
         correctAnswers: (m['correctAnswers'] as num?)?.toInt() ?? 0,

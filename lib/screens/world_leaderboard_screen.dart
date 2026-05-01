@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -90,15 +92,30 @@ class _WorldLeaderboardScreenState extends State<WorldLeaderboardScreen>
                 ),
                 child: TabBar(
                   controller: _tabController,
+                  indicatorSize: TabBarIndicatorSize.label,
                   indicator: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    color: Colors.white,
+                    color: const Color(0xFF6F63C9).withOpacity(0.45),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.22),
+                      width: 1,
+                    ),
                   ),
-                  labelColor: const Color(0xFF5A4FCF),
-                  unselectedLabelColor: Colors.white,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white.withOpacity(0.82),
                   tabs: [
-                    Tab(text: '${loc.get('world_leaderboard_gold_tab')} 🪙'),
-                    Tab(text: '${loc.get('world_leaderboard_diamonds_tab')} 💎'),
+                    Tab(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('${loc.get('world_leaderboard_gold_tab')} 🪙'),
+                      ),
+                    ),
+                    Tab(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('${loc.get('world_leaderboard_diamonds_tab')} 💎'),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -196,6 +213,7 @@ class _LeaderboardList extends StatelessWidget {
             final name = (data['displayName'] as String?)?.trim().isNotEmpty == true
                 ? data['displayName'] as String
                 : 'Oyuncu';
+            final photoUrl = (data['photoURL'] as String?)?.trim();
             final emoji = data['profileEmoji'] as String?;
             final score = (data[scoreField] is int) ? data[scoreField] as int : 0;
             final isMe = myUid.isNotEmpty && uid == myUid;
@@ -210,35 +228,47 @@ class _LeaderboardList extends StatelessWidget {
                     : BorderSide.none,
               ),
               child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: _worldLbMedalColor(rank),
-                  child: Text(
-                    '$rank',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                leading: SizedBox(
+                  width: 76,
+                  child: Row(
+                    children: [
+                      if (rank <= 3)
+                        Icon(
+                          Icons.workspace_premium,
+                          size: 14,
+                          color: _worldLbMedalColor(rank),
+                        ),
+                      if (rank <= 3) const SizedBox(width: 4),
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _worldLbMedalColor(rank),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$rank',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildLeaderboardAvatarWithFallback(uid, photoUrl, emoji),
+                    ],
                   ),
                 ),
-                title: Row(
-                  children: [
-                    if (emoji != null && emoji.isNotEmpty) ...[
-                      Text(emoji, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: Text(
-                        isMe ? '$name (${loc.get('world_leaderboard_you')})' : name,
-                        style: TextStyle(
-                          fontWeight: isMe ? FontWeight.bold : FontWeight.w600,
-                          color: Colors.deepPurple.shade900,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                title: Text(
+                  isMe ? '$name (${loc.get('world_leaderboard_you')})' : name,
+                  style: TextStyle(
+                    fontWeight: isMe ? FontWeight.bold : FontWeight.w600,
+                    color: Colors.deepPurple.shade900,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 trailing: Text(
                   '$scoreEmoji $score',
@@ -252,6 +282,69 @@ class _LeaderboardList extends StatelessWidget {
             );
           },
         );
+      },
+    );
+  }
+
+  Widget _buildLeaderboardAvatar(String? photoUrl, String? emoji) {
+    const avatarSize = 28.0;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      if (photoUrl.startsWith('data:image')) {
+        final parts = photoUrl.split(',');
+        if (parts.length == 2) {
+          try {
+            final bytes = base64Decode(parts[1]);
+            return ClipOval(
+              child: Image.memory(
+                bytes,
+                width: avatarSize,
+                height: avatarSize,
+                fit: BoxFit.cover,
+              ),
+            );
+          } catch (_) {}
+        }
+      }
+      return CircleAvatar(
+        radius: avatarSize / 2,
+        backgroundColor: Colors.grey.shade200,
+        backgroundImage: NetworkImage(photoUrl),
+      );
+    }
+
+    if (emoji != null && emoji.isNotEmpty) {
+      return CircleAvatar(
+        radius: avatarSize / 2,
+        backgroundColor: Colors.deepPurple.shade50,
+        child: Text(emoji, style: const TextStyle(fontSize: 16)),
+      );
+    }
+
+    return CircleAvatar(
+      radius: avatarSize / 2,
+      backgroundColor: Colors.deepPurple.shade50,
+      child: const Icon(Icons.person, size: 16, color: Colors.deepPurple),
+    );
+  }
+
+  Widget _buildLeaderboardAvatarWithFallback(
+    String uid,
+    String? leaderboardPhotoUrl,
+    String? emoji,
+  ) {
+    if (leaderboardPhotoUrl != null && leaderboardPhotoUrl.isNotEmpty) {
+      return _buildLeaderboardAvatar(leaderboardPhotoUrl, emoji);
+    }
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final photo = (data?['photoURL'] as String?)?.trim();
+        if (photo != null && photo.isNotEmpty) {
+          return _buildLeaderboardAvatar(photo, emoji);
+        }
+        return _buildLeaderboardAvatar(null, emoji);
       },
     );
   }

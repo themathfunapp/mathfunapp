@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_localizations.dart';
+import '../localization/parent_panel_l10n.dart';
 import '../models/game_mechanics.dart' show TopicType;
+import '../providers/locale_provider.dart';
 import '../services/parent_mode_service.dart';
 import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
@@ -69,12 +71,10 @@ class ParentModeGamesHub extends StatelessWidget {
 
     if (!context.mounted) return;
     if (!hasLinkedChildren) {
+      final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Uzaktan düello için ebeveyn hesabınızla giriş yapın. '
-            'Bu özellik, hesabınızdaki aile bağlantısı (childUserIds) ile çalışır.',
-          ),
+        SnackBar(
+          content: Text(ParentPanelL10n.of(lc, 'pp_remote_duel_login')),
         ),
       );
       return;
@@ -100,10 +100,14 @@ class ParentModeGamesHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    String pp(String key) => ParentPanelL10n.of(
+          Provider.of<LocaleProvider>(context).locale.languageCode,
+          key,
+        );
     final actionCards = [
       _ActionCardData(
-        title: 'Birlikte Yarış',
-        subtitle: 'Aynı sorularda kafa kafaya eğlenceli yarış',
+        title: pp('pp_hub_race_together'),
+        subtitle: pp('pp_hub_race_together_sub'),
         icon: Icons.emoji_events,
         emoji: '🏁',
         onTap: () => _openFamilyRace(context),
@@ -111,8 +115,8 @@ class ParentModeGamesHub extends StatelessWidget {
       ),
       if (_embeddedInPanel)
         _ActionCardData(
-          title: 'Hikaye Önizleme',
-          subtitle: 'Çocuk ekranındaki hikaye modunu aç',
+          title: pp('pp_hub_story_preview'),
+          subtitle: pp('pp_hub_story_preview_sub'),
           icon: Icons.menu_book_outlined,
           emoji: '📖',
           onTap: () {
@@ -131,14 +135,14 @@ class ParentModeGamesHub extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Matematik Macerası',
+        Text(
+          pp('pp_hub_app_title'),
           style: titleStyle,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
-          'Ebeveyn modu',
+          pp('pp_hub_parent_mode'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
@@ -148,13 +152,13 @@ class ParentModeGamesHub extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Çocuğunuzla birlikte yarışın; sonuçlar aile liderliğine eklenir.',
+          pp('pp_hub_tagline'),
           textAlign: TextAlign.center,
           style: subtitleStyle,
         ),
         const SizedBox(height: 18),
         Text(
-          'Hızlı Başlat',
+          pp('pp_hub_quick_start'),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.95),
             fontSize: 18,
@@ -200,7 +204,7 @@ class ParentModeGamesHub extends StatelessWidget {
         TextButton(
           onPressed: () => _exitToChildMode(context),
           child: Text(
-            'Çocuk moduna dön',
+            pp('pp_hub_back_child'),
             style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
           ),
         ),

@@ -53,6 +53,7 @@ class GameMechanicsService extends ChangeNotifier {
   String? _userId;
   bool _isGuest = false;
   bool _isLoading = false;
+  bool _cloudAccessDenied = false;
   /// Son "Saat oyunu günlük giriş" altın ödülü (24 saatte bir).
   DateTime? _lastClockGameDailyRewardAt;
   /// Son "Zeka Oyunları günlük giriş" altın ödülü (24 saatte bir).
@@ -130,6 +131,7 @@ class GameMechanicsService extends ChangeNotifier {
 
     _userId = userId;
     _isGuest = isGuest;
+    _cloudAccessDenied = false;
     _isLoading = true;
     notifyListeners();
 
@@ -140,8 +142,8 @@ class GameMechanicsService extends ChangeNotifier {
       await _loadUserData();
       if (!_isGuest) {
         await _loadCurrencyFromRewards();
+        await _loadTodayChallenge();
       }
-      await _loadTodayChallenge();
       tickLifeRegeneration();
       _updateDailyStreak();
       _startLifeRegenTimer();
@@ -224,7 +226,7 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Kayıtlı kullanıcılar için UserRewards'tan para birimlerini yükle
   Future<void> _loadCurrencyFromRewards() async {
-    if (_userId == null || _isGuest) return;
+    if (_userId == null || _isGuest || _cloudAccessDenied) return;
     try {
       final doc = await _firestore
           .collection('users')
@@ -239,6 +241,11 @@ class GameMechanicsService extends ChangeNotifier {
         if (coins > inventory.coins) inventory.coins = coins;
         if (diamonds > inventory.gems) inventory.gems = diamonds;
       }
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        _cloudAccessDenied = true;
+      }
+      debugPrint('Load currency from rewards error: $e');
     } catch (e) {
       debugPrint('Load currency from rewards error: $e');
     }
@@ -319,6 +326,7 @@ class GameMechanicsService extends ChangeNotifier {
           } catch (_) {}
         }
       } else {
+        if (_cloudAccessDenied) return;
         final doc = await _firestore
             .collection('user_mechanics')
             .doc(_userId)
@@ -373,6 +381,11 @@ class GameMechanicsService extends ChangeNotifier {
           _adventureLastQualifiedDateKey = (data['adventureLastQualifiedDateKey'] as String?)?.trim();
         }
       }
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        _cloudAccessDenied = true;
+      }
+      debugPrint('Error loading user mechanics data: $e');
     } catch (e) {
       debugPrint('Error loading user mechanics data: $e');
     }
@@ -463,6 +476,7 @@ class GameMechanicsService extends ChangeNotifier {
         };
         await prefs.setString(_guestMechanicsKey, jsonEncode(data));
       } else {
+        if (_cloudAccessDenied) return;
         await _firestore.collection('user_mechanics').doc(_userId).set({
           'lives': livesSystem.toJson(),
           'inventory': inventory.toJson(),
@@ -495,6 +509,11 @@ class GameMechanicsService extends ChangeNotifier {
         }, SetOptions(merge: true));
         await _syncCurrencyToRewards();
       }
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        _cloudAccessDenied = true;
+      }
+      debugPrint('Error saving user mechanics data: $e');
     } catch (e) {
       debugPrint('Error saving user mechanics data: $e');
     }
@@ -502,7 +521,7 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Para birimlerini users/rewards/daily ile senkronize et
   Future<void> _syncCurrencyToRewards() async {
-    if (_userId == null || _isGuest) return;
+    if (_userId == null || _isGuest || _cloudAccessDenied) return;
     try {
       await _firestore
           .collection('users')
@@ -520,6 +539,11 @@ class GameMechanicsService extends ChangeNotifier {
         coins: inventory.coins,
         diamonds: inventory.gems,
       );
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        _cloudAccessDenied = true;
+      }
+      debugPrint('Sync currency to rewards error: $e');
     } catch (e) {
       debugPrint('Sync currency to rewards error: $e');
     }
@@ -527,6 +551,7 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Günlük challenge yükle
   Future<void> _loadTodayChallenge() async {
+    if (_isGuest || _cloudAccessDenied) return;
     final today = DateTime.now();
     final dateKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
@@ -585,6 +610,12 @@ class GameMechanicsService extends ChangeNotifier {
           });
         }
       }
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        _cloudAccessDenied = true;
+      }
+      debugPrint('Error loading daily challenge: $e');
+      todayChallenge = _generateDailyChallenge(today);
     } catch (e) {
       debugPrint('Error loading daily challenge: $e');
       todayChallenge = _generateDailyChallenge(today);
