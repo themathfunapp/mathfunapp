@@ -340,7 +340,11 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
 
         return Padding(
           padding: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
-          child: Row(
+          child: Consumer<LocaleProvider>(
+            builder: (context, localeProv, _) {
+              final loc = AppLocalizations(localeProv.locale);
+              final levelChipLabel = '${loc.level} $levelText';
+              return Row(
             children: [
               _buildBackButton(
                 () {
@@ -379,7 +383,9 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
                             ],
                           ),
                           child: Text(
-                            levelText,
+                            levelChipLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.quicksand(
                               fontSize: chipFont,
                               fontWeight: FontWeight.bold,
@@ -424,6 +430,8 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
                 ),
               ),
             ],
+              );
+            },
           ),
         );
       },
@@ -513,10 +521,9 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
               ),
             ],
           ),
-          child: Builder(
-            builder: (ctx) {
-              final loc = AppLocalizations(
-                  Provider.of<LocaleProvider>(ctx, listen: false).locale);
+          child: Consumer<LocaleProvider>(
+            builder: (ctx, localeProv, _) {
+              final loc = AppLocalizations(localeProv.locale);
               final levelVal = '${((_currentSection - 1) % 10) + 1}/10';
               final items = <Widget>[
                 _buildStatItem(loc.level, levelVal, Colors.purple,
@@ -777,6 +784,7 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
   }
 
   void _onLevelComplete() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     final levelInBolum = ((_currentSection - 1) % 10) + 1;
     final bolumComplete = levelInBolum == 10;
     const int points = 10;
@@ -784,9 +792,11 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     if (bolumComplete) {
       setState(() => _score += points);
       _saveHighScore(_score);
+      final sectionMsg =
+          loc.get('fast_math_section_completed').replaceAll('%1', '$points');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🎉 Bölüm tamamlandı! +$points puan',
+          content: Text('🎉 $sectionMsg',
               style: GoogleFonts.quicksand(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
@@ -796,9 +806,8 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Builder(
-            builder: (ctx) => Text('✅ ${AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale).levelCompleted}',
-              style: GoogleFonts.quicksand(fontWeight: FontWeight.bold))),
+          content: Text('✅ ${loc.levelCompleted}',
+              style: GoogleFonts.quicksand(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.teal,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(milliseconds: 800),
