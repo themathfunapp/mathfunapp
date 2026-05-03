@@ -624,56 +624,138 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          _buildBackButton(() {
-            ChildExitDialog.show(
-              context,
-              themeColor: Colors.green,
-              onStay: () {},
-              onSectionSelect: () {
-                setState(() => _showLevelSelect = true);
-                SchedulerBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _audio.playMenuAmbientLoop();
-                });
-              },
-              onExit: () => Navigator.pop(context),
-            );
-          }),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)]),
-            child: Text('${((_currentSection - 1) % 10) + 1}/10', style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)]),
-            child: Row(children: [Text('⭐', style: GoogleFonts.quicksand(fontSize: 18)), const SizedBox(width: 6), Text('$_score', style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold))]),
-          ),
-          const SizedBox(width: 12),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 6)]),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(maxLives, (i) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Icon(Icons.extension, color: i < lives ? Colors.green.shade600 : Colors.grey.shade300, size: 22),
-                  )),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        final hPad = narrow ? 10.0 : 16.0;
+        final vPad = narrow ? 10.0 : 16.0;
+        final gap = narrow ? 8.0 : 12.0;
+        final chipHP = narrow ? 10.0 : 16.0;
+        final chipVP = narrow ? 6.0 : 8.0;
+        final chipFont = narrow ? 14.0 : 16.0;
+        final starFont = narrow ? 15.0 : 18.0;
+        final iconSize = narrow ? 19.0 : 22.0;
+        final iconPad = narrow ? 3.0 : 4.0;
+        final levelText = '${((_currentSection - 1) % 10) + 1}/10';
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
+          child: Row(
+            children: [
+              _buildBackButton(() {
+                ChildExitDialog.show(
+                  context,
+                  themeColor: Colors.green,
+                  onStay: () {},
+                  onSectionSelect: () {
+                    setState(() => _showLevelSelect = true);
+                    SchedulerBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _audio.playMenuAmbientLoop();
+                    });
+                  },
+                  onExit: () => Navigator.pop(context),
+                );
+              }),
+              SizedBox(width: gap),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6),
+                            ],
+                          ),
+                          child: Text(
+                            levelText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.quicksand(
+                              fontSize: chipFont,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: narrow ? 6 : 12),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('⭐', style: GoogleFonts.quicksand(fontSize: starFont)),
+                              SizedBox(width: narrow ? 4 : 6),
+                              Text(
+                                '$_score',
+                                style: GoogleFonts.quicksand(
+                                  fontSize: starFont,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: narrow ? 6 : 12),
+                        Consumer<GameMechanicsService>(
+                          builder: (context, mechanicsService, _) {
+                            final lives = mechanicsService.currentLives;
+                            final maxLives = mechanicsService.maxLives;
+                            return Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: narrow ? 8 : 10,
+                                vertical: narrow ? 5 : 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 6),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  maxLives,
+                                  (i) => Padding(
+                                    padding: EdgeInsets.only(right: iconPad),
+                                    child: Icon(
+                                      Icons.extension,
+                                      color: i < lives
+                                          ? Colors.green.shade600
+                                          : Colors.grey.shade300,
+                                      size: iconSize,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -687,12 +769,38 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
         children: [
           Text('🧩', style: GoogleFonts.quicksand(fontSize: 40)),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Desen Tamamlama', style: GoogleFonts.quicksand(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-              Text('Boş hücrelere dokun!', style: GoogleFonts.quicksand(fontSize: 14, color: Colors.green.shade600)),
-            ],
+          Expanded(
+            child: Builder(
+              builder: (ctx) {
+                final loc = AppLocalizations(
+                  Provider.of<LocaleProvider>(ctx, listen: false).locale,
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      loc.gamePatternCompletion,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade800,
+                      ),
+                    ),
+                    Text(
+                      loc.get('help_pattern_completion_2'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 14,
+                        color: Colors.green.shade600,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
