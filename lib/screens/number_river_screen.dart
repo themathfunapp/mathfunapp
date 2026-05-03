@@ -243,6 +243,8 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               children: [
                 Text(
                   '🌊 ${loc.get('digit_river')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -251,6 +253,8 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                 ),
                 Text(
                   loc.get('count_fish_subtitle'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

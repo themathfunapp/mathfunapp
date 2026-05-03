@@ -146,7 +146,6 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // GERİ BUTONU
           GestureDetector(
@@ -179,31 +178,44 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
             ),
           ),
           // BAŞLIK
-          Column(
-            children: [
-              Text(
-                localizations.get('daily_rewards_title'),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              Row(
-                children: [
-                  const Text('🔥', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${rewardService.loginStreak} ${localizations.get("day_streak")}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.9),
-                      fontWeight: FontWeight.w500,
-                    ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  localizations.get('daily_rewards_title'),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                ],
-              ),
-            ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '${rewardService.loginStreak} ${localizations.get("day_streak")}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           // PLACEHOLDER
           const SizedBox(width: 55),

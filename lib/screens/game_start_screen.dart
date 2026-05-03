@@ -25,6 +25,7 @@ import 'package:mathfun/services/game_mechanics_service.dart';
 import '../models/age_group_selection.dart';
 import '../services/audio_service.dart';
 import '../widgets/no_lives_gate_dialog.dart';
+import '../widgets/responsive_top_bar_title_row.dart';
 
 export '../models/age_group_selection.dart';
 
@@ -250,47 +251,33 @@ class _GameStartScreenState extends State<GameStartScreen>
   Widget _buildTopBar(AppLocalizations localizations) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          // Geri butonu
-          GestureDetector(
-            onTap: widget.onBack,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: 20,
+      child: ResponsiveTopBarTitleRow(
+        leading: GestureDetector(
+          onTap: widget.onBack,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
               ),
             ),
-          ),
-
-          const Spacer(),
-
-          // Başlık
-          Text(
-            localizations.get('app_name'),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+            child: const Icon(
+              Icons.arrow_back_ios_new,
               color: Colors.white,
+              size: 20,
             ),
           ),
-
-          const Spacer(),
-
-          // Boşluk için
-          const SizedBox(width: 48),
-        ],
+        ),
+        title: localizations.get('app_name'),
+        titleStyle: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
     );
   }

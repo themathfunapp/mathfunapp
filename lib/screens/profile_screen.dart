@@ -1183,15 +1183,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const Text('🏅', style: TextStyle(fontSize: 20)),
               const SizedBox(width: 8),
-              Text(
-                localizations.get('badges_title'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2d3436),
+              Expanded(
+                child: Text(
+                  localizations.get('badges_title'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2d3436),
+                  ),
                 ),
               ),
-              const Spacer(),
               Text(
                 '${earnedBadges.length}/$totalBadges',
                 style: TextStyle(

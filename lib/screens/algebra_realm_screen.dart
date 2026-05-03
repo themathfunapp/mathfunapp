@@ -340,8 +340,18 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('⚗️ ${loc.get('world_algebra_realm')}', style: _textStyle(Colors.white, size: 18, bold: true)),
-                Text(loc.get('world_algebra_realm_desc'), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                Text(
+                  '⚗️ ${loc.get('world_algebra_realm')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _textStyle(Colors.white, size: 18, bold: true),
+                ),
+                Text(
+                  loc.get('world_algebra_realm_desc'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11),
+                ),
               ],
             ),
           ),

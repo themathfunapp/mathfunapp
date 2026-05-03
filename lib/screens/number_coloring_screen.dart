@@ -164,6 +164,8 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
               ),
               child: Text(
                 '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
                 textAlign: TextAlign.center,
               ),

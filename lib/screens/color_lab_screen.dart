@@ -290,16 +290,20 @@ class _ColorLabScreenState extends State<ColorLabScreen>
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
-            ),
-            child: Text(
-              '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
-              style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+              ),
+              child: Text(
+                '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
+              ),
             ),
           ),
           const SizedBox(width: 12),

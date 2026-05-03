@@ -176,7 +176,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // GERİ BUTONU
           GestureDetector(
@@ -218,45 +217,53 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             ),
           ),
           // BAŞLIK ve oyuncu kodu (MTN)
-          Column(
-            children: [
-              Text(
-                localizations.get('friends'),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              if (currentUser != null && !authService.isGuest)
-                GestureDetector(
-                  onTap: () => _copyUserCode(currentUser.playerCode),
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.copy, size: 14, color: Colors.white70),
-                        const SizedBox(width: 6),
-                        Text(
-                          currentUser.playerCode,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  localizations.get('friends'),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-            ],
+                if (currentUser != null && !authService.isGuest)
+                  GestureDetector(
+                    onTap: () => _copyUserCode(currentUser.playerCode),
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.copy, size: 14, color: Colors.white70),
+                          const SizedBox(width: 6),
+                          Text(
+                            currentUser.playerCode,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           // BİLGİ BUTONU
           IconButton(

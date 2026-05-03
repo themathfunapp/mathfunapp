@@ -9,6 +9,7 @@ import 'find_different_screen.dart';
 import 'pattern_completion_screen.dart';
 import 'simon_says_screen.dart';
 import 'true_false_math_screen.dart';
+import '../widgets/responsive_top_bar_title_row.dart';
 
 class IntelligenceGamesScreen extends StatefulWidget {
   final String ageGroup;
@@ -124,24 +125,17 @@ class _IntelligenceGamesScreenState extends State<IntelligenceGamesScreen>
   Widget _buildTopBar(BuildContext context, AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Spacer(),
-          Text(
-            '🧠 ${loc.intelligenceGames}',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const Spacer(),
-          const SizedBox(width: 48), // Balance for back button
-        ],
+      child: ResponsiveTopBarTitleRow(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: '🧠 ${loc.intelligenceGames}',
+        titleStyle: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
     );
   }

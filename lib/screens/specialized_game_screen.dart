@@ -1509,28 +1509,35 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             onPressed: _showExitDialog,
             icon: const Icon(Icons.close, color: Colors.white),
           ),
-          const Spacer(),
-          Column(
-            children: [
-              Text(
-                _getLocalizedTopicTitle(loc),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  _getLocalizedTopicTitle(loc),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Text(
-                widget.difficultyDisplay ?? widget.difficulty,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
+                Text(
+                  widget.difficultyDisplay ?? widget.difficulty,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
-          const SizedBox(width: 8),
           // Canlar - GameMechanicsService ile profil senkron
           Consumer<GameMechanicsService>(
             builder: (context, mechanicsService, _) {

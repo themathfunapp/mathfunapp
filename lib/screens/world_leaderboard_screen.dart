@@ -67,6 +67,8 @@ class _WorldLeaderboardScreenState extends State<WorldLeaderboardScreen>
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 48),

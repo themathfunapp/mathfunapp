@@ -233,6 +233,8 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                           child: Text(
                             status == 'finished' ? 'Özet' : 'Uzaktan düello',
                             textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 17,

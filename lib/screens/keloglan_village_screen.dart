@@ -907,9 +907,18 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('🧑‍🌾 ${loc.get('keloglan_village')}', style: _textStyle(_earthBrown, size: 22, bold: true)),
-                Text(q.location.isNotEmpty ? '📍 ${q.location}' : loc.get('question_label_format').replaceAll('{0}', '$_currentLevel'), 
-                  style: _textStyle(_earthBrown.withOpacity(0.8), size: 12)),
+                Text(
+                  '🧑‍🌾 ${loc.get('keloglan_village')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _textStyle(_earthBrown, size: 22, bold: true),
+                ),
+                Text(
+                  q.location.isNotEmpty ? '📍 ${q.location}' : loc.get('question_label_format').replaceAll('{0}', '$_currentLevel'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _textStyle(_earthBrown.withOpacity(0.8), size: 12),
+                ),
               ],
             ),
           ),

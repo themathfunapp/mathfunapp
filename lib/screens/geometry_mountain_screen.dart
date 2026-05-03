@@ -377,13 +377,16 @@ class _GeometryMountainScreenState extends State<GeometryMountainScreen>
           const SizedBox(width: 16),
           
           // Başlık
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '⛰️ Geometri Dağı',
-                  style: TextStyle(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -391,7 +394,9 @@ class _GeometryMountainScreenState extends State<GeometryMountainScreen>
                 ),
                 Text(
                   'Şekilleri tanı ve zirveye tırman!',
-                  style: TextStyle(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                   ),

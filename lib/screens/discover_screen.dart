@@ -177,12 +177,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     _buildFilterChip('Yeni', false),
                     SizedBox(width: 8),
                     _buildFilterChip('Popüler', false),
-                    Spacer(),
-                    Text(
-                      '${_discoverItems.length} özellik',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 12,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '${_discoverItems.length} özellik',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],

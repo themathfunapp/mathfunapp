@@ -112,7 +112,6 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // GERİ BUTONU
           GestureDetector(
@@ -138,24 +137,31 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
             ),
           ),
           // BAŞLIK
-          Column(
-            children: [
-              Text(
-                localizations.get('badges_title'),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  localizations.get('badges_title'),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              Text(
-                '${badgeService.earnedBadgesCount}/${badgeService.totalBadgesCount}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
+                Text(
+                  '${badgeService.earnedBadgesCount}/${badgeService.totalBadgesCount}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           // BOŞLUK
           const SizedBox(width: 44),

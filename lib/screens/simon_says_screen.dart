@@ -942,7 +942,12 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 6)],
             ),
-            child: Text('${loc.get('level')} $_level', style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal.shade800)),
+            child: Text(
+              '${loc.get('level')} $_level',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal.shade800),
+            ),
           ),
           const Spacer(),
           Consumer<GameMechanicsService>(

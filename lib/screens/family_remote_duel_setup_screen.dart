@@ -197,6 +197,8 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                     child: Text(
                       'Uzaktan aile düellosu',
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,

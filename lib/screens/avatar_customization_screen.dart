@@ -224,15 +224,18 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
             ),
           ),
           const SizedBox(width: 16),
-          const Text(
-            '👤 Avatar Özelleştir',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          const Expanded(
+            child: Text(
+              '👤 Avatar Özelleştir',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
-          const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(

@@ -342,6 +342,8 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                             ? 'Yarış · ${_topicLabel(_topic!)}'
                             : 'Birebir yarış',
                         textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -515,6 +517,8 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                         Expanded(
                           child: Text(
                             entry.value.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,

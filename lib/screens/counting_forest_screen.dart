@@ -213,6 +213,8 @@ class _CountingForestScreenState extends State<CountingForestScreen>
               children: [
                 Text(
                   '🌳 ${loc.get('number_forest')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -221,6 +223,8 @@ class _CountingForestScreenState extends State<CountingForestScreen>
                 ),
                 Text(
                   loc.get('count_fruits_subtitle'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

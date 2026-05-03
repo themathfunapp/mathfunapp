@@ -166,13 +166,16 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '🗺️ Öğrenme Yolculuğu',
-                  style: TextStyle(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -180,7 +183,9 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
                 ),
                 Text(
                   'Matematik dünyasını keşfet!',
-                  style: TextStyle(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white70,
                   ),
