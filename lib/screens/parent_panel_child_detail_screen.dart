@@ -139,6 +139,8 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
               children: [
                 Text(
                   '$childName - Detaylı Rapor',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -147,6 +149,8 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                 ),
                 Text(
                   lastActivity,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.8),

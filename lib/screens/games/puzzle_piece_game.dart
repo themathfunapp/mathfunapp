@@ -286,10 +286,18 @@ class _PuzzlePieceGameState extends State<PuzzlePieceGame>
           Expanded(
             child: Column(
               children: [
-                Text(localizations.get(widget.game.nameKey),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                Text('$_currentQuestion/$_totalQuestions',
-                    style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                Text(
+                  localizations.get(widget.game.nameKey),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                Text(
+                  '$_currentQuestion/$_totalQuestions',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
+                ),
               ],
             ),
           ),

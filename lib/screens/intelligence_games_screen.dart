@@ -162,6 +162,9 @@ class _IntelligenceGamesScreenState extends State<IntelligenceGamesScreen>
           const SizedBox(height: 12),
           Text(
             loc.brainDevelopTitle,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -171,6 +174,9 @@ class _IntelligenceGamesScreenState extends State<IntelligenceGamesScreen>
           const SizedBox(height: 8),
           Text(
             loc.brainDevelopSubtitle,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],

@@ -333,6 +333,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
               children: [
                 Text(
                   localizations.get(widget.level.nameKey),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -341,6 +344,9 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
                 ),
                 Text(
                   '${localizations.get('question')} ${_currentQuestionIndex + 1}/${widget.level.questions.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

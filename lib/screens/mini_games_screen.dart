@@ -132,6 +132,8 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
               children: [
                 Text(
                   localizations.get('mini_games'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -140,6 +142,8 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                 ),
                 Text(
                   '${service.allGames.length} ${localizations.get('games_available')}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white70,

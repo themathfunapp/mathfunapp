@@ -407,7 +407,15 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         children: [
           Text(_regionEmojis[_currentRegion]!, style: const TextStyle(fontSize: 28)),
           const SizedBox(width: 12),
-          Text(loc.get(_regionNameKeys[_currentRegion]!), style: _textStyle(Colors.white, size: 18, bold: true)),
+          Flexible(
+            child: Text(
+              loc.get(_regionNameKeys[_currentRegion]!),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: _textStyle(Colors.white, size: 18, bold: true),
+            ),
+          ),
           const SizedBox(width: 8),
           Text('${_currentQuestionInRegion + 1}/$_questionsPerRegion', style: TextStyle(color: Colors.white70, fontSize: 14)),
         ],

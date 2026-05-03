@@ -527,6 +527,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
               children: [
                 Text(
                   localizations.get(widget.game.nameKey),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -535,6 +537,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                 ),
                 Text(
                   '${localizations.get('question')} $_currentQuestion/$_totalQuestions',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

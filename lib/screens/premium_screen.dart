@@ -123,6 +123,8 @@ class _PremiumScreenState extends State<PremiumScreen>
             child: Text(
               localizations.premiumTitle,
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,

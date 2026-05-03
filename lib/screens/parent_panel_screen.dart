@@ -425,6 +425,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               children: [
                 Text(
                   _pp(context, 'pp_corner_title'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.quicksand(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -433,6 +435,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                 ),
                 Text(
                   _pp(context, 'pp_corner_subtitle'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.deepPurple.shade300,
@@ -441,19 +445,26 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ],
             ),
           ),
-          Row(
-            children: [
-              Icon(Icons.calendar_today, color: Colors.deepPurple.shade300, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                dateStr,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.deepPurple.shade300,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today, color: Colors.deepPurple.shade300, size: 18),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    dateStr,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple.shade300,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -512,6 +523,8 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               children: [
                 Text(
                   childName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -523,11 +536,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
                   children: [
                     Text('🔥', style: TextStyle(fontSize: 12, color: Colors.deepOrange.shade400)),
                     const SizedBox(width: 4),
-                    Text(
-                      _pp(context, 'pp_day_streak').replaceAll('{n}', '$loginStreak'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.deepPurple.shade400,
+                    Flexible(
+                      child: Text(
+                        _pp(context, 'pp_day_streak').replaceAll('{n}', '$loginStreak'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.deepPurple.shade400,
+                        ),
                       ),
                     ),
                   ],
@@ -3314,6 +3331,8 @@ class _DetailedStatCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.white.withValues(alpha: 0.85),
@@ -3321,6 +3340,8 @@ class _DetailedStatCard extends StatelessWidget {
             ),
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

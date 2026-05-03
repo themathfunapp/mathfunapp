@@ -154,6 +154,8 @@ class _ChapterScreenState extends State<ChapterScreen> {
                   children: [
                     Text(
                       localizations.get(widget.world.nameKey),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -164,11 +166,15 @@ class _ChapterScreenState extends State<ChapterScreen> {
                       children: [
                         const Text('⭐', style: TextStyle(fontSize: 14)),
                         const SizedBox(width: 4),
-                        Text(
-                          '${progress?.worldProgress[widget.world.id]?.totalStars ?? 0} ${localizations.get('stars_collected')}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
+                        Expanded(
+                          child: Text(
+                            '${progress?.worldProgress[widget.world.id]?.totalStars ?? 0} ${localizations.get('stars_collected')}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ],

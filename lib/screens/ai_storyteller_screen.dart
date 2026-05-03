@@ -240,10 +240,12 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
             style: TextStyle(fontSize: 28),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
               'Hikaye Anlatıcı',
-              style: TextStyle(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -480,6 +482,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                 children: [
                   Text(
                     title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -488,6 +492,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   ),
                   Text(
                     subtitle,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.8),
@@ -546,6 +552,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   const SizedBox(height: 8),
                   Text(
                     _currentStory!.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -555,6 +563,9 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   ),
                   Text(
                     chapter.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.amber.shade200,

@@ -120,10 +120,12 @@ class _VoiceCommandsScreenState extends State<VoiceCommandsScreen>
             style: TextStyle(fontSize: 28),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
               'Sesli Komutlar',
-              style: TextStyle(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
