@@ -99,6 +99,7 @@ class GameMechanicsService extends ChangeNotifier {
       _userId != userId || _isGuest != isGuest;
 
   static const String _guestMechanicsKey = 'guest_mechanics';
+  static const Duration _dailyChallengeNetworkTimeout = Duration(seconds: 15);
 
   /// Duolingo tarzı can dolumunu periyodik kontrol eder.
   Timer? _lifeRegenTimer;
@@ -142,8 +143,8 @@ class GameMechanicsService extends ChangeNotifier {
       await _loadUserData();
       if (!_isGuest) {
         await _loadCurrencyFromRewards();
-        await _loadTodayChallenge();
       }
+      await _loadTodayChallenge();
       tickLifeRegeneration();
       _updateDailyStreak();
       _startLifeRegenTimer();
@@ -551,15 +552,20 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Günlük challenge yükle
   Future<void> _loadTodayChallenge() async {
-    if (_isGuest || _cloudAccessDenied) return;
     final today = DateTime.now();
+    if (_isGuest || _cloudAccessDenied) {
+      todayChallenge = _generateDailyChallenge(today);
+      notifyListeners();
+      return;
+    }
     final dateKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
     try {
       final doc = await _firestore
           .collection('daily_challenges')
           .doc(dateKey)
-          .get();
+          .get()
+          .timeout(_dailyChallengeNetworkTimeout);
 
       if (doc.exists) {
         todayChallenge = DailyChallenge.fromJson(doc.data()!);
@@ -585,15 +591,14 @@ class GameMechanicsService extends ChangeNotifier {
           await _firestore.collection('daily_challenges').doc(dateKey).set(
             todayChallenge!.toJson(),
             SetOptions(merge: true),
-          );
-          notifyListeners();
+          ).timeout(_dailyChallengeNetworkTimeout);
         }
       } else {
         // Günlük challenge oluştur
         todayChallenge = _generateDailyChallenge(today);
         await _firestore.collection('daily_challenges').doc(dateKey).set(
           todayChallenge!.toJson(),
-        );
+        ).timeout(_dailyChallengeNetworkTimeout);
       }
 
       // Kullanıcının bu challenge'ı tamamlayıp tamamlamadığını kontrol et
@@ -601,8 +606,9 @@ class GameMechanicsService extends ChangeNotifier {
         final userChallengeDoc = await _firestore
             .collection('user_challenges')
             .doc('${_userId}_$dateKey')
-            .get();
-        
+            .get()
+            .timeout(_dailyChallengeNetworkTimeout);
+
         if (userChallengeDoc.exists) {
           todayChallenge = DailyChallenge.fromJson({
             ...todayChallenge!.toJson(),
@@ -610,6 +616,9 @@ class GameMechanicsService extends ChangeNotifier {
           });
         }
       }
+    } on TimeoutException catch (e) {
+      debugPrint('Daily challenge load timeout: $e');
+      todayChallenge = _generateDailyChallenge(today);
     } on FirebaseException catch (e) {
       if (e.code == 'permission-denied') {
         _cloudAccessDenied = true;
@@ -620,6 +629,7 @@ class GameMechanicsService extends ChangeNotifier {
       debugPrint('Error loading daily challenge: $e');
       todayChallenge = _generateDailyChallenge(today);
     }
+    notifyListeners();
   }
 
   /// Günlük challenge oluştur

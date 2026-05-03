@@ -632,113 +632,144 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   }
 
   Widget _buildTopBar() {
-    return Consumer<GameMechanicsService>(
-      builder: (context, mechanicsService, _) {
-        final lives = mechanicsService.currentLives;
-        final maxLives = mechanicsService.maxLives;
-        return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => _showExitConfirmation(),
-            child: Container(
-              width: 50,
-              height: 50,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        final outerMargin = narrow ? 10.0 : 16.0;
+        final outerHPad = narrow ? 10.0 : 16.0;
+        final outerVPad = narrow ? 8.0 : 12.0;
+        final starFont = narrow ? 17.0 : 20.0;
+        final heartSize = narrow ? 19.0 : 22.0;
+        final heartPad = narrow ? 3.0 : 4.0;
+        final chipHP = narrow ? 12.0 : 16.0;
+        final chipVP = narrow ? 8.0 : 10.0;
+
+        return Consumer<GameMechanicsService>(
+          builder: (context, mechanicsService, _) {
+            final lives = mechanicsService.currentLives;
+            final maxLives = mechanicsService.maxLives;
+            return Container(
+              margin: EdgeInsets.all(outerMargin),
+              padding: EdgeInsets.symmetric(horizontal: outerHPad, vertical: outerVPad),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, color: Colors.white, size: 24),
-            ),
-          ),
-
-          const Spacer(),
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.amber.shade400, Colors.orange.shade400],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.amber.withOpacity(0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 6),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          AnimatedBuilder(
-            animation: _lifeShakeAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(_lifeShakeAnimation.value, 0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                ],
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _showExitConfirmation(),
+                    child: Container(
+                      width: narrow ? 44.0 : 50.0,
+                      height: narrow ? 44.0 : 50.0,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.close, color: Colors.white, size: narrow ? 22 : 24),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      ...List.generate(
-                        maxLives,
-                            (index) => Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Icon(
-                            index < lives
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: index < lives
-                                ? Colors.red
-                                : Colors.white.withOpacity(0.5),
-                            size: 22,
-                          ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.amber.shade400, Colors.orange.shade400],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('⭐', style: TextStyle(fontSize: starFont)),
+                                  SizedBox(width: narrow ? 4 : 6),
+                                  Text(
+                                    '$_score',
+                                    style: TextStyle(
+                                      fontSize: starFont,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: narrow ? 8 : 12),
+                            AnimatedBuilder(
+                              animation: _lifeShakeAnimation,
+                              builder: (context, child) {
+                                return Transform.translate(
+                                  offset: Offset(_lifeShakeAnimation.value, 0),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: narrow ? 10 : 12,
+                                      vertical: narrow ? 5 : 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ...List.generate(
+                                          maxLives,
+                                          (index) => Padding(
+                                            padding: EdgeInsets.only(right: heartPad),
+                                            child: Icon(
+                                              index < lives
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                              color: index < lives
+                                                  ? Colors.red
+                                                  : Colors.white.withOpacity(0.5),
+                                              size: heartSize,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }

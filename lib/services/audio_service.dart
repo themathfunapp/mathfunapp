@@ -85,52 +85,21 @@ class AudioService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Menü / genel ekranlar için yumuşak döngü (konu ambient’inden bağımsız).
+  /// Arka plan döngüleri kapalı (uğultu / ambient çocuklar için kaldırıldı).
+  /// Kısa SFX [playSound] ile çalmaya devam eder.
   Future<void> playMenuAmbientLoop() async {
-    if (!_musicEnabled) return;
-    try {
-      await _ambientPlayer.stop();
-      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
-      await _ambientPlayer.play(AssetSource('sounds/music_relaxed_ambient.wav'));
-      await _ambientPlayer.setVolume(_musicVolume * 0.42);
-      _isPlaying = true;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Menu ambient: $e');
-    }
+    await stopMusic();
   }
 
-  /// Seçili [SoundscapeTheme] için döngüsel ortam sesi.
+  /// Bölüm ortam sesi döngüsü — çalmaz; [setSoundscape] tema bilgisini güncellemek için kullanılabilir.
   Future<void> playAmbientLoop() async {
-    if (!_musicEnabled) return;
-    try {
-      await _ambientPlayer.stop();
-      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
-      // `SoundscapeTheme.name` Türkçe görünen ad; dosya adları `ambient_forest.wav` vb.
-      final path = 'sounds/ambient_${_currentSoundscape.ambientStem}.wav';
-      await _ambientPlayer.play(AssetSource(path));
-      await _ambientPlayer.setVolume(_musicVolume * 0.48);
-      _isPlaying = true;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Ambient: $e');
-    }
+    await stopMusic();
   }
 
-  /// [MusicMood] ile kısa döngü (süre baskısı, boss vb.).
+  /// Boss / zaman baskısı döngüleri — çalmaz; yalnızca [setMusicMood] güncellenir.
   Future<void> playMoodLoop(MusicMood mood) async {
-    if (!_musicEnabled) return;
     setMusicMood(mood);
-    try {
-      await _ambientPlayer.stop();
-      await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
-      await _ambientPlayer.play(AssetSource('sounds/music_${mood.trackName}.wav'));
-      await _ambientPlayer.setVolume(_musicVolume * 0.5);
-      _isPlaying = true;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Mood loop: $e');
-    }
+    await stopMusic();
   }
 
   Future<void> playMusic() => playAmbientLoop();

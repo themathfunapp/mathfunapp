@@ -9,8 +9,110 @@ import '../models/topic_performance_stats.dart';
 import '../services/auth_service.dart';
 import '../services/badge_service.dart';
 import '../localization/app_localizations.dart';
+import '../localization/parent_panel_l10n.dart';
+import '../providers/locale_provider.dart';
 import '../widgets/animated_counter.dart';
 import '../widgets/empty_state_lottie.dart';
+
+String _ppt(BuildContext context, String key,
+    [Map<String, String> params = const {}]) {
+  final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+  var s = ParentPanelL10n.of(lc, key);
+  for (final e in params.entries) {
+    s = s.replaceAll('{${e.key}}', e.value);
+  }
+  return s;
+}
+
+String _localizedTopicTitle(BuildContext context, TopicPerformanceStats s) {
+  final key = switch (s.topicId) {
+    'addition' => 'pp_topic_name_addition',
+    'subtraction' => 'pp_topic_name_subtraction',
+    'multiplication' => 'pp_topic_name_multiplication',
+    'division' => 'pp_topic_name_division',
+    _ => null,
+  };
+  if (key != null) return _ppt(context, key);
+  return s.topicName;
+}
+
+Future<Map<String, EarnedBadge>> _remoteEarnedBadgesFuture(String uid) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('badges')
+      .orderBy('earnedAt', descending: true)
+      .get();
+  final map = <String, EarnedBadge>{};
+  for (final doc in snapshot.docs) {
+    final e = EarnedBadge.fromMap(doc.data(), doc.id);
+    if (!map.containsKey(e.badgeId) || e.earnedAt.isAfter(map[e.badgeId]!.earnedAt)) {
+      map[e.badgeId] = e;
+    }
+  }
+  return map;
+}
+
+/// Başka kullanıcının rozetleri: [Future] her üst [build]'de yenilenmesin;
+/// Firestore hatasında sonsuz spinner kalmasın.
+class _RemoteEarnedBadgesLoader extends StatefulWidget {
+  final String userId;
+  final BadgeService badgeService;
+  final Widget Function(BuildContext context, Map<String, EarnedBadge> earnedMap) contentBuilder;
+
+  const _RemoteEarnedBadgesLoader({
+    required this.userId,
+    required this.badgeService,
+    required this.contentBuilder,
+  });
+
+  @override
+  State<_RemoteEarnedBadgesLoader> createState() => _RemoteEarnedBadgesLoaderState();
+}
+
+class _RemoteEarnedBadgesLoaderState extends State<_RemoteEarnedBadgesLoader> {
+  late Future<Map<String, EarnedBadge>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _remoteEarnedBadgesFuture(widget.userId);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RemoteEarnedBadgesLoader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _future = _remoteEarnedBadgesFuture(widget.userId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, EarnedBadge>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          );
+        }
+        final map = (snapshot.hasError || snapshot.data == null)
+            ? <String, EarnedBadge>{}
+            : snapshot.data!;
+        return widget.contentBuilder(context, map);
+      },
+    );
+  }
+}
 
 /// Detaylı gelişim raporu - Gerçek verilerle
 ///
@@ -84,7 +186,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              _buildAppBar(),
+              _buildAppBar(context),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.all(16),
@@ -94,13 +196,13 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                         tag: heroTag!,
                         child: Material(
                           color: Colors.transparent,
-                          child: _buildHeaderCard(),
+                          child: _buildHeaderCard(context),
                         ),
                       )
                     else
-                      _buildHeaderCard(),
+                      _buildHeaderCard(context),
                     const SizedBox(height: 20),
-                    _buildWeeklyProgressChart(),
+                    _buildWeeklyProgressChart(context),
                     const SizedBox(height: 20),
                     _buildTopicPerformanceAnalysis(context),
                     const SizedBox(height: 20),
@@ -115,7 +217,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -138,7 +240,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$childName - Detaylı Rapor',
+                  _ppt(context, 'pp_child_detail_report_title', {'name': childName}),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -164,7 +266,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderCard() {
+  Widget _buildHeaderCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -201,7 +303,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                     const SizedBox(width: 6),
                     AnimatedCounter(
                       value: totalScore,
-                      suffix: ' Puan',
+                      suffix: _ppt(context, 'pp_score_suffix'),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -217,7 +319,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                     const SizedBox(width: 6),
                     AnimatedCounter(
                       value: accuracy,
-                      prefix: 'Genel Başarı: %',
+                      prefix: _ppt(context, 'pp_overall_success_prefix'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -235,8 +337,12 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
   }
 
   /// Zaman içindeki haftalık ilerleme grafiği (fl_chart)
-  Widget _buildWeeklyProgressChart() {
-    final days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  Widget _buildWeeklyProgressChart(BuildContext context) {
+    final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+    final days = List.generate(
+      7,
+      (i) => ParentPanelL10n.of(lc, 'pp_weekday_$i'),
+    );
     final spots = weeklyValues.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.toDouble());
     }).toList();
@@ -255,9 +361,9 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
             children: [
               const Icon(Icons.show_chart, color: Colors.blue, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'Zaman İçindeki İlerleme',
-                style: TextStyle(
+              Text(
+                ParentPanelL10n.of(lc, 'pp_report_weekly_chart'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -369,29 +475,15 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
       );
     }
 
-    return FutureBuilder<Map<String, EarnedBadge>>(
-      future: _fetchEarnedBadgesForUser(userId!),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
-          );
-        }
-        return _buildBadgeGalleryContent(
-          context,
-          badgeService: badgeService,
-          earnedMap: snapshot.data!,
-          showProgressInDialog: false,
-        );
-      },
+    return _RemoteEarnedBadgesLoader(
+      userId: userId!,
+      badgeService: badgeService,
+      contentBuilder: (ctx, earnedMap) => _buildBadgeGalleryContent(
+        ctx,
+        badgeService: badgeService,
+        earnedMap: earnedMap,
+        showProgressInDialog: false,
+      ),
     );
   }
 
@@ -405,30 +497,14 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
     return map;
   }
 
-  Future<Map<String, EarnedBadge>> _fetchEarnedBadgesForUser(String uid) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('badges')
-        .orderBy('earnedAt', descending: true)
-        .get();
-    final map = <String, EarnedBadge>{};
-    for (final doc in snapshot.docs) {
-      final e = EarnedBadge.fromMap(doc.data(), doc.id);
-      if (!map.containsKey(e.badgeId) || e.earnedAt.isAfter(map[e.badgeId]!.earnedAt)) {
-        map[e.badgeId] = e;
-      }
-    }
-    return map;
-  }
-
   Widget _buildBadgeGalleryContent(
     BuildContext context, {
     required BadgeService badgeService,
     required Map<String, EarnedBadge> earnedMap,
     required bool showProgressInDialog,
   }) {
-    final locale = Localizations.localeOf(context);
+    // Ebeveyn paneli dili (LocaleProvider); MaterialApp locale farklı olunca rozetler İngilizce kalmasın.
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
     final allBadges = BadgeService.allBadges;
 
@@ -446,9 +522,9 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
             children: [
               const Text('🏆', style: TextStyle(fontSize: 24)),
               const SizedBox(width: 8),
-              const Text(
-                'Rozet Galerisi',
-                style: TextStyle(
+              Text(
+                _ppt(context, 'pp_badge_gallery_title'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -458,38 +534,54 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '$earnedBadges / ${allBadges.length} rozet kazanıldı',
+            _ppt(context, 'pp_badges_earned_count', {
+              'earned': '${earnedMap.length}',
+              'total': '${allBadges.length}',
+            }),
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 480,
-            child: GridView.builder(
-              padding: EdgeInsets.zero,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: allBadges.length,
-              itemBuilder: (context, index) {
-                final badge = allBadges[index];
-                final earned = earnedMap[badge.id];
-                return _buildBadgeGalleryItem(
-                  context,
-                  badge,
-                  earned,
-                  badgeService,
-                  localizations,
-                  index,
-                  showProgressInDialog: showProgressInDialog,
-                );
-              },
-            ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 8.0;
+              final maxW = constraints.maxWidth;
+              final crossCount = (maxW / 92).floor().clamp(4, 7);
+              const aspect = 0.92;
+              final cellW = (maxW - spacing * (crossCount - 1)) / crossCount;
+              final cellH = cellW / aspect;
+              final rows = (allBadges.length / crossCount).ceil();
+              final gridH = rows * cellH + (rows - 1) * spacing;
+              return SizedBox(
+                height: gridH.clamp(160.0, 5600.0),
+                child: GridView.builder(
+                  padding: EdgeInsets.zero,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossCount,
+                    childAspectRatio: aspect,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemCount: allBadges.length,
+                  itemBuilder: (context, index) {
+                    final badge = allBadges[index];
+                    final earned = earnedMap[badge.id];
+                    return _buildBadgeGalleryItem(
+                      context,
+                      badge,
+                      earned,
+                      badgeService,
+                      localizations,
+                      index,
+                      showProgressInDialog: showProgressInDialog,
+                    );
+                  },
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -528,12 +620,12 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
           showProgressInDialog: showProgressInDialog,
         ),
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
             color: isEarned
                 ? Color(colors['primary'] as int).withValues(alpha: 0.25)
                 : Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isEarned
                   ? Color(colors['secondary'] as int).withValues(alpha: 0.6)
@@ -544,8 +636,8 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   gradient: isEarned
                       ? LinearGradient(
@@ -562,17 +654,17 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                   child: Text(
                     badge.emoji,
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 17,
                       color: isEarned ? null : Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 localizations.get(badge.nameKey),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: FontWeight.bold,
                   color: isEarned
                       ? Colors.white
@@ -583,18 +675,18 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               if (earned != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   DateFormat('d.M.yyyy').format(earned.earnedAt),
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 8,
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
               ] else
                 Icon(
                   Icons.lock_outline,
-                  size: 12,
+                  size: 10,
                   color: Colors.white.withValues(alpha: 0.4),
                 ),
             ],
@@ -612,6 +704,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
     AppLocalizations localizations, {
     bool showProgressInDialog = true,
   }) {
+    final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
     final isEarned = earned != null;
     final colors = badge.colors;
     final currentValue = badgeService.userStats?.getStatValue(badge.statKey) ?? 0;
@@ -746,7 +839,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Kazanıldı: ${DateFormat('d MMM yyyy').format(earned.earnedAt)}',
+                      '${ParentPanelL10n.of(lc, 'pp_badge_earned_prefix')}${DateFormat('d MMM yyyy', Provider.of<LocaleProvider>(context).locale.toString()).format(earned.earnedAt)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.95),
@@ -790,7 +883,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                 ] else ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Henüz kazanılmadı',
+                    ParentPanelL10n.of(lc, 'pp_badge_not_yet'),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.white.withValues(alpha: 0.8),
@@ -801,7 +894,7 @@ class ParentPanelChildDetailScreen extends StatelessWidget {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    localizations.get('close'),
+                    ParentPanelL10n.of(lc, 'pp_close'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -831,6 +924,38 @@ class _TopicPerformanceAnalysisWidget extends StatefulWidget {
 class _TopicPerformanceAnalysisWidgetState
     extends State<_TopicPerformanceAnalysisWidget> {
   TopicTimeFilter _timeFilter = TopicTimeFilter.allTime;
+  Future<List<TopicPerformanceStats>>? _topicStatsFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _topicStatsFuture ??= _createTopicStatsFuture();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TopicPerformanceAnalysisWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      setState(() {
+        _topicStatsFuture = _createTopicStatsFuture();
+      });
+    }
+  }
+
+  Future<List<TopicPerformanceStats>> _createTopicStatsFuture() {
+    return Provider.of<BadgeService>(context, listen: false).getTopicPerformanceStats(
+      targetUserId: widget.userId,
+      timeFilter: _timeFilter,
+    );
+  }
+
+  void _onTimeFilterChanged(TopicTimeFilter filter) {
+    if (_timeFilter == filter) return;
+    setState(() {
+      _timeFilter = filter;
+      _topicStatsFuture = _createTopicStatsFuture();
+    });
+  }
 
   Color _getSuccessColor(int percent) {
     if (percent >= 80) return const Color(0xFF4CAF50);
@@ -840,14 +965,12 @@ class _TopicPerformanceAnalysisWidgetState
 
   @override
   Widget build(BuildContext context) {
-    final badgeService = Provider.of<BadgeService>(context);
     return FutureBuilder<List<TopicPerformanceStats>>(
-      future: badgeService.getTopicPerformanceStats(
-        targetUserId: widget.userId,
-        timeFilter: _timeFilter,
-      ),
+      future: _topicStatsFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData &&
+            !snapshot.hasError) {
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -860,7 +983,24 @@ class _TopicPerformanceAnalysisWidgetState
             ),
           );
         }
-        final stats = snapshot.data!;
+        if (snapshot.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            child: Center(
+              child: Text(
+                '${_ppt(context, 'pp_error_prefix')}${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
+          );
+        }
+        final stats = snapshot.data ?? <TopicPerformanceStats>[];
         final weakTopics = stats.where((s) => s.isWeak).toList();
 
         return Container(
@@ -877,9 +1017,9 @@ class _TopicPerformanceAnalysisWidgetState
                 children: [
                   const Icon(Icons.analytics, color: Colors.blue, size: 24),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Konu Bazlı Performans',
-                    style: TextStyle(
+                  Text(
+                    _ppt(context, 'pp_report_topic'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -892,9 +1032,12 @@ class _TopicPerformanceAnalysisWidgetState
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _buildFilterChip('Son 7 gün', TopicTimeFilter.last7Days),
-                  _buildFilterChip('Son 30 gün', TopicTimeFilter.last30Days),
-                  _buildFilterChip('Tüm zamanlar', TopicTimeFilter.allTime),
+                  _buildFilterChip(
+                      _ppt(context, 'pp_topic_filter_7d'), TopicTimeFilter.last7Days),
+                  _buildFilterChip(
+                      _ppt(context, 'pp_topic_filter_30d'), TopicTimeFilter.last30Days),
+                  _buildFilterChip(
+                      _ppt(context, 'pp_filter_all_time'), TopicTimeFilter.allTime),
                 ],
               ),
               const SizedBox(height: 20),
@@ -993,7 +1136,11 @@ class _TopicPerformanceAnalysisWidgetState
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Öneri: ${weakTopics.map((t) => t.topicName).join(", ")} konularında daha fazla pratik yapılması faydalı olacaktır.',
+                          _ppt(context, 'pp_weak_topics_suggestion', {
+                            'topics': weakTopics
+                                .map((t) => _localizedTopicTitle(context, t))
+                                .join(', '),
+                          }),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white.withValues(alpha: 0.95),
@@ -1014,7 +1161,7 @@ class _TopicPerformanceAnalysisWidgetState
   Widget _buildFilterChip(String label, TopicTimeFilter filter) {
     final isSelected = _timeFilter == filter;
     return GestureDetector(
-      onTap: () => setState(() => _timeFilter = filter),
+      onTap: () => _onTimeFilterChanged(filter),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -1065,7 +1212,7 @@ class _TopicPerformanceAnalysisWidgetState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          s.topicName,
+                          _localizedTopicTitle(context, s),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1074,7 +1221,11 @@ class _TopicPerformanceAnalysisWidgetState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Doğru: ${s.correctCount} / Yanlış: ${s.wrongCount} • Toplam: ${s.totalQuestions} soru',
+                          _ppt(context, 'pp_topic_stat_line', {
+                            'correct': '${s.correctCount}',
+                            'wrong': '${s.wrongCount}',
+                            'total': '${s.totalQuestions}',
+                          }),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.8),
@@ -1094,15 +1245,16 @@ class _TopicPerformanceAnalysisWidgetState
                           color: color,
                         ),
                       ),
-                      Text(
-                        s.avgTimeSeconds > 0
-                            ? '${s.avgTimeSeconds.toStringAsFixed(1)} sn/soru'
-                            : '-',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.7),
+                      if (s.avgTimeSeconds > 0)
+                        Text(
+                          _ppt(context, 'pp_seconds_per_question', {
+                            'n': s.avgTimeSeconds.toStringAsFixed(1),
+                          }),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(width: 8),
@@ -1141,9 +1293,13 @@ class _TopicPerformanceAnalysisWidgetState
           children: [
             Text(s.emoji, style: const TextStyle(fontSize: 28)),
             const SizedBox(width: 12),
-            Text(
-              '${s.topicName} Detayı',
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+            Expanded(
+              child: Text(
+                _ppt(context, 'pp_topic_detail_title', {
+                  'name': _localizedTopicTitle(context, s),
+                }),
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -1151,14 +1307,17 @@ class _TopicPerformanceAnalysisWidgetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _detailRow('✅ Doğru cevap', '${s.correctCount}'),
-            _detailRow('❌ Yanlış cevap', '${s.wrongCount}'),
-            _detailRow('📊 Toplam soru', '${s.totalQuestions}'),
-            _detailRow('📈 Başarı oranı', '%${s.successPercent}'),
-            _detailRow(
-              '⏱️ Ort. süre',
-              s.avgTimeSeconds > 0 ? '${s.avgTimeSeconds.toStringAsFixed(1)} sn/soru' : '-',
-            ),
+            _detailRow(_ppt(context, 'pp_detail_correct_answers'), '${s.correctCount}'),
+            _detailRow(_ppt(context, 'pp_detail_wrong_answers'), '${s.wrongCount}'),
+            _detailRow(_ppt(context, 'pp_detail_total_questions'), '${s.totalQuestions}'),
+            _detailRow(_ppt(context, 'pp_detail_success_rate'), '%${s.successPercent}'),
+            if (s.avgTimeSeconds > 0)
+              _detailRow(
+                _ppt(context, 'pp_detail_avg_time'),
+                _ppt(context, 'pp_seconds_per_question', {
+                  'n': s.avgTimeSeconds.toStringAsFixed(1),
+                }),
+              ),
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -1174,7 +1333,10 @@ class _TopicPerformanceAnalysisWidgetState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Kapat', style: TextStyle(color: Colors.white70)),
+            child: Text(
+              _ppt(context, 'pp_close'),
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
         ],
       ),

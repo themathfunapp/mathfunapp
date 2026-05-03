@@ -25,7 +25,7 @@ class BadgeService extends ChangeNotifier {
 
   // ==================== TÜM ROZETLER ====================
   
-  static const List<BadgeDefinition> allBadges = [
+  static final List<BadgeDefinition> allBadges = [
     // 🎮 GAMEPLAY - Oyun Oynama
     BadgeDefinition(
       id: 'first_game',
@@ -351,7 +351,48 @@ class BadgeService extends ChangeNotifier {
       targetValue: 100000,
       statKey: 'totalScore',
     ),
+    ..._languageExplorerBadges(),
   ];
+
+  /// Uygulama dilinde en az bir oyun oturumu (ParentPanelL10n dilleriyle uyumlu).
+  static List<BadgeDefinition> _languageExplorerBadges() {
+    const codes = <String>[
+      'tr', 'en', 'de', 'es', 'fr', 'ar', 'fa', 'zh', 'id', 'ku', 'ru', 'ja', 'ko', 'hi', 'ur', 'pt', 'it', 'pl',
+    ];
+    const flags = <String, String>{
+      'tr': '🇹🇷',
+      'en': '🇬🇧',
+      'de': '🇩🇪',
+      'es': '🇪🇸',
+      'fr': '🇫🇷',
+      'ar': '🇸🇦',
+      'fa': '🇮🇷',
+      'zh': '🇨🇳',
+      'id': '🇮🇩',
+      'ku': '🌐',
+      'ru': '🇷🇺',
+      'ja': '🇯🇵',
+      'ko': '🇰🇷',
+      'hi': '🇮🇳',
+      'ur': '🇵🇰',
+      'pt': '🇵🇹',
+      'it': '🇮🇹',
+      'pl': '🇵🇱',
+    };
+    return [
+      for (final c in codes)
+        BadgeDefinition(
+          id: 'lang_$c',
+          nameKey: 'badge_lang_$c',
+          descriptionKey: 'badge_lang_${c}_desc',
+          emoji: flags[c]!,
+          category: BadgeCategory.special,
+          rarity: BadgeRarity.uncommon,
+          targetValue: 1,
+          statKey: 'localeGames_$c',
+        ),
+    ];
+  }
 
   // ==================== BAŞLATMA ====================
 
@@ -448,6 +489,7 @@ class BadgeService extends ChangeNotifier {
     required int fastAnswersCount,
     required int superFastAnswersCount,
     required int streak,
+    required String appLanguageCode,
   }) async {
     if (_userId == null || _isGuest) return [];
 
@@ -457,8 +499,15 @@ class BadgeService extends ChangeNotifier {
     final bool isPerfectGame = wrongAnswers == 0 && questionsAnswered > 0;
     final previousLastPlayed = _userStats!.lastPlayedAt;
 
+    final langKey = appLanguageCode.toLowerCase().split(RegExp(r'[-_]')).first;
+    final localeMap = Map<String, int>.from(_userStats!.localeGamesPlayed);
+    if (langKey.isNotEmpty) {
+      localeMap[langKey] = (localeMap[langKey] ?? 0) + 1;
+    }
+
     // Stats'ı güncelle
     _userStats = _userStats!.copyWith(
+      localeGamesPlayed: localeMap,
       totalGamesPlayed: _userStats!.totalGamesPlayed + 1,
       totalQuestionsAnswered: _userStats!.totalQuestionsAnswered + questionsAnswered,
       totalCorrectAnswers: _userStats!.totalCorrectAnswers + correctAnswers,

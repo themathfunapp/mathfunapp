@@ -219,18 +219,26 @@ class _ColorLabScreenState extends State<ColorLabScreen>
             children: [
               _buildTopBar(),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildCharacter(),
-                      _buildQuestion(),
-                      _buildLabSetup(),
-                      _buildMixButton(),
-                      _buildAnswerOptions(),
-                    ],
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildCharacter(),
+                            _buildQuestion(),
+                            _buildLabSetup(),
+                            _buildMixButton(),
+                            _buildAnswerOptions(),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -242,101 +250,142 @@ class _ColorLabScreenState extends State<ColorLabScreen>
 
   Widget _buildTopBar() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () {
-              ChildExitDialog.show(
-                context,
-                themeColor: Colors.purple,
-                onStay: () {},
-                onSectionSelect: () => Navigator.pop(context),
-                onExit: () => Navigator.pop(context),
-              );
-            },
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
-              ),
-              child: const Icon(Icons.arrow_back, color: Colors.purple),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$_score',
-                    style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        final outer = narrow ? 10.0 : 16.0;
+        final gap1 = narrow ? 8.0 : 12.0;
+        final back = narrow ? 40.0 : 44.0;
+        final chipHP = narrow ? 10.0 : 16.0;
+        final chipVP = narrow ? 8.0 : 10.0;
+        final starSize = narrow ? 18.0 : 20.0;
+        final scoreFs = narrow ? 14.0 : 16.0;
+        final levelFs = narrow ? 12.0 : 14.0;
+        final levelHP = narrow ? 8.0 : 12.0;
+        final gapChips = narrow ? 6.0 : 8.0;
+        final gapBeforeLives = narrow ? 8.0 : 12.0;
+        final bolt = narrow ? 19.0 : 22.0;
+        final boltPad = narrow ? 2.0 : 4.0;
+        final livesHP = narrow ? 6.0 : 10.0;
+
+        return Padding(
+          padding: EdgeInsets.all(outer),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  ChildExitDialog.show(
+                    context,
+                    themeColor: Colors.purple,
+                    onStay: () {},
+                    onSectionSelect: () => Navigator.pop(context),
+                    onExit: () => Navigator.pop(context),
+                  );
+                },
+                child: Container(
+                  width: back,
+                  height: back,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
-              ),
-              child: Text(
-                '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple.shade800),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                  child: Icon(Icons.arrow_back, color: Colors.purple, size: narrow ? 22 : 24),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxLives,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.bolt,
-                        color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
-                        size: 22,
+              ),
+              SizedBox(width: gap1),
+              Expanded(
+                child: Consumer<GameMechanicsService>(
+                  builder: (context, mechanicsService, _) {
+                    final lives = mechanicsService.currentLives;
+                    final maxLives = mechanicsService.maxLives;
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star, color: Colors.amber, size: starSize),
+                                  SizedBox(width: narrow ? 6 : 8),
+                                  Text(
+                                    '$_score',
+                                    style: GoogleFonts.quicksand(
+                                      fontSize: scoreFs,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.purple.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: gapChips),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.38),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: levelHP, vertical: chipVP),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
+                                ),
+                                child: Text(
+                                  '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.quicksand(
+                                    fontSize: levelFs,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple.shade800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: gapBeforeLives),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: livesHP, vertical: narrow ? 6 : 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  maxLives,
+                                  (i) => Padding(
+                                    padding: EdgeInsets.only(right: i == maxLives - 1 ? 0 : boltPad),
+                                    child: Icon(
+                                      Icons.bolt,
+                                      color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
+                                      size: bolt,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

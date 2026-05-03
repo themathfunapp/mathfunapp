@@ -544,52 +544,78 @@ class TopicGameManager {
     };
   }
 
+  static bool _isEasyMath(String difficulty) {
+    switch (difficulty) {
+      case 'easy':
+      case 'Kolay':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static bool _isHardMath(String difficulty) {
+    switch (difficulty) {
+      case 'hard':
+      case 'Zor':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   // Konuya özel soru üret
   static Map<String, dynamic> generateTopicQuestion(
       TopicType topic,
       AgeGroupSelection ageGroup,
-      math.Random random,
-      ) {
+      math.Random random, {
+      String difficulty = 'Orta',
+    }) {
     final settings = getTopicSettings()[topic]!;
 
     switch (topic) {
       case TopicType.counting:
-        return _generateCountingQuestion(ageGroup, random, settings);
+        return _generateCountingQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.geometry:
-        return _generateGeometryQuestion(ageGroup, random, settings);
+        return _generateGeometryQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.fractions:
-        return _generateFractionQuestion(ageGroup, random, settings);
+        return _generateFractionQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.time:
-        return _generateTimeQuestion(ageGroup, random, settings);
+        return _generateTimeQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.measurements:
-        return _generateMeasurementQuestion(ageGroup, random, settings);
+        return _generateMeasurementQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.patterns:
-        return _generatePatternQuestion(ageGroup, random, settings);
+        return _generatePatternQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.decimals:
-        return _generateDecimalsQuestion(ageGroup, random, settings);
+        return _generateDecimalsQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       case TopicType.algebra:
-        return _generateAlgebraQuestion(ageGroup, random, settings);
+        return _generateAlgebraQuestion(ageGroup, random, settings, difficulty: difficulty);
 
       default:
-        return _generateBasicMathQuestion(topic, ageGroup, random);
+        return _generateBasicMathQuestion(topic, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateCountingQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final questionTypes = ['count_objects', 'find_missing', 'whats_next', 'before_after'];
     final type = questionTypes[random.nextInt(questionTypes.length)];
-    final maxNumber = settings.customRules['max_number'] as int;
+    // Kolay: tek basamak • Orta: iki basamak • Zor: üç basamak (sayma aralığı)
+    int maxNumber = _isEasyMath(difficulty)
+        ? 9
+        : (_isHardMath(difficulty) ? 999 : 99);
+    maxNumber = maxNumber.clamp(8, 999);
 
     switch (type) {
       case 'count_objects':
@@ -651,15 +677,16 @@ class TopicGameManager {
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateDecimalsQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final questionTypes = ['addition', 'subtraction', 'compare', 'round'];
     final type = questionTypes[random.nextInt(questionTypes.length)];
 
@@ -716,15 +743,16 @@ class TopicGameManager {
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateAlgebraQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final questionTypes = ['solve_for_x', 'simple_equation', 'missing_number'];
     final type = questionTypes[random.nextInt(questionTypes.length)];
 
@@ -769,15 +797,16 @@ class TopicGameManager {
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateGeometryQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final questionTypes = ['identify_shapes', 'count_sides', 'find_area'];
     final type = questionTypes[random.nextInt(questionTypes.length)];
 
@@ -828,15 +857,16 @@ class TopicGameManager {
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateFractionQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final questionTypes = ['identify_fraction', 'compare_fractions', 'add_fractions'];
     final type = questionTypes[random.nextInt(questionTypes.length)];
 
@@ -886,15 +916,16 @@ class TopicGameManager {
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random);
+        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
     }
   }
 
   static Map<String, dynamic> _generateTimeQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final hour = random.nextInt(12) + 1;
     final minute = [0, 15, 30, 45][random.nextInt(4)];
 
@@ -915,8 +946,9 @@ class TopicGameManager {
   static Map<String, dynamic> _generateMeasurementQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final units = ['cm', 'm', 'kg', 'g', 'L', 'mL'];
     final unit = units[random.nextInt(units.length)];
     final value = random.nextInt(10) + 1;
@@ -934,8 +966,9 @@ class TopicGameManager {
   static Map<String, dynamic> _generatePatternQuestion(
       AgeGroupSelection ageGroup,
       math.Random random,
-      TopicGameSettings settings,
-      ) {
+      TopicGameSettings settings, {
+      String difficulty = 'Orta',
+    }) {
     final pattern = [1, 2, 3, 4, 5];
     final missingIndex = random.nextInt(5);
     final missingValue = pattern[missingIndex];
@@ -955,43 +988,103 @@ class TopicGameManager {
   static Map<String, dynamic> _generateBasicMathQuestion(
       TopicType topic,
       AgeGroupSelection ageGroup,
-      math.Random random,
-      ) {
+      math.Random random, {
+      String difficulty = 'Orta',
+    }) {
     int num1, num2, answer;
     String operator;
+    final easy = _isEasyMath(difficulty);
+    final hard = _isHardMath(difficulty);
 
     switch (topic) {
       case TopicType.addition:
-        num1 = random.nextInt(10) + 1;
-        num2 = random.nextInt(10) + 1;
+        if (easy) {
+          num1 = random.nextInt(9) + 1;
+          num2 = random.nextInt(9) + 1;
+        } else if (hard) {
+          if (random.nextBool()) {
+            num1 = random.nextInt(900) + 100;
+            num2 = random.nextInt(900) + 100;
+          } else {
+            num1 = random.nextInt(9000) + 1000;
+            num2 = random.nextInt(9000) + 1000;
+          }
+        } else {
+          num1 = random.nextInt(90) + 10;
+          num2 = random.nextInt(90) + 10;
+        }
         answer = num1 + num2;
         operator = '+';
         break;
 
       case TopicType.subtraction:
-        num1 = random.nextInt(10) + 1;
-        num2 = random.nextInt(num1) + 1;
+        if (easy) {
+          num1 = random.nextInt(8) + 2;
+          num2 = random.nextInt(num1 - 1) + 1;
+        } else if (hard) {
+          if (random.nextBool()) {
+            num1 = random.nextInt(900) + 100;
+            num2 = random.nextInt(math.max(1, num1 - 10)) + 10;
+          } else {
+            num1 = random.nextInt(9000) + 1000;
+            num2 = random.nextInt(math.max(1, num1 - 100)) + 100;
+          }
+        } else {
+          num1 = random.nextInt(80) + 20;
+          num2 = random.nextInt(num1 - 19) + 10;
+        }
         answer = num1 - num2;
         operator = '-';
         break;
 
       case TopicType.multiplication:
-        num1 = random.nextInt(5) + 1;
-        num2 = random.nextInt(5) + 1;
+        if (easy) {
+          num1 = random.nextInt(9) + 1;
+          num2 = random.nextInt(9) + 1;
+        } else if (hard) {
+          num1 = random.nextInt(90) + 10;
+          num2 = random.nextInt(90) + 10;
+        } else {
+          num1 = random.nextInt(90) + 10;
+          num2 = random.nextInt(8) + 2;
+        }
         answer = num1 * num2;
         operator = '×';
         break;
 
       case TopicType.division:
-        num2 = random.nextInt(5) + 1;
-        answer = random.nextInt(5) + 1;
-        num1 = num2 * answer;
+        if (easy) {
+          num2 = random.nextInt(8) + 2;
+          answer = random.nextInt(9) + 1;
+          num1 = num2 * answer;
+        } else if (hard) {
+          num2 = random.nextInt(90) + 10;
+          answer = random.nextInt(90) + 10;
+          num1 = num2 * answer;
+        } else {
+          num2 = random.nextInt(8) + 2;
+          answer = random.nextInt(90) + 10;
+          num1 = num2 * answer;
+        }
         operator = '÷';
         break;
 
       default:
-        num1 = random.nextInt(10) + 1;
-        num2 = random.nextInt(10) + 1;
+        if (easy) {
+          num1 = random.nextInt(9) + 1;
+          num2 = random.nextInt(9) + 1;
+        } else if (hard) {
+          if (random.nextBool()) {
+            num1 = random.nextInt(900) + 100;
+            num2 = random.nextInt(900) + 100;
+          } else {
+            num1 = random.nextInt(9000) + 1000;
+            num2 = random.nextInt(9000) + 1000;
+          }
+        } else {
+          num1 = random.nextInt(90) + 10;
+          num2 = random.nextInt(90) + 10;
+        }
         answer = num1 + num2;
         operator = '+';
     }

@@ -6,6 +6,7 @@ import 'package:mathfun/config/legal_urls.dart';
 import 'package:mathfun/localization/app_localizations.dart';
 import 'package:mathfun/models/game_manager.dart';
 import 'package:mathfun/services/ad_service.dart';
+import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/services/auth_service.dart';
 import 'package:mathfun/services/push_notification_service.dart';
 import 'package:mathfun/widgets/kurdistan_flag.dart';
@@ -40,9 +41,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: true);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final currentUser = authService.currentUser;
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final localizations = AppLocalizations(locale);
 
     return Scaffold(
       body: Container(
@@ -351,9 +352,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Dil Ayarı Widget'ı
   Widget _buildLanguageSettingItem(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final locale = Provider.of<LocaleProvider>(context).locale;
+    final currentLocale = locale.languageCode;
+    final localizations = AppLocalizations(locale);
 
     String getCurrentLangName(String code) {
       switch (code) {
@@ -436,9 +437,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Dil Seçim Dialog'u
   void _showLanguageDialog(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final currentLocale = locale.languageCode;
+    final localizations = AppLocalizations(locale);
 
     showDialog(
       context: context,
@@ -831,9 +832,8 @@ class FunBackButtonOption2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final locale = Provider.of<LocaleProvider>(context).locale;
+    final localizations = AppLocalizations(locale);
 
     return InkWell(
       onTap: onPressed,

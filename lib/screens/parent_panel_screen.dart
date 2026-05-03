@@ -80,26 +80,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   int _dailyReminderHour = 18;
   int _dailyReminderMinute = 0;
 
-  static const List<Map<String, dynamic>> _supportedLanguages = [
-    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
-    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-    {'code': 'ar', 'name': 'العربية (Arapça)', 'flag': '🇸🇦'},
-    {'code': 'fa', 'name': 'فارسی (Farsça)', 'flag': '🇮🇷'},
-    {'code': 'zh', 'name': '中文 (Çince)', 'flag': '🇨🇳'},
-    {'code': 'id', 'name': 'Bahasa (Endonezce)', 'flag': '🇮🇩'},
-    {'code': 'ku', 'name': 'Kurdî (Kürtçe)', 'flag': '☀️'},
-    {'code': 'es', 'name': 'Español (İspanyolca)', 'flag': '🇪🇸'},
-    {'code': 'fr', 'name': 'Français (Fransızca)', 'flag': '🇫🇷'},
-    {'code': 'ru', 'name': 'Русский (Rusça)', 'flag': '🇷🇺'},
-    {'code': 'ja', 'name': '日本語 (Japonca)', 'flag': '🇯🇵'},
-    {'code': 'ko', 'name': '한국어 (Korece)', 'flag': '🇰🇷'},
-    {'code': 'hi', 'name': 'हिन्दी (Hintçe)', 'flag': '🇮🇳'},
-    {'code': 'ur', 'name': 'اردو (Urduca)', 'flag': '🇵🇰'},
-    {'code': 'pt', 'name': 'Português (Portekizce)', 'flag': '🇧🇷'},
-    {'code': 'it', 'name': 'Italiano (İtalyanca)', 'flag': '🇮🇹'},
-    {'code': 'pl', 'name': 'Polski (Lehçe)', 'flag': '🇵🇱'},
-  ];
   bool _successMessagesEnabled = true;
   bool _weeklySummaryEnabled = true;
   bool _inactivityWarningEnabled = true;
@@ -263,7 +243,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   void _showGuestBlockedSnackbar(BuildContext context) {
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
     final localizations = AppLocalizations(locale);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -2228,7 +2208,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       return;
     }
 
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
     final localizations = AppLocalizations(locale);
 
     final badgeNames = badge.earnedBadges.map((e) {
@@ -2531,12 +2511,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
         const SizedBox(height: 24),
 
-        _buildSectionTitle(_pp(context, 'pp_settings_language')),
-        const SizedBox(height: 12),
-        _buildLanguageSettings(),
-
-        const SizedBox(height: 24),
-
         _buildSectionTitle(_pp(context, 'pp_settings_app')),
         const SizedBox(height: 12),
         _buildAppSettings(),
@@ -2547,130 +2521,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         const SizedBox(height: 12),
         _buildSecuritySettings(),
       ],
-    );
-  }
-
-  Widget _buildLanguageSettings() {
-    return Consumer2<LocaleProvider, AuthService>(
-      builder: (context, localeProvider, authService, _) {
-        final currentCode = localeProvider.locale.languageCode;
-        final currentLang = _supportedLanguages.firstWhere(
-          (l) => l['code'] == currentCode,
-          orElse: () => _supportedLanguages[0],
-        );
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
-            ],
-          ),
-          child: ListTile(
-            leading: Text(
-              currentLang['flag'] as String,
-              style: const TextStyle(fontSize: 28),
-            ),
-            title: Text(
-              _pp(context, 'pp_lang_app_title'),
-              style: TextStyle(color: Colors.deepPurple.shade500, fontWeight: FontWeight.w700),
-            ),
-            subtitle: Text(
-              currentLang['name'] as String,
-              style: TextStyle(color: Colors.deepPurple.shade300),
-            ),
-            trailing: Icon(Icons.chevron_right, color: Colors.deepPurple.shade300),
-            onTap: () => _showLanguageDialog(localeProvider, authService),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showLanguageDialog(LocaleProvider localeProvider, AuthService authService) {
-    final currentCode = localeProvider.locale.languageCode;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF2C3E50),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  _pp(ctx, 'pp_lang_choose_title'),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _supportedLanguages.length,
-                  itemBuilder: (_, index) {
-                    final lang = _supportedLanguages[index];
-                    final isCurrent = currentCode == lang['code'];
-                    return ListTile(
-                      leading: Text(
-                        lang['flag'] as String,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                      title: Text(
-                        lang['name'] as String,
-                        style: TextStyle(
-                          color: isCurrent ? Colors.amber : Colors.white,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      trailing: isCurrent
-                          ? const Icon(Icons.check_circle, color: Colors.amber)
-                          : null,
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        final code = lang['code'] as String;
-                        try {
-                          await authService.updateUserLanguage(code);
-                          if (mounted) {
-                            localeProvider.changeLanguage(Locale(code));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  _pp(context, 'pp_lang_changed').replaceAll('{name}', '${lang['name']}'),
-                                ),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${_pp(context, 'pp_error_prefix')}$e'),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 

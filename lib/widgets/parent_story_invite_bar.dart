@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../localization/app_localizations.dart';
 import '../models/app_user.dart';
+import '../providers/locale_provider.dart';
 import '../models/family_member.dart';
 import '../models/story_invite_payload.dart';
 import '../services/auth_service.dart';
@@ -17,8 +18,8 @@ class ParentStoryInviteBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final loc = AppLocalizations(Locale(auth.currentUser?.selectedLanguage ?? 'tr'));
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final loc = AppLocalizations(locale);
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
@@ -127,7 +128,11 @@ class FamilyStoryInviteFlow {
                             Navigator.pop(ctx, selected);
                           },
                     icon: const Icon(Icons.send_rounded),
-                    label: Text('Davet gönder (${selectedIds.length})'),
+                    label: Text(
+                      localizations
+                          .get('family_story_invite_send_action')
+                          .replaceAll('{0}', '${selectedIds.length}'),
+                    ),
                   ),
                 ),
               ],
@@ -168,7 +173,9 @@ class FamilyStoryInviteFlow {
           ok
               ? (members.length == 1
                   ? localizations.get('family_story_invite_sent').replaceAll('{0}', members.first.displayName)
-                  : '${members.length} aile üyesine hikâye daveti gönderildi.')
+                  : localizations
+                      .get('family_story_invite_sent_multi')
+                      .replaceAll('{0}', '${members.length}'))
               : localizations.get('family_story_invite_failed'),
         ),
         behavior: SnackBarBehavior.floating,

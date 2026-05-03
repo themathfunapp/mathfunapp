@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/badge_service.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 class BadgesScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -57,7 +58,7 @@ class _BadgesScreenState extends State<BadgesScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final badgeService = Provider.of<BadgeService>(context);
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
 
     return Scaffold(

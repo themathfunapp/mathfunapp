@@ -638,7 +638,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Nasıl başlatmak istersiniz?',
+                    localizations.get('parent_world_how_start'),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 13,
@@ -652,7 +652,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       backgroundColor: const Color(0xFF34A853),
                     ),
                     icon: const Icon(Icons.play_arrow),
-                    label: const Text('Bu cihazda başlat'),
+                    label: Text(localizations.get('parent_world_start_on_device')),
                   ),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
@@ -663,7 +663,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       side: const BorderSide(color: Color(0xFF7AA7FF)),
                     ),
                     icon: const Icon(Icons.group_add),
-                    label: const Text('Aile üyelerine istek gönder (uzaktan)'),
+                    label: Text(localizations.get('parent_world_send_family_remote')),
                   ),
                 ],
               ),
@@ -851,8 +851,27 @@ class _KidWorldMapDailyRewardDialog extends StatelessWidget {
     required this.onOk,
   });
 
+  /// RTL yerellerde Latin/عدد karışımında ünlem ve rakamların yanlış sıralanmasını azaltır.
+  static String _embedLtrForDigits(String s) {
+    return s.replaceAllMapped(RegExp(r'[0-9]+'), (m) => '\u200E${m[0]}\u200E');
+  }
+
+  static bool _useLtrDigitIsolation(String languageCode) {
+    const rtlish = {'ar', 'fa', 'ur', 'ku', 'hi'};
+    return rtlish.contains(languageCode);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lang = loc.locale.languageCode;
+    final isolate = _useLtrDigitIsolation(lang);
+    final mainMsg = isolate
+        ? _embedLtrForDigits(loc.get('world_daily_bonus_main'))
+        : loc.get('world_daily_bonus_main');
+    final ticketsRaw =
+        loc.get('world_map_bonus_tickets_row').replaceAll('{count}', '$tickets');
+    final ticketsText = isolate ? _embedLtrForDigits(ticketsRaw) : ticketsRaw;
+
     return Material(
       color: Colors.transparent,
       child: ConstrainedBox(
@@ -887,7 +906,7 @@ class _KidWorldMapDailyRewardDialog extends StatelessWidget {
               const Text('🪙', style: TextStyle(fontSize: 44)),
               const SizedBox(height: 10),
               Text(
-                loc.get('world_daily_bonus_main'),
+                mainMsg,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 20,
@@ -913,7 +932,7 @@ class _KidWorldMapDailyRewardDialog extends StatelessWidget {
                     const Text('🎟️', style: TextStyle(fontSize: 20)),
                     const SizedBox(width: 8),
                     Text(
-                      '${loc.get('tickets')}: $tickets',
+                      ticketsText,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,

@@ -8,6 +8,7 @@ import '../models/friend_request.dart';
 import '../models/friendship.dart';
 import '../models/friend_duel_invite.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
 import 'live_duel_screen.dart';
@@ -121,7 +122,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final friendService = Provider.of<FriendService>(context);
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
     final isGuest = authService.isGuest;
 

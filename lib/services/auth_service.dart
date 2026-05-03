@@ -17,8 +17,9 @@ class GoogleSignInShaNotRegisteredException implements Exception {
 }
 
 class AuthService extends ChangeNotifier {
-  /// Firebase’de “Web client” OAuth kimliği (google-services.json → client_type: 3).
-  /// Android’de `serverClientId` verilmezse sık sık `ApiException: 10` ve boş idToken olur.
+  /// Firebase / Google Cloud **Web** OAuth istemci kimliği (Android’de `serverClientId`).
+  /// Web girişi [signInWithGoogle] içinde Firebase [signInWithPopup] ile yapılır (google_sign_in OAuth’u değil);
+  /// böylece çoğu localhost / Firebase Hosting kökeni Firebase’in varsayılan OAuth ayarlarıyla uyumlu olur.
   static const String _googleOAuthWebClientId =
       '728773599076-u14ibdhvt7nii1b22rqen7p288q4blnh.apps.googleusercontent.com';
 
@@ -275,26 +276,7 @@ class AuthService extends ChangeNotifier {
 
 // AuthService.dart içindeki signInWithGoogle metodunu güncelle
 
-  /// Web: [GoogleSignIn.onCurrentUserChanged] akışı (GIS düğmesi).
-  Stream<GoogleSignInAccount?> get googleSignInAccountStream =>
-      _googleSignIn.onCurrentUserChanged;
-
-  /// Web: GIS oturumunu sıfırla; böylece tıklamada hesap seçici açılır.
-  Future<void> prepareWebGoogleIdentitySignIn() async {
-    if (!kIsWeb) return;
-    try {
-      await _auth.signOut();
-    } catch (e) {
-      debugPrint('Firebase signOut (web GIS hazırlık): $e');
-    }
-    try {
-      await _googleSignIn.signOut();
-    } catch (e) {
-      debugPrint('GoogleSignIn.signOut (web GIS hazırlık): $e');
-    }
-  }
-
-  /// [GoogleSignInAccount] ile Firebase oturumu (mobil [signInWithGoogle] ve web GIS).
+  /// [GoogleSignInAccount] ile Firebase oturumu ([signInWithGoogle] sonrası).
   Future<AppUser?> signInToFirebaseWithGoogleAccount(
     GoogleSignInAccount googleUser,
   ) async {
@@ -331,12 +313,38 @@ class AuthService extends ChangeNotifier {
       debugPrint('Google Sign-In başlıyor...');
 
       if (kIsWeb) {
-        // Web: Firebase OAuth yönlendirmesi çoğu masaüstünde "e-posta yaz" ekranına düşer.
-        // Hesap listesi için hoş geldin ekranında GIS [renderButton] kullanılmalıdır.
-        debugPrint(
-          'Web: Google girişi GIS düğmesi ile yapılır (hesap seçici / FedCM).',
-        );
-        return null;
+        // google_sign_in web → elle tanımlı Web client ID + origin_mismatch riski.
+        // Firebase signInWithPopup → proje OAuth’u (Firebase Console / otomatik URI’ler).
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+        try {
+          await _auth.signOut();
+        } catch (e) {
+          debugPrint('Firebase signOut: $e');
+        }
+
+        final googleProvider = firebase_auth.GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile')
+          ..setCustomParameters({'prompt': 'select_account'});
+
+        try {
+          final userCredential = await _auth.signInWithPopup(googleProvider);
+          final u = userCredential.user;
+          if (u != null) {
+            return await _handleGoogleSignInSuccess(u);
+          }
+          return null;
+        } on firebase_auth.FirebaseAuthException catch (e) {
+          debugPrint('Firebase Google popup: ${e.code} ${e.message}');
+          if (e.code == 'popup-closed-by-user' ||
+              e.code == 'cancelled-popup-request' ||
+              e.code == 'user-cancelled') {
+            return null;
+          }
+          rethrow;
+        }
       }
 
       await _googleSignIn.signOut();
@@ -371,6 +379,12 @@ class AuthService extends ChangeNotifier {
     final msg = e.message ?? '';
     if (e.code != 'sign_in_failed') return false;
     return msg.contains('ApiException: 10') || msg.contains('DEVELOPER_ERROR');
+  }
+
+  /// Web: tarayıcı kökeni OAuth istemcisinde tanımlı değilse Google `origin_mismatch` / `redirect_uri_mismatch` döner.
+  static bool isGoogleWebOriginConfigError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('origin_mismatch') || s.contains('redirect_uri_mismatch');
   }
 
   // Google girişi başarılı olduğunda

@@ -156,6 +156,9 @@ class UserStats {
   final int coinsEarned;
   final int achievementsUnlocked;
 
+  /// Tamamlanan oyun oturumu sayısı, uygulama dili anahtarına göre (rozet: `localeGames_*`).
+  final Map<String, int> localeGamesPlayed;
+
   UserStats({
     required this.userId,
     this.totalGamesPlayed = 0,
@@ -181,6 +184,7 @@ class UserStats {
     this.chaptersCompleted = 0,
     this.coinsEarned = 0,
     this.achievementsUnlocked = 0,
+    this.localeGamesPlayed = const {},
   });
 
   factory UserStats.fromMap(Map<String, dynamic> map, String userId) {
@@ -213,7 +217,21 @@ class UserStats {
       chaptersCompleted: map['chaptersCompleted'] ?? 0,
       coinsEarned: map['coinsEarned'] ?? 0,
       achievementsUnlocked: map['achievementsUnlocked'] ?? 0,
+      localeGamesPlayed: _localeGamesFromMap(map['localeGamesPlayed']),
     );
+  }
+
+  static Map<String, int> _localeGamesFromMap(dynamic raw) {
+    if (raw == null || raw is! Map) return const {};
+    final out = <String, int>{};
+    for (final e in raw.entries) {
+      final k = e.key?.toString();
+      if (k == null || k.isEmpty) continue;
+      final v = e.value;
+      final n = v is int ? v : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
+      out[k.toLowerCase()] = n;
+    }
+    return out;
   }
 
   Map<String, dynamic> toMap() {
@@ -241,6 +259,7 @@ class UserStats {
       'chaptersCompleted': chaptersCompleted,
       'coinsEarned': coinsEarned,
       'achievementsUnlocked': achievementsUnlocked,
+      'localeGamesPlayed': localeGamesPlayed,
       'updatedAt': Timestamp.now(),
     };
   }
@@ -287,6 +306,10 @@ class UserStats {
       case 'bestAccuracy':
         return bestAccuracy.toInt();
       default:
+        if (statKey.startsWith('localeGames_')) {
+          final code = statKey.substring('localeGames_'.length).toLowerCase();
+          return localeGamesPlayed[code] ?? 0;
+        }
         return 0;
     }
   }
@@ -316,6 +339,7 @@ class UserStats {
     int? chaptersCompleted,
     int? coinsEarned,
     int? achievementsUnlocked,
+    Map<String, int>? localeGamesPlayed,
   }) {
     return UserStats(
       userId: userId ?? this.userId,
@@ -342,6 +366,7 @@ class UserStats {
       chaptersCompleted: chaptersCompleted ?? this.chaptersCompleted,
       coinsEarned: coinsEarned ?? this.coinsEarned,
       achievementsUnlocked: achievementsUnlocked ?? this.achievementsUnlocked,
+      localeGamesPlayed: localeGamesPlayed ?? this.localeGamesPlayed,
     );
   }
 }

@@ -156,17 +156,33 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         maxNum = 10;
     }
 
-    List<String> operators;
-    switch (widget.ageGroup) {
-      case AgeGroupSelection.preschool:
-        operators = ['+', '-'];
-        break;
-      case AgeGroupSelection.elementary:
-        operators = ['+', '-', '×'];
-        break;
-      case AgeGroupSelection.advanced:
+    // Her boss kendi işlem türünde sorar; yalnız Sayı Canavarı dört işlem karışık.
+    final List<String> operators;
+    switch (widget.boss.id) {
+      case 'count_monster':
         operators = ['+', '-', '×', '÷'];
         break;
+      case 'plus_dragon':
+        operators = ['+'];
+        break;
+      case 'minus_wizard':
+        operators = ['-'];
+        break;
+      case 'multiply_titan':
+        operators = ['×'];
+        break;
+      default:
+        switch (widget.ageGroup) {
+          case AgeGroupSelection.preschool:
+            operators = ['+', '-'];
+            break;
+          case AgeGroupSelection.elementary:
+            operators = ['+', '-', '×'];
+            break;
+          case AgeGroupSelection.advanced:
+            operators = ['+', '-', '×', '÷'];
+            break;
+        }
     }
 
     operator = operators[_random.nextInt(operators.length)];

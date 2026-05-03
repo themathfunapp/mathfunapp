@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 class BadgeUnlockDialog extends StatefulWidget {
   final List<BadgeDefinition> badges;
@@ -86,7 +88,7 @@ class _BadgeUnlockDialogState extends State<BadgeUnlockDialog>
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
     final badge = widget.badges[_currentBadgeIndex];
     final colors = badge.colors;

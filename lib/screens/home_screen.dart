@@ -488,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Dil değiştirme butonu
   Widget _buildLanguageButton(BuildContext context, AuthService authService) {
-    final currentLocale = Localizations.localeOf(context);
+    final currentLocale = Provider.of<LocaleProvider>(context).locale;
     final isKurdish = currentLocale.languageCode == 'ku';
     
     return ElevatedButton(
@@ -525,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen>
   // Dil seçim dialogu - DÜZELTİLDİ: Tüm diller görünür
   void _showLanguageDialog(BuildContext ctx, AuthService authService) {
     debugPrint('_showLanguageDialog çağrıldı');
-    final currentLocale = Localizations.localeOf(ctx);
+    final currentLocale = Provider.of<LocaleProvider>(ctx, listen: false).locale;
     
     showDialog(
       context: ctx,
@@ -654,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Mevcut dilin bayrağını getir
   String _getCurrentFlag(AuthService authService) {
-    final currentLocale = Localizations.localeOf(context);
+    final currentLocale = Provider.of<LocaleProvider>(context).locale;
     final lang = _supportedLanguages.firstWhere(
           (lang) => lang['code'] == currentLocale.languageCode,
       orElse: () => _supportedLanguages[0],

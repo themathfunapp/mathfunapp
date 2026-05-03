@@ -371,9 +371,9 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   _buildQuestionCard(loc, viewportConstraints),
-                                  SizedBox(height: (viewportConstraints.maxHeight * 0.02).clamp(12.0, 24.0)),
+                                  SizedBox(height: (viewportConstraints.maxHeight * 0.015).clamp(8.0, 16.0)),
                                   _buildVisualDisplay(loc, viewportConstraints),
-                                  SizedBox(height: (viewportConstraints.maxHeight * 0.02).clamp(12.0, 24.0)),
+                                  SizedBox(height: (viewportConstraints.maxHeight * 0.015).clamp(8.0, 16.0)),
                                   _buildOptionsGrid(loc, viewportConstraints),
                                 ],
                               ),
@@ -649,12 +649,29 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
+  /// Üst (inceleme) ve alt (cevap) kartlarında aynı emoji boyutu — FittedBox.contain şişirmesini önler.
+  double _measurementEmojiFontSize(double scale) =>
+      (34 * scale).clamp(28.0, 40.0);
+
+  /// Geniş web ekranında [AspectRatio] 1:1 hücre yüksekliği satır genişliğine eşitlenip devleşiyordu.
+  double _measurementEmojiCellHeight(BoxConstraints viewportConstraints, double scale) {
+    final w = viewportConstraints.maxWidth;
+    final h = viewportConstraints.maxHeight;
+    final gap = (10 * scale).clamp(6.0, 12.0);
+    final approxCellWidth = (w - 56) / 3 - gap;
+    final fromWidth = approxCellWidth.clamp(52.0, 80.0);
+    final fromHeight = (h * 0.13).clamp(54.0, 80.0);
+    return math.min(fromWidth, fromHeight);
+  }
+
   Widget _buildVisualDisplay(AppLocalizations loc, BoxConstraints viewportConstraints) {
     final w = viewportConstraints.maxWidth;
     final scale = (w / 400.0).clamp(0.75, 1.05);
     final gap = (10 * scale).clamp(6.0, 12.0);
-    final pad = (14 * scale).clamp(10.0, 18.0);
-    final emojiSize = (40 * scale).clamp(30.0, 52.0);
+    final pad = (8 * scale).clamp(6.0, 12.0);
+    final cellH = _measurementEmojiCellHeight(viewportConstraints, scale);
+    final emojiFont =
+        math.min(_measurementEmojiFontSize(scale), cellH * 0.5).clamp(24.0, 40.0);
     final headerSize = (16 * scale).clamp(13.0, 17.0);
 
     return AnimatedBuilder(
@@ -664,7 +681,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
           offset: Offset(0, _bounceAnimation.value * 0.3),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: EdgeInsets.all((24 * scale).clamp(16.0, 28.0)),
+            padding: EdgeInsets.all((14 * scale).clamp(10.0, 18.0)),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.9),
               borderRadius: BorderRadius.circular(24),
@@ -678,14 +695,14 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                   style: _textStyle(_orange, size: headerSize, bold: true),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: (18 * scale).clamp(12.0, 22.0)),
+                SizedBox(height: (12 * scale).clamp(8.0, 16.0)),
                 Row(
                   children: _options.map((emoji) {
                     return Expanded(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: gap / 2),
-                        child: AspectRatio(
-                          aspectRatio: 1,
+                        child: SizedBox(
+                          height: cellH,
                           child: Container(
                             padding: EdgeInsets.all(pad),
                             decoration: BoxDecoration(
@@ -693,9 +710,14 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: _orange.withOpacity(0.3)),
                             ),
+                            alignment: Alignment.center,
                             child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                emoji,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: emojiFont, height: 1.0),
+                              ),
                             ),
                           ),
                         ),
@@ -716,10 +738,11 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     final scale = (w / 400.0).clamp(0.75, 1.05);
     final labelSize = (16 * scale).clamp(13.0, 17.0);
     final gap = (10 * scale).clamp(6.0, 12.0);
+    final cellH = _measurementEmojiCellHeight(viewportConstraints, scale);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all((20 * scale).clamp(14.0, 24.0)),
+      padding: EdgeInsets.all((14 * scale).clamp(10.0, 18.0)),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
@@ -728,13 +751,13 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
       child: Column(
         children: [
           Text(loc.get('choose_answer'), style: _textStyle(_orange, size: labelSize, bold: true)),
-          SizedBox(height: (14 * scale).clamp(10.0, 18.0)),
+          SizedBox(height: (10 * scale).clamp(8.0, 14.0)),
           Row(
             children: _options.map((emoji) {
               return Expanded(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gap / 2),
-                  child: _buildOptionButton(emoji, scale),
+                  child: _buildOptionButton(emoji, scale, cellH),
                 ),
               );
             }).toList(),
@@ -744,7 +767,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     );
   }
 
-  Widget _buildOptionButton(String emoji, double scale) {
+  Widget _buildOptionButton(String emoji, double scale, double cellHeight) {
     final isCorrect = emoji == _correctAnswer;
     final isSelected = _isAnswered && isCorrect;
 
@@ -755,14 +778,17 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final canTap = !_isAnswered && !_gameOver && mechanicsService.hasLives;
-    final emojiSize = (44 * scale).clamp(32.0, 52.0);
+    final emojiFont =
+        math.min(_measurementEmojiFontSize(scale), cellHeight * 0.5).clamp(24.0, 40.0);
 
     return GestureDetector(
       onTap: canTap ? () => _checkAnswer(emoji) : null,
-      child: AspectRatio(
-        aspectRatio: 1,
+      child: SizedBox(
+        height: cellHeight,
+        width: double.infinity,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(16),
@@ -776,7 +802,10 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
             fit: BoxFit.scaleDown,
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
+              child: Text(
+                emoji,
+                style: TextStyle(fontSize: emojiFont, height: 1.0),
+              ),
             ),
           ),
         ),

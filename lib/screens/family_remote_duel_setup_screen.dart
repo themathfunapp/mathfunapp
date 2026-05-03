@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../localization/app_localizations.dart';
 import '../models/family_member.dart';
 import '../models/game_mechanics.dart';
+import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
 import '../services/family_service.dart';
@@ -41,24 +43,24 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
     TopicType.time,
   ];
 
-  String _topicLabel(TopicType t) {
+  String _topicLabel(AppLocalizations loc, TopicType t) {
     switch (t) {
       case TopicType.counting:
-        return 'Sayma';
+        return loc.get('counting');
       case TopicType.addition:
-        return 'Toplama';
+        return loc.get('addition');
       case TopicType.subtraction:
-        return 'Çıkarma';
+        return loc.get('subtraction');
       case TopicType.multiplication:
-        return 'Çarpma';
+        return loc.get('multiplication');
       case TopicType.division:
-        return 'Bölme';
+        return loc.get('division');
       case TopicType.geometry:
-        return 'Geometri';
+        return loc.get('geometry');
       case TopicType.fractions:
-        return 'Kesirler';
+        return loc.get('fractions');
       case TopicType.time:
-        return 'Saat';
+        return loc.get('time');
       default:
         return t.name;
     }
@@ -99,12 +101,13 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
   }
 
   Future<void> _sendInvite() async {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     final auth = context.read<AuthService>();
     final topic = _topic;
     final uid = auth.currentUser?.uid;
     if (_selectedChildIds.isEmpty || topic == null || uid == null || uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('En az bir aile üyesi ve konu seçin.')),
+        SnackBar(content: Text(loc.get('family_remote_duel_snackbar_need_selection'))),
       );
       return;
     }
@@ -115,11 +118,8 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
       if (!linkedOk) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Bu hesaptan uzaktan düello gönderilemez. Aynı cihazda çocuk hesabıyla oturum açıksanız, '
-              'daveti ebeveyn hesabınızla (aile verisinin bulunduğu hesap) göndermeniz gerekir.',
-            ),
+          SnackBar(
+            content: Text(loc.get('family_remote_duel_snackbar_wrong_account')),
           ),
         );
         return;
@@ -150,10 +150,8 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
 
     if (res == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Davet gönderilemedi. Her iki hesapta Premium olmalı ve Firestore\'da isPremium güncel olmalı.',
-          ),
+        SnackBar(
+          content: Text(loc.get('family_remote_duel_snackbar_send_failed')),
         ),
       );
       return;
@@ -173,6 +171,10 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context).locale);
+    final hostDisplay = auth.currentUser?.displayName ??
+        auth.currentUser?.username ??
+        loc.get('family_remote_duel_host_default');
 
     return Scaffold(
       body: Container(
@@ -193,13 +195,13 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: widget.onBack,
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Uzaktan aile düellosu',
+                      loc.get('family_remote_duel_title'),
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -231,15 +233,15 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                               const Icon(Icons.family_restroom,
                                   size: 56, color: Colors.white54),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Önce ebeveyn hesabından çocuğunuzu aileye ekleyin (Ebeveyn Paneli → Aile).',
+                              Text(
+                                loc.get('family_remote_duel_add_child_hint'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white70, fontSize: 16),
+                                style: const TextStyle(color: Colors.white70, fontSize: 16),
                               ),
                               const SizedBox(height: 24),
                               FilledButton(
                                 onPressed: widget.onBack,
-                                child: const Text('Geri'),
+                                child: Text(loc.get('back')),
                               ),
                             ],
                           ),
@@ -256,18 +258,15 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                             children: [
                               const Icon(Icons.phonelink_lock, size: 56, color: Colors.amber),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Uzaktan düello daveti, Firestore kuralları gereği yalnızca '
-                                'aile bağlantısının tutulduğu ebeveyn hesabından gönderilebilir.\n\n'
-                                'Şu an çocuk hesabıyla oturum açmış olabilirsiniz; ebeveyn hesabınızla '
-                                'giriş yapıp tekrar deneyin.',
+                              Text(
+                                loc.get('family_remote_duel_wrong_account_hint'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.35),
+                                style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.35),
                               ),
                               const SizedBox(height: 24),
                               FilledButton(
                                 onPressed: widget.onBack,
-                                child: const Text('Geri'),
+                                child: Text(loc.get('back')),
                               ),
                             ],
                           ),
@@ -279,8 +278,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                       padding: const EdgeInsets.all(20),
                       children: [
                         Text(
-                          'Merhaba ${auth.currentUser?.displayName ?? 'Ebeveyn'} — davet gönderilecek aile üyelerini seçin '
-                          '(yalnızca hesabınıza bağlı çocuklar). İstek süresi 90 saniyedir.',
+                          loc.get('family_remote_duel_intro').replaceAll('{0}', hostDisplay),
                           style: const TextStyle(color: Colors.white70, fontSize: 15),
                         ),
                         const SizedBox(height: 16),
@@ -333,9 +331,9 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                         }),
                         const SizedBox(height: 20),
                         if (widget.initialTopic == null) ...[
-                          const Text(
-                            'Konu',
-                            style: TextStyle(
+                          Text(
+                            loc.get('family_remote_duel_topic_heading'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -350,7 +348,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                               final col = _topicColor(t);
                               return FilterChip(
                                 selected: sel,
-                                label: Text(_topicLabel(t)),
+                                label: Text(_topicLabel(loc, t)),
                                 onSelected: (_) => setState(() => _topic = t),
                                 selectedColor: col.withValues(alpha: 0.5),
                                 checkmarkColor: Colors.white,
@@ -359,9 +357,9 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                             }).toList(),
                           ),
                         ] else ...[
-                          const Text(
-                            'Seçilen Konu',
-                            style: TextStyle(
+                          Text(
+                            loc.get('family_remote_duel_selected_topic'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -383,7 +381,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                                 const Icon(Icons.lock, color: Colors.white70, size: 16),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _topicLabel(widget.initialTopic!),
+                                  _topicLabel(loc, widget.initialTopic!),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
@@ -403,7 +401,13 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.send),
-                          label: Text(_busy ? 'Gönderiliyor…' : 'Davet gönder (${_selectedChildIds.length})'),
+                          label: Text(
+                            _busy
+                                ? loc.get('family_remote_duel_sending')
+                                : loc
+                                    .get('family_remote_duel_send_invite')
+                                    .replaceAll('{0}', '${_selectedChildIds.length}'),
+                          ),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             backgroundColor: Colors.teal.shade600,
@@ -411,7 +415,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Tüm seçilen üyeler 90 saniye içinde kabul etmeden oyun başlamaz. Süre dolarsa yeniden davet gönderin.',
+                          loc.get('family_remote_duel_footer_rule'),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.65),
                             fontSize: 13,

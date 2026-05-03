@@ -811,83 +811,133 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          _buildBackButton(() {
-            ChildExitDialog.show(
-              context,
-              themeColor: Colors.red,
-              onStay: () {},
-              onSectionSelect: () => setState(() => _showLevelSelect = true),
-              onExit: () => Navigator.pop(context),
-            );
-          }),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
-            ),
-            child: Text(
-              '${((_currentSection - 1) % 10) + 1}/10',
-              style: GoogleFonts.quicksand(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red.shade800),
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6)],
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber),
-                const SizedBox(width: 8),
-                Text(
-                  '$_score',
-                  style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxLives,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.bolt,
-                        color: i < lives ? Colors.amber.shade600 : Colors.grey.shade300,
-                        size: 22,
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        final hPad = narrow ? 10.0 : 16.0;
+        final vPad = narrow ? 10.0 : 16.0;
+        final gap = narrow ? 8.0 : 12.0;
+        final chipHP = narrow ? 10.0 : 16.0;
+        final chipVP = narrow ? 6.0 : 8.0;
+        final chipFont = narrow ? 14.0 : 16.0;
+        final starFont = narrow ? 15.0 : 18.0;
+        final boltSize = narrow ? 19.0 : 22.0;
+        final boltPad = narrow ? 3.0 : 4.0;
+        final levelText = '${((_currentSection - 1) % 10) + 1}/10';
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
+          child: Row(
+            children: [
+              _buildBackButton(() {
+                ChildExitDialog.show(
+                  context,
+                  themeColor: Colors.red,
+                  onStay: () {},
+                  onSectionSelect: () => setState(() => _showLevelSelect = true),
+                  onExit: () => Navigator.pop(context),
+                );
+              }),
+              SizedBox(width: gap),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6),
+                            ],
+                          ),
+                          child: Text(
+                            levelText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.quicksand(
+                              fontSize: chipFont,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade800,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: narrow ? 6 : 12),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star, color: Colors.amber, size: starFont + 2),
+                              SizedBox(width: narrow ? 6 : 8),
+                              Text(
+                                '$_score',
+                                style: GoogleFonts.quicksand(
+                                  fontSize: starFont,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: narrow ? 6 : 12),
+                        Consumer<GameMechanicsService>(
+                          builder: (context, mechanicsService, _) {
+                            final lives = mechanicsService.currentLives;
+                            final maxLives = mechanicsService.maxLives;
+                            return Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: narrow ? 8 : 10,
+                                vertical: narrow ? 5 : 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  maxLives,
+                                  (i) => Padding(
+                                    padding: EdgeInsets.only(right: boltPad),
+                                    child: Icon(
+                                      Icons.bolt,
+                                      color: i < lives
+                                          ? Colors.amber.shade600
+                                          : Colors.grey.shade300,
+                                      size: boltSize,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/badge.dart';
 import '../models/daily_reward.dart';
+import '../providers/locale_provider.dart';
 import '../widgets/badge_unlock_dialog.dart';
 import 'badge_service.dart';
 import 'daily_reward_service.dart';
@@ -25,6 +26,7 @@ class GameSessionReport {
   }) async {
     final badgeService = Provider.of<BadgeService>(context, listen: false);
     final rewardService = Provider.of<DailyRewardService>(context, listen: false);
+    final appLanguageCode = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
 
     final newBadges = await badgeService.onGameCompleted(
       questionsAnswered: questionsAnswered,
@@ -35,6 +37,7 @@ class GameSessionReport {
       fastAnswersCount: fastAnswersCount,
       superFastAnswersCount: superFastAnswersCount,
       streak: bestCorrectStreakInSession,
+      appLanguageCode: appLanguageCode,
     );
 
     await rewardService.updateTaskProgress(TaskType.playGames, 1);

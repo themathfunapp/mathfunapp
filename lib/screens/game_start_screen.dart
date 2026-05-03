@@ -884,49 +884,42 @@ class _GameStartScreenState extends State<GameStartScreen>
                 title: localizations.get('counting'),
                 stars: 1,
                 color: const Color(0xFF2ECC71),
-                topicType: TopicType.counting,
               ),
               _buildTopicCard(
                 emoji: '➕',
                 title: localizations.get('addition'),
                 stars: 1,
                 color: const Color(0xFF3498DB),
-                topicType: TopicType.addition,
               ),
               _buildTopicCard(
                 emoji: '➖',
                 title: localizations.get('subtraction'),
                 stars: 1,
                 color: const Color(0xFFE74C3C),
-                topicType: TopicType.subtraction,
               ),
               _buildTopicCard(
                 emoji: '✖️',
                 title: localizations.get('multiplication'),
                 stars: 2,
                 color: const Color(0xFF9B59B6),
-                topicType: TopicType.multiplication,
               ),
               _buildTopicCard(
                 emoji: '➗',
                 title: localizations.get('division'),
                 stars: 2,
                 color: const Color(0xFF34495E),
-                topicType: TopicType.division,
               ),
               _buildTopicCard(
                 emoji: '🔺',
                 title: localizations.get('geometry'),
                 stars: 1,
                 color: const Color(0xFFE67E22),
-                topicType: TopicType.geometry,
               ),
               _buildTopicCard(
                 emoji: '🕰',
                 title: localizations.get('topic_time'),
                 stars: 2,
                 color: const Color(0xFF1ABC9C),
-                topicType: TopicType.time,
               ),
             ],
           ),
@@ -940,59 +933,55 @@ class _GameStartScreenState extends State<GameStartScreen>
     required String title,
     required int stars,
     required Color color,
-    required TopicType topicType,
   }) {
-    return GestureDetector(
-      onTap: () => _startTopicGame(topicType),
-      child: Container(
-        width: 90,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color, color.withOpacity(0.7)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    return Container(
+      width: 90,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.7)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 28)),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                3,
-                    (index) => Icon(
-                  index < stars ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 12,
-                ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              3,
+              (index) => Icon(
+                index < stars ? Icons.star : Icons.star_border,
+                color: Colors.amber,
+                size: 12,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1784,33 +1773,6 @@ class _GameStartScreenState extends State<GameStartScreen>
     );
   }
 
-  void _startTopicGame(TopicType topicType) {
-    debugPrint('Starting topic game: $topicType');
-
-    final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    if (!mechanicsService.hasLives) {
-      _showNoLivesDialog();
-      return;
-    }
-
-    final topicSettings = TopicGameManager.getTopicSettings()[topicType]!;
-    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    final loc = AppLocalizations(localeProvider.locale);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SpecializedGameScreen(
-          topicSettings: topicSettings,
-          ageGroup: _selectedAgeGroup,
-          difficulty: 'easy',
-          difficultyDisplay: loc.get('level_easy'),
-          onBack: () => Navigator.pop(context),
-        ),
-      ),
-    );
-  }
-
   void _openTopicSelection() {
     Navigator.push(
       context,
@@ -2051,7 +2013,7 @@ class FriendDuelPickerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final loc = AppLocalizations(locale);
     final auth = Provider.of<AuthService>(context);
     final user = auth.currentUser;

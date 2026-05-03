@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/story_service.dart';
 import '../models/story_mode.dart';
 import '../models/story_invite_payload.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import '../widgets/parent_story_invite_bar.dart';
 import 'level_play_screen.dart';
 
@@ -43,9 +43,8 @@ class _ChapterScreenState extends State<ChapterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
-    final localizations = AppLocalizations(Locale(currentLocale));
+    final locale = Provider.of<LocaleProvider>(context).locale;
+    final localizations = AppLocalizations(locale);
     // StoryService'ten güncel progress'i al (listen: true)
     final storyService = Provider.of<StoryService>(context);
     final currentProgress = storyService.progress;

@@ -251,6 +251,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         widget.topicSettings.topicType,
         widget.ageGroup,
         random,
+        difficulty: widget.difficulty,
       );
       _questions.add(Map<String, dynamic>.from(question));
     }

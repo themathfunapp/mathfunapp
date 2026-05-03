@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../models/daily_reward.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
 
@@ -86,7 +87,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
   Widget build(BuildContext context) {
     final rewardService = Provider.of<DailyRewardService>(context);
     final authService = Provider.of<AuthService>(context);
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
     final isGuest = authService.isGuest;
 

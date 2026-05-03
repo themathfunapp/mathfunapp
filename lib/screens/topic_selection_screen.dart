@@ -549,25 +549,28 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
                     ],
                   ),
 
-                  // Zorluk yıldızları
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      3,
-                          (starIndex) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Icon(
-                          starIndex < (topic['stars'] as int)
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: starIndex < (topic['stars'] as int)
-                              ? Colors.amber
-                              : Colors.grey[300],
-                          size: 24,
+                  // Zorluk yıldızları (saat konusunda gösterilmez)
+                  if ((topic['stars'] as int) > 0)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        3,
+                        (starIndex) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Icon(
+                            starIndex < (topic['stars'] as int)
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: starIndex < (topic['stars'] as int)
+                                ? Colors.amber
+                                : Colors.grey[300],
+                            size: 24,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    const SizedBox(height: 8),
 
                   // Başla butonu
                   if (!isLocked)
@@ -752,7 +755,7 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
         'title': localizations.get('topic_time'),
         'subtitle': localizations.get('read_clock'),
         'color': const Color(0xFF1ABC9C),
-        'stars': 2,
+        'stars': 0,
         'locked': false,
       },
     ];
@@ -815,6 +818,21 @@ class _TopicSelectionScreenState extends State<TopicSelectionScreen>
     }
 
     final gameSettings = _createGameSettings(topic);
+    if (topic['id'] == 'time') {
+      final q = gameSettings['questionCount'] as int;
+      final t = gameSettings['timeLimit'] as int;
+      _startGame(topic, gameSettings, {
+        'level': 1,
+        'nameKey': 'topic_time',
+        'difficultyId': 'medium',
+        'emoji': '🕰',
+        'descriptionKey': 'read_clock',
+        'questionCount': q,
+        'timeLimit': t,
+        'rewardMultiplier': 1.0,
+      });
+      return;
+    }
     _showLevelSelectionDialog(topic, gameSettings);
   }
 

@@ -17,6 +17,7 @@ import '../services/story_service.dart';
 import '../models/app_user.dart';
 import '../models/badge.dart';
 import '../localization/app_localizations.dart';
+import '../providers/locale_provider.dart';
 import 'badges_screen.dart';
 import '../widgets/bottom_action_button.dart';
 import 'parent_panel_screen.dart';
@@ -47,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final user = authService.currentUser;
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
 
     return Scaffold(
@@ -1614,7 +1615,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showConvertToAccountDialog(BuildContext context) {
-    final locale = Localizations.localeOf(context);
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
     final localizations = AppLocalizations(locale);
     final TextEditingController emailController = TextEditingController();
     final TextEditingController passwordController = TextEditingController();

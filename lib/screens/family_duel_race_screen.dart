@@ -11,6 +11,8 @@ import '../services/family_service.dart';
 import 'family_remote_duel_setup_screen.dart';
 import '../models/age_group_selection.dart';
 import '../utils/family_duel_question_utils.dart';
+import '../localization/parent_panel_l10n.dart';
+import '../providers/locale_provider.dart';
 
 /// Tek cihazda: ebeveyn ve çocuk sırayla aynı soruyu cevaplar; skor aile liderliğine yansır.
 /// İki telefon için: [FamilyRemoteDuelSetupScreen] (Premium, Firestore).
@@ -28,6 +30,24 @@ class FamilyDuelRaceScreen extends StatefulWidget {
 
   @override
   State<FamilyDuelRaceScreen> createState() => _FamilyDuelRaceScreenState();
+}
+
+String _fd(BuildContext context, String key,
+    [Map<String, String> params = const {}]) {
+  final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+  var s = ParentPanelL10n.of(lc, key);
+  const bidiIsolateKeys = {'name', 'parent', 'child', 'turn'};
+  for (final e in params.entries) {
+    final raw = e.value;
+    final v = bidiIsolateKeys.contains(e.key) ? '\u2068$raw\u2069' : raw;
+    s = s.replaceAll('{${e.key}}', v);
+  }
+  // RTL sistem + LTR metin (TR/EN vb.) birleşince ? ve ! yanlış uca kaymasın
+  if ((key == 'fd_pick_topic_title' || key == 'fd_pick_topic_subtitle') &&
+      !const {'ar', 'fa', 'ur'}.contains(lc)) {
+    return '\u2066$s\u2069';
+  }
+  return s;
 }
 
 class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
@@ -84,27 +104,21 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
     TopicType.time,
   ];
 
-  String _topicLabel(TopicType t) {
-    switch (t) {
-      case TopicType.counting:
-        return 'Sayma';
-      case TopicType.addition:
-        return 'Toplama';
-      case TopicType.subtraction:
-        return 'Çıkarma';
-      case TopicType.multiplication:
-        return 'Çarpma';
-      case TopicType.division:
-        return 'Bölme';
-      case TopicType.geometry:
-        return 'Geometri';
-      case TopicType.fractions:
-        return 'Kesirler';
-      case TopicType.time:
-        return 'Saat';
-      default:
-        return t.name;
-    }
+  String _topicLabel(BuildContext context, TopicType t) {
+    final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+    final String? l10nKey = switch (t) {
+      TopicType.counting => 'pp_topic_name_counting',
+      TopicType.addition => 'pp_topic_name_addition',
+      TopicType.subtraction => 'pp_topic_name_subtraction',
+      TopicType.multiplication => 'pp_topic_name_multiplication',
+      TopicType.division => 'pp_topic_name_division',
+      TopicType.geometry => 'pp_topic_name_geometry',
+      TopicType.fractions => 'pp_topic_name_fractions',
+      TopicType.time => 'pp_topic_name_time',
+      _ => null,
+    };
+    if (l10nKey != null) return ParentPanelL10n.of(lc, l10nKey);
+    return t.name;
   }
 
   Color _topicColor(TopicType t) {
@@ -152,7 +166,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_topicEmoji(topic)} ${_topicLabel(topic)}',
+                  '${_topicEmoji(topic)} ${_topicLabel(sheetContext, topic)}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -161,7 +175,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Nasıl oynamak istersiniz?',
+                  _fd(sheetContext, 'fd_duel_how_title'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 13,
@@ -175,7 +189,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                     minimumSize: const Size.fromHeight(44),
                   ),
                   icon: const Icon(Icons.phone_android),
-                  label: const Text('Bu cihazda birebir başlat'),
+                  label: Text(_fd(sheetContext, 'fd_duel_local_start')),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
@@ -186,7 +200,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                     minimumSize: const Size.fromHeight(44),
                   ),
                   icon: const Icon(Icons.group_add),
-                  label: const Text('Aileyi davet et (uzaktan, 10 soru)'),
+                  label: Text(_fd(sheetContext, 'fd_duel_remote_invite')),
                 ),
               ],
             ),
@@ -312,8 +326,10 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
-    final parentName =
-        auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Ebeveyn';
+    final fromAuth = auth.currentUser?.displayName ?? auth.currentUser?.username;
+    final parentName = (fromAuth != null && fromAuth.trim().isNotEmpty)
+        ? fromAuth.trim()
+        : _fd(context, 'fd_parent_default');
 
     return Scaffold(
       body: Container(
@@ -339,8 +355,10 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                     Expanded(
                       child: Text(
                         _step == 2 && _topic != null
-                            ? 'Yarış · ${_topicLabel(_topic!)}'
-                            : 'Birebir yarış',
+                            ? _fd(context, 'fd_race_with_topic', {
+                                'topic': _topicLabel(context, _topic!),
+                              })
+                            : _fd(context, 'fd_race_title'),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -369,15 +387,15 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                               const Icon(Icons.child_care,
                                   size: 64, color: Colors.white54),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Önce Ebeveyn Paneli → Aile Oyunu sekmesinden çocuğunuzu ekleyin.',
+                              Text(
+                                _fd(context, 'fd_add_child_first'),
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white70, fontSize: 16),
+                                style: const TextStyle(color: Colors.white70, fontSize: 16),
                               ),
                               const SizedBox(height: 24),
                               FilledButton(
                                 onPressed: widget.onBack,
-                                child: const Text('Geri'),
+                                child: Text(_fd(context, 'fd_back')),
                               ),
                             ],
                           ),
@@ -450,7 +468,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
-            'Merhaba $parentName\nYarışacağınız çocuğu seçin.',
+            _fd(context, 'fd_hello_pick_child', {'parent': parentName}),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -540,7 +558,10 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   }
 
   Widget _buildTopicPicker() {
-    final childName = _child?.displayName ?? 'Çocuk';
+    final rawChildName = _child?.displayName;
+    final childName = (rawChildName != null && rawChildName.trim().isNotEmpty)
+        ? rawChildName.trim()
+        : _fd(context, 'fd_child_default');
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -579,7 +600,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$childName ile hangi konuda yarışacaksınız?',
+                      _fd(context, 'fd_pick_topic_title', {'name': childName}),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 17,
@@ -589,7 +610,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Bir konu seç, yarış hemen başlasın!',
+                      _fd(context, 'fd_pick_topic_subtitle'),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 12,
@@ -604,7 +625,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Konu Kartları',
+          _fd(context, 'fd_topic_cards'),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.95),
             fontSize: 14,
@@ -684,7 +705,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _topicLabel(t),
+                                  _topicLabel(context, t),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
@@ -715,7 +736,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
-            '✨ İpucu: Çocuğun en sevdiği konudan başlarsan yarış daha eğlenceli olur.',
+            _fd(context, 'fd_tip_favorite_topic'),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.88),
               fontSize: 12,
@@ -729,22 +750,25 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
 
   Widget _buildPlayArea(String parentName) {
     if (_saving) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 16),
             Text(
-              'Sonuçlar kaydediliyor…',
-              style: TextStyle(color: Colors.white70),
+              _fd(context, 'fd_saving'),
+              style: const TextStyle(color: Colors.white70),
             ),
           ],
         ),
       );
     }
 
-    final childName = _child?.displayName ?? 'Çocuk';
+    final rawChildName = _child?.displayName;
+    final childName = (rawChildName != null && rawChildName.trim().isNotEmpty)
+        ? rawChildName.trim()
+        : _fd(context, 'fd_child_default');
     final turnLabel = _parentTurn ? '👑 $parentName' : '🧒 $childName';
     final opts = _optionList();
     final progress = (_roundIndex + 1) / _totalRounds;
@@ -765,7 +789,10 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Tur ${_roundIndex + 1} / $_totalRounds',
+                    _fd(context, 'fd_round', {
+                      'current': '${_roundIndex + 1}',
+                      'total': '$_totalRounds',
+                    }),
                     style: const TextStyle(
                       color: Colors.white70,
                       fontWeight: FontWeight.w700,
@@ -805,7 +832,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
-            'Sıra: $turnLabel',
+            _fd(context, 'fd_turn', {'turn': turnLabel}),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -912,7 +939,9 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _lastAnswerCorrect ? 'Doğru cevap!' : 'Yanlış cevap',
+                    _lastAnswerCorrect
+                        ? _fd(context, 'fd_correct')
+                        : _fd(context, 'fd_wrong'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -928,9 +957,14 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   }
 
   Widget _buildSummary(String parentName) {
-    final winner = _parentCorrect == _childCorrect
-        ? 'Berabere!'
-        : (_parentCorrect > _childCorrect ? parentName : _child?.displayName ?? 'Çocuk');
+    final isDraw = _parentCorrect == _childCorrect;
+    final rawChild = _child?.displayName;
+    final childDisplay = (rawChild != null && rawChild.trim().isNotEmpty)
+        ? rawChild.trim()
+        : _fd(context, 'fd_child_default');
+    final winnerName = isDraw
+        ? null
+        : (_parentCorrect > _childCorrect ? parentName : childDisplay);
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -939,7 +973,9 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
           const Text('🎉', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
           Text(
-            winner == 'Berabere!' ? winner : 'Kazanan: $winner',
+            isDraw
+                ? _fd(context, 'fd_draw')
+                : _fd(context, 'fd_winner', {'name': winnerName!}),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
@@ -949,15 +985,19 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Doğru cevaplar — $parentName: $_parentCorrect, ${_child?.displayName ?? ''}: $_childCorrect\n'
-            'Aile düello puanları (+10/doğru) liderlik tablosuna eklendi.',
+            '${_fd(context, 'fd_summary_scores', {
+              'parent': parentName,
+              'pScore': '$_parentCorrect',
+              'child': childDisplay,
+              'cScore': '$_childCorrect',
+            })}\n${_fd(context, 'fd_summary_bonus')}',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, height: 1.4),
           ),
           const SizedBox(height: 32),
           FilledButton(
             onPressed: widget.onBack,
-            child: const Text('Tamam'),
+            child: Text(_fd(context, 'fd_ok')),
           ),
         ],
       ),

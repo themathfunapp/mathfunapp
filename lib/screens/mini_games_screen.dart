@@ -250,17 +250,36 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        childAspectRatio: 1.12,
-      ),
-      itemCount: games.length,
-      itemBuilder: (context, index) {
-        return _buildGameCard(games[index], localizations, service, progress);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Geniş web ekranında 3 sütun tek başına dev kart üretiyordu; genişlik + oran sınırla.
+        final inset = 8.0;
+        final gridWidth = (constraints.maxWidth - inset).clamp(0.0, 560.0);
+        final crossAxis = gridWidth >= 480 ? 3 : 2;
+        final ratio = crossAxis == 3 ? 1.42 : 1.38;
+
+        return Padding(
+          padding: EdgeInsets.only(left: inset),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: gridWidth),
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxis,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: ratio,
+                ),
+                itemCount: games.length,
+                itemBuilder: (context, index) {
+                  return _buildGameCard(games[index], localizations, service, progress);
+                },
+              ),
+            ),
+          ),
+        );
       },
     );
   }
@@ -331,121 +350,119 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                   ),
                 ),
               ),
-            // Background pattern - daha küçük
+            // Background pattern — kartla orantılı, köşede kalsın
             Positioned(
-              right: -10,
-              bottom: -10,
+              right: -6,
+              bottom: -6,
               child: Opacity(
-                opacity: 0.1,
+                opacity: 0.12,
                 child: Text(
                   game.iconEmoji,
-                  style: const TextStyle(fontSize: 50),
+                  style: const TextStyle(fontSize: 36),
                 ),
               ),
             ),
 
             // Content (kilitli/gelecek oyunlarda underlying metinleri göstermeyelim)
             if (!isComingSoon)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Icon - biraz küçült
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: Text(
-                          isUnlocked ? game.iconEmoji : '🔒',
-                          style: const TextStyle(fontSize: 18),
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.22),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Center(
+                          child: Text(
+                            isUnlocked ? game.iconEmoji : '🔒',
+                            style: const TextStyle(fontSize: 17),
+                          ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Title - normal boyut
-                    Text(
-                      localizations.get(game.nameKey),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isUnlocked ? Colors.white : Colors.white70,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-
-                    const SizedBox(height: 1),
-
-                    // Age range - normal boyut
-                    Text(
-                      '${game.minAge}-${game.maxAge}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isUnlocked ? Colors.white70 : Colors.white54,
-                      ),
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    // Stats or unlock requirement - normal boyut
-                    if (isUnlocked && stats != null)
-                      Row(
-                        children: [
-                          const Text('⭐', style: TextStyle(fontSize: 10)),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${stats.totalStars}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text('🎮', style: TextStyle(fontSize: 10)),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${stats.timesPlayed}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      )
-                    else if (!isUnlocked)
-                      Row(
-                        children: [
-                          const Icon(Icons.lock, size: 10, color: Colors.white54),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${game.requiredStars}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.white54,
-                            ),
-                          ),
-                          const Text('⭐', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                        ],
-                      )
-                    else
+                      const SizedBox(height: 6),
                       Text(
-                        localizations.get('tap_to_play'),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white70,
+                        localizations.get(game.nameKey),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: isUnlocked ? Colors.white : Colors.white70,
+                          height: 1.15,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${game.minAge}-${game.maxAge}',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: isUnlocked ? Colors.white70 : Colors.white54,
                         ),
                       ),
-                  ],
+                      const SizedBox(height: 4),
+                      if (isUnlocked && stats != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('⭐', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${stats.totalStars}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text('🎮', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${stats.timesPlayed}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        )
+                      else if (!isUnlocked)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock, size: 10, color: Colors.white54),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${game.requiredStars}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white54,
+                              ),
+                            ),
+                            const Text('⭐', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                          ],
+                        )
+                      else
+                        Text(
+                          localizations.get('tap_to_play'),
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            color: Colors.white70,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                    ],
+                  ),
                 ),
               ),
 

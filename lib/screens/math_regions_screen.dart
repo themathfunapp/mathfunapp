@@ -15,6 +15,17 @@ import 'colorful_math_screen.dart';
 import 'fraction_bakery_screen.dart';
 import 'keloglan_village_screen.dart';
 
+String _topicDifficultyForAge(AgeGroupSelection age) {
+  switch (age) {
+    case AgeGroupSelection.preschool:
+      return 'Kolay';
+    case AgeGroupSelection.elementary:
+      return 'Orta';
+    case AgeGroupSelection.advanced:
+      return 'Zor';
+  }
+}
+
 /// Matematik Bölgeleri Ekranı (Dünya Haritası)
 class MathRegionsScreen extends StatefulWidget {
   final AgeGroupSelection ageGroup;
@@ -686,6 +697,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         context,
         MaterialPageRoute(
           builder: (context) => KeloglanVillageScreen(
+            ageGroup: widget.ageGroup,
             onBack: () => Navigator.pop(context),
           ),
         ),
@@ -712,6 +724,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         context,
         MaterialPageRoute(
           builder: (context) => NumberRiverScreen(
+            ageGroup: widget.ageGroup,
             onBack: () => Navigator.pop(context),
           ),
         ),
@@ -807,7 +820,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         builder: (context) => SpecializedGameScreen(
           topicSettings: topicSettings,
           ageGroup: widget.ageGroup,
-          difficulty: 'Orta',
+          difficulty: _topicDifficultyForAge(widget.ageGroup),
           onBack: () => Navigator.pop(context),
         ),
       ),

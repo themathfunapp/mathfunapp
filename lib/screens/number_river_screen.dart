@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../models/age_group_selection.dart';
 
 /// Rakam Nehri - Balıklarla Sayma Oyunu
 class NumberRiverScreen extends StatefulWidget {
+  final AgeGroupSelection ageGroup;
   final VoidCallback onBack;
 
-  const NumberRiverScreen({super.key, required this.onBack});
+  const NumberRiverScreen({super.key, required this.ageGroup, required this.onBack});
 
   @override
   State<NumberRiverScreen> createState() => _NumberRiverScreenState();
@@ -78,8 +80,14 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   void _generateQuestion() {
     final random = math.Random();
 
-    // Seviyeye göre zorluk
-    final maxNumber = math.min(10, 3 + _currentLevel);
+    // Yaş kapısı + seviye: küçüklerde daha az sayı, büyüklerde daha fazla
+    final int cap = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => math.min(6, 2 + (_currentLevel + 1) ~/ 2),
+      AgeGroupSelection.elementary => math.min(10, 3 + _currentLevel),
+      AgeGroupSelection.advanced => math.min(18, 5 + _currentLevel * 2),
+    };
+    // En az 4 farklı şık üretebilmek için 1..max aralığında en az 4 sayı olmalı
+    final maxNumber = math.max(4, cap);
     _targetNumber = random.nextInt(maxNumber) + 1;
 
     // Seçenekler oluştur
@@ -294,16 +302,21 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
+          Container(
+            width: 1,
+            height: 36,
+            color: Colors.white.withOpacity(0.25),
+          ),
           _buildStatItem(loc.get('score'), _score.toString(), '🏆'),
         ],
       ),
@@ -311,27 +324,33 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   }
 
   Widget _buildStatItem(String label, String value, String emoji) {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          emoji,
-          style: const TextStyle(fontSize: 24),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
-          ),
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                height: 1.05,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.1,
+                color: Colors.white.withOpacity(0.85),
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -4,13 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../models/age_group_selection.dart';
 
 /// Keloğlan'ın Köyü - Dinamik Soru Üretim Sistemi
 /// 18 farklı soru tipi, binlerce kombinasyon
 class KeloglanVillageScreen extends StatefulWidget {
+  final AgeGroupSelection ageGroup;
   final VoidCallback onBack;
 
-  const KeloglanVillageScreen({super.key, required this.onBack});
+  const KeloglanVillageScreen({super.key, required this.ageGroup, required this.onBack});
 
   @override
   State<KeloglanVillageScreen> createState() => _KeloglanVillageScreenState();
@@ -177,6 +179,52 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     super.dispose();
   }
 
+  // --- Matematik Bölgeleri yaş kapısına göre sayı aralıkları ---
+
+  int _peopleForSharing(math.Random r) {
+    switch (widget.ageGroup) {
+      case AgeGroupSelection.preschool:
+        return 2 + r.nextInt(2);
+      case AgeGroupSelection.elementary:
+        return 2 + r.nextInt(4);
+      case AgeGroupSelection.advanced:
+        return 3 + r.nextInt(4);
+    }
+  }
+
+  int _perPersonItems(math.Random r) {
+    switch (widget.ageGroup) {
+      case AgeGroupSelection.preschool:
+        return 2 + r.nextInt(3);
+      case AgeGroupSelection.elementary:
+        return 2 + r.nextInt(5);
+      case AgeGroupSelection.advanced:
+        return 3 + r.nextInt(6);
+    }
+  }
+
+  int _groupSize(math.Random r) {
+    switch (widget.ageGroup) {
+      case AgeGroupSelection.preschool:
+        return 2 + r.nextInt(2);
+      case AgeGroupSelection.elementary:
+        return 2 + r.nextInt(4);
+      case AgeGroupSelection.advanced:
+        return 3 + r.nextInt(4);
+    }
+  }
+
+  int _groupCountGroups(math.Random r) {
+    switch (widget.ageGroup) {
+      case AgeGroupSelection.preschool:
+        return 2 + r.nextInt(2);
+      case AgeGroupSelection.elementary:
+        return 2 + r.nextInt(4);
+      case AgeGroupSelection.advanced:
+        return 3 + r.nextInt(4);
+    }
+  }
+
   // ============================================================================
   // SORU ÜRETİM MOTORU - 18 FARKLI TİP
   // ============================================================================
@@ -255,8 +303,8 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 1: Eşit Paylaştırma
   Question _generateEqualSharingQuestion(math.Random random, AppLocalizations loc) {
-    final peopleCount = 2 + random.nextInt(4); // 2-5 kişi
-    final itemPerPerson = 2 + random.nextInt(5); // Kişi başı 2-6
+    final peopleCount = _peopleForSharing(random);
+    final itemPerPerson = _perPersonItems(random);
     final total = peopleCount * itemPerPerson;
     final item = _items[random.nextInt(_items.length)];
     final locationKey = _locationKeys[random.nextInt(_locationKeys.length)];
@@ -283,8 +331,8 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 2: Gruplara Ayırma
   Question _generateGroupDivisionQuestion(math.Random random, AppLocalizations loc) {
-    final groupSize = 2 + random.nextInt(4); // Her grupta 2-5
-    final groupCount = 2 + random.nextInt(4); // 2-5 grup
+    final groupSize = _groupSize(random);
+    final groupCount = _groupCountGroups(random);
     final total = groupSize * groupCount;
     final item = _items[random.nextInt(_items.length)];
     final locationKey = _locationKeys[random.nextInt(_locationKeys.length)];
@@ -310,9 +358,17 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 3: Kalanlı Bölme
   Question _generateRemainderQuestion(math.Random random, AppLocalizations loc) {
-    final divisor = 3 + random.nextInt(3); // 3-5
-    final quotient = 2 + random.nextInt(4); // 2-5
-    final remainder = 1 + random.nextInt(divisor - 1); // 1'den büyük, bölene eşit değil
+    final divisor = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 3 + random.nextInt(3),
+      AgeGroupSelection.advanced => 3 + random.nextInt(4),
+    };
+    final quotient = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(4),
+      AgeGroupSelection.advanced => 2 + random.nextInt(5),
+    };
+    final remainder = divisor > 1 ? 1 + random.nextInt(divisor - 1) : 1;
     final total = divisor * quotient + remainder;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -337,8 +393,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 4: Kat Kavramı
   Question _generateMultiplesQuestion(math.Random random, AppLocalizations loc) {
-    final dailyAmount = 2 + random.nextInt(4); // Günde 2-5
-    final days = 2 + random.nextInt(5); // 2-6 gün
+    final dailyAmount = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(4),
+      AgeGroupSelection.advanced => 2 + random.nextInt(5),
+    };
+    final days = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 2 + random.nextInt(5),
+      AgeGroupSelection.advanced => 3 + random.nextInt(5),
+    };
     final total = dailyAmount * days;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -362,7 +426,11 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 5: Kesirler (Yarım - Çeyrek)
   Question _generateFractionsQuestion(math.Random random, AppLocalizations loc) {
-    final wholeCount = 2 + random.nextInt(3); // 2-4 bütün
+    final wholeCount = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(1),
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
     final isQuarter = random.nextBool();
     final fractionName = isQuarter ? loc.get('keloglan_fraction_quarter') : loc.get('keloglan_fraction_half');
     final multiplier = isQuarter ? 4 : 2;
@@ -389,9 +457,21 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 6: Karıştırma (İki İşlemli)
   Question _generateTwoStepMixQuestion(math.Random random, AppLocalizations loc) {
-    final chicken = 3 + random.nextInt(4); // 3-6 tavuk
-    final eggsPerDay = 2 + random.nextInt(3); // Günde 2-4 yumurta
-    final days = 3 + random.nextInt(3); // 3-5 gün
+    final chicken = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 3 + random.nextInt(4),
+      AgeGroupSelection.advanced => 4 + random.nextInt(5),
+    };
+    final eggsPerDay = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2,
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
+    final days = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 3 + random.nextInt(3),
+      AgeGroupSelection.advanced => 3 + random.nextInt(4),
+    };
     final total = chicken * eggsPerDay * days;
     final eggName = loc.get('keloglan_food_egg');
 
@@ -420,8 +500,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
       char2 = _characters[random.nextInt(_characters.length)];
     } while (char1 == char2);
 
-    final count1 = 5 + random.nextInt(10);
-    final count2 = 5 + random.nextInt(10);
+    final count1 = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 3 + random.nextInt(5),
+      AgeGroupSelection.elementary => 5 + random.nextInt(10),
+      AgeGroupSelection.advanced => 8 + random.nextInt(14),
+    };
+    final count2 = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 3 + random.nextInt(5),
+      AgeGroupSelection.elementary => 5 + random.nextInt(10),
+      AgeGroupSelection.advanced => 8 + random.nextInt(14),
+    };
     final diff = (count1 - count2).abs();
     final hasMore = count1 > count2 ? char1 : char2;
     final item = _items[random.nextInt(_items.length)];
@@ -450,9 +538,21 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     final char2 = _characters[random.nextInt(_characters.length)];
     final char3 = _characters[random.nextInt(_characters.length)];
     
-    final count1 = 3 + random.nextInt(5);
-    final count2 = 4 + random.nextInt(5);
-    final count3 = 5 + random.nextInt(5);
+    final count1 = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 3 + random.nextInt(5),
+      AgeGroupSelection.advanced => 4 + random.nextInt(6),
+    };
+    final count2 = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 4 + random.nextInt(5),
+      AgeGroupSelection.advanced => 4 + random.nextInt(7),
+    };
+    final count3 = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 5 + random.nextInt(5),
+      AgeGroupSelection.advanced => 5 + random.nextInt(7),
+    };
     final total = count1 + count2 + count3;
     final divisor = 3; // Her zaman 3 kişi
     final share = total ~/ divisor;
@@ -480,10 +580,22 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 9: Çarpma + Bölme
   Question _generateMultiplyThenDivideQuestion(math.Random random, AppLocalizations loc) {
-    final baskets = 2 + random.nextInt(3); // 2-4 sepet
-    final itemsPerBasket = 3 + random.nextInt(4); // Sepette 3-6
+    final baskets = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
+    final itemsPerBasket = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 3 + random.nextInt(4),
+      AgeGroupSelection.advanced => 3 + random.nextInt(5),
+    };
     final total = baskets * itemsPerBasket;
-    final friends = 2 + random.nextInt(3); // 2-4 arkadaş
+    final friends = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2,
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
     final share = total ~/ friends;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -507,10 +619,22 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 10: Eksik - Fazla Bulmaca
   Question _generateMissingShareQuestion(math.Random random, AppLocalizations loc) {
-    final initial = 15 + random.nextInt(10); // Başlangıç 15-24
-    final eaten = 3 + random.nextInt(8); // Yenen 3-10
-    final remaining = initial - eaten;
-    final friends = 2 + random.nextInt(3); // 2-4 kişi
+    final initial = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 8 + random.nextInt(6),
+      AgeGroupSelection.elementary => 15 + random.nextInt(10),
+      AgeGroupSelection.advanced => 20 + random.nextInt(16),
+    };
+    final eaten = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(4),
+      AgeGroupSelection.elementary => 3 + random.nextInt(8),
+      AgeGroupSelection.advanced => 4 + random.nextInt(9),
+    };
+    final friends = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2,
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
+    final int remaining = math.max(friends, initial - eaten);
     final share = remaining ~/ friends;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -534,8 +658,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 11: Ölçme
   Question _generateMeasurementQuestion(math.Random random, AppLocalizations loc) {
-    final totalLength = 12 + random.nextInt(13); // 12-24 metre
-    final pieces = 2 + random.nextInt(5); // 2-6 parça
+    final totalLength = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 6 + random.nextInt(7),
+      AgeGroupSelection.elementary => 12 + random.nextInt(13),
+      AgeGroupSelection.advanced => 15 + random.nextInt(16),
+    };
+    final pieces = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 2 + random.nextInt(5),
+      AgeGroupSelection.advanced => 3 + random.nextInt(5),
+    };
     final pieceLength = totalLength ~/ pieces;
     final isRope = random.nextBool();
     final item = isRope ? loc.get('keloglan_object_rope') : loc.get('keloglan_food_watermelon');
@@ -561,8 +693,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 12: Zaman
   Question _generateTimeQuestion(math.Random random, AppLocalizations loc) {
-    final hoursPerDay = 2 + random.nextInt(4); // Günde 2-5 saat
-    final days = 2 + random.nextInt(5); // 2-6 gün
+    final hoursPerDay = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 1 + random.nextInt(3),
+      AgeGroupSelection.elementary => 2 + random.nextInt(4),
+      AgeGroupSelection.advanced => 2 + random.nextInt(5),
+    };
+    final days = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 2 + random.nextInt(5),
+      AgeGroupSelection.advanced => 3 + random.nextInt(5),
+    };
     final total = hoursPerDay * days;
     final hourName = loc.get('keloglan_unit_hour');
 
@@ -585,11 +725,23 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 13: Para Hesabı
   Question _generateMoneyQuestion(math.Random random, AppLocalizations loc) {
-    final items = 3 + random.nextInt(5); // 3-7 tane
-    final price = 5 + random.nextInt(10) * 5; // 5, 10, 15... kuruş
+    final items = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 3 + random.nextInt(5),
+      AgeGroupSelection.advanced => 4 + random.nextInt(5),
+    };
+    final price = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 5 + random.nextInt(2) * 5,
+      AgeGroupSelection.elementary => 5 + random.nextInt(10) * 5,
+      AgeGroupSelection.advanced => 5 + random.nextInt(14) * 5,
+    };
     final total = items * price;
     final isBuying = random.nextBool();
-    final money = 50 + random.nextInt(5) * 10; // 50-90 lira
+    final money = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 20 + random.nextInt(4) * 10,
+      AgeGroupSelection.elementary => 50 + random.nextInt(5) * 10,
+      AgeGroupSelection.advanced => 60 + random.nextInt(8) * 10,
+    };
     final canBuy = money ~/ price;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -632,8 +784,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 14: Kat Sayısı
   Question _generateRatioQuestion(math.Random random, AppLocalizations loc) {
-    final keloglanCount = 3 + random.nextInt(5); // Keloğlan'ın 3-7
-    final multiplier = 2 + random.nextInt(3); // 2-4 katı
+    final keloglanCount = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 3 + random.nextInt(5),
+      AgeGroupSelection.advanced => 4 + random.nextInt(6),
+    };
+    final multiplier = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2,
+      AgeGroupSelection.elementary => 2 + random.nextInt(3),
+      AgeGroupSelection.advanced => 2 + random.nextInt(4),
+    };
     final aliCount = keloglanCount * multiplier;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -657,9 +817,17 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 15: Sıralama / Örüntü
   Question _generatePatternQuestion(math.Random random, AppLocalizations loc) {
-    final start = 2 + random.nextInt(4); // İlk gün 2-5
+    final start = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(4),
+      AgeGroupSelection.advanced => 2 + random.nextInt(5),
+    };
     final increment = 2; // Her gün +2
-    final targetDay = 4 + random.nextInt(3); // 4-6. gün
+    final targetDay = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 3 + random.nextInt(2),
+      AgeGroupSelection.elementary => 4 + random.nextInt(3),
+      AgeGroupSelection.advanced => 4 + random.nextInt(4),
+    };
     final result = start + (targetDay - 1) * increment;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -683,7 +851,11 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 16: Şekillerle Bölme
   Question _generateShapeDivisionQuestion(math.Random random, AppLocalizations loc) {
-    final people = 2 + random.nextInt(6); // 2-7 kişi
+    final people = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(6),
+      AgeGroupSelection.advanced => 3 + random.nextInt(6),
+    };
     final cuts = people; // Kesim sayısı = kişi sayısı
     final isCake = random.nextBool();
     final item = isCake ? loc.get('keloglan_object_cake') : loc.get('keloglan_object_field');
@@ -708,9 +880,17 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 17: İki Aşamalı Paylaştırma
   Question _generateTwoStageSharingQuestion(math.Random random, AppLocalizations loc) {
-    final total = 24 + random.nextInt(12); // 24-35
+    final total = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 12 + random.nextInt(8),
+      AgeGroupSelection.elementary => 24 + random.nextInt(12),
+      AgeGroupSelection.advanced => 30 + random.nextInt(18),
+    };
     final firstFriends = 2; // İlk aşamada 2 kişi
-    final secondFriends = 2 + random.nextInt(2); // 2-3 yeni misafir
+    final secondFriends = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 1 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(2),
+      AgeGroupSelection.advanced => 2 + random.nextInt(3),
+    };
     final totalFriends = firstFriends + secondFriends;
     final finalShare = total ~/ totalFriends;
     final item = _items[random.nextInt(_items.length)];
@@ -737,8 +917,16 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   // TİP 18: Ters İşlem
   Question _generateReverseOperationQuestion(math.Random random, AppLocalizations loc) {
-    final share = 3 + random.nextInt(5); // Kişi başı 3-7
-    final friends = 2 + random.nextInt(4); // 2-5 kişi
+    final share = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(3),
+      AgeGroupSelection.elementary => 3 + random.nextInt(5),
+      AgeGroupSelection.advanced => 3 + random.nextInt(6),
+    };
+    final friends = switch (widget.ageGroup) {
+      AgeGroupSelection.preschool => 2 + random.nextInt(2),
+      AgeGroupSelection.elementary => 2 + random.nextInt(4),
+      AgeGroupSelection.advanced => 2 + random.nextInt(5),
+    };
     final total = share * friends;
     final item = _items[random.nextInt(_items.length)];
     final itemName = _itemName(loc, item);
@@ -854,18 +1042,21 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
               ..._buildVillageBackground(),
               Column(
                 children: [
-                  _buildTopBar(loc, q),
+                  _buildTopBar(loc),
                   const SizedBox(height: 16),
                   Expanded(
                     child: SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.paddingOf(context).bottom + 36,
+                      ),
                       child: Column(
                         children: [
-                          _buildCharacterMessage(loc, q),
-                          const SizedBox(height: 16),
                           _buildLevelInfo(loc),
+                          const SizedBox(height: 16),
+                          _buildCharacterMessage(loc, q),
                           const SizedBox(height: 24),
                           _buildQuestionArea(loc, q),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 20),
                           _buildAnswerOptions(loc, q),
                         ],
                       ),
@@ -881,9 +1072,9 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
     );
   }
 
-  Widget _buildTopBar(AppLocalizations loc, Question q) {
+  Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
           GestureDetector(
@@ -902,38 +1093,33 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
               child: Icon(Icons.arrow_back, color: _earthBrown),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🧑‍🌾 ${loc.get('keloglan_village')}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _textStyle(_earthBrown, size: 22, bold: true),
-                ),
-                Text(
-                  q.location.isNotEmpty ? '📍 ${q.location}' : loc.get('question_label_format').replaceAll('{0}', '$_currentLevel'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _textStyle(_earthBrown.withOpacity(0.8), size: 12),
-                ),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '🧑‍🌾 ${loc.get('keloglan_village')}',
+                maxLines: 1,
+                style: _textStyle(_earthBrown, size: 18, bold: true),
+              ),
             ),
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(5, (i) {
               final hasLife = i < _lives;
               return Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: hasLife ? const Text('🧺', style: TextStyle(fontSize: 24)) : const Text('🪹', style: TextStyle(fontSize: 24, color: Colors.grey)),
+                padding: const EdgeInsets.only(left: 1),
+                child: hasLife
+                    ? const Text('🧺', style: TextStyle(fontSize: 15))
+                    : const Text('🪹', style: TextStyle(fontSize: 15, color: Colors.grey)),
               );
             }),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: _villageGreen.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
@@ -942,9 +1128,9 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
+                const Text('⭐', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 4),
-                Text('$_stars', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _earthBrown)),
+                Text('$_stars', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _earthBrown)),
               ],
             ),
           ),
@@ -1010,27 +1196,33 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   Widget _buildLevelInfo(AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: _cream.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _villageGreen.withOpacity(0.4), width: 2),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatItem(loc.get('level'), '$_currentLevel', '🎯'),
+              Container(
+                width: 1,
+                height: 36,
+                color: _earthBrown.withOpacity(0.15),
+              ),
               _buildStatItem(loc.get('score'), '$_score', '⭐'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: (_currentLevel % 5) / 5,
-              minHeight: 14,
+              minHeight: 10,
               backgroundColor: _cream.withOpacity(0.9),
               valueColor: const AlwaysStoppedAnimation<Color>(_villageGreen),
             ),
@@ -1041,12 +1233,25 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   }
 
   Widget _buildStatItem(String label, String value, String emoji) {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
-        const SizedBox(height: 4),
-        Text(value, style: _textStyle(_earthBrown, size: 24, bold: true)),
-        Text(label, style: _textStyle(_earthBrown.withOpacity(0.8), size: 12)),
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: _textStyle(_earthBrown, size: 18, bold: true).copyWith(height: 1.05),
+            ),
+            Text(
+              label,
+              style: _textStyle(_earthBrown.withOpacity(0.85), size: 10).copyWith(height: 1.1),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -1089,11 +1294,11 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   Widget _buildAnswerOptions(AppLocalizations loc, Question q) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         children: [
           Text(loc.get('choose_answer'), style: _textStyle(_earthBrown, size: 16, bold: true)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 12,
             runSpacing: 12,
