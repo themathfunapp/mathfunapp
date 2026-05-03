@@ -1,5 +1,6 @@
 # Copy to key.properties (same folder) and fill in. Never commit key.properties.
 # Create keystore: keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+# Release SHA-1/256 (Google Sign-In / Firebase): keytool -list -v -keystore upload-keystore.jks — add fingerprints in Firebase Console.
 
 storePassword=your-store-password
 keyPassword=your-key-password

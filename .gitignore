@@ -50,3 +50,8 @@ android/.kotlin/
 
 # Firebase emulator / local config (do not commit secrets)
 .firebase/
+
+# Android Play imzalama — asla commit etme
+android/key.properties
+android/upload-keystore.jks
+android/**/*.jks
