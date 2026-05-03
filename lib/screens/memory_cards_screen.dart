@@ -751,9 +751,15 @@ class _MemoryCardsScreenState extends State<MemoryCardsScreen> {
         });
 
         if (!isMatch) {
+          final loc = AppLocalizations(
+            Provider.of<LocaleProvider>(context, listen: false).locale,
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ Yanlış eşleşme!', style: GoogleFonts.quicksand()),
+              content: Text(
+                '❌ ${loc.memoryWrongMatch}',
+                style: GoogleFonts.quicksand(),
+              ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
