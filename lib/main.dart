@@ -18,6 +18,7 @@ import 'package:mathfun/services/voice_command_service.dart';
 import 'package:mathfun/services/premium_service_export.dart';
 import 'package:mathfun/services/ad_service.dart';
 import 'package:mathfun/services/family_service.dart';
+import 'package:mathfun/services/in_app_notification_service.dart';
 import 'package:mathfun/services/family_remote_duel_service.dart';
 import 'package:mathfun/services/family_story_invite_service.dart';
 import 'package:mathfun/services/parent_mode_service.dart';
@@ -28,6 +29,8 @@ import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/screens/app_screen_wrappers.dart';
 import 'package:mathfun/screens/welcome_screen.dart';
 import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/app_navigator.dart';
+import 'package:mathfun/widgets/global_remote_duel_invite_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +74,13 @@ Future<void> main() async {
         ChangeNotifierProvider<AuthService>(
           create: (_) => AuthService(),
         ),
+        ChangeNotifierProxyProvider<AuthService, InAppNotificationService>(
+          create: (_) => InAppNotificationService(),
+          update: (_, authService, notifService) {
+            notifService!.initialize(authService.currentUser);
+            return notifService;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthService, FriendService>(
           create: (_) => FriendService(),
           update: (_, authService, friendService) {
@@ -97,7 +107,11 @@ Future<void> main() async {
         ChangeNotifierProxyProvider<AuthService, PremiumService>(
           create: (_) => PremiumService(),
           update: (_, authService, premiumService) {
-            premiumService!.initialize(userId: authService.currentUser?.uid);
+            final u = authService.currentUser;
+            premiumService!.initialize(
+              userId: u?.uid,
+              userCode: u?.userCode,
+            );
             return premiumService;
           },
         ),
@@ -220,8 +234,14 @@ class MyApp extends StatelessWidget {
         }
 
         return MaterialApp(
+          navigatorKey: appRootNavigatorKey,
           title: 'Matematik Macerası',
           debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            return GlobalRemoteDuelInviteHost(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.blue,

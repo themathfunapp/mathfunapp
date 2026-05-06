@@ -231,6 +231,11 @@ const Map<String, String> _en = {
   'fd_back': 'Back',
   'fd_round': 'Round {current} / {total}',
   'fd_turn': 'Turn: {turn}',
+  'fd_seconds_left': 'Time left: {n}s',
+  'fd_wait_pass_device':
+      '{parent}, pass the device to {child}. {child}: tap Start when ready — then 10 seconds to answer the same question.',
+  'fd_child_start_answer': 'Start (10 s)',
+  'fd_timer_after_start': 'Timer starts after Start.',
   'fd_saving': 'Saving results…',
   'fd_correct': 'Correct!',
   'fd_wrong': 'Wrong',
@@ -246,6 +251,10 @@ const Map<String, String> _en = {
   'fd_duel_how_title': 'How would you like to play?',
   'fd_duel_local_start': 'Start head-to-head on this device',
   'fd_duel_remote_invite': 'Invite the family (remote, 10 questions)',
+  'fd_duel_remote_sub':
+      'Each player answers on their own phone or computer after accepting. Same questions for everyone.',
+  'fd_duel_local_sub':
+      'Two players take turns on this one device (pass it between you). For two separate devices, use the invite option above.',
   'fd_hello_pick_child':
       'Hello {parent}\nSelect the child you will race with.',
   'pp_hub_back_child': 'Return to child mode',
@@ -452,6 +461,11 @@ const Map<String, String> _tr = {
   'fd_back': 'Geri',
   'fd_round': 'Tur {current} / {total}',
   'fd_turn': 'Sıra: {turn}',
+  'fd_seconds_left': 'Kalan süre: {n} sn',
+  'fd_wait_pass_device':
+      '{parent}, telefonu {child} verin. {child}: hazırsanız Başla\'ya basın — aynı soru için 10 saniyeniz olur.',
+  'fd_child_start_answer': 'Başla (10 sn)',
+  'fd_timer_after_start': 'Süre, Başla\'ya basıldığında başlar.',
   'fd_saving': 'Sonuçlar kaydediliyor…',
   'fd_correct': 'Doğru cevap!',
   'fd_wrong': 'Yanlış cevap',
@@ -467,6 +481,10 @@ const Map<String, String> _tr = {
   'fd_duel_how_title': 'Nasıl oynamak istersiniz?',
   'fd_duel_local_start': 'Bu cihazda birebir başlat',
   'fd_duel_remote_invite': 'Aileyi davet et (uzaktan, 10 soru)',
+  'fd_duel_remote_sub':
+      'Davet kabul edildikten sonra herkes kendi telefonunda/bilgisayarında cevaplar; sorular aynıdır.',
+  'fd_duel_local_sub':
+      'İki oyuncu bu cihazda sırayla oynar (telefonu paylaşırsınız). İki ayrı cihaz için yukarıdaki davet seçeneğini kullanın.',
   'fd_hello_pick_child':
       'Merhaba {parent}\nYarışacağınız çocuğu seçin.',
   'pp_hub_back_child': 'Çocuk moduna dön',
@@ -674,6 +692,11 @@ const Map<String, String> _de = {
   'fd_back': 'Zurück',
   'fd_round': 'Runde {current} / {total}',
   'fd_turn': 'Dran: {turn}',
+  'fd_seconds_left': 'Verbleibend: {n}s',
+  'fd_wait_pass_device':
+      '{parent}, gib das Gerät an {child}. {child}: Tippe auf Start — dann 10 Sekunden für dieselbe Frage.',
+  'fd_child_start_answer': 'Start (10 s)',
+  'fd_timer_after_start': 'Die Zeit startet nach Start.',
   'fd_saving': 'Ergebnisse werden gespeichert…',
   'fd_correct': 'Richtig!',
   'fd_wrong': 'Falsch',
@@ -689,6 +712,10 @@ const Map<String, String> _de = {
   'fd_duel_how_title': 'Wie möchtest du spielen?',
   'fd_duel_local_start': 'Kopf-an-Kopf auf diesem Gerät starten',
   'fd_duel_remote_invite': 'Familie einladen (remote, 10 Fragen)',
+  'fd_duel_remote_sub':
+      'Nach Annahme antwortet jeder auf seinem eigenen Gerät; dieselben Fragen für alle.',
+  'fd_duel_local_sub':
+      'Zwei Spieler wechseln sich auf diesem Gerät. Für zwei Geräte die Einladung oben nutzen.',
   'fd_hello_pick_child':
       'Hallo {parent}\nWähle das Kind für das Rennen.',
   'pp_hub_back_child': 'Zum Kindermodus',

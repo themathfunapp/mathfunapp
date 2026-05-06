@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config/premium_qa_allowlist.dart';
+
 /// Web platformu için PremiumService - in_app_purchase desteklenmediği için
 /// sadece Firestore üzerinden premium durumunu kontrol eder.
 class PremiumService extends ChangeNotifier {
@@ -16,6 +18,7 @@ class PremiumService extends ChangeNotifier {
   bool _isLoading = true;
   String? _errorMessage;
   String? _userId;
+  String? _userCode;
 
   static const double premiumPrice = 59.90;
 
@@ -27,8 +30,9 @@ class PremiumService extends ChangeNotifier {
   List<dynamic> get products => [];
   dynamic get premiumProduct => null;
 
-  Future<void> initialize({String? userId}) async {
+  Future<void> initialize({String? userId, String? userCode}) async {
     _userId = userId;
+    _userCode = userCode;
     _isLoading = true;
     _isAvailable = false; // Web'de satın alma yok
     notifyListeners();
@@ -63,6 +67,13 @@ class PremiumService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Firestore premium kontrol hatası: $e');
     }
+    _applyQaPremiumAllowlist();
+  }
+
+  void _applyQaPremiumAllowlist() {
+    if (premiumQaAllowlistedUserCode(_userCode)) {
+      _isPremium = true;
+    }
   }
 
   Future<bool> buyPremium() async {
@@ -79,8 +90,9 @@ class PremiumService extends ChangeNotifier {
     return _isPremium;
   }
 
-  Future<void> updateUser(String? userId) async {
+  Future<void> updateUser(String? userId, {String? userCode}) async {
     _userId = userId;
+    _userCode = userCode;
     if (userId != null) {
       await _checkFirestorePremiumStatus();
     } else {

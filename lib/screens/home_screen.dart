@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
@@ -15,10 +12,8 @@ import '../widgets/kurdistan_flag.dart'; // KurtceFlag widget
 import '../localization/app_localizations.dart';
 import '../utils/constants.dart';
 import '../services/auth_service.dart';
+import '../services/in_app_notification_service.dart';
 import '../services/game_mechanics_service.dart';
-import '../services/family_remote_duel_service.dart';
-import '../services/family_story_invite_service.dart';
-import '../services/push_notification_service.dart';
 import '../services/parent_mode_service.dart';
 import '../services/premium_service_export.dart';
 import '../screens/profile_screen.dart';
@@ -31,6 +26,7 @@ import '../screens/game_start_screen.dart';
 import '../screens/parent_panel_screen.dart';
 import '../screens/world_leaderboard_screen.dart';
 import '../screens/parent_mode_games_hub.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/ai_storyteller_screen.dart';
 import '../screens/voice_commands_screen.dart';
 import '../screens/learning_journey_screen.dart';
@@ -38,8 +34,6 @@ import '../screens/math_art_gallery_screen.dart';
 import '../screens/virtual_math_lab_screen.dart';
 import '../screens/avatar_customization_screen.dart';
 import '../screens/pet_screen.dart';
-import '../screens/family_remote_duel_waiting_screen.dart';
-
 class HomeScreen extends StatefulWidget {
   final VoidCallback onGameSelection;
   final VoidCallback onDailyRewards;
@@ -68,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _titleController;
   late Animation<double> _titleAnimation;
-  late final VoidCallback _remoteDuelQueueListener;
 
   @override
   void initState() {
@@ -84,19 +77,11 @@ class _HomeScreenState extends State<HomeScreen>
     _titleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _titleController, curve: Curves.easeInOut),
     );
-
-    _remoteDuelQueueListener = _consumeRemoteDuelNotificationQueue;
-    PushNotificationService.instance.remoteDuelInviteQueueVersion
-        .addListener(_remoteDuelQueueListener);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _consumeRemoteDuelNotificationQueue());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    PushNotificationService.instance.remoteDuelInviteQueueVersion
-        .removeListener(_remoteDuelQueueListener);
     _titleController.dispose();
     super.dispose();
   }
@@ -106,51 +91,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<GameMechanicsService>().tickLifeRegeneration();
     }
-  }
-
-  void _consumeRemoteDuelNotificationQueue() {
-    if (!mounted) return;
-    final items = PushNotificationService.instance.drainRemoteDuelInvites();
-    for (final p in items) {
-      unawaited(_openRemoteDuelFromNotification(p));
-    }
-  }
-
-  Future<void> _openRemoteDuelFromNotification(RemoteDuelInvitePayload payload) async {
-    final auth = context.read<AuthService>();
-    final uid = auth.currentUser?.uid;
-    if (uid == null || uid.isEmpty || auth.currentUser?.isGuest == true) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Davet için hesap ile giriş yapın.')),
-      );
-      return;
-    }
-    final svc = context.read<FamilyRemoteDuelService>();
-    final ok = await svc.acceptInvite(
-      inviteId: payload.inviteId,
-      acceptingUserId: uid,
-    );
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
-          ),
-        ),
-      );
-      return;
-    }
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (ctx) => FamilyRemoteDuelWaitingScreen(
-          sessionId: payload.sessionId,
-          isHost: false,
-          onBack: () => Navigator.of(ctx).pop(),
-        ),
-      ),
-    );
   }
 
   // Desteklenen diller listesi - Ekrandaki tüm diller
@@ -189,34 +129,37 @@ class _HomeScreenState extends State<HomeScreen>
       body: Container(
         decoration: BoxDecoration(gradient: primaryGradient),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (authService.currentUser != null &&
-                authService.currentUser!.isGuest != true)
-              Positioned(
-                left: 8,
-                right: 8,
-                top: MediaQuery.paddingOf(context).top + 2,
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(12),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _FamilyRemoteDuelInviteBar(
-                        userId: authService.currentUser!.uid,
-                      ),
-                      _FamilyStoryInviteBar(
-                        userId: authService.currentUser!.uid,
-                      ),
-                      _FamilyStoryInviteSenderInfoBar(
-                        userId: authService.currentUser!.uid,
-                      ),
-                    ],
-                  ),
+            // Liste altta; üstteki katmanlar tıklanabilir olsun diye önce ListView.
+            ListView(
+              padding: const EdgeInsets.only(top: 24.0, left: 24.0, right: 24.0, bottom: 24.0),
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildLanguageButton(context, authService),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (authService.currentUser != null &&
+                            authService.currentUser!.isGuest != true)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: _buildNotificationsButton(context),
+                          ),
+                        _buildProfileButton(context, localizations),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            // Dönen matematik sembolü - dokunma olaylarını engellemez
+                const SizedBox(height: 60),
+                if (useParentHome)
+                  ..._buildParentModeHome(context)
+                else
+                  ..._buildStandardHomeBody(context, localizations, authService),
+              ],
+            ),
             const Positioned(
               top: 80,
               left: 0,
@@ -224,31 +167,6 @@ class _HomeScreenState extends State<HomeScreen>
               child: IgnorePointer(
                 child: AnimatedMathSymbol(),
               ),
-            ),
-
-            // Ana içerik
-            ListView(
-              padding: const EdgeInsets.only(top: 24.0, left: 24.0, right: 24.0, bottom: 24.0),
-              children: [
-                // Üst kısım: Dil + Profil (Row)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Dil seçici butonu
-                    _buildLanguageButton(context, authService),
-
-                    // Profil butonu
-                    _buildProfileButton(context, localizations),
-                  ],
-                ),
-
-                const SizedBox(height: 60),
-
-                if (useParentHome)
-                  ..._buildParentModeHome(context)
-                else
-                  ..._buildStandardHomeBody(context, localizations, authService),
-              ],
             ),
           ],
         ),
@@ -263,41 +181,6 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       const SizedBox(height: 24),
     ];
-  }
-
-  Future<void> _confirmEnterParentMode(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C3E50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Ebeveyn modu',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Ebeveyn moduna geçmek istediğinizden emin misiniz?\n\n'
-          'Bu modda yalnızca aile oyunları ve ebeveyn paneline yönelik ekranlar gösterilir.',
-          style: TextStyle(color: Colors.white70, height: 1.35),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'İptal',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Evet, geç'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true && context.mounted) {
-      await Provider.of<ParentModeService>(context, listen: false).setParentMode(true);
-    }
   }
 
   List<Widget> _buildStandardHomeBody(
@@ -451,22 +334,6 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ],
-
-      if (authService.currentUser?.isGuest != true)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: TextButton(
-            onPressed: () => _confirmEnterParentMode(context),
-            child: Text(
-              'Ebeveyn moduna geç (sadece aile özellikleri)',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
 
       // TODO: Yayın sonrası güncellemede eklenecek özellikler (6-7 ay sonra)
       // İKİNCİ SATIĞA EKLENECEKLER:
@@ -717,6 +584,74 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  void _openNotificationsScreen(BuildContext context) {
+    showInAppNotificationsPanel(context);
+  }
+
+  Widget _buildNotificationsButton(BuildContext context) {
+    return Consumer<InAppNotificationService>(
+      builder: (context, notif, _) {
+        final count = notif.unreadCount;
+        return GestureDetector(
+          onTap: () => _openNotificationsScreen(context),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(128),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+              if (count > 0)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _openProfileScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -964,370 +899,6 @@ class _HomeScreenState extends State<HomeScreen>
           onBack: () => Navigator.pop(context),
         ),
       ),
-    );
-  }
-}
-
-/// Ana sayfa: gelen hikâye daveti (ebeveyn paneli önizlemesinden).
-class _FamilyStoryInviteBar extends StatefulWidget {
-  final String userId;
-
-  const _FamilyStoryInviteBar({required this.userId});
-
-  @override
-  State<_FamilyStoryInviteBar> createState() => _FamilyStoryInviteBarState();
-}
-
-class _FamilyStoryInviteBarState extends State<_FamilyStoryInviteBar> {
-  int _countdown = 5;
-  bool _countdownVisible = false;
-  final Set<String> _openedInviteIds = <String>{};
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  bool _isInviteExpired(Map<String, dynamic> m) {
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final expiresAtMs = (m['expiresAtMs'] as num?)?.toInt() ?? 0;
-    if (expiresAtMs <= 0) {
-      final createdAt = m['createdAt'];
-      if (createdAt is Timestamp) {
-        final fallback = createdAt.millisecondsSinceEpoch + FamilyStoryInviteService.inviteTtlMs;
-        return fallback <= nowMs;
-      }
-      return false;
-    }
-    return expiresAtMs <= nowMs;
-  }
-
-  Future<void> _startCountdownAndOpenStory(
-    String inviteId, {
-    int from = 5,
-    String? worldId,
-    String? chapterId,
-  }) async {
-    if (_openedInviteIds.contains(inviteId)) return;
-    _openedInviteIds.add(inviteId);
-    _countdown = from;
-    _countdownVisible = true;
-    if (mounted) setState(() {});
-    while (_countdown > 0 && mounted) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-      _countdown -= 1;
-      if (_countdown > 0) {
-        setState(() {});
-      }
-    }
-    _countdownVisible = false;
-    if (mounted) setState(() {});
-    if (!mounted) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (ctx) => StoryModeScreen(
-          initialWorldId: worldId,
-          initialChapterId: chapterId,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final svc = Provider.of<FamilyStoryInviteService>(context, listen: false);
-    final loc = AppLocalizations.of(context);
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: svc.recipientInvitesStream(widget.userId),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        final pending = snap.data!.docs
-            .where((d) {
-              final m = d.data();
-              final status = (m['status'] as String?) ?? '';
-              if (status != 'pending' && status != 'accepted') return false;
-              final expired = _isInviteExpired(m);
-              if (status == 'pending' && expired) {
-                unawaited(svc.expireInviteIfNeeded(d.id));
-              }
-              return !expired;
-            })
-            .toList();
-        if (pending.isEmpty) return const SizedBox.shrink();
-
-        final doc = pending.first;
-        final m = doc.data();
-        final from = m['fromDisplayName'] as String? ?? 'Ailen';
-        final wKey = m['worldNameKey'] as String? ?? '';
-        final cKey = m['chapterNameKey'] as String? ?? '';
-        final worldId = m['worldId'] as String?;
-        final chapterId = m['chapterId'] as String?;
-        final place = (wKey.isNotEmpty && cKey.isNotEmpty)
-            ? '${loc.get(wKey)} · ${loc.get(cKey)}'
-            : '';
-        final line = place.isEmpty
-            ? loc.get('family_story_invite_incoming_short').replaceAll('{0}', from)
-            : loc
-                .get('family_story_invite_incoming')
-                .replaceAll('{0}', from)
-                .replaceAll('{1}', place);
-        final sessionId = (m['sessionId'] as String?) ?? '';
-
-        Widget buildBar({String sessionStatus = 'pending', int? sessionStartAtMs}) {
-          final inviteStatus = (m['status'] as String?) ?? 'pending';
-          if ((sessionStatus == 'cancelled' || sessionStatus == 'expired') &&
-              (inviteStatus == 'pending' || inviteStatus == 'accepted')) {
-            unawaited(svc.cancelInviteForUser(
-              inviteId: doc.id,
-              actingUserId: widget.userId,
-            ));
-            return const SizedBox.shrink();
-          }
-          final startAtMs = ((m['startAtMs'] as num?)?.toInt()) ?? sessionStartAtMs;
-          if (inviteStatus == 'accepted' && startAtMs != null) {
-            final left = ((startAtMs - DateTime.now().millisecondsSinceEpoch) / 1000).ceil();
-            if (left <= 0) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                unawaited(_startCountdownAndOpenStory(
-                  doc.id,
-                  from: 1,
-                  worldId: worldId,
-                  chapterId: chapterId,
-                ));
-              });
-            } else if (!_countdownVisible) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                unawaited(_startCountdownAndOpenStory(
-                  doc.id,
-                  from: left.clamp(1, 5),
-                  worldId: worldId,
-                  chapterId: chapterId,
-                ));
-              });
-            }
-          }
-
-          return Container(
-            color: const Color(0xFF2d4a3e),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                const Icon(Icons.menu_book, color: Colors.lightGreenAccent, size: 22),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        line,
-                        style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.2),
-                      ),
-                      if (_countdownVisible)
-                        Text(
-                          'Başlıyor: $_countdown',
-                          style: const TextStyle(
-                            color: Colors.lightGreenAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      else if (inviteStatus == 'accepted' && startAtMs == null)
-                        const Text(
-                          'Diğer aile üyeleri bekleniyor...',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: inviteStatus == 'pending'
-                      ? () async {
-                          final ok = await svc.acceptInvite(doc.id, widget.userId);
-                          if (!context.mounted) return;
-                          if (!ok) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Davet süresi doldu veya artık geçerli değil.')),
-                            );
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Kabul edildi. Diğer üyeler bekleniyor...')),
-                          );
-                        }
-                      : null,
-                  child: Text(
-                    loc.get('family_story_invite_open'),
-                    style: const TextStyle(color: Colors.lightGreenAccent),
-                  ),
-                ),
-                TextButton(
-                  onPressed: inviteStatus == 'pending'
-                      ? () => svc.declineInvite(doc.id, widget.userId)
-                      : null,
-                  child: Text(loc.get('reject'), style: const TextStyle(color: Colors.white70)),
-                ),
-              ],
-            ),
-          );
-        }
-        if (sessionId.isEmpty) return buildBar();
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: svc.sessionStream(sessionId),
-          builder: (context, sessionSnap) {
-            if (!sessionSnap.hasData || !sessionSnap.data!.exists) {
-              return buildBar();
-            }
-            final s = sessionSnap.data!.data()!;
-            final sessionStatus = (s['status'] as String?) ?? 'pending';
-            final sessionStartAtMs = (s['startAtMs'] as num?)?.toInt();
-            return buildBar(
-              sessionStatus: sessionStatus,
-              sessionStartAtMs: sessionStartAtMs,
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _FamilyStoryInviteSenderInfoBar extends StatelessWidget {
-  final String userId;
-
-  const _FamilyStoryInviteSenderInfoBar({required this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    final svc = Provider.of<FamilyStoryInviteService>(context, listen: false);
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: svc.senderUpdatesStream(userId),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        final docs = snap.data!.docs.where((d) {
-          final m = d.data();
-          final acked = m['senderAckAt'] != null;
-          return !acked;
-        }).toList()
-          ..sort((a, b) {
-            final am = a.data();
-            final bm = b.data();
-            final at = (am['updatedAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                (am['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                0;
-            final bt = (bm['updatedAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                (bm['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                0;
-            return bt.compareTo(at);
-          });
-        if (docs.isEmpty) return const SizedBox.shrink();
-        final doc = docs.first;
-        final m = doc.data();
-        final to = m['toDisplayName'] as String? ?? 'Aile üyesi';
-        final status = (m['status'] as String?) ?? '';
-        final text = status == 'declined'
-            ? '$to daveti reddetti.'
-            : '$to davetine 90 sn içinde cevap vermedi.';
-        return Container(
-          color: const Color(0xFF5B2C2C),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(color: Colors.white, fontSize: 12.5),
-                ),
-              ),
-              TextButton(
-                onPressed: () => svc.acknowledgeSenderUpdate(
-                  inviteId: doc.id,
-                  actingUserId: userId,
-                ),
-                child: const Text('Tamam', style: TextStyle(color: Colors.white70)),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Ana sayfa: gelen uzaktan aile düellosu daveti (Firestore canlı dinleme).
-class _FamilyRemoteDuelInviteBar extends StatelessWidget {
-  final String userId;
-
-  const _FamilyRemoteDuelInviteBar({required this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    final svc = Provider.of<FamilyRemoteDuelService>(context, listen: false);
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: svc.pendingInvitesStream(userId),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        final pending = snap.data!.docs
-            .where((d) => (d.data()['status'] as String?) == 'pending')
-            .toList();
-        if (pending.isEmpty) return const SizedBox.shrink();
-
-        final doc = pending.first;
-        final m = doc.data();
-        final from = m['fromDisplayName'] as String? ?? 'Ailen';
-        final sessionId = m['sessionId'] as String? ?? '';
-
-        return Container(
-          color: const Color(0xFF1e3a5f),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              const Icon(Icons.notifications_active, color: Colors.amber, size: 22),
-              Expanded(
-                child: Text(
-                  '$from seni uzaktan düelloya davet etti.',
-                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.2),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  final ok = await svc.acceptInvite(
-                    inviteId: doc.id,
-                    acceptingUserId: userId,
-                  );
-                  if (!context.mounted) return;
-                  if (!ok) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  if (sessionId.isEmpty) return;
-                  await Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (ctx) => FamilyRemoteDuelWaitingScreen(
-                        sessionId: sessionId,
-                        isHost: false,
-                        onBack: () => Navigator.of(ctx).pop(),
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('Kabul', style: TextStyle(color: Colors.lightGreenAccent)),
-              ),
-              TextButton(
-                onPressed: () => svc.declineInvite(doc.id, userId),
-                child: const Text('Reddet', style: TextStyle(color: Colors.white70)),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

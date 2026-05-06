@@ -7,10 +7,12 @@ import 'package:provider/provider.dart';
 import '../models/family_member.dart';
 import '../models/game_mechanics.dart';
 import '../services/auth_service.dart';
+import '../services/family_remote_duel_service.dart';
 import '../services/family_service.dart';
 import 'family_remote_duel_setup_screen.dart';
 import '../models/age_group_selection.dart';
 import '../utils/family_duel_question_utils.dart';
+import '../localization/app_localizations.dart';
 import '../localization/parent_panel_l10n.dart';
 import '../providers/locale_provider.dart';
 
@@ -42,16 +44,12 @@ String _fd(BuildContext context, String key,
     final v = bidiIsolateKeys.contains(e.key) ? '\u2068$raw\u2069' : raw;
     s = s.replaceAll('{${e.key}}', v);
   }
-  // RTL sistem + LTR metin (TR/EN vb.) birleşince ? ve ! yanlış uca kaymasın
-  if ((key == 'fd_pick_topic_title' || key == 'fd_pick_topic_subtitle') &&
-      !const {'ar', 'fa', 'ur'}.contains(lc)) {
-    return '\u2066$s\u2069';
-  }
   return s;
 }
 
 class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   static const int _totalRounds = 5;
+  static const int _turnSeconds = 10;
   static const AgeGroupSelection _ageGroup = AgeGroupSelection.elementary;
 
   final math.Random _random = math.Random();
@@ -71,6 +69,55 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   bool _answerLocked = false;
   bool _showAnswerFeedback = false;
   bool _lastAnswerCorrect = false;
+  Timer? _turnTimer;
+  int _secondsLeft = _turnSeconds;
+  /// Çocuk sırasında şıklar, yalnızca çocuk «Başla»ya basınca açılır (ebeveyn yerine cevaplamasın).
+  bool _childChoicesRevealed = false;
+
+  @override
+  void dispose() {
+    _stopTurnTimer();
+    super.dispose();
+  }
+
+  void _stopTurnTimer() {
+    _turnTimer?.cancel();
+    _turnTimer = null;
+  }
+
+  void _startTurnTimer() {
+    _stopTurnTimer();
+    if (!mounted || _step != 2 || _question == null || _saving) return;
+    if (!_parentTurn && !_childChoicesRevealed) return;
+    setState(() => _secondsLeft = _turnSeconds);
+    _turnTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        _stopTurnTimer();
+        return;
+      }
+      if (_answerLocked || _saving || _step != 2 || _question == null) {
+        _stopTurnTimer();
+        return;
+      }
+      if (_secondsLeft <= 1) {
+        _stopTurnTimer();
+        unawaited(_onTurnTimeout());
+        return;
+      }
+      setState(() => _secondsLeft--);
+    });
+  }
+
+  void _scheduleTurnTimer() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _startTurnTimer();
+    });
+  }
+
+  Future<void> _onTurnTimeout() async {
+    if (!mounted || _question == null || _answerLocked || _saving || _step != 2) return;
+    await _resolveTurn(isCorrect: false, pickedValue: null);
+  }
 
   void _handleBackPress() {
     if (_step == 3) {
@@ -78,10 +125,12 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
       return;
     }
     if (_step == 2) {
+      _stopTurnTimer();
       setState(() {
         _question = null;
         _parentPick = null;
         _childPick = null;
+        _childChoicesRevealed = false;
         _step = 1;
       });
       return;
@@ -150,6 +199,25 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   }
 
   Future<void> _onTopicTap(TopicType topic) async {
+    final auth = context.read<AuthService>();
+    final uid = auth.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      final linked =
+          await context.read<FamilyRemoteDuelService>().linkedChildUserIdsForHost(uid);
+      if (!mounted) return;
+      if (linked.isNotEmpty) {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (ctx) => FamilyRemoteDuelSetupScreen(
+              onBack: () => Navigator.of(ctx).pop(),
+              initialTopic: topic,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final choice = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF2A2D5A),
@@ -183,24 +251,46 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
                 ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(sheetContext).pop('local'),
+                  onPressed: () => Navigator.of(sheetContext).pop('remote'),
                   style: FilledButton.styleFrom(
                     backgroundColor: color.withValues(alpha: 0.9),
-                    minimumSize: const Size.fromHeight(44),
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  icon: const Icon(Icons.group_add),
+                  label: Text(_fd(sheetContext, 'fd_duel_remote_invite')),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 4, right: 4),
+                  child: Text(
+                    _fd(sheetContext, 'fd_duel_remote_sub'),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(sheetContext).pop('local'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: color.withValues(alpha: 0.75)),
+                    minimumSize: const Size.fromHeight(48),
                   ),
                   icon: const Icon(Icons.phone_android),
                   label: Text(_fd(sheetContext, 'fd_duel_local_start')),
                 ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(sheetContext).pop('remote'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: color.withValues(alpha: 0.75)),
-                    minimumSize: const Size.fromHeight(44),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 4, right: 4),
+                  child: Text(
+                    _fd(sheetContext, 'fd_duel_local_sub'),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
                   ),
-                  icon: const Icon(Icons.group_add),
-                  label: Text(_fd(sheetContext, 'fd_duel_remote_invite')),
                 ),
               ],
             ),
@@ -237,6 +327,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
 
   void _nextQuestion() {
     if (_topic == null) return;
+    _stopTurnTimer();
     setState(() {
       _question = TopicGameManager.generateTopicQuestion(
         _topic!,
@@ -246,12 +337,23 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
       _parentTurn = true;
       _parentPick = null;
       _childPick = null;
+      _childChoicesRevealed = false;
     });
+    _scheduleTurnTimer();
+  }
+
+  void _onChildRevealChoices() {
+    if (_parentTurn || _childChoicesRevealed || _answerLocked || _saving || _step != 2) return;
+    setState(() => _childChoicesRevealed = true);
+    _scheduleTurnTimer();
   }
 
   bool _isCorrect(dynamic pick) => familyDuelIsCorrect(_question, pick);
 
-  String _questionLine() => familyDuelQuestionLine(_question);
+  String _questionLine(BuildContext context) {
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    return familyDuelQuestionLine(_question, AppLocalizations(locale));
+  }
 
   List<dynamic> _optionList() => familyDuelOptionList(_question);
 
@@ -275,17 +377,27 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
 
   Future<void> _onOptionTap(dynamic value) async {
     if (_question == null || _answerLocked || _saving) return;
+    if (!_parentTurn && !_childChoicesRevealed) return;
+    _stopTurnTimer();
     final isCorrect = _isCorrect(value);
+    await _resolveTurn(isCorrect: isCorrect, pickedValue: value);
+  }
+
+  /// [pickedValue] null ise süre doldu (yanlış sayılır).
+  Future<void> _resolveTurn({required bool isCorrect, dynamic pickedValue}) async {
+    if (_question == null || _answerLocked || _saving || _step != 2) return;
     final parentTurnNow = _parentTurn;
 
     setState(() {
       _answerLocked = true;
       _showAnswerFeedback = true;
       _lastAnswerCorrect = isCorrect;
-      if (parentTurnNow) {
-        _parentPick = value;
-      } else {
-        _childPick = value;
+      if (pickedValue != null) {
+        if (parentTurnNow) {
+          _parentPick = pickedValue;
+        } else {
+          _childPick = pickedValue;
+        }
       }
     });
 
@@ -293,11 +405,13 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
     if (!mounted) return;
 
     if (parentTurnNow) {
+      _stopTurnTimer();
       setState(() {
         if (isCorrect) _parentCorrect++;
         _parentTurn = false;
         _showAnswerFeedback = false;
         _answerLocked = false;
+        _childChoicesRevealed = false;
       });
       return;
     }
@@ -307,6 +421,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
     }
     _roundIndex++;
     if (_roundIndex >= _totalRounds) {
+      _stopTurnTimer();
       setState(() {
         _showAnswerFeedback = false;
       });
@@ -558,72 +673,9 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
   }
 
   Widget _buildTopicPicker() {
-    final rawChildName = _child?.displayName;
-    final childName = (rawChildName != null && rawChildName.trim().isNotEmpty)
-        ? rawChildName.trim()
-        : _fd(context, 'fd_child_default');
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: 0.2),
-                Colors.white.withValues(alpha: 0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white30),
-            boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Text('🎯', style: TextStyle(fontSize: 26)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _fd(context, 'fd_pick_topic_title', {'name': childName}),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _fd(context, 'fd_pick_topic_subtitle'),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
         Text(
           _fd(context, 'fd_topic_cards'),
           style: TextStyle(
@@ -840,74 +892,141 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: 0.16),
-                Colors.white.withValues(alpha: 0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white24),
-          ),
-          child: Text(
-            _questionLine(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        ...opts.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final o = entry.value;
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: 220 + (idx * 70)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) => Opacity(
-              opacity: value,
-              child: Transform.translate(
-                offset: Offset(0, (1 - value) * 10),
-                child: child,
+        if (!_saving && !_answerLocked) ...[
+          const SizedBox(height: 10),
+          if (_parentTurn || _childChoicesRevealed)
+            Text(
+              _fd(context, 'fd_seconds_left', {'n': '$_secondsLeft'}),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _secondsLeft <= 3 ? Colors.orangeAccent : Colors.white.withValues(alpha: 0.9),
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            )
+          else
+            Text(
+              _fd(context, 'fd_timer_after_start'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.white.withValues(alpha: 0.18),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(color: Colors.white30),
+        ],
+        const SizedBox(height: 16),
+        if (_parentTurn || _childChoicesRevealed) ...[
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.16),
+                  Colors.white.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Text(
+              _questionLine(context),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          ...opts.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final o = entry.value;
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 220 + (idx * 70)),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - value) * 10),
+                  child: child,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.white.withValues(alpha: 0.18),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: Colors.white30),
+                      ),
                     ),
-                  ),
-                  onPressed: () => unawaited(_onOptionTap(o)),
-                  child: Text(
-                    '$o',
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
+                    onPressed: _answerLocked || _saving
+                        ? null
+                        : () => unawaited(_onOptionTap(o)),
+                    child: Text(
+                      '$o',
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
               ),
+            );
+          }),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white24),
             ),
-          );
-        }),
+            child: Column(
+              children: [
+                Text(
+                  _fd(context, 'fd_wait_pass_device', {
+                    'parent': parentName,
+                    'child': childName,
+                  }),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                    backgroundColor: const Color(0xFF118AB2),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: (_answerLocked || _saving) ? null : _onChildRevealChoices,
+                  child: Text(
+                    _fd(context, 'fd_child_start_answer', {'name': childName}),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         AnimatedOpacity(
           duration: const Duration(milliseconds: 180),

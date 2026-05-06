@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:mathfun/localization/app_localizations.dart';
+
 /// Tek/çift cihaz aile düellosu için ortak soru metni ve doğrulama.
-String familyDuelQuestionLine(Map<String, dynamic>? q) {
+String familyDuelQuestionLine(Map<String, dynamic>? q, AppLocalizations loc) {
   if (q == null) return '';
   final text = q['question'];
   if (text is String && text.isNotEmpty) return text;
@@ -10,26 +12,25 @@ String familyDuelQuestionLine(Map<String, dynamic>? q) {
   switch (type) {
     case 'count_objects':
       final emoji = q['emoji'] as String? ?? '🎯';
-      final cnt = ((q['count'] as int?) ?? 3).clamp(1, 16);
-      return '${List.filled(cnt, emoji).join(' ')}\nKaç tane?';
+      // Gösterilen emoji sayısı doğru cevapla aynı olmalı (clamp yok).
+      final cnt = ((q['count'] as int?) ?? 3).clamp(1, 64);
+      return '${List.filled(cnt, emoji).join(' ')}\n${loc.get('question_how_many')}';
     case 'find_missing':
       final seq = q['sequence'] as String? ?? '';
-      return 'Hangi sayı eksik: $seq';
+      return loc.get('family_duel_find_missing').replaceAll('{sequence}', seq);
     case 'whats_next':
       final seq = q['sequence'] as String? ?? '';
-      return 'Sonraki sayı: $seq';
+      return loc.get('family_duel_whats_next').replaceAll('{sequence}', seq);
     case 'before_after':
       final params = q['questionParams'];
       final n = params is Map ? '${params['number'] ?? '?'}' : '?';
       final key = q['questionKey'] as String? ?? '';
-      if (key == 'question_before_number') {
-        return "$n'den önce hangi sayı gelir?";
-      }
-      return "$n'den sonra hangi sayı gelir?";
+      if (key.isEmpty) return loc.get('question');
+      return loc.get(key).replaceAll('{number}', n);
     default:
       break;
   }
-  return 'Soru';
+  return loc.get('question');
 }
 
 List<dynamic> familyDuelOptionList(Map<String, dynamic>? q) {

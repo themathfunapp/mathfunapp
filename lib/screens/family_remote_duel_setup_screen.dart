@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,12 +27,16 @@ class FamilyRemoteDuelSetupScreen extends StatefulWidget {
   State<FamilyRemoteDuelSetupScreen> createState() => _FamilyRemoteDuelSetupScreenState();
 }
 
-class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScreen> {
+class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScreen>
+    with TickerProviderStateMixin {
   final Set<String> _selectedChildIds = {};
   TopicType? _topic;
   bool _busy = false;
   Set<String> _linkedChildIds = {};
   bool _loadingLinkedIds = true;
+
+  late final AnimationController _bgWave;
+  late final AnimationController _gentlePulse;
 
   static const List<TopicType> _topics = [
     TopicType.counting,
@@ -81,7 +87,22 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
   void initState() {
     super.initState();
     _topic = widget.initialTopic;
+    _bgWave = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+    _gentlePulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadLinkedChildIds());
+  }
+
+  @override
+  void dispose() {
+    _bgWave.dispose();
+    _gentlePulse.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLinkedChildIds() async {
@@ -168,6 +189,408 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
     );
   }
 
+  Widget _partyFloaties() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _bgWave,
+          builder: (context, child) {
+            final t = _bgWave.value;
+            return Stack(
+              children: [
+                for (var i = 0; i < 12; i++)
+                  Positioned(
+                    left: (i * 73.0 + 40 * math.sin(t * math.pi * 2 + i)) % 340,
+                    top: 80 + (i * 61.0 + 50 * math.cos(t * math.pi * 2 * 0.7 + i * 0.4)) % 420,
+                    child: Opacity(
+                      opacity: (0.12 + 0.1 * math.sin(t * math.pi * 2 + i)).clamp(0.0, 0.35),
+                      child: Transform.rotate(
+                        angle: t * math.pi * 0.25 * (i.isEven ? 1 : -1),
+                        child: Text(
+                          const ['⭐', '✨', '🎯', '🎮', '💫', '🌟'][i % 6],
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _glassIntroCard(AppLocalizations loc, String hostDisplay) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.22),
+            Colors.white.withValues(alpha: 0.08),
+          ],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.deepPurple.withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.92, end: 1),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.elasticOut,
+            builder: (context, s, child) => Transform.scale(scale: s, child: child),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.25),
+              ),
+              child: const Text('⚔️', style: TextStyle(fontSize: 28)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              loc.get('family_remote_duel_intro').replaceAll('{0}', hostDisplay),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.95),
+                fontSize: 14.5,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+                shadows: const [
+                  Shadow(color: Colors.black26, offset: Offset(0, 1), blurRadius: 3),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: Colors.amber.shade200, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.2,
+                shadows: [
+                  Shadow(color: Colors.black26, offset: Offset(0, 1), blurRadius: 4),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _childPickTile(FamilyMember c, bool sel) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AnimatedScale(
+        scale: sel ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        child: Material(
+          color: Colors.transparent,
+          elevation: sel ? 10 : 2,
+          shadowColor: sel ? Colors.amber.withValues(alpha: 0.65) : Colors.black38,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              setState(() {
+                if (sel) {
+                  _selectedChildIds.remove(c.userId);
+                } else {
+                  _selectedChildIds.add(c.userId);
+                }
+              });
+            },
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: sel
+                      ? [
+                          const Color(0xFFFFCA28),
+                          const Color(0xFFFF6F00),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.18),
+                          Colors.white.withValues(alpha: 0.08),
+                        ],
+                ),
+                border: Border.all(
+                  color: sel ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                  width: sel ? 2.5 : 1,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: sel ? 0.35 : 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text('🧒', style: TextStyle(fontSize: 30)),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        c.displayName,
+                        style: TextStyle(
+                          color: sel ? const Color(0xFF4E342E) : Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        sel ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+                        key: ValueKey<bool>(sel),
+                        color: sel ? const Color(0xFF33691E) : Colors.white70,
+                        size: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _topicChip(TopicType t, bool sel, AppLocalizations loc) {
+    final col = _topicColor(t);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _topic = t),
+          borderRadius: BorderRadius.circular(24),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                colors: sel
+                    ? [col, Color.lerp(col, Colors.white, 0.2)!]
+                    : [
+                        Colors.white.withValues(alpha: 0.16),
+                        Colors.white.withValues(alpha: 0.06),
+                      ],
+              ),
+              border: Border.all(
+                color: sel ? Colors.white : Colors.white.withValues(alpha: 0.3),
+                width: sel ? 2 : 1,
+              ),
+              boxShadow: sel
+                  ? [
+                      BoxShadow(
+                        color: col.withValues(alpha: 0.55),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (sel) const Icon(Icons.star_rounded, color: Colors.white, size: 20),
+                if (sel) const SizedBox(width: 6),
+                Text(
+                  _topicLabel(loc, t),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _lockedTopicPill(AppLocalizations loc) {
+    final t = widget.initialTopic!;
+    final col = _topicColor(t);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [col, Color.lerp(col, const Color(0xFF7C4DFF), 0.35)!],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 2),
+        boxShadow: [
+          BoxShadow(color: col.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔒', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Text(
+            _topicLabel(loc, t),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rainbowSendButton(AppLocalizations loc) {
+    return AnimatedBuilder(
+      animation: _gentlePulse,
+      builder: (context, child) {
+        final p = 1.0 + 0.03 * _gentlePulse.value;
+        return Transform.scale(scale: p, child: child);
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF6D00), Color(0xFFE91E63), Color(0xFF7C4DFF), Color(0xFF00BFA5)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withValues(alpha: 0.45),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: FilledButton.icon(
+          onPressed: _busy ? null : _sendInvite,
+          icon: _busy
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.rocket_launch_rounded, size: 26),
+          label: Text(
+            _busy
+                ? loc.get('family_remote_duel_sending')
+                : loc.get('family_remote_duel_send_invite').replaceAll('{0}', '${_selectedChildIds.length}'),
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, letterSpacing: 0.2),
+          ),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(double.infinity, 56),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyStateCard({
+    required String emoji,
+    required String message,
+    required AppLocalizations loc,
+  }) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: Colors.white.withValues(alpha: 0.16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 24),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.88, end: 1),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.elasticOut,
+                builder: (context, s, child) => Transform.scale(scale: s, child: child),
+                child: Text(emoji, style: const TextStyle(fontSize: 56)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF6A1B9A),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                ),
+                onPressed: widget.onBack,
+                child: Text(loc.get('back'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
@@ -177,259 +600,168 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
         loc.get('family_remote_duel_host_default');
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1B2838), Color(0xFF2E5266)],
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedBuilder(
+            animation: _bgWave,
+            builder: (context, _) {
+              final t = _bgWave.value;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment(-0.8 + 0.5 * math.sin(t * math.pi * 2), -1),
+                    end: Alignment(0.6 + 0.35 * math.cos(t * math.pi * 2 * 0.85), 1.15),
+                    colors: [
+                      Color.lerp(const Color(0xFF5E35B1), const Color(0xFFE91E63), t)!,
+                      Color.lerp(const Color(0xFFFF6F00), const Color(0xFF00ACC1), 1 - t)!,
+                      const Color(0xFF43A047),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              );
+            },
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: widget.onBack,
-                  ),
-                  Expanded(
-                    child: Text(
-                      loc.get('family_remote_duel_title'),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+          _partyFloaties(),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 6, 8, 8),
+                  child: Row(
+                    children: [
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                          onPressed: widget.onBack,
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('⚔️', style: TextStyle(fontSize: 22)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                loc.get('family_remote_duel_title'),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  shadows: [
+                                    Shadow(color: Colors.black26, offset: Offset(0, 2), blurRadius: 4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              Expanded(
-                child: Consumer<FamilyService>(
-                  builder: (context, family, _) {
-                    if (_loadingLinkedIds) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Colors.white70),
-                      );
-                    }
-
-                    final kids = _children(family);
-                    final eligible = _eligibleChildren(family);
-
-                    if (kids.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
+                ),
+                Expanded(
+                  child: Consumer<FamilyService>(
+                    builder: (context, family, _) {
+                      if (_loadingLinkedIds) {
+                        return Center(
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.family_restroom,
-                                  size: 56, color: Colors.white54),
-                              const SizedBox(height: 16),
-                              Text(
-                                loc.get('family_remote_duel_add_child_hint'),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white70, fontSize: 16),
-                              ),
-                              const SizedBox(height: 24),
-                              FilledButton(
-                                onPressed: widget.onBack,
-                                child: Text(loc.get('back')),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (eligible.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.phonelink_lock, size: 56, color: Colors.amber),
-                              const SizedBox(height: 16),
-                              Text(
-                                loc.get('family_remote_duel_wrong_account_hint'),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.35),
-                              ),
-                              const SizedBox(height: 24),
-                              FilledButton(
-                                onPressed: widget.onBack,
-                                child: Text(loc.get('back')),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: [
-                        Text(
-                          loc.get('family_remote_duel_intro').replaceAll('{0}', hostDisplay),
-                          style: const TextStyle(color: Colors.white70, fontSize: 15),
-                        ),
-                        const SizedBox(height: 16),
-                        ...eligible.map((c) {
-                          final sel = _selectedChildIds.contains(c.userId);
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Material(
-                              color: sel
-                                  ? Colors.amber.withValues(alpha: 0.35)
-                                  : Colors.white.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(14),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: () {
-                                  setState(() {
-                                    if (sel) {
-                                      _selectedChildIds.remove(c.userId);
-                                    } else {
-                                      _selectedChildIds.add(c.userId);
-                                    }
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(14),
-                                  child: Row(
-                                    children: [
-                                      const Text('🧒', style: TextStyle(fontSize: 26)),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          c.displayName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      Icon(
-                                        sel ? Icons.check_circle : Icons.circle_outlined,
-                                        color: sel ? Colors.amber : Colors.white38,
-                                      ),
-                                    ],
-                                  ),
+                              SizedBox(
+                                width: 56,
+                                height: 56,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 4,
+                                  strokeCap: StrokeCap.round,
                                 ),
                               ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 20),
-                        if (widget.initialTopic == null) ...[
-                          Text(
-                            loc.get('family_remote_duel_topic_heading'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                              const SizedBox(height: 20),
+                              Text(
+                                '✨',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _topics.map((t) {
-                              final sel = _topic == t;
-                              final col = _topicColor(t);
-                              return FilterChip(
-                                selected: sel,
-                                label: Text(_topicLabel(loc, t)),
-                                onSelected: (_) => setState(() => _topic = t),
-                                selectedColor: col.withValues(alpha: 0.5),
-                                checkmarkColor: Colors.white,
-                                labelStyle: const TextStyle(color: Colors.white),
-                              );
-                            }).toList(),
-                          ),
-                        ] else ...[
-                          Text(
-                            loc.get('family_remote_duel_selected_topic'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                        );
+                      }
+
+                      final kids = _children(family);
+                      final eligible = _eligibleChildren(family);
+
+                      if (kids.isEmpty) {
+                        return _emptyStateCard(
+                          emoji: '👨‍👩‍👧',
+                          message: loc.get('family_remote_duel_add_child_hint'),
+                          loc: loc,
+                        );
+                      }
+
+                      if (eligible.isEmpty) {
+                        return _emptyStateCard(
+                          emoji: '🔐',
+                          message: loc.get('family_remote_duel_wrong_account_hint'),
+                          loc: loc,
+                        );
+                      }
+
+                      return ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+                        children: [
+                          _glassIntroCard(loc, hostDisplay),
+                          const SizedBox(height: 22),
+                          ...eligible.map((c) => _childPickTile(c, _selectedChildIds.contains(c.userId))),
+                          const SizedBox(height: 8),
+                          if (widget.initialTopic == null) ...[
+                            _sectionLabel(loc.get('family_remote_duel_topic_heading')),
+                            Wrap(children: _topics.map((t) => _topicChip(t, _topic == t, loc)).toList()),
+                          ] else ...[
+                            _sectionLabel(loc.get('family_remote_duel_selected_topic')),
+                            _lockedTopicPill(loc),
+                          ],
+                          const SizedBox(height: 28),
+                          _rainbowSendButton(loc),
+                          const SizedBox(height: 14),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: _topicColor(widget.initialTopic!).withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _topicColor(widget.initialTopic!).withValues(alpha: 0.85),
-                              ),
+                              color: Colors.black.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.lock, color: Colors.white70, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _topicLabel(loc, widget.initialTopic!),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              loc.get('family_remote_duel_footer_rule'),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 13,
+                                height: 1.4,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
-                        const SizedBox(height: 28),
-                        FilledButton.icon(
-                          onPressed: _busy ? null : _sendInvite,
-                          icon: _busy
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.send),
-                          label: Text(
-                            _busy
-                                ? loc.get('family_remote_duel_sending')
-                                : loc
-                                    .get('family_remote_duel_send_invite')
-                                    .replaceAll('{0}', '${_selectedChildIds.length}'),
-                          ),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.teal.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          loc.get('family_remote_duel_footer_rule'),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            fontSize: 13,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

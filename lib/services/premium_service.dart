@@ -9,6 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'premium_service_stub.dart'
     if (dart.library.io) 'premium_service_io.dart';
 
+import '../config/premium_qa_allowlist.dart';
+
 class PremiumService extends ChangeNotifier {
   // Singleton instance
   static final PremiumService _instance = PremiumService._internal();
@@ -52,14 +54,16 @@ class PremiumService extends ChangeNotifier {
 
   // Kullanıcı ID'si (AuthService'den gelecek)
   String? _userId;
+  String? _userCode;
 
   // SharedPreferences key
   static const String _premiumKey = 'is_premium';
   static const String _premiumExpiresKey = 'premium_expires_at';
 
   /// Servisi başlat
-  Future<void> initialize({String? userId}) async {
+  Future<void> initialize({String? userId, String? userCode}) async {
     _userId = userId;
+    _userCode = userCode;
     _isLoading = true;
     notifyListeners();
 
@@ -196,9 +200,16 @@ class PremiumService extends ChangeNotifier {
           _isPremium = isPremium;
         }
       }
-      notifyListeners();
     } catch (e) {
       debugPrint('Firestore premium kontrol hatası: $e');
+    }
+    _applyQaPremiumAllowlist();
+    notifyListeners();
+  }
+
+  void _applyQaPremiumAllowlist() {
+    if (premiumQaAllowlistedUserCode(_userCode)) {
+      _isPremium = true;
     }
   }
 
@@ -445,8 +456,9 @@ class PremiumService extends ChangeNotifier {
   }
 
   /// Kullanıcı değiştiğinde çağır
-  Future<void> updateUser(String? userId) async {
+  Future<void> updateUser(String? userId, {String? userCode}) async {
     _userId = userId;
+    _userCode = userCode;
     if (userId != null) {
       await _checkFirestorePremiumStatus();
     } else {

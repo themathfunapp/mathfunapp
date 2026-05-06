@@ -619,11 +619,13 @@ class TopicGameManager {
 
     switch (type) {
       case 'count_objects':
-        // "Kaç tane ... var?" sorusu
-        final count = random.nextInt(maxNumber - 5) + 3; // 3-17 arası
+        // Nesne sayımı: ekranda gösterilen emoji sayısı = doğru cevap (3–20 arası).
+        // Zorluk için büyük maxNumber kullanılsa bile burada üst sınır tutulur.
+        const countCap = 20;
+        final count = random.nextInt(countCap - 2) + 3;
         final emojis = ['🍎', '⭐', '🎈', '🌸', '🐝', '🎁', '🍕', '🚗', '⚽'];
         final emoji = emojis[random.nextInt(emojis.length)];
-        
+
         return {
           'type': 'count_objects',
           'questionKey': 'question_how_many',

@@ -44,6 +44,17 @@ class AppLocalizations {
   String get spinWheelTitle => get('spin_wheel_title');
   String get profile => get('profile');
   String get profileTitle => get('profile_title');
+  String get notificationsTitle => get('notifications_title');
+  String get notificationsMarkAllRead => get('notifications_mark_all_read');
+  String get notificationsDeleteAll => get('notifications_delete_all');
+  String get notificationsEmpty => get('notifications_empty');
+  String get notificationsDeleteOneConfirm => get('notifications_delete_one_confirm');
+  String get notificationsDeleteAllConfirm => get('notifications_delete_all_confirm');
+  String get notificationsBodyRename => get('notifications_body_rename');
+  String get notificationsBodyDuelInviteTimeout =>
+      get('notifications_body_duel_invite_timeout');
+  String get notificationsSwipeDelete => get('notifications_swipe_delete');
+  String get notificationsPanelSubtitle => get('notifications_panel_subtitle');
 
   // Profile related
   String get guestUser => get('guest_user');
@@ -77,6 +88,7 @@ class AppLocalizations {
   String get exitGuestModeDescription => get('exit_guest_mode_description');
   String get signOutDescription => get('sign_out_description');
   String get yes => get('yes');
+  String get no => get('no');
   String get error => get('error');
 
   // Welcome
@@ -644,6 +656,18 @@ class AppLocalizations {
       'friends': 'Arkadaşlar',
       'profile': 'Profil',
       'profile_title': 'Profil',
+      'notifications_title': 'Bildirimler',
+      'notifications_mark_all_read': 'Tümünü okundu işaretle',
+      'notifications_delete_all': 'Tümünü sil',
+      'notifications_empty': 'Bildiriminiz yok.',
+      'notifications_delete_one_confirm':
+          'Bu bildirimi silmek istediğinize emin misiniz?',
+      'notifications_delete_all_confirm':
+          '{count} bildiriminizi silmek istediğinize emin misiniz?',
+      'notifications_body_rename': '{old} adını {new} olarak değiştirdi.',
+      'notifications_body_duel_invite_timeout': 'Davetinize cevap alınamadı.',
+      'notifications_swipe_delete': 'Sil',
+      'notifications_panel_subtitle': 'Ailenden haberler burada',
 
       // Profile
       'guest_user': 'Misafir Kullanıcı',
@@ -1051,6 +1075,8 @@ class AppLocalizations {
       'question_next_number': 'Sonraki sayı kaç?',
       'question_how_many': 'Kaç tane var?',
       'question_which_missing': 'Hangi sayı eksik?',
+      'family_duel_find_missing': 'Hangi sayı eksik: {sequence}',
+      'family_duel_whats_next': 'Sonraki sayı: {sequence}',
       'question_count_objects': 'Nesneleri say!',
       'how_many_objects': 'Kaç tane {object} var?',
       'question_find_circle': 'Daireyi bul!',
@@ -1693,6 +1719,41 @@ class AppLocalizations {
           'Bu hesaptan uzaktan düello gönderilemez. Aynı cihazda çocuk hesabıyla oturum açıksanız, daveti ebeveyn hesabınızla (aile verisinin bulunduğu hesap) göndermeniz gerekir.',
       'family_remote_duel_snackbar_send_failed':
           'Davet gönderilemedi. Her iki hesapta Premium olmalı ve Firestore\'da isPremium güncel olmalı.',
+      'family_remote_duel_play_ribbon': 'Uzaktan düello',
+      'family_remote_duel_play_summary': 'Özet',
+      'family_remote_duel_round': 'Tur {current} / {total}',
+      'family_remote_duel_your_correct': 'Doğru cevabın: {n}',
+      'family_remote_duel_turn_you': 'Sıra sende — şıkkını seç.',
+      'family_remote_duel_turn_opponent': '{name} cevaplıyor — kalan süre ~{n} sn',
+      'family_remote_duel_wait_your_turn':
+          'Şu an sıra sizde değil. Aynı soru, sıranız geldiğinde burada açılacak.',
+      'family_remote_duel_seconds_hint': 'Kalan süre: {n} sn',
+      'family_remote_duel_turn_wait': 'Cevabın kaydedildi; diğer oyuncu bekleniyor.',
+      'family_remote_duel_summary_title': 'Düello bitti',
+      'family_remote_duel_summary_winner': 'Kazanan: {name}',
+      'family_remote_duel_summary_tie': 'Berabere: {names}',
+      'family_remote_duel_summary_scores': 'Doğru cevaplar:',
+      'family_remote_duel_summary_gold': '{n} altın kazandın!',
+      'family_remote_duel_summary_ok': 'Tamam',
+      'family_remote_duel_forfeit_win':
+          'Tebrikler, kazandınız! Rakibiniz oyundan ayrıldı.',
+      'family_remote_duel_forfeit_you_left': 'Bu düelloyu terk ettiniz.',
+      'family_remote_duel_forfeit_failed':
+          'Oyundan çıkış sunucuya iletilemedi. Ağı kontrol edip tekrar deneyin.',
+      'family_remote_duel_quit_confirm_title': 'Oyundan çıkmak istiyor musun?',
+      'family_remote_duel_quit_confirm_body':
+          'Çıkarsan düello biter ve karşı taraf kazanmış sayılır.',
+      'family_remote_duel_quit_confirm_stay': 'Oyuna dön',
+      'family_remote_duel_quit_confirm_leave': 'Çık',
+      'family_remote_duel_waiting_declined': 'Davet reddedildi.',
+      'family_remote_duel_waiting_expired':
+          'Davet süresi doldu (90 sn). Yeni bir davet gönderin.',
+      'family_remote_duel_waiting_cancelled': 'Düello iptal edildi.',
+      'family_remote_duel_waiting_host':
+          'Davet gönderildi.\nKarşı tarafın telefonunda veya bilgisayarında bildirimden kabul etmesini bekleyin.',
+      'family_remote_duel_waiting_guest':
+          'Davet alındı.\nDiğer seçilen aile üyelerinin de kabul etmesi bekleniyor…',
+      'family_remote_duel_answer_failed': 'Cevap kaydedilemedi. Tekrar deneyin.',
       'parent_panel_login_required': 'Giriş Gerekli',
       'parent_panel_login_required_desc': 'Ebeveyn panelini kullanmak için hesap oluşturmanız veya giriş yapmanız gerekmektedir. Misafir olarak bu özelliğe erişemezsiniz.',
       'monthly_premium': 'AYLIK PREMIUM',
@@ -2182,6 +2243,19 @@ class AppLocalizations {
       'friends': 'Friends',
       'profile': 'Profile',
       'profile_title': 'Profile',
+      'notifications_title': 'Notifications',
+      'notifications_mark_all_read': 'Mark all as read',
+      'notifications_delete_all': 'Delete all',
+      'notifications_empty': 'No notifications yet.',
+      'notifications_delete_one_confirm':
+          'Are you sure you want to delete this notification?',
+      'notifications_delete_all_confirm':
+          'Are you sure you want to delete all {count} notifications?',
+      'notifications_body_rename': '{old} changed their name to {new}.',
+      'notifications_body_duel_invite_timeout':
+          'No response to your invite.',
+      'notifications_swipe_delete': 'Delete',
+      'notifications_panel_subtitle': 'News from your family',
 
       // Profile
       'guest_user': 'Guest User',
@@ -2563,6 +2637,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'Which number is missing: {sequence}',
+      'family_duel_whats_next': 'Next number: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',
@@ -3205,6 +3281,41 @@ class AppLocalizations {
           'Remote duels cannot be sent from this account. If you are logged in with a child account on the same device, send the invite from your parent account (the account where family data is stored).',
       'family_remote_duel_snackbar_send_failed':
           'Could not send invite. Both accounts need Premium and isPremium must be up to date in Firestore.',
+      'family_remote_duel_play_ribbon': 'Remote duel',
+      'family_remote_duel_play_summary': 'Summary',
+      'family_remote_duel_round': 'Round {current} / {total}',
+      'family_remote_duel_your_correct': 'Your correct answers: {n}',
+      'family_remote_duel_turn_you': 'Your turn — pick an answer.',
+      'family_remote_duel_turn_opponent': '{name} is answering — ~{n}s left',
+      'family_remote_duel_wait_your_turn':
+          'Not your turn right now. The same question will appear here when it is your turn.',
+      'family_remote_duel_seconds_hint': 'Time left: {n}s',
+      'family_remote_duel_turn_wait': 'Answer saved — waiting for the other player.',
+      'family_remote_duel_summary_title': 'Duel finished',
+      'family_remote_duel_summary_winner': 'Winner: {name}',
+      'family_remote_duel_summary_tie': 'Tie: {names}',
+      'family_remote_duel_summary_scores': 'Correct answers:',
+      'family_remote_duel_summary_gold': 'You earned {n} gold coins!',
+      'family_remote_duel_summary_ok': 'OK',
+      'family_remote_duel_forfeit_win':
+          'Congratulations, you won! Your opponent left the duel.',
+      'family_remote_duel_forfeit_you_left': 'You left this duel.',
+      'family_remote_duel_forfeit_failed':
+          'Could not notify the server you left. Check your connection and try again.',
+      'family_remote_duel_quit_confirm_title': 'Leave this duel?',
+      'family_remote_duel_quit_confirm_body':
+          'If you leave, the duel ends and your opponent wins.',
+      'family_remote_duel_quit_confirm_stay': 'Keep playing',
+      'family_remote_duel_quit_confirm_leave': 'Leave',
+      'family_remote_duel_waiting_declined': 'The invite was declined.',
+      'family_remote_duel_waiting_expired':
+          'The invite expired (90 seconds). Please send a new invite.',
+      'family_remote_duel_waiting_cancelled': 'The duel was cancelled.',
+      'family_remote_duel_waiting_host':
+          'Invite sent.\nWait for the other player to accept on their phone or computer.',
+      'family_remote_duel_waiting_guest':
+          'Invite received.\nWaiting for other selected family members to accept…',
+      'family_remote_duel_answer_failed': 'Could not save your answer. Try again.',
       'parent_panel_login_required': 'Login Required',
       'parent_panel_login_required_desc': 'You need to create an account or sign in to use the parent panel. Guest users cannot access this feature.',
       'monthly_premium': 'MONTHLY PREMIUM',
@@ -3986,6 +4097,8 @@ class AppLocalizations {
       'question_next_number': 'Wie lautet die nächste Zahl?',
       'question_how_many': 'Wie viele sind es?',
       'question_which_missing': 'Welche Zahl fehlt?',
+      'family_duel_find_missing': 'Welche Zahl fehlt: {sequence}',
+      'family_duel_whats_next': 'Nächste Zahl: {sequence}',
       'question_count_objects': 'Zähle die Objekte!',
       'question_find_circle': 'Finde den Kreis!',
       'question_find_square': 'Finde das Quadrat!',
@@ -5025,6 +5138,8 @@ class AppLocalizations {
       'question_next_number': 'ما هو الرقم التالي؟',
       'question_how_many': 'كم عددها؟',
       'question_which_missing': 'ما الرقم الناقص؟',
+      'family_duel_find_missing': 'ما الرقم الناقص: {sequence}',
+      'family_duel_whats_next': 'الرقم التالي: {sequence}',
       'how_many_objects': 'كم عدد {object}؟',
       'ok': 'حسناً',
       'level_complete': 'اكتمل المستوى!',
@@ -6195,6 +6310,8 @@ class AppLocalizations {
       'question_next_number': 'عدد بعدی چیست؟',
       'question_how_many': 'چند تا هست؟',
       'question_which_missing': 'کدام عدد کم است؟',
+      'family_duel_find_missing': 'کدام عدد کم است: {sequence}',
+      'family_duel_whats_next': 'عدد بعدی: {sequence}',
       'how_many_objects': 'چند تا {object} هست؟',
       'ok': 'باشه',
       'level_complete': 'مرحله تمام شد!',
@@ -7365,6 +7482,8 @@ class AppLocalizations {
       'question_next_number': '下一个数字是什么？',
       'question_how_many': '有多少个？',
       'question_which_missing': '哪个数字缺失？',
+      'family_duel_find_missing': '哪个数字缺失：{sequence}',
+      'family_duel_whats_next': '下一个数字：{sequence}',
       'how_many_objects': '有多少个 {object}？',
       'ok': '好的',
       'level_complete': '关卡完成！',
@@ -8534,6 +8653,8 @@ class AppLocalizations {
       'question_next_number': 'Berapa angka berikutnya?',
       'question_how_many': 'Ada berapa?',
       'question_which_missing': 'Angka mana yang hilang?',
+      'family_duel_find_missing': 'Angka mana yang hilang: {sequence}',
+      'family_duel_whats_next': 'Angka berikutnya: {sequence}',
       'how_many_objects': 'Ada berapa {object}?',
       'ok': 'OK',
       'level_complete': 'Level Selesai!',
@@ -9704,6 +9825,8 @@ class AppLocalizations {
       'question_next_number': 'Hejmara din çi ye?',
       'question_how_many': 'Çend hene?',
       'question_which_missing': 'Kîjan hejmar kêm e?',
+      'family_duel_find_missing': 'Kîjan hejmar kêm e: {sequence}',
+      'family_duel_whats_next': 'Hejmarê din: {sequence}',
       'how_many_objects': 'Çend {object} hene?',
       'ok': 'Baş e',
       'level_complete': 'Asta Qediya!',
@@ -10874,6 +10997,8 @@ class AppLocalizations {
       'question_next_number': '¿Cuál es el siguiente número?',
       'question_how_many': '¿Cuántos hay?',
       'question_which_missing': '¿Qué número falta?',
+      'family_duel_find_missing': 'Número que falta: {sequence}',
+      'family_duel_whats_next': 'Siguiente número: {sequence}',
       'how_many_objects': '¿Cuántos {object} hay?',
       'ok': 'OK',
       'level_complete': '¡Nivel Completado!',
@@ -12044,6 +12169,8 @@ class AppLocalizations {
       'question_next_number': 'Quel est le nombre suivant ?',
       'question_how_many': 'Combien y en a-t-il ?',
       'question_which_missing': 'Quel nombre manque ?',
+      'family_duel_find_missing': 'Quel nombre manque : {sequence}',
+      'family_duel_whats_next': 'Nombre suivant : {sequence}',
       'how_many_objects': 'Combien de {object} y a-t-il ?',
       'ok': 'OK',
       'level_complete': 'Niveau Terminé!',
@@ -13214,6 +13341,8 @@ class AppLocalizations {
       'question_next_number': 'Какое следующее число?',
       'question_how_many': 'Сколько всего?',
       'question_which_missing': 'Какое число пропущено?',
+      'family_duel_find_missing': 'Какое число пропущено: {sequence}',
+      'family_duel_whats_next': 'Следующее число: {sequence}',
       'how_many_objects': 'Сколько {object}?',
       'ok': 'ОК',
       'level_complete': 'Уровень Пройден!',
@@ -14384,6 +14513,8 @@ class AppLocalizations {
       'question_next_number': '次の数字は何ですか？',
       'question_how_many': 'いくつありますか？',
       'question_which_missing': 'どの数字が抜けていますか？',
+      'family_duel_find_missing': 'どの数字が抜けていますか：{sequence}',
+      'family_duel_whats_next': '次の数字：{sequence}',
       'how_many_objects': '{object}はいくつ？',
       'ok': 'OK',
       'level_complete': 'レベルクリア！',
@@ -15554,6 +15685,8 @@ class AppLocalizations {
       'question_next_number': '다음 숫자는 무엇인가요?',
       'question_how_many': '몇 개 있나요?',
       'question_which_missing': '빠진 숫자는?',
+      'family_duel_find_missing': '빠진 숫자: {sequence}',
+      'family_duel_whats_next': '다음 숫자: {sequence}',
       'how_many_objects': '{object}가 몇 개 있어요?',
       'ok': '확인',
       'level_complete': '레벨 완료!',
@@ -17005,6 +17138,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'कौन सी संख्या गायब है: {sequence}',
+      'family_duel_whats_next': 'अगली संख्या: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',
@@ -18301,6 +18436,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'کون سا نمبر غائب ہے: {sequence}',
+      'family_duel_whats_next': 'اگلا نمبر: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',
@@ -19597,6 +19734,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'Que número falta: {sequence}',
+      'family_duel_whats_next': 'Próximo número: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',
@@ -20893,6 +21032,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'Quale numero manca: {sequence}',
+      'family_duel_whats_next': 'Numero successivo: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',
@@ -22189,6 +22330,8 @@ class AppLocalizations {
       'question_next_number': 'What is the next number?',
       'question_how_many': 'How many are there?',
       'question_which_missing': 'Which number is missing?',
+      'family_duel_find_missing': 'Której liczby brakuje: {sequence}',
+      'family_duel_whats_next': 'Następna liczba: {sequence}',
       'question_count_objects': 'Count the objects!',
       'question_find_circle': 'Find the circle!',
       'question_find_square': 'Find the square!',

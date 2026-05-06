@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/premium_qa_allowlist.dart';
 import '../models/game_mechanics.dart';
 import '../models/age_group_selection.dart';
 import '../utils/family_duel_question_utils.dart';
@@ -21,17 +22,72 @@ class FamilyRemoteDuelService {
   static const String sessionsCol = 'familyRemoteDuelSessions';
   static const int inviteTtlSeconds = 90;
   static const int remoteQuestionCount = 10;
+  static const int winnerGoldCoins = 5;
+  /// Her oyuncunun sırayla cevaplaması için süre penceresi (ms).
+  static const int turnAnswerWindowMs = 10000;
+
+  /// Oturum belgesindeki katılımcı UID'leri (feragat / UI); alan bozuksa host+davetlilerden türetilir.
+  static List<String> duelParticipantIds(Map<String, dynamic> data) {
+    final fromDoc = (data['participantUserIds'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (fromDoc.isNotEmpty) return fromDoc;
+    return _answerOrderFromSession(data);
+  }
+
+  static List<String> _answerOrderFromSession(Map<String, dynamic> data) {
+    final host = (data['hostUserId'] as String?) ?? '';
+    final invited = (data['invitedUserIds'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final out = <String>[];
+    final seen = <String>{};
+    for (final id in <String>[host, ...invited]) {
+      if (id.isEmpty || seen.contains(id)) continue;
+      seen.add(id);
+      out.add(id);
+    }
+    return out;
+  }
+
+  static String? _expectedAnswerer(List<String> order, Set<String> answered) {
+    for (final id in order) {
+      if (!answered.contains(id)) return id;
+    }
+    return null;
+  }
+
+  /// Süre doldu cevabı (şıklarda olmayan sayı — her zaman yanlış sayılır).
+  static const int timeoutWrongPick = -999999999;
 
   /// Çocuk hesabı: davetler (istemci tarafında `status == pending` süzülür; ek indeks gerekmez).
   Stream<QuerySnapshot<Map<String, dynamic>>> pendingInvitesStream(String userId) {
     return _db.collection(invitesCol).where('toUserId', isEqualTo: userId).snapshots();
   }
 
-  Future<bool> readUserPremiumFlag(String uid) async {
+  /// [clientUserCode]: Giriş yapmış kullanıcının bellekteki MTN kodu (Firestore ile uyumsuzluklarda QA listesi için).
+  Future<bool> readUserPremiumFlag(String uid, {String? clientUserCode}) async {
     if (uid.isEmpty) return false;
+    if (premiumQaAllowlistedUserCode(clientUserCode)) return true;
     try {
       final d = await _db.collection('users').doc(uid).get();
-      return d.data()?['isPremium'] == true;
+      final data = d.data();
+      if (data == null) return false;
+      if (premiumQaAllowlistedFromUserDoc(data)) return true;
+
+      final isPremium = data['isPremium'] == true;
+      final expiresRaw = data['premiumExpiresAt'];
+      if (isPremium && expiresRaw != null) {
+        try {
+          final expiry = DateTime.parse(expiresRaw.toString());
+          return expiry.isAfter(DateTime.now());
+        } catch (_) {
+          return false;
+        }
+      }
+      return isPremium;
     } catch (e) {
       debugPrint('FamilyRemoteDuel readUserPremiumFlag: $e');
       return false;
@@ -85,6 +141,18 @@ class FamilyRemoteDuelService {
     return _db.collection(sessionsCol).doc(sessionId).snapshots();
   }
 
+  /// Tek seferlik oturum durumu (kabul sonrası doğrudan oyuna geçiş için).
+  Future<String?> readSessionStatus(String sessionId) async {
+    if (sessionId.isEmpty) return null;
+    try {
+      final d = await _db.collection(sessionsCol).doc(sessionId).get();
+      return d.data()?['status'] as String?;
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel readSessionStatus: $e');
+      return null;
+    }
+  }
+
   List<Map<String, dynamic>> _generateQuestions(TopicType topic, int seed) {
     final out = <Map<String, dynamic>>[];
     for (var i = 0; i < remoteQuestionCount; i++) {
@@ -125,12 +193,15 @@ class FamilyRemoteDuelService {
 
     final hostPremium = await readUserPremiumFlag(hostUserId);
     if (!hostPremium) {
-      debugPrint('FamilyRemoteDuel: her iki hesapta da Premium (Firestore isPremium) gerekli.');
+      debugPrint('FamilyRemoteDuel: host Premium (Firestore / QA) gerekli.');
       return null;
     }
     for (final guestUserId in normalizedGuests) {
       final guestPremium = await readUserPremiumFlag(guestUserId);
-      if (!guestPremium) return null;
+      if (!guestPremium) {
+        debugPrint('FamilyRemoteDuel: davetli $guestUserId için Premium doğrulanamadı.');
+        return null;
+      }
     }
 
     final seed = DateTime.now().millisecondsSinceEpoch ^
@@ -168,7 +239,9 @@ class FamilyRemoteDuelService {
             for (final id in participantUserIds) id: 0,
           },
           'leaderboardSynced': false,
+          'rewardClaimedUserIds': <String>[],
           'expiresAtMs': expiresAtMs,
+          'turnDeadlineAtMs': 0,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
@@ -200,8 +273,18 @@ class FamilyRemoteDuelService {
   Future<bool> acceptInvite({
     required String inviteId,
     required String acceptingUserId,
+    String? acceptingUserCode,
   }) async {
-    if (!await readUserPremiumFlag(acceptingUserId)) return false;
+    if (!await readUserPremiumFlag(
+      acceptingUserId,
+      clientUserCode: acceptingUserCode,
+    )) {
+      debugPrint(
+        'FamilyRemoteDuel acceptInvite: premium yok (uid=$acceptingUserId, '
+        'clientCode=$acceptingUserCode)',
+      );
+      return false;
+    }
     final inviteRef = _db.collection(invitesCol).doc(inviteId);
 
     try {
@@ -258,6 +341,7 @@ class FamilyRemoteDuelService {
           'acceptedUserIds': accepted.toList(),
           if (everyoneAccepted) 'status': 'active',
           if (everyoneAccepted) 'startedAt': FieldValue.serverTimestamp(),
+          if (everyoneAccepted) 'turnDeadlineAtMs': _nowMs() + turnAnswerWindowMs,
         });
       });
       return true;
@@ -309,6 +393,213 @@ class FamilyRemoteDuelService {
     }
   }
 
+  /// Davet süresi (ör. 90 sn) dolduğunda davetli cihazdan çağrılır: davet `expired`, oturum `waiting_accept` ise `expired`, ebeveyne uygulama içi bildirim.
+  /// [true]: davet gerçekten `expired` olarak güncellendi (ağ/kural hatasında [false]).
+  Future<bool> expirePendingInviteDueToTimeout({
+    required String inviteId,
+    required String inviteeUserId,
+    required String inviteeDisplayName,
+  }) async {
+    if (inviteId.isEmpty || inviteeUserId.isEmpty) return false;
+    final inviteRef = _db.collection(invitesCol).doc(inviteId);
+    String? hostUid;
+    String sessionId = '';
+    var expiredInvite = false;
+    try {
+      await _db.runTransaction((tx) async {
+        final inv = await tx.get(inviteRef);
+        if (!inv.exists) return;
+        final d = inv.data()!;
+        if (d['toUserId'] != inviteeUserId) return;
+        if (d['status'] != 'pending') return;
+        if (!_isExpiredFromData(d)) return;
+
+        hostUid = d['fromUserId'] as String?;
+        sessionId = (d['sessionId'] as String?) ?? '';
+
+        tx.update(inviteRef, {
+          'status': 'expired',
+          'respondedAt': FieldValue.serverTimestamp(),
+        });
+        expiredInvite = true;
+
+        if (sessionId.isEmpty) return;
+        final sessionRef = _db.collection(sessionsCol).doc(sessionId);
+        final s = await tx.get(sessionRef);
+        if (!s.exists) return;
+        final sd = s.data()!;
+        if (sd['status'] != 'waiting_accept') return;
+        tx.update(sessionRef, {
+          'status': 'expired',
+          'cancelReason': 'invite_timeout',
+        });
+      });
+
+      if (expiredInvite &&
+          hostUid != null &&
+          hostUid!.isNotEmpty &&
+          sessionId.isNotEmpty) {
+        await _writeDuelInviteTimeoutNotification(
+          hostUid: hostUid!,
+          inviteId: inviteId,
+          sessionId: sessionId,
+          inviteeUserId: inviteeUserId,
+          inviteeDisplayName: inviteeDisplayName,
+        );
+      }
+      return expiredInvite;
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel expirePendingInviteDueToTimeout: $e');
+      return false;
+    }
+  }
+
+  Future<void> _writeDuelInviteTimeoutNotification({
+    required String hostUid,
+    required String inviteId,
+    required String sessionId,
+    required String inviteeUserId,
+    required String inviteeDisplayName,
+  }) async {
+    final docId = 'frd_invite_timeout_$sessionId';
+    final ref = _db
+        .collection('users')
+        .doc(hostUid)
+        .collection('in_app_notifications')
+        .doc(docId);
+    try {
+      final existing = await ref.get();
+      if (existing.exists) return;
+      await ref.set({
+        'type': 'family_remote_duel_invite_timeout',
+        'fromUid': inviteeUserId,
+        'oldDisplayName': inviteeDisplayName.trim().isEmpty
+            ? 'Çocuk'
+            : inviteeDisplayName.trim(),
+        'newDisplayName': '',
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'inviteId': inviteId,
+      });
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel _writeDuelInviteTimeoutNotification: $e');
+    }
+  }
+
+  /// Süre dolduysa sıradaki oyuncu cevap vermiyorsa (sekme kapalı vb.) herhangi bir katılımcı bu çağrıyla turu ilerletir.
+  Future<bool> applyOverdueAnswerIfNeeded({
+    required String sessionId,
+    required String actingUserId,
+  }) async {
+    if (sessionId.isEmpty || actingUserId.isEmpty) return false;
+    final sessionRef = _db.collection(sessionsCol).doc(sessionId);
+    try {
+      await _db.runTransaction((tx) async {
+        final snap = await tx.get(sessionRef);
+        if (!snap.exists) return;
+        final data = snap.data()!;
+        if (data['status'] != 'active') return;
+
+        final participantUserIds = duelParticipantIds(data);
+        if (!participantUserIds.contains(actingUserId.trim())) return;
+
+        final answerOrder = _answerOrderFromSession(data);
+        if (answerOrder.isEmpty) return;
+
+        final roundIdx = (data['currentRoundIndex'] as num?)?.toInt() ?? 0;
+        final questionsRaw = data['questions'];
+        final questions = decodeQuestionsList(questionsRaw);
+        if (questions.isEmpty || roundIdx >= questions.length) return;
+
+        final answeredSet = (data['roundAnsweredUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .toSet();
+        final expected = _expectedAnswerer(answerOrder, answeredSet);
+        if (expected == null) return;
+
+        final deadline = (data['turnDeadlineAtMs'] as num?)?.toInt() ?? 0;
+        if (deadline <= 0) return;
+        if (_nowMs() <= deadline) return;
+        if (answeredSet.contains(expected)) return;
+
+        _applyTurnProgressInTransaction(
+          tx: tx,
+          sessionRef: sessionRef,
+          data: data,
+          participantUserIds: participantUserIds,
+          answerOrder: answerOrder,
+          questions: questions,
+          roundIdx: roundIdx,
+          answeringUserId: expected,
+          pickedValue: timeoutWrongPick,
+          answeredSet: answeredSet,
+        );
+      });
+      return true;
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel applyOverdueAnswerIfNeeded: $e');
+      return false;
+    }
+  }
+
+  void _applyTurnProgressInTransaction({
+    required Transaction tx,
+    required DocumentReference<Map<String, dynamic>> sessionRef,
+    required Map<String, dynamic> data,
+    required List<String> participantUserIds,
+    required List<String> answerOrder,
+    required List<Map<String, dynamic>> questions,
+    required int roundIdx,
+    required String answeringUserId,
+    required dynamic pickedValue,
+    required Set<String> answeredSet,
+  }) {
+    final q = questions[roundIdx];
+    final correct = familyDuelIsCorrect(q, pickedValue);
+
+    final countsRaw = (data['correctCounts'] as Map?) ?? const {};
+    final counts = <String, int>{
+      for (final entry in countsRaw.entries)
+        entry.key.toString(): (entry.value as num?)?.toInt() ?? 0,
+    };
+    for (final id in participantUserIds) {
+      counts.putIfAbsent(id, () => 0);
+    }
+    if (correct) counts[answeringUserId] = (counts[answeringUserId] ?? 0) + 1;
+    answeredSet.add(answeringUserId);
+
+    var nextRound = roundIdx;
+    var nextAnswered = answeredSet.toList();
+    var nextDeadline = _nowMs() + turnAnswerWindowMs;
+
+    if (answeredSet.length == answerOrder.length) {
+      if (roundIdx >= questions.length - 1) {
+        final hostUid = data['hostUserId'] as String? ?? '';
+        final guestUid = data['guestUserId'] as String? ?? '';
+        tx.update(sessionRef, {
+          'roundAnsweredUserIds': answeredSet.toList(),
+          'correctCounts': counts,
+          'hostCorrectCount': counts[hostUid] ?? 0,
+          'guestCorrectCount': counts[guestUid] ?? 0,
+          'status': 'finished',
+          'finishedAt': FieldValue.serverTimestamp(),
+          'turnDeadlineAtMs': 0,
+        });
+        return;
+      }
+      nextRound = roundIdx + 1;
+      nextAnswered = <String>[];
+      nextDeadline = _nowMs() + turnAnswerWindowMs;
+    }
+
+    tx.update(sessionRef, {
+      'roundAnsweredUserIds': nextAnswered,
+      'correctCounts': counts,
+      'currentRoundIndex': nextRound,
+      'turnDeadlineAtMs': nextDeadline,
+    });
+  }
+
   /// Cevabı işler; doğruluk sunucu tarafında sorudan hesaplanır.
   Future<bool> submitAnswer({
     required String sessionId,
@@ -324,11 +615,11 @@ class FamilyRemoteDuelService {
         final data = snap.data()!;
         if (data['status'] != 'active') return;
 
-        final participantUserIds = (data['participantUserIds'] as List<dynamic>? ?? const [])
-            .map((e) => e.toString())
-            .where((e) => e.isNotEmpty)
-            .toList();
-        if (!participantUserIds.contains(userId)) return;
+        final participantUserIds = duelParticipantIds(data);
+        if (!participantUserIds.contains(userId.trim())) return;
+
+        final answerOrder = _answerOrderFromSession(data);
+        if (answerOrder.isEmpty) return;
 
         final roundIdx = (data['currentRoundIndex'] as num?)?.toInt() ?? 0;
         final questionsRaw = data['questions'];
@@ -338,10 +629,133 @@ class FamilyRemoteDuelService {
         final answeredSet = (data['roundAnsweredUserIds'] as List<dynamic>? ?? const [])
             .map((e) => e.toString())
             .toSet();
-        if (answeredSet.contains(userId)) return;
+        final uid = userId.trim();
+        final expected = _expectedAnswerer(answerOrder, answeredSet);
+        if (expected == null || expected != uid) return;
+        if (answeredSet.contains(uid)) return;
 
-        final q = questions[roundIdx];
-        final correct = familyDuelIsCorrect(q, pickedValue);
+        _applyTurnProgressInTransaction(
+          tx: tx,
+          sessionRef: sessionRef,
+          data: data,
+          participantUserIds: participantUserIds,
+          answerOrder: answerOrder,
+          questions: questions,
+          roundIdx: roundIdx,
+          answeringUserId: uid,
+          pickedValue: pickedValue,
+          answeredSet: answeredSet,
+        );
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel submitAnswer: $e');
+      return false;
+    }
+  }
+
+  Future<void> _cancelPendingInvitesForSession(String sessionId) async {
+    if (sessionId.isEmpty) return;
+    try {
+      final pending = await _db
+          .collection(invitesCol)
+          .where('sessionId', isEqualTo: sessionId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      for (final doc in pending.docs) {
+        await doc.reference.update({
+          'status': 'cancelled',
+          'respondedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel _cancelPendingInvitesForSession: $e');
+    }
+  }
+
+  /// Oyuncu düello veya kabul bekleme ekranından çıktığında oturumu bitirir; diğer taraf kazanır bildirimi alır.
+  /// `waiting_accept`: yalnızca daveti kabul etmiş davetli (acceptedUserIds içinde) çıkabilir; ebeveyn [cancelPendingSession] kullanır.
+  /// [true] dönerse Firestore güncellemesi uygulandı.
+  Future<bool> markSessionForfeited({
+    required String sessionId,
+    required String leavingUserId,
+  }) async {
+    final leaving = leavingUserId.trim();
+    if (sessionId.isEmpty || leaving.isEmpty) return false;
+    final ref = _db.collection(sessionsCol).doc(sessionId);
+    try {
+      final ok = await _db.runTransaction<bool>((tx) async {
+        final snap = await tx.get(ref);
+        if (!snap.exists) return false;
+        final data = snap.data()!;
+        final status = data['status'] as String? ?? '';
+
+        if (status == 'waiting_accept') {
+          final hostUid = data['hostUserId'] as String? ?? '';
+          if (leaving == hostUid) return false;
+
+          final invited = (data['invitedUserIds'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .toSet();
+          if (!invited.contains(leaving)) return false;
+
+          final accepted = (data['acceptedUserIds'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .toSet();
+          if (!accepted.contains(leaving)) return false;
+
+          var participantUserIds = duelParticipantIds(data);
+          if (!participantUserIds.contains(leaving)) {
+            final alt = _answerOrderFromSession(data);
+            if (alt.contains(leaving)) {
+              participantUserIds = alt;
+            } else {
+              return false;
+            }
+          }
+
+          final countsRaw = (data['correctCounts'] as Map?) ?? const {};
+          final counts = <String, int>{
+            for (final entry in countsRaw.entries)
+              entry.key.toString(): (entry.value as num?)?.toInt() ?? 0,
+          };
+          for (final id in participantUserIds) {
+            counts.putIfAbsent(id, () => 0);
+          }
+          counts[leaving] = -9999;
+
+          final guestUid = data['guestUserId'] as String? ?? '';
+          tx.update(ref, {
+            'correctCounts': counts,
+            'hostCorrectCount': counts[hostUid] ?? 0,
+            'guestCorrectCount': counts[guestUid] ?? 0,
+            'status': 'finished',
+            'finishedAt': FieldValue.serverTimestamp(),
+            'turnDeadlineAtMs': 0,
+            'forfeit': true,
+            'forfeitedByUserId': leaving,
+          });
+          return true;
+        }
+
+        if (status != 'active') return false;
+
+        var participantUserIds = duelParticipantIds(data);
+        if (!participantUserIds.contains(leaving)) {
+          final alt = _answerOrderFromSession(data);
+          if (alt.contains(leaving)) {
+            participantUserIds = alt;
+          } else {
+            debugPrint(
+              'FamilyRemoteDuel markSessionForfeited: leaving $leaving not in '
+              '$participantUserIds nor alt $alt',
+            );
+            return false;
+          }
+        }
 
         final countsRaw = (data['correctCounts'] as Map?) ?? const {};
         final counts = <String, int>{
@@ -351,41 +765,71 @@ class FamilyRemoteDuelService {
         for (final id in participantUserIds) {
           counts.putIfAbsent(id, () => 0);
         }
-        if (correct) counts[userId] = (counts[userId] ?? 0) + 1;
-        answeredSet.add(userId);
+        counts[leaving] = -9999;
 
-        var nextRound = roundIdx;
-        var nextAnswered = answeredSet.toList();
-
-        if (answeredSet.length == participantUserIds.length) {
-          if (roundIdx >= questions.length - 1) {
-            final hostUid = data['hostUserId'] as String? ?? '';
-            final guestUid = data['guestUserId'] as String? ?? '';
-            tx.update(sessionRef, {
-              'roundAnsweredUserIds': answeredSet.toList(),
-              'correctCounts': counts,
-              'hostCorrectCount': counts[hostUid] ?? 0,
-              'guestCorrectCount': counts[guestUid] ?? 0,
-              'status': 'finished',
-              'finishedAt': FieldValue.serverTimestamp(),
-            });
-            return;
-          }
-          nextRound = roundIdx + 1;
-          nextAnswered = <String>[];
-        }
-
-        tx.update(sessionRef, {
-          'roundAnsweredUserIds': nextAnswered,
+        final hostUid = data['hostUserId'] as String? ?? '';
+        final guestUid = data['guestUserId'] as String? ?? '';
+        tx.update(ref, {
           'correctCounts': counts,
-          'currentRoundIndex': nextRound,
+          'hostCorrectCount': counts[hostUid] ?? 0,
+          'guestCorrectCount': counts[guestUid] ?? 0,
+          'status': 'finished',
+          'finishedAt': FieldValue.serverTimestamp(),
+          'turnDeadlineAtMs': 0,
+          'forfeit': true,
+          'forfeitedByUserId': leaving,
         });
+        return true;
       });
-
-      return true;
+      if (ok) {
+        await _cancelPendingInvitesForSession(sessionId);
+      }
+      return ok;
     } catch (e) {
-      debugPrint('FamilyRemoteDuel submitAnswer: $e');
+      debugPrint('FamilyRemoteDuel markSessionForfeited: $e');
       return false;
+    }
+  }
+
+  /// Kazanan(lar) için tek seferlik altın ödülü — [rewardClaimedUserIds] ile çifte ödül engellenir.
+  Future<int> claimRemoteDuelWinnerGold({
+    required String sessionId,
+    required String userId,
+  }) async {
+    if (sessionId.isEmpty || userId.isEmpty) return 0;
+    final ref = _db.collection(sessionsCol).doc(sessionId);
+    try {
+      final granted = await _db.runTransaction<int>((tx) async {
+        final snap = await tx.get(ref);
+        if (!snap.exists) return 0;
+        final data = snap.data()!;
+        if (data['status'] != 'finished') return 0;
+
+        final claimed = (data['rewardClaimedUserIds'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toSet();
+        if (claimed.contains(userId)) return 0;
+
+        final countsRaw = (data['correctCounts'] as Map?) ?? const {};
+        final counts = <String, int>{
+          for (final e in countsRaw.entries)
+            e.key.toString(): (e.value as num?)?.toInt() ?? 0,
+        };
+        if (counts.isEmpty || !counts.containsKey(userId)) return 0;
+        final best = counts.values.fold<int>(0, (a, b) => math.max(a, b));
+        if (counts[userId] != best) return 0;
+
+        claimed.add(userId);
+        tx.update(ref, {
+          'rewardClaimedUserIds': claimed.toList(),
+        });
+        return winnerGoldCoins;
+      });
+      return granted;
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel claimRemoteDuelWinnerGold: $e');
+      return 0;
     }
   }
 

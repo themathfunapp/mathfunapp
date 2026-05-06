@@ -21,6 +21,38 @@ service cloud.firestore {
         && childUid in membersDoc(parentUid).data.childUserIds;
     }
 
+    function userDocPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function userFamilyAnchor(uid) {
+      return exists(userDocPath(uid))
+        && 'familyAnchorParentUid' in get(userDocPath(uid)).data.keys()
+        ? get(userDocPath(uid)).data.familyAnchorParentUid
+        : '';
+    }
+
+    function shareFamilyAnchor(a, b) {
+      return userFamilyAnchor(a) != ''
+        && userFamilyAnchor(a) == userFamilyAnchor(b);
+    }
+
+    function familyMayNotify(fromUid, toUid) {
+      return fromUid != toUid && (
+        parentLinkedChild(fromUid, toUid)
+        || parentLinkedChild(toUid, fromUid)
+        || shareFamilyAnchor(fromUid, toUid)
+      );
+    }
+
+    function parentMaySetChildFamilyAnchor(childUid) {
+      return request.auth.uid != childUid
+        && parentLinkedChild(request.auth.uid, childUid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['familyAnchorParentUid', 'updatedAt'])
+        && request.resource.data.familyAnchorParentUid == request.auth.uid;
+    }
+
     function isDuelParticipant(data) {
       return signedIn()
         && (
@@ -95,7 +127,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.auth.uid == userId;
-      allow update, delete: if signedIn() && request.auth.uid == userId;
+      allow delete: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && (
+        request.auth.uid == userId
+        || parentMaySetChildFamilyAnchor(userId)
+      );
 
       match /friends/{friendId} {
         allow read: if signedIn()
@@ -148,6 +184,49 @@ service cloud.firestore {
 
       match /private/fcm/{docId} {
         allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      // Uygulama içi bildirim kutusu (aile üyeleri isim değişikliği vb.)
+      match /in_app_notifications/{docId} {
+        allow read, update, delete: if signedIn() && request.auth.uid == userId;
+
+        allow create: if signedIn()
+          && request.auth.uid != userId
+          && familyMayNotify(request.auth.uid, userId)
+          && (
+            (
+              request.resource.data.keys().hasOnly([
+                'type', 'fromUid', 'oldDisplayName', 'newDisplayName', 'read', 'createdAt'
+              ])
+              && request.resource.data.type == 'display_name_changed'
+              && request.resource.data.fromUid == request.auth.uid
+              && request.resource.data.oldDisplayName is string
+              && request.resource.data.newDisplayName is string
+              && request.resource.data.oldDisplayName.size() <= 120
+              && request.resource.data.newDisplayName.size() <= 120
+              && request.resource.data.read == false
+            )
+            ||
+            (
+              request.resource.data.keys().hasOnly([
+                'type', 'fromUid', 'oldDisplayName', 'newDisplayName', 'read', 'createdAt', 'inviteId'
+              ])
+              && request.resource.data.type == 'family_remote_duel_invite_timeout'
+              && request.resource.data.fromUid == request.auth.uid
+              && request.resource.data.oldDisplayName is string
+              && request.resource.data.oldDisplayName.size() > 0
+              && request.resource.data.oldDisplayName.size() <= 120
+              && request.resource.data.newDisplayName == ''
+              && request.resource.data.read == false
+              && request.resource.data.inviteId is string
+              && request.resource.data.inviteId.size() > 0
+              && exists(/databases/$(database)/documents/familyRemoteDuelInvites/$(request.resource.data.inviteId))
+              && docId == 'frd_invite_timeout_' + get(/databases/$(database)/documents/familyRemoteDuelInvites/$(request.resource.data.inviteId)).data.sessionId
+              && get(/databases/$(database)/documents/familyRemoteDuelInvites/$(request.resource.data.inviteId)).data.fromUserId == userId
+              && get(/databases/$(database)/documents/familyRemoteDuelInvites/$(request.resource.data.inviteId)).data.toUserId == request.auth.uid
+              && get(/databases/$(database)/documents/familyRemoteDuelInvites/$(request.resource.data.inviteId)).data.status == 'expired'
+            )
+          );
       }
     }
 

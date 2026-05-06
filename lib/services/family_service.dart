@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/family_member.dart';
@@ -14,6 +16,12 @@ class FamilyService extends ChangeNotifier {
   LeaderboardFilter _currentFilter = LeaderboardFilter.allTime;
   bool _isLoading = false;
 
+  final Map<String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>
+      _childProfileSubs = {};
+
+  /// Oturumda bir kez: mevcut çocuk hesaplarına `familyAnchorParentUid` yazar (eski kurulumlar için).
+  bool _sessionFamilyAnchorsWritten = false;
+
   List<FamilyMember> get members => _members;
   List<LeaderboardEntry> get leaderboard => _leaderboard;
   LeaderboardFilter get currentFilter => _currentFilter;
@@ -21,15 +29,114 @@ class FamilyService extends ChangeNotifier {
 
   /// Ebeveyn (mevcut kullanıcı) ile başlat
   void initialize(String? parentUid, {String? parentDisplayName}) {
+    _cancelChildProfileListeners();
     _parentUid = parentUid;
     _parentDisplayName = parentDisplayName ?? 'Oyuncu';
     if (parentUid != null && parentUid.isNotEmpty) {
       loadMembers();
     } else {
+      _sessionFamilyAnchorsWritten = false;
       _members = [];
       _leaderboard = [];
       notifyListeners();
     }
+  }
+
+  void _cancelChildProfileListeners() {
+    for (final sub in _childProfileSubs.values) {
+      unawaited(sub.cancel());
+    }
+    _childProfileSubs.clear();
+  }
+
+  void _attachChildProfileListeners() {
+    _cancelChildProfileListeners();
+    if (_parentUid == null || _parentUid!.isEmpty) return;
+
+    for (final member in _members) {
+      if (member.isParent) continue;
+      final uid = member.userId;
+      _childProfileSubs[uid] =
+          _firestore.collection('users').doc(uid).snapshots().listen((snap) {
+        if (!snap.exists) return;
+        final data = snap.data();
+        if (data == null) return;
+        final name = data['displayName'] as String?;
+        if (name == null || name.isEmpty) return;
+
+        final idx = _members.indexWhere((m) => m.userId == uid);
+        if (idx == -1) return;
+        if (_members[idx].displayName == name) return;
+
+        _members[idx] = FamilyMember(
+          userId: uid,
+          displayName: name,
+          isParent: _members[idx].isParent,
+          profileEmoji: _members[idx].profileEmoji,
+        );
+        notifyListeners();
+        unawaited(_persistMemberDisplayName(uid, name));
+        unawaited(_loadLeaderboard());
+      });
+    }
+  }
+
+  Future<void> _ensureFamilyAnchorsWritten() async {
+    final hub = _parentUid;
+    if (hub == null || hub.isEmpty) return;
+    try {
+      await _firestore.collection('users').doc(hub).set(
+        {'familyAnchorParentUid': hub, 'updatedAt': Timestamp.now()},
+        SetOptions(merge: true),
+      );
+      for (final m in _members) {
+        if (m.isParent) continue;
+        await _firestore.collection('users').doc(m.userId).set(
+          {'familyAnchorParentUid': hub, 'updatedAt': Timestamp.now()},
+          SetOptions(merge: true),
+        );
+      }
+    } catch (e) {
+      debugPrint('FamilyService ensureFamilyAnchors: $e');
+    }
+  }
+
+  Future<void> _persistMemberDisplayName(String uid, String displayName) async {
+    if (_parentUid == null || _parentUid!.isEmpty) return;
+    try {
+      final membersRef = _firestore
+          .collection('users')
+          .doc(_parentUid)
+          .collection('family')
+          .doc('members');
+      final doc = await membersRef.get();
+      final list = (doc.data()?['members'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      var changed = false;
+      for (var i = 0; i < list.length; i++) {
+        if ((list[i]['userId'] as String?) == uid) {
+          if (list[i]['displayName'] != displayName) {
+            list[i]['displayName'] = displayName;
+            changed = true;
+          }
+          break;
+        }
+      }
+
+      if (changed) {
+        await membersRef.set({'members': list}, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('FamilyService persist displayName: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _cancelChildProfileListeners();
+    super.dispose();
   }
 
   /// Firestore güvenlik kuralları: `childUserIds` ile davet hedefi doğrulanır.
@@ -54,6 +161,7 @@ class FamilyService extends ChangeNotifier {
   Future<void> loadMembers() async {
     if (_parentUid == null || _parentUid!.isEmpty) return;
 
+    _cancelChildProfileListeners();
     _isLoading = true;
     notifyListeners();
 
@@ -116,6 +224,11 @@ class FamilyService extends ChangeNotifier {
       }
 
       await _loadLeaderboard();
+      if (!_sessionFamilyAnchorsWritten && _members.length > 1) {
+        _sessionFamilyAnchorsWritten = true;
+        unawaited(_ensureFamilyAnchorsWritten());
+      }
+      _attachChildProfileListeners();
     } catch (e) {
       debugPrint('FamilyService loadMembers error: $e');
     }
@@ -547,6 +660,22 @@ class FamilyService extends ChangeNotifier {
 
       final childIds = _linkedChildUserIds(list);
       await membersRef.set({'members': list, 'childUserIds': childIds});
+
+      await _firestore.collection('users').doc(childUid).set(
+        {
+          'familyAnchorParentUid': _parentUid,
+          'updatedAt': Timestamp.now(),
+        },
+        SetOptions(merge: true),
+      );
+      await _firestore.collection('users').doc(_parentUid!).set(
+        {
+          'familyAnchorParentUid': _parentUid,
+          'updatedAt': Timestamp.now(),
+        },
+        SetOptions(merge: true),
+      );
+
       await loadMembers();
       return true;
     } catch (e) {

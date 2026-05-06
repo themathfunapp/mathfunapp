@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
@@ -9,7 +10,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/premium_qa_allowlist.dart';
 import '../models/app_user.dart';
+import 'in_app_notification_service.dart';
 
 /// Firebase Android uygulamasında imza (SHA-1) kayıtlı değilse Google Sign-In ApiException: 10 verir.
 class GoogleSignInShaNotRegisteredException implements Exception {
@@ -723,6 +726,7 @@ class AuthService extends ChangeNotifier {
   // Check if user is premium
   bool get isPremium {
     if (_currentUser == null) return false;
+    if (premiumQaAllowlistedUserCode(_currentUser!.userCode)) return true;
     if (!_currentUser!.isPremium) return false;
     if (_currentUser!.premiumExpiresAt != null) {
       return _currentUser!.premiumExpiresAt!.isAfter(DateTime.now());
@@ -789,6 +793,8 @@ class AuthService extends ChangeNotifier {
   }) async {
     if (_currentUser == null || _currentUser!.isGuest) return;
 
+    final previousDisplayName = _currentUser!.displayName ?? '';
+
     try {
       // Update in Firebase Auth
       if (displayName != null && displayName.isNotEmpty) {
@@ -835,6 +841,20 @@ class AuthService extends ChangeNotifier {
             : _currentUser!.photoURL,
       );
       notifyListeners();
+
+      if (displayName != null &&
+          displayName.isNotEmpty &&
+          previousDisplayName.isNotEmpty &&
+          previousDisplayName != displayName) {
+        unawaited(
+          InAppNotificationService.sendDisplayNameChangedToFamily(
+            firestore: _firestore,
+            actorUid: _currentUser!.uid,
+            oldDisplayName: previousDisplayName,
+            newDisplayName: displayName,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint("Update profile error: $e");
       rethrow;
