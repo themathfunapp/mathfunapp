@@ -154,8 +154,10 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
         _sessCorrect++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
-        if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
-        _score += 10;
+        if (_sessCorrect % 10 == 0) {
+          mechanicsService.addCoins(5);
+          _score += 5;
+        }
         _stars++;
         _audio.playAnswerFeedback(true);
         _celebrationController.forward(from: 0);
@@ -310,9 +312,9 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          _buildCharacterMessage(loc),
-                          const SizedBox(height: 20),
                           _buildLevelInfo(loc),
+                          const SizedBox(height: 20),
+                          _buildCharacterMessage(loc),
                           const SizedBox(height: 30),
                           _buildQuestionArea(loc),
                           const SizedBox(height: 40),
@@ -487,33 +489,39 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
   }
 
   Widget _buildLevelInfo(AppLocalizations loc) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _darkGray.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _neonBlue.withOpacity(0.5), width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
-          _buildStatItem(loc.get('score'), _score.toString(), '⚡'),
-        ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: _darkGray.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _neonBlue.withOpacity(0.5), width: 2),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
+              _buildStatItem(loc.get('score'), _score.toString(), '⚡'),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildStatItem(String label, String value, String emoji) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
-        const SizedBox(height: 4),
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 2),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 30,
             fontWeight: FontWeight.bold,
             color: _neonBlue,
           ),
@@ -521,7 +529,7 @@ class _CyberWorkshopScreenState extends State<CyberWorkshopScreen>
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: _silver.withOpacity(0.8),
           ),
         ),

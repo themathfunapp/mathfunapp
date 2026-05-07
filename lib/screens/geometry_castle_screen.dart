@@ -365,63 +365,235 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   }
 
   void _showRoundCompleteDialog(int pointsEarned) {
+    final localeCode = Provider.of<LocaleProvider>(context, listen: false)
+        .locale
+        .languageCode
+        .toLowerCase();
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🏰', style: TextStyle(fontSize: 28)),
-            const SizedBox(width: 8),
-            Flexible(child: Text(loc.get('geometry_castle_round_complete_title'), textAlign: TextAlign.center)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              loc.get('geometry_castle_round_complete_body').replaceAll('{0}', '$pointsEarned'),
-              textAlign: TextAlign.center,
-              style: _textStyle(Colors.black87, size: 16),
-            ),
-            if (!_replayRound) ...[
-              const SizedBox(height: 12),
-              Text(
-                loc.get('geometry_castle_round_complete_replay_hint'),
-                textAlign: TextAlign.center,
-                style: _textStyle(Colors.black54, size: 13),
+      builder: (ctx) {
+        final title = _roundDialogText(localeCode, 'title');
+        final body = _roundDialogText(
+          localeCode,
+          'body',
+        ).replaceAll('{points}', '$pointsEarned');
+        final hint = _roundDialogText(localeCode, 'hint');
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.9, end: 1.0),
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) {
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFF8E1), Color(0xFFFFF3E0), Color(0xFFE8EAF6)],
+                ),
+                border: Border.all(color: const Color(0xFFFFC107), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.deepPurple.withOpacity(0.28),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.spaceEvenly,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              setState(() {
-                _stepInRound = 1;
-                _replayRound = true;
-                _bonusStepSlot = math.Random().nextInt(10) + 1;
-              });
-              _generateQuestion(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale));
-            },
-            child: Text(loc.get('play_again')),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('🏰', style: TextStyle(fontSize: 30)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: _textStyle(const Color(0xFF4A148C), size: 24, bold: true),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    body,
+                    textAlign: TextAlign.center,
+                    style: _textStyle(const Color(0xFF311B92), size: 16, bold: true),
+                  ),
+                  if (!_replayRound) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        hint,
+                        textAlign: TextAlign.center,
+                        style: _textStyle(Colors.black87, size: 13),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            setState(() {
+                              _stepInRound = 1;
+                              _replayRound = true;
+                              _bonusStepSlot = math.Random().nextInt(10) + 1;
+                            });
+                            _generateQuestion(
+                              AppLocalizations(
+                                Provider.of<LocaleProvider>(context, listen: false).locale,
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(color: Color(0xFF7C4DFF), width: 2),
+                            foregroundColor: const Color(0xFF4A148C),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: Text(loc.get('play_again')),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            widget.onBack();
+                          },
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            backgroundColor: const Color(0xFFFF8F00),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: Text(loc.get('exit_game')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              widget.onBack();
-            },
-            child: Text(loc.get('exit')),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  String _roundDialogText(String lang, String key) {
+    const m = <String, Map<String, String>>{
+      'tr': {
+        'title': 'Tebrikler!',
+        'body': '10 adimi tamamladin!\nKazanilan puan: +{points}',
+        'hint': 'Tekrar oynadiginda 1 bonus soru gelir; turu bitirince +6 puan kazanirsin.',
+      },
+      'en': {
+        'title': 'Congratulations!',
+        'body': 'You completed all 10 steps!\nPoints earned: +{points}',
+        'hint': 'Play again for 1 bonus question; finishing the round gives +6 points.',
+      },
+      'de': {
+        'title': 'Glueckwunsch!',
+        'body': 'Du hast alle 10 Schritte geschafft!\nPunkte erhalten: +{points}',
+        'hint': 'Beim erneuten Spielen kommt 1 Bonusfrage; Abschluss gibt +6 Punkte.',
+      },
+      'es': {
+        'title': 'Felicidades!',
+        'body': 'Completaste los 10 pasos!\nPuntos ganados: +{points}',
+        'hint': 'Juega de nuevo para 1 pregunta bonus; terminar da +6 puntos.',
+      },
+      'fr': {
+        'title': 'Felicitations!',
+        'body': 'Tu as termine les 10 etapes !\nPoints gagnes : +{points}',
+        'hint': 'Rejoue pour 1 question bonus ; terminer le tour donne +6 points.',
+      },
+      'ar': {
+        'title': 'تهانينا!',
+        'body': 'اكملت جميع الخطوات العشر!\nالنقاط المكتسبة: +{points}',
+        'hint': 'العب مجددا لسؤال مكافأة واحد؛ انهاء الجولة يمنحك +6 نقاط.',
+      },
+      'fa': {
+        'title': 'آفرين!',
+        'body': 'هر 10 مرحله را کامل کردي!\nامتياز گرفته‌شده: +{points}',
+        'hint': 'يک بار ديگر بازي کن؛ 1 سوال جايزه مي‌آيد و با پايان دور +6 مي‌گيري.',
+      },
+      'zh': {
+        'title': '恭喜！',
+        'body': '你完成了全部10个步骤！\n获得积分：+{points}',
+        'hint': '再玩一次会出现1道奖励题；完成本轮可得+6分。',
+      },
+      'id': {
+        'title': 'Selamat!',
+        'body': 'Kamu menyelesaikan 10 langkah!\nPoin didapat: +{points}',
+        'hint': 'Main lagi untuk 1 soal bonus; menyelesaikan ronde memberi +6 poin.',
+      },
+      'ku': {
+        'title': 'Piroz be!',
+        'body': 'Te hemu 10 gavan qedand!\nXalên bidestxistî: +{points}',
+        'hint': 'Dîsa bilîze bo 1 pirsê bonus; qedandina gerê +6 xal dide.',
+      },
+      'ru': {
+        'title': 'Pozdravlyaem!',
+        'body': 'Ty proshyol vse 10 shagov!\nZarabotal ochki: +{points}',
+        'hint': 'Sygray snova dlya 1 bonus-voprosa; zavershenie daet +6 ochkov.',
+      },
+      'ja': {
+        'title': 'おめでとう！',
+        'body': '10ステップをすべてクリア！\n獲得ポイント：+{points}',
+        'hint': 'もう一度遊ぶとボーナス問題が1つ出るよ。完了で+6ポイント！',
+      },
+      'ko': {
+        'title': '축하해요!',
+        'body': '10단계를 모두 완료했어요!\n획득 점수: +{points}',
+        'hint': '다시 플레이하면 보너스 문제 1개가 나오고, 완료 시 +6점을 받아요.',
+      },
+      'hi': {
+        'title': 'बधाई!',
+        'body': 'तुमने सभी 10 स्टेप पूरे किए!\nमिले अंक: +{points}',
+        'hint': 'फिर से खेलो तो 1 बोनस सवाल आएगा; राउंड पूरा करने पर +6 अंक मिलेंगे।',
+      },
+      'ur': {
+        'title': 'مبارک ہو!',
+        'body': 'آپ نے تمام 10 مراحل مکمل کر لیے!\nحاصل پوائنٹس: +{points}',
+        'hint': 'دوبارہ کھیلنے پر 1 بونس سوال آئے گا؛ راؤنڈ مکمل کرنے پر +6 پوائنٹس ملیں گے۔',
+      },
+      'pt': {
+        'title': 'Parabens!',
+        'body': 'Voce completou os 10 passos!\nPontos ganhos: +{points}',
+        'hint': 'Jogue novamente para 1 pergunta bonus; concluir a rodada rende +6 pontos.',
+      },
+      'it': {
+        'title': 'Congratulazioni!',
+        'body': 'Hai completato tutti i 10 passi!\nPunti ottenuti: +{points}',
+        'hint': 'Gioca ancora per 1 domanda bonus; finire il round da +6 punti.',
+      },
+      'pl': {
+        'title': 'Gratulacje!',
+        'body': 'Ukonczyles wszystkie 10 krokow!\nZdobyte punkty: +{points}',
+        'hint': 'Zagraj ponownie o 1 pytanie bonusowe; ukonczenie rundy daje +6 punktow.',
+      },
+    };
+    final dict = m[lang] ?? m['en']!;
+    return dict[key] ?? m['en']![key] ?? key;
   }
 
   void _showGameOver() {

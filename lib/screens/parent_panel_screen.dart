@@ -1496,7 +1496,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     VoidCallback? onEmojiTap,
   }) {
     final successColor = _getSuccessColor(accuracy);
-    final heroTag = 'child_card_${userId ?? childName}';
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -1512,7 +1511,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               weeklyValues: weeklyValues,
               onBack: () => Navigator.pop(context),
               userId: userId,
-              heroTag: heroTag,
+              heroTag: null,
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(
@@ -1533,9 +1532,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           ),
         );
       },
-      child: Hero(
-        tag: heroTag,
-        child: Container(
+      child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -1684,7 +1681,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -2065,7 +2061,12 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
   Future<void> _openReportHistoryEntry(_ReportHistoryEntry entry) async {
     try {
-      final bytes = await PdfReportService.generateReport(entry.data);
+      final languageCode =
+          Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+      final bytes = await PdfReportService.generateReport(
+        entry.data,
+        languageCode: languageCode,
+      );
       final fileName =
           'mathfun_rapor_${entry.data.childName.replaceAll(' ', '_')}_${entry.createdAt.millisecondsSinceEpoch}.pdf';
       await Printing.sharePdf(bytes: bytes, filename: fileName);
@@ -2239,7 +2240,10 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         ),
       );
 
-      final bytes = await PdfReportService.generateReport(data);
+      final bytes = await PdfReportService.generateReport(
+        data,
+        languageCode: locale.languageCode,
+      );
 
       final fileName = 'mathfun_rapor_${childName.replaceAll(' ', '_')}.pdf';
 

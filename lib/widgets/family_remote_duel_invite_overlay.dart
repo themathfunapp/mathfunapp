@@ -135,6 +135,183 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
     return true;
   }
 
+  String _t(String key, {Map<String, String> params = const {}}) {
+    final lang = Localizations.localeOf(context).languageCode.toLowerCase();
+    const tr = {
+      'invite_text': '{from} seni uzaktan duelloya davet etti.',
+      'remaining': 'Kalan sure: ~{seconds} sn',
+      'accept': 'Kabul',
+      'decline': 'Reddet',
+      'accept_failed': 'Kabul edilemedi. Premium veya ag/Firestore kurallarini kontrol edin.',
+      'family_default': 'Ailen',
+    };
+    const en = {
+      'invite_text': '{from} invited you to a remote duel.',
+      'remaining': 'Time left: ~{seconds}s',
+      'accept': 'Accept',
+      'decline': 'Decline',
+      'accept_failed': 'Could not accept. Check Premium or network/Firestore rules.',
+      'family_default': 'Your family',
+    };
+    const de = {
+      'invite_text': '{from} hat dich zu einem Remote-Duell eingeladen.',
+      'remaining': 'Verbleibende Zeit: ~{seconds}s',
+      'accept': 'Annehmen',
+      'decline': 'Ablehnen',
+      'accept_failed': 'Annahme fehlgeschlagen. Premium oder Netzwerk/Firestore-Regeln pruefen.',
+      'family_default': 'Deine Familie',
+    };
+    const es = {
+      'invite_text': '{from} te invito a un duelo remoto.',
+      'remaining': 'Tiempo restante: ~{seconds}s',
+      'accept': 'Aceptar',
+      'decline': 'Rechazar',
+      'accept_failed': 'No se pudo aceptar. Revisa Premium o reglas de red/Firestore.',
+      'family_default': 'Tu familia',
+    };
+    const fr = {
+      'invite_text': '{from} t’a invite a un duel a distance.',
+      'remaining': 'Temps restant: ~{seconds}s',
+      'accept': 'Accepter',
+      'decline': 'Refuser',
+      'accept_failed':
+          'Impossible d’accepter. Verifie Premium ou les regles reseau/Firestore.',
+      'family_default': 'Ta famille',
+    };
+    const ar = {
+      'invite_text': '{from} دعاك الى مواجهة عن بُعد.',
+      'remaining': 'الوقت المتبقي: ~{seconds}ث',
+      'accept': 'قبول',
+      'decline': 'رفض',
+      'accept_failed':
+          'تعذر القبول. تحقق من Premium او قواعد الشبكة/Firestore.',
+      'family_default': 'عائلتك',
+    };
+    const fa = {
+      'invite_text': '{from} شما را به دوئل از راه دور دعوت کرد.',
+      'remaining': 'زمان باقي‌مانده: ~{seconds}ث',
+      'accept': 'پذيرش',
+      'decline': 'رد',
+      'accept_failed': 'پذيرش انجام نشد. Premium يا قوانين شبکه/Firestore را بررسي کنيد.',
+      'family_default': 'خانواده‌ات',
+    };
+    const zh = {
+      'invite_text': '{from} 邀请你进行远程对战。',
+      'remaining': '剩余时间: ~{seconds}秒',
+      'accept': '接受',
+      'decline': '拒绝',
+      'accept_failed': '无法接受。请检查 Premium 或网络/Firestore 规则。',
+      'family_default': '你的家人',
+    };
+    const id = {
+      'invite_text': '{from} mengundangmu ke duel jarak jauh.',
+      'remaining': 'Sisa waktu: ~{seconds} dtk',
+      'accept': 'Terima',
+      'decline': 'Tolak',
+      'accept_failed': 'Gagal menerima. Periksa Premium atau aturan jaringan/Firestore.',
+      'family_default': 'Keluargamu',
+    };
+    const ku = {
+      'invite_text': '{from} te bo duel a dûr vexwend.',
+      'remaining': 'Demê mayî: ~{seconds}ç',
+      'accept': 'Qebul bike',
+      'decline': 'Redd bike',
+      'accept_failed':
+          'Qebul nehat. Premium an rêzikên tor/Firestore kontrol bike.',
+      'family_default': 'Malbata te',
+    };
+    const ru = {
+      'invite_text': '{from} пригласил(а) тебя на удалённую дуэль.',
+      'remaining': 'Осталось: ~{seconds}с',
+      'accept': 'Принять',
+      'decline': 'Отклонить',
+      'accept_failed':
+          'Не удалось принять. Проверь Premium или правила сети/Firestore.',
+      'family_default': 'Твоя семья',
+    };
+    const ja = {
+      'invite_text': '{from} がリモートデュエルに招待しました。',
+      'remaining': '残り時間: ~{seconds}秒',
+      'accept': '承認',
+      'decline': '拒否',
+      'accept_failed': '承認できませんでした。Premium またはネット/Firestore 設定を確認してください。',
+      'family_default': 'あなたの家族',
+    };
+    const ko = {
+      'invite_text': '{from}님이 원격 대결에 초대했어요.',
+      'remaining': '남은 시간: ~{seconds}초',
+      'accept': '수락',
+      'decline': '거절',
+      'accept_failed': '수락할 수 없어요. Premium 또는 네트워크/Firestore 규칙을 확인하세요.',
+      'family_default': '가족',
+    };
+    const hi = {
+      'invite_text': '{from} ने तुम्हें रिमोट ड्यूल में बुलाया है।',
+      'remaining': 'बाकी समय: ~{seconds}से',
+      'accept': 'स्वीकार',
+      'decline': 'अस्वीकार',
+      'accept_failed': 'स्वीकार नहीं हो सका। Premium या network/Firestore नियम जांचें।',
+      'family_default': 'तुम्हारा परिवार',
+    };
+    const ur = {
+      'invite_text': '{from} نے آپ کو ريموٹ دوئل کے لئے مدعو کيا ہے۔',
+      'remaining': 'باقی وقت: ~{seconds}س',
+      'accept': 'قبول',
+      'decline': 'مسترد',
+      'accept_failed':
+          'قبول نہيں ہوا۔ Premium يا network/Firestore قواعد چيک کريں۔',
+      'family_default': 'آپ کا خاندان',
+    };
+    const pt = {
+      'invite_text': '{from} convidou voce para um duelo remoto.',
+      'remaining': 'Tempo restante: ~{seconds}s',
+      'accept': 'Aceitar',
+      'decline': 'Recusar',
+      'accept_failed': 'Nao foi possivel aceitar. Verifique Premium ou regras de rede/Firestore.',
+      'family_default': 'Sua familia',
+    };
+    const it = {
+      'invite_text': '{from} ti ha invitato a un duello remoto.',
+      'remaining': 'Tempo rimasto: ~{seconds}s',
+      'accept': 'Accetta',
+      'decline': 'Rifiuta',
+      'accept_failed':
+          'Impossibile accettare. Controlla Premium o regole rete/Firestore.',
+      'family_default': 'La tua famiglia',
+    };
+    const pl = {
+      'invite_text': '{from} zaprosil(a) cie do zdalnego pojedynku.',
+      'remaining': 'Pozostaly czas: ~{seconds}s',
+      'accept': 'Akceptuj',
+      'decline': 'Odrzuc',
+      'accept_failed': 'Nie mozna zaakceptowac. Sprawdz Premium lub zasady sieci/Firestore.',
+      'family_default': 'Twoja rodzina',
+    };
+    final dict = switch (lang) {
+      'tr' => tr,
+      'de' => de,
+      'es' => es,
+      'fr' => fr,
+      'ar' => ar,
+      'fa' => fa,
+      'zh' => zh,
+      'id' => id,
+      'ku' => ku,
+      'ru' => ru,
+      'ja' => ja,
+      'ko' => ko,
+      'hi' => hi,
+      'ur' => ur,
+      'pt' => pt,
+      'it' => it,
+      'pl' => pl,
+      _ => en,
+    };
+    var out = dict[key] ?? en[key] ?? key;
+    params.forEach((k, v) => out = out.replaceAll('{$k}', v));
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final svc = context.read<FamilyRemoteDuelService>();
@@ -155,7 +332,7 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
 
     final doc = pending.first;
     final m = doc.data();
-    final from = m['fromDisplayName'] as String? ?? 'Ailen';
+    final from = m['fromDisplayName'] as String? ?? _t('family_default');
     final sessionId = m['sessionId'] as String? ?? '';
     final exp = (m['expiresAtMs'] as num?)?.toInt() ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -168,9 +345,8 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
           alignment: Alignment.center,
           children: [
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {},
+              child: IgnorePointer(
+                ignoring: true,
                 child: ColoredBox(
                   color: Colors.black.withValues(alpha: 0.45),
                 ),
@@ -194,7 +370,7 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                             size: 44, color: Color(0xFF5C6BC0)),
                         const SizedBox(height: 12),
                         Text(
-                          '$from seni uzaktan düelloya davet etti.',
+                          _t('invite_text', params: {'from': from}),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 17,
@@ -205,7 +381,7 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                         if (secsLeft != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Kalan süre: ~$secsLeft sn',
+                            _t('remaining', params: {'seconds': '$secsLeft'}),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
@@ -236,11 +412,7 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                                   if (!context.mounted) return;
                                   if (!ok) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
-                                        ),
-                                      ),
+                                      SnackBar(content: Text(_t('accept_failed'))),
                                     );
                                     return;
                                   }
@@ -255,8 +427,8 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                child: const Text(
-                                  'Kabul',
+                                child: Text(
+                                  _t('accept'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 16,
@@ -282,7 +454,7 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                                   ),
                                 ),
                                 child: Text(
-                                  'Reddet',
+                                  _t('decline'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 16,

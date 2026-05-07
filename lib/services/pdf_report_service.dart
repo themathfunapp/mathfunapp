@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../localization/parent_panel_l10n.dart';
 
 /// Haftalık PDF rapor verisi
 class PdfReportData {
@@ -32,13 +33,15 @@ class PdfReportData {
 
 /// PDF rapor oluşturma servisi
 class PdfReportService {
-  static const List<String> _days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
   static const PdfColor _brandBlue = PdfColor.fromInt(0xFF3A6FF7);
   static const PdfColor _brandPurple = PdfColor.fromInt(0xFF6D45E6);
   static const PdfColor _softBg = PdfColor.fromInt(0xFFF5F7FF);
   static const PdfColor _good = PdfColor.fromInt(0xFF22A45D);
   static const PdfColor _mid = PdfColor.fromInt(0xFFF4A93E);
   static const PdfColor _warn = PdfColor.fromInt(0xFFE65555);
+
+  static String _t(String languageCode, String key) =>
+      ParentPanelL10n.of(languageCode, key);
 
   static Future<pw.MemoryImage?> _loadLogoImage() async {
     try {
@@ -57,7 +60,13 @@ class PdfReportService {
   }
 
   /// PDF raporu oluştur ve bytes döndür
-  static Future<Uint8List> generateReport(PdfReportData data) async {
+  static Future<Uint8List> generateReport(
+    PdfReportData data, {
+    String languageCode = 'tr',
+  }) async {
+    final lc = languageCode.trim().isEmpty ? 'tr' : languageCode.trim().toLowerCase();
+    final days = List.generate(7, (d) => _t(lc, 'pp_weekday_$d'));
+
     // Türkçe karakter desteği için Roboto fontu kullan (ı, ğ, ş, İ, ü, ö, ç)
     final baseFont = await PdfGoogleFonts.robotoRegular();
     final boldFont = await PdfGoogleFonts.robotoBold();
@@ -66,8 +75,8 @@ class PdfReportService {
       bold: boldFont,
     );
     final pdf = pw.Document(
-      title: 'MathFun Haftalık Rapor - ${data.childName}',
-      author: 'Matematik Macerası',
+      title: 'MathFun ${_t(lc, 'pp_report_pdf_title')} - ${data.childName}',
+      author: 'MathFun',
       theme: theme,
     );
 
@@ -120,7 +129,7 @@ class PdfReportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Matematik Macerası',
+                        'MathFun',
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 22,
@@ -129,7 +138,7 @@ class PdfReportService {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'Haftalık Performans Raporu',
+                        _t(lc, 'pp_report_pdf_title'),
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 12,
@@ -194,11 +203,14 @@ class PdfReportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Çocuk Profili',
+                        _t(lc, 'pp_section_progress'),
                         style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
                       ),
                       pw.SizedBox(height: 3),
-                      pw.Text('İsim: ${data.childName}', style: const pw.TextStyle(fontSize: 15)),
+                      pw.Text(
+                        '${_t(lc, 'pp_lb_name')}: ${data.childName}',
+                        style: const pw.TextStyle(fontSize: 15),
+                      ),
                     ],
                   ),
                 ],
@@ -206,19 +218,43 @@ class PdfReportService {
             ),
             pw.SizedBox(height: 20),
             pw.Text(
-              'Genel İstatistikler',
+              _t(lc, 'pp_section_detailed_stats'),
               style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: _brandPurple),
             ),
             pw.SizedBox(height: 12),
             pw.Row(
               children: [
-                pw.Expanded(child: _statBox('Toplam Puan', '${data.totalScore}', PdfColor.fromInt(0xFFEFF4FF))),
+                pw.Expanded(
+                  child: _statBox(
+                    _t(lc, 'pp_mini_points'),
+                    '${data.totalScore}',
+                    PdfColor.fromInt(0xFFEFF4FF),
+                  ),
+                ),
                 pw.SizedBox(width: 8),
-                pw.Expanded(child: _statBox('Çözülen Soru', '${data.totalQuestions}', PdfColor.fromInt(0xFFEFFFF7))),
+                pw.Expanded(
+                  child: _statBox(
+                    _t(lc, 'pp_detail_total_questions'),
+                    '${data.totalQuestions}',
+                    PdfColor.fromInt(0xFFEFFFF7),
+                  ),
+                ),
                 pw.SizedBox(width: 8),
-                pw.Expanded(child: _statBox('Doğru Cevap', '${data.correctAnswers}', PdfColor.fromInt(0xFFFFF4E8))),
+                pw.Expanded(
+                  child: _statBox(
+                    _t(lc, 'pp_detail_correct_answers'),
+                    '${data.correctAnswers}',
+                    PdfColor.fromInt(0xFFFFF4E8),
+                  ),
+                ),
                 pw.SizedBox(width: 8),
-                pw.Expanded(child: _statBox('Başarı', '%${data.accuracy}', PdfColor.fromInt(0xFFFFF0F3))),
+                pw.Expanded(
+                  child: _statBox(
+                    _t(lc, 'pp_detail_success_rate'),
+                    '%${data.accuracy}',
+                    PdfColor.fromInt(0xFFFFF0F3),
+                  ),
+                ),
               ],
             ),
             pw.SizedBox(height: 8),
@@ -226,7 +262,7 @@ class PdfReportService {
               children: [
                 pw.Expanded(
                   child: _statBox(
-                    'Kazanılan Rozet',
+                    _t(lc, 'pp_badge_gallery_title'),
                     '${data.earnedBadgesCount}',
                     PdfColor.fromInt(0xFFF5F0FF),
                   ),
@@ -264,8 +300,7 @@ class PdfReportService {
                   pw.SizedBox(width: 6),
                   pw.Expanded(
                     child: pw.Text(
-                      'Bu rapor ebeveyn panelindeki son verilere göre otomatik oluşturuldu. '
-                      'Skor ve soru performansını haftalık takip ederek düzenli gelişimi izleyebilirsiniz.',
+                      _t(lc, 'pp_report_sunday_only'),
                       style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey800, height: 1.3),
                     ),
                   ),
@@ -286,7 +321,7 @@ class PdfReportService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              'Haftalık İlerleme',
+              _t(lc, 'pp_weekly_progress_label'),
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: _brandPurple),
             ),
             pw.SizedBox(height: 10),
@@ -331,7 +366,7 @@ class PdfReportService {
                               ),
                             ),
                             pw.SizedBox(height: 2),
-                            pw.Text(_days[i], style: const pw.TextStyle(fontSize: 9)),
+                            pw.Text(days[i], style: const pw.TextStyle(fontSize: 9)),
                           ],
                         );
                       }),
@@ -339,7 +374,7 @@ class PdfReportService {
                   ),
                   pw.SizedBox(height: 6),
                   pw.Text(
-                    'Yeşil: çok iyi  |  Turuncu: orta  |  Kırmızı: geliştirme alanı',
+                    '100%  |  80%+ 🟢  |  50%+ 🟠  |  <50% 🔴',
                     style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                   ),
                 ],
@@ -347,7 +382,7 @@ class PdfReportService {
             ),
             pw.SizedBox(height: 18),
             pw.Text(
-              'Kazanılan Rozetler',
+              _t(lc, 'pp_badge_gallery_title'),
               style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: _brandPurple),
             ),
             pw.SizedBox(height: 10),
@@ -361,7 +396,7 @@ class PdfReportService {
               ),
               child: data.badgeNames.isEmpty
                   ? pw.Text(
-                      'Henüz rozet kazanılmadı.',
+                      _t(lc, 'pp_badge_not_yet'),
                       style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
                     )
                   : pw.Wrap(
@@ -383,7 +418,7 @@ class PdfReportService {
             ),
             pw.SizedBox(height: 18),
             pw.Text(
-              'Öneriler',
+              _t(lc, 'pp_report_suggestions'),
               style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: _brandPurple),
             ),
             pw.SizedBox(height: 10),
@@ -418,7 +453,7 @@ class PdfReportService {
             pw.Align(
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
-                'Matematik Macerası',
+                'MathFun',
                 style: pw.TextStyle(
                   color: PdfColors.grey600,
                   fontSize: 9,

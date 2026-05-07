@@ -181,7 +181,7 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
     final correctPool = (set['correctPool'] as List).cast<String>();
     final wrongPool = (set['wrongPool'] as List).cast<String>();
 
-    _questionText = '⭐ BONUS: ${loc.get(set['questionKey'] as String)}';
+    _questionText = '⭐ ${loc.get('daily_bonus')}: ${loc.get(set['questionKey'] as String)}';
     _correctAnswer = correctPool[random.nextInt(correctPool.length)];
     final wrongOptions = wrongPool.toList()..shuffle(random);
     _options = [_correctAnswer, wrongOptions[0], wrongOptions[1]];

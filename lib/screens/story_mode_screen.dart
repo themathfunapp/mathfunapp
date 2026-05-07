@@ -129,10 +129,11 @@ class _StoryModeScreenState extends State<StoryModeScreen>
 
   Widget _buildAgeSelection(AppLocalizations localizations, StoryService storyService) {
     return PopScope(
-      canPop: false,
+      canPop: true,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (didPop) return;
-        Navigator.pop(context);
+        // Parent panel preview must close cleanly on back.
+        if (didPop || !mounted) return;
+        Navigator.of(context).maybePop();
       },
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(
@@ -430,6 +431,10 @@ class _StoryModeScreenState extends State<StoryModeScreen>
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
+        if (widget.openedFromParentPanel) {
+          Navigator.of(context).maybePop();
+          return;
+        }
         setState(() {
           _showAgeSelection = true;
         });
@@ -492,6 +497,10 @@ class _StoryModeScreenState extends State<StoryModeScreen>
         children: [
           IconButton(
             onPressed: () {
+              if (widget.openedFromParentPanel) {
+                Navigator.of(context).maybePop();
+                return;
+              }
               setState(() {
                 _showAgeSelection = true;
               });

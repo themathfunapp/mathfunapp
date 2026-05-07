@@ -359,7 +359,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
               goldLineText: goldGranted > 0
                   ? loc.get('family_remote_duel_summary_gold').replaceAll('{n}', '$goldGranted')
                   : null,
-              okLabel: loc.get('family_remote_duel_summary_ok'),
+              okLabel: loc.get('ok'),
               onOk: () {
                 Navigator.of(ctx).pop();
                 widget.onDone();
@@ -410,7 +410,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                         widget.onDone();
                       },
                       child: Text(
-                        loc.get('family_remote_duel_summary_ok'),
+                        loc.get('ok'),
                         style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                       ),
                     ),
@@ -838,7 +838,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                               ),
                               onPressed: widget.onDone,
-                              child: Text(loc.get('family_remote_duel_summary_ok')),
+                              child: Text(loc.get('ok')),
                             ),
                           ],
                         ),
@@ -1027,7 +1027,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                                       onPressed: widget.onDone,
                                       icon: const Icon(Icons.check_circle_rounded),
                                       label: Text(
-                                        loc.get('family_remote_duel_summary_ok'),
+                                        loc.get('ok'),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w800,
                                           fontSize: 16,

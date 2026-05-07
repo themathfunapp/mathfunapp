@@ -49,27 +49,194 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
     TopicType.time,
   ];
 
-  String _topicLabel(AppLocalizations loc, TopicType t) {
-    switch (t) {
-      case TopicType.counting:
-        return loc.get('counting');
-      case TopicType.addition:
-        return loc.get('addition');
-      case TopicType.subtraction:
-        return loc.get('subtraction');
-      case TopicType.multiplication:
-        return loc.get('multiplication');
-      case TopicType.division:
-        return loc.get('division');
-      case TopicType.geometry:
-        return loc.get('geometry');
-      case TopicType.fractions:
-        return loc.get('fractions');
-      case TopicType.time:
-        return loc.get('time');
-      default:
-        return t.name;
-    }
+  String _topicLabel(BuildContext context, AppLocalizations loc, TopicType t) {
+    final lc = Provider.of<LocaleProvider>(context, listen: false)
+        .locale
+        .languageCode
+        .toLowerCase();
+    const labels = <String, Map<TopicType, String>>{
+      'tr': {
+        TopicType.counting: 'Sayma',
+        TopicType.addition: 'Toplama',
+        TopicType.subtraction: 'Çıkarma',
+        TopicType.multiplication: 'Çarpma',
+        TopicType.division: 'Bölme',
+        TopicType.geometry: 'Geometri',
+        TopicType.fractions: 'Kesirler',
+        TopicType.time: 'Zaman',
+      },
+      'en': {
+        TopicType.counting: 'Counting',
+        TopicType.addition: 'Addition',
+        TopicType.subtraction: 'Subtraction',
+        TopicType.multiplication: 'Multiplication',
+        TopicType.division: 'Division',
+        TopicType.geometry: 'Geometry',
+        TopicType.fractions: 'Fractions',
+        TopicType.time: 'Time',
+      },
+      'de': {
+        TopicType.counting: 'Zählen',
+        TopicType.addition: 'Addition',
+        TopicType.subtraction: 'Subtraktion',
+        TopicType.multiplication: 'Multiplikation',
+        TopicType.division: 'Division',
+        TopicType.geometry: 'Geometrie',
+        TopicType.fractions: 'Brüche',
+        TopicType.time: 'Zeit',
+      },
+      'es': {
+        TopicType.counting: 'Conteo',
+        TopicType.addition: 'Suma',
+        TopicType.subtraction: 'Resta',
+        TopicType.multiplication: 'Multiplicación',
+        TopicType.division: 'División',
+        TopicType.geometry: 'Geometría',
+        TopicType.fractions: 'Fracciones',
+        TopicType.time: 'Tiempo',
+      },
+      'fr': {
+        TopicType.counting: 'Comptage',
+        TopicType.addition: 'Addition',
+        TopicType.subtraction: 'Soustraction',
+        TopicType.multiplication: 'Multiplication',
+        TopicType.division: 'Division',
+        TopicType.geometry: 'Géométrie',
+        TopicType.fractions: 'Fractions',
+        TopicType.time: 'Temps',
+      },
+      'ar': {
+        TopicType.counting: 'العد',
+        TopicType.addition: 'الجمع',
+        TopicType.subtraction: 'الطرح',
+        TopicType.multiplication: 'الضرب',
+        TopicType.division: 'القسمة',
+        TopicType.geometry: 'الهندسة',
+        TopicType.fractions: 'الكسور',
+        TopicType.time: 'الوقت',
+      },
+      'fa': {
+        TopicType.counting: 'شمارش',
+        TopicType.addition: 'جمع',
+        TopicType.subtraction: 'تفریق',
+        TopicType.multiplication: 'ضرب',
+        TopicType.division: 'تقسیم',
+        TopicType.geometry: 'هندسه',
+        TopicType.fractions: 'کسرها',
+        TopicType.time: 'زمان',
+      },
+      'zh': {
+        TopicType.counting: '计数',
+        TopicType.addition: '加法',
+        TopicType.subtraction: '减法',
+        TopicType.multiplication: '乘法',
+        TopicType.division: '除法',
+        TopicType.geometry: '几何',
+        TopicType.fractions: '分数',
+        TopicType.time: '时间',
+      },
+      'id': {
+        TopicType.counting: 'Menghitung',
+        TopicType.addition: 'Penjumlahan',
+        TopicType.subtraction: 'Pengurangan',
+        TopicType.multiplication: 'Perkalian',
+        TopicType.division: 'Pembagian',
+        TopicType.geometry: 'Geometri',
+        TopicType.fractions: 'Pecahan',
+        TopicType.time: 'Waktu',
+      },
+      'ku': {
+        TopicType.counting: 'Jimartin',
+        TopicType.addition: 'Komkirin',
+        TopicType.subtraction: 'Derxistin',
+        TopicType.multiplication: 'Lêdan',
+        TopicType.division: 'Parvekirin',
+        TopicType.geometry: 'Geometrî',
+        TopicType.fractions: 'Kesir',
+        TopicType.time: 'Dem',
+      },
+      'ru': {
+        TopicType.counting: 'Счёт',
+        TopicType.addition: 'Сложение',
+        TopicType.subtraction: 'Вычитание',
+        TopicType.multiplication: 'Умножение',
+        TopicType.division: 'Деление',
+        TopicType.geometry: 'Геометрия',
+        TopicType.fractions: 'Дроби',
+        TopicType.time: 'Время',
+      },
+      'ja': {
+        TopicType.counting: 'かぞえる',
+        TopicType.addition: 'たし算',
+        TopicType.subtraction: 'ひき算',
+        TopicType.multiplication: 'かけ算',
+        TopicType.division: 'わり算',
+        TopicType.geometry: '図形',
+        TopicType.fractions: '分数',
+        TopicType.time: '時間',
+      },
+      'ko': {
+        TopicType.counting: '세기',
+        TopicType.addition: '덧셈',
+        TopicType.subtraction: '뺄셈',
+        TopicType.multiplication: '곱셈',
+        TopicType.division: '나눗셈',
+        TopicType.geometry: '도형',
+        TopicType.fractions: '분수',
+        TopicType.time: '시간',
+      },
+      'hi': {
+        TopicType.counting: 'गिनती',
+        TopicType.addition: 'जोड़',
+        TopicType.subtraction: 'घटाव',
+        TopicType.multiplication: 'गुणा',
+        TopicType.division: 'भाग',
+        TopicType.geometry: 'ज्यामिति',
+        TopicType.fractions: 'भिन्न',
+        TopicType.time: 'समय',
+      },
+      'ur': {
+        TopicType.counting: 'گنتی',
+        TopicType.addition: 'جمع',
+        TopicType.subtraction: 'تفریق',
+        TopicType.multiplication: 'ضرب',
+        TopicType.division: 'تقسیم',
+        TopicType.geometry: 'جیومیٹری',
+        TopicType.fractions: 'کسر',
+        TopicType.time: 'وقت',
+      },
+      'pt': {
+        TopicType.counting: 'Contagem',
+        TopicType.addition: 'Adição',
+        TopicType.subtraction: 'Subtração',
+        TopicType.multiplication: 'Multiplicação',
+        TopicType.division: 'Divisão',
+        TopicType.geometry: 'Geometria',
+        TopicType.fractions: 'Frações',
+        TopicType.time: 'Tempo',
+      },
+      'it': {
+        TopicType.counting: 'Conteggio',
+        TopicType.addition: 'Addizione',
+        TopicType.subtraction: 'Sottrazione',
+        TopicType.multiplication: 'Moltiplicazione',
+        TopicType.division: 'Divisione',
+        TopicType.geometry: 'Geometria',
+        TopicType.fractions: 'Frazioni',
+        TopicType.time: 'Tempo',
+      },
+      'pl': {
+        TopicType.counting: 'Liczenie',
+        TopicType.addition: 'Dodawanie',
+        TopicType.subtraction: 'Odejmowanie',
+        TopicType.multiplication: 'Mnożenie',
+        TopicType.division: 'Dzielenie',
+        TopicType.geometry: 'Geometria',
+        TopicType.fractions: 'Ułamki',
+        TopicType.time: 'Czas',
+      },
+    };
+    return labels[lc]?[t] ?? labels['en']![t] ?? loc.get(t.name);
   }
 
   Color _topicColor(TopicType t) {
@@ -148,8 +315,9 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
     }
 
     setState(() => _busy = true);
-    final hostName =
-        auth.currentUser?.displayName ?? auth.currentUser?.username ?? 'Ebeveyn';
+    final hostName = auth.currentUser?.displayName ??
+        auth.currentUser?.username ??
+        loc.get('family_remote_duel_host_default');
     final family = context.read<FamilyService>();
     final selectedMembers = family.members
         .where((m) => _selectedChildIds.contains(m.userId))
@@ -438,7 +606,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
                 if (sel) const Icon(Icons.star_rounded, color: Colors.white, size: 20),
                 if (sel) const SizedBox(width: 6),
                 Text(
-                  _topicLabel(loc, t),
+                  _topicLabel(context, loc, t),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -474,7 +642,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
           const Text('🔒', style: TextStyle(fontSize: 20)),
           const SizedBox(width: 10),
           Text(
-            _topicLabel(loc, t),
+            _topicLabel(context, loc, t),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,

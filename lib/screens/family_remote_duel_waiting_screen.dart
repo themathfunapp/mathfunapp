@@ -217,13 +217,10 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
                   const SizedBox(height: 20),
                   Builder(
                     builder: (ctx) {
-                      final loc = AppLocalizations(
-                        Provider.of<LocaleProvider>(ctx, listen: false).locale,
-                      );
                       return Text(
                         widget.isHost
-                            ? loc.get('family_remote_duel_waiting_host')
-                            : loc.get('family_remote_duel_waiting_guest'),
+                            ? _waitText(ctx, 'waiting_host')
+                            : _waitText(ctx, 'waiting_guest'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
@@ -240,7 +237,11 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
                   const SizedBox(height: 24),
                   if (status == 'waiting_accept') ...[
                     Text(
-                      'Kabul: $acceptedCount / $invitedCount',
+                      _waitText(
+                        context,
+                        'accepted_count',
+                        {'accepted': '$acceptedCount', 'invited': '$invitedCount'},
+                      ),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.92),
                         fontSize: 15,
@@ -249,7 +250,11 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Kalan süre: ${secondsLeft.clamp(0, 999)} sn',
+                      _waitText(
+                        context,
+                        'remaining_seconds',
+                        {'seconds': '${secondsLeft.clamp(0, 999)}'},
+                      ),
                       style: TextStyle(
                         color: secondsLeft <= 15 ? const Color(0xFFFFEB3B) : Colors.white,
                         fontWeight: FontWeight.w800,
@@ -272,6 +277,148 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
         ),
       ),
     );
+  }
+
+  String _waitText(
+    BuildContext context,
+    String key, [
+    Map<String, String> params = const {},
+  ]) {
+    final lang = Provider.of<LocaleProvider>(context, listen: false)
+        .locale
+        .languageCode
+        .toLowerCase();
+    const map = <String, Map<String, String>>{
+      'en': {
+        'waiting_host':
+            'Invite sent.\nWait for the other player to accept on their phone or computer.',
+        'waiting_guest': 'Invite accepted.\nConnecting to the duel...',
+        'accepted_count': 'Accepted: {accepted} / {invited}',
+        'remaining_seconds': 'Time left: {seconds} s',
+      },
+      'tr': {
+        'waiting_host':
+            'Davet gönderildi.\nDiğer oyuncunun telefonundan veya bilgisayarından kabul etmesini bekleyin.',
+        'waiting_guest': 'Davet kabul edildi.\nDüelloya bağlanılıyor...',
+        'accepted_count': 'Kabul: {accepted} / {invited}',
+        'remaining_seconds': 'Kalan süre: {seconds} sn',
+      },
+      'de': {
+        'waiting_host':
+            'Einladung gesendet.\nWarte, bis der andere Spieler auf seinem Handy oder Computer annimmt.',
+        'waiting_guest': 'Einladung angenommen.\nVerbindung zum Duell wird hergestellt...',
+        'accepted_count': 'Akzeptiert: {accepted} / {invited}',
+        'remaining_seconds': 'Verbleibende Zeit: {seconds} s',
+      },
+      'es': {
+        'waiting_host':
+            'Invitacion enviada.\nEspera a que el otro jugador la acepte en su telefono o computadora.',
+        'waiting_guest': 'Invitacion aceptada.\nConectando al duelo...',
+        'accepted_count': 'Aceptadas: {accepted} / {invited}',
+        'remaining_seconds': 'Tiempo restante: {seconds} s',
+      },
+      'fr': {
+        'waiting_host':
+            'Invitation envoyee.\nAttendez que l’autre joueur accepte sur son telephone ou son ordinateur.',
+        'waiting_guest': 'Invitation acceptee.\nConnexion au duel...',
+        'accepted_count': 'Acceptees: {accepted} / {invited}',
+        'remaining_seconds': 'Temps restant: {seconds} s',
+      },
+      'ar': {
+        'waiting_host':
+            'تم ارسال الدعوة.\nانتظر حتى يقبل اللاعب الاخر من الهاتف او الكمبيوتر.',
+        'waiting_guest': 'تم قبول الدعوة.\nجاري الاتصال بالمواجهة...',
+        'accepted_count': 'تم القبول: {accepted} / {invited}',
+        'remaining_seconds': 'الوقت المتبقي: {seconds} ث',
+      },
+      'fa': {
+        'waiting_host':
+            'دعوت ارسال شد.\nمنتظر بمانيد تا بازيکن ديگر در تلفن يا رايانه قبول کند.',
+        'waiting_guest': 'دعوت پذيرفته شد.\nدر حال اتصال به دوئل...',
+        'accepted_count': 'پذيرش: {accepted} / {invited}',
+        'remaining_seconds': 'زمان باقي مانده: {seconds} ث',
+      },
+      'zh': {
+        'waiting_host': '邀请已发送。\n请等待对方在手机或电脑上接受邀请。',
+        'waiting_guest': '邀请已接受。\n正在连接对战...',
+        'accepted_count': '已接受: {accepted} / {invited}',
+        'remaining_seconds': '剩余时间: {seconds} 秒',
+      },
+      'id': {
+        'waiting_host':
+            'Undangan terkirim.\nTunggu pemain lain menerima di ponsel atau komputer mereka.',
+        'waiting_guest': 'Undangan diterima.\nMenghubungkan ke duel...',
+        'accepted_count': 'Diterima: {accepted} / {invited}',
+        'remaining_seconds': 'Sisa waktu: {seconds} dtk',
+      },
+      'ku': {
+        'waiting_host':
+            'Bangewazek hat.\nLi benda ku lîstikvanê din li telefon an komputerê xwe qebul bike.',
+        'waiting_guest': 'Bangewaz qebul bû.\nGirêdan bo duelê...',
+        'accepted_count': 'Qebulkirî: {accepted} / {invited}',
+        'remaining_seconds': 'Demê mayî: {seconds} ç',
+      },
+      'ru': {
+        'waiting_host':
+            'Приглашение отправлено.\nПодождите, пока другой игрок примет его на телефоне или компьютере.',
+        'waiting_guest': 'Приглашение принято.\nПодключение к дуэли...',
+        'accepted_count': 'Принято: {accepted} / {invited}',
+        'remaining_seconds': 'Осталось времени: {seconds} с',
+      },
+      'ja': {
+        'waiting_host': '招待を送信しました。\n相手がスマホまたはPCで承認するのを待ってください。',
+        'waiting_guest': '招待が承認されました。\n対戦に接続中...',
+        'accepted_count': '承認: {accepted} / {invited}',
+        'remaining_seconds': '残り時間: {seconds} 秒',
+      },
+      'ko': {
+        'waiting_host': '초대가 전송되었습니다.\n상대가 휴대폰이나 컴퓨터에서 수락할 때까지 기다리세요.',
+        'waiting_guest': '초대가 수락되었습니다.\n대결에 연결 중...',
+        'accepted_count': '수락: {accepted} / {invited}',
+        'remaining_seconds': '남은 시간: {seconds}초',
+      },
+      'hi': {
+        'waiting_host':
+            'निमंत्रण भेज दिया गया है।\nदूसरे खिलाड़ी के फोन या कंप्यूटर पर स्वीकार करने का इंतजार करें।',
+        'waiting_guest': 'निमंत्रण स्वीकार हो गया।\nड्यूल से कनेक्ट हो रहा है...',
+        'accepted_count': 'स्वीकृत: {accepted} / {invited}',
+        'remaining_seconds': 'शेष समय: {seconds} से',
+      },
+      'ur': {
+        'waiting_host':
+            'دعوت بھیج دی گئی ہے۔\nدوسرے کھلاڑی کے فون یا کمپیوٹر پر قبول کرنے کا انتظار کریں۔',
+        'waiting_guest': 'دعوت قبول ہوگئی۔\nدوئل سے رابطہ ہو رہا ہے...',
+        'accepted_count': 'قبول: {accepted} / {invited}',
+        'remaining_seconds': 'باقی وقت: {seconds} س',
+      },
+      'pt': {
+        'waiting_host':
+            'Convite enviado.\nAguarde o outro jogador aceitar no celular ou computador.',
+        'waiting_guest': 'Convite aceito.\nConectando ao duelo...',
+        'accepted_count': 'Aceitos: {accepted} / {invited}',
+        'remaining_seconds': 'Tempo restante: {seconds} s',
+      },
+      'it': {
+        'waiting_host':
+            'Invito inviato.\nAttendi che l’altro giocatore accetti dal telefono o computer.',
+        'waiting_guest': 'Invito accettato.\nConnessione al duello...',
+        'accepted_count': 'Accettati: {accepted} / {invited}',
+        'remaining_seconds': 'Tempo rimanente: {seconds} s',
+      },
+      'pl': {
+        'waiting_host':
+            'Zaproszenie wyslane.\nPoczekaj, az drugi gracz zaakceptuje na telefonie lub komputerze.',
+        'waiting_guest': 'Zaproszenie zaakceptowane.\nLaczenie z pojedynkiem...',
+        'accepted_count': 'Zaakceptowano: {accepted} / {invited}',
+        'remaining_seconds': 'Pozostaly czas: {seconds} s',
+      },
+    };
+    final selected = map[lang] ?? map['en']!;
+    var text = selected[key] ?? map['en']![key] ?? key;
+    params.forEach((k, v) {
+      text = text.replaceAll('{$k}', v);
+    });
+    return text;
   }
 }
 
@@ -305,7 +452,7 @@ class _Cancelled extends StatelessWidget {
               child: Text(
                 AppLocalizations(
                   Provider.of<LocaleProvider>(context, listen: false).locale,
-                ).get('family_remote_duel_summary_ok'),
+                ).get('ok'),
               ),
             ),
           ],

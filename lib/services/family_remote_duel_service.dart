@@ -416,6 +416,17 @@ class FamilyRemoteDuelService {
 
         hostUid = d['fromUserId'] as String?;
         sessionId = (d['sessionId'] as String?) ?? '';
+        DocumentReference<Map<String, dynamic>>? sessionRef;
+        Map<String, dynamic>? sessionData;
+
+        if (sessionId.isNotEmpty) {
+          final ref = _db.collection(sessionsCol).doc(sessionId);
+          final s = await tx.get(ref);
+          if (s.exists) {
+            sessionRef = ref;
+            sessionData = s.data();
+          }
+        }
 
         tx.update(inviteRef, {
           'status': 'expired',
@@ -423,11 +434,8 @@ class FamilyRemoteDuelService {
         });
         expiredInvite = true;
 
-        if (sessionId.isEmpty) return;
-        final sessionRef = _db.collection(sessionsCol).doc(sessionId);
-        final s = await tx.get(sessionRef);
-        if (!s.exists) return;
-        final sd = s.data()!;
+        final sd = sessionData;
+        if (sessionRef == null || sd == null) return;
         if (sd['status'] != 'waiting_accept') return;
         tx.update(sessionRef, {
           'status': 'expired',
