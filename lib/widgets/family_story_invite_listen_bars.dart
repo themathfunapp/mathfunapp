@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_navigator.dart';
 import '../localization/app_localizations.dart';
+import '../utils/constants.dart';
 import '../screens/story_mode_screen.dart';
 import '../services/family_story_invite_service.dart';
 
@@ -189,6 +191,7 @@ class _FamilyStoryInviteIncomingBarState extends State<FamilyStoryInviteIncoming
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Davet süresi doldu veya artık geçerli değil.'),
+                                duration: kAppSnackBarDuration,
                               ),
                             );
                             return;
@@ -196,6 +199,7 @@ class _FamilyStoryInviteIncomingBarState extends State<FamilyStoryInviteIncoming
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Kabul edildi. Diğer üyeler bekleniyor...'),
+                              duration: kAppSnackBarDuration,
                             ),
                           );
                         }
@@ -238,22 +242,201 @@ class _FamilyStoryInviteIncomingBarState extends State<FamilyStoryInviteIncoming
 }
 
 /// Gönderen için hikâye daveti geri bildirimi (reddetme / zaman aşımı).
-class FamilyStoryInviteSenderInfoBar extends StatelessWidget {
+/// Sağ ortadan kayarak gelir; Tamam veya 5 sn sonra sağa kayarak kapanır.
+class FamilyStoryInviteSenderInfoBar extends StatefulWidget {
   const FamilyStoryInviteSenderInfoBar({super.key, required this.userId});
 
   final String userId;
 
   @override
+  State<FamilyStoryInviteSenderInfoBar> createState() =>
+      _FamilyStoryInviteSenderInfoBarState();
+}
+
+class _FamilyStoryInviteSenderInfoBarState extends State<FamilyStoryInviteSenderInfoBar>
+    with SingleTickerProviderStateMixin {
+  static const Duration _autoDismissAfter = Duration(seconds: 5);
+  static const Duration _slideDuration = Duration(milliseconds: 380);
+  static const int _maxDismissedIds = 400;
+  /// Bu süreden eski expired/declined bildirim tekrar gösterilmez (yenilemede sıfırlanmaz).
+  static const Duration _staleNotificationAfter = Duration(minutes: 15);
+
+  late final AnimationController _slide = AnimationController(
+    vsync: this,
+    duration: _slideDuration,
+  );
+  late final Animation<Offset> _slideAnim = Tween<Offset>(
+    begin: const Offset(1.08, 0),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(
+    parent: _slide,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  ));
+
+  Timer? _autoDismissTimer;
+  String? _shownInviteId;
+  bool _dismissing = false;
+  /// Sunucu [senderAckAt] yazılamasa bile yenilemede tekrar gösterme.
+  final Set<String> _locallyDismissedInviteIds = {};
+  bool _prefsLoaded = false;
+  final Set<String> _silentStaleScheduled = {};
+
+  String get _prefsKey => 'family_story_sender_dismissed_v1_${widget.userId}';
+
+  static bool _isStaleSenderNotification(Map<String, dynamic> m) {
+    final status = (m['status'] as String?) ?? '';
+    if (status != 'declined' && status != 'expired') return false;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    var lastMs = 0;
+    void take(Timestamp? t) {
+      if (t == null) return;
+      final ms = t.millisecondsSinceEpoch;
+      if (ms > lastMs) lastMs = ms;
+    }
+
+    take(m['updatedAt'] as Timestamp?);
+    take(m['declinedAt'] as Timestamp?);
+    take(m['createdAt'] as Timestamp?);
+    if (lastMs <= 0) return false;
+    return now - lastMs > _staleNotificationAfter.inMilliseconds;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocalDismissed();
+  }
+
+  Future<void> _loadLocalDismissed() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final list = p.getStringList(_prefsKey);
+      if (!mounted) return;
+      setState(() {
+        _locallyDismissedInviteIds
+          ..clear()
+          ..addAll(list ?? const []);
+        _prefsLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _prefsLoaded = true);
+    }
+  }
+
+  Future<void> _rememberDismissedLocally(String inviteId) async {
+    if (inviteId.isEmpty || _locallyDismissedInviteIds.contains(inviteId)) return;
+    setState(() => _locallyDismissedInviteIds.add(inviteId));
+    try {
+      final p = await SharedPreferences.getInstance();
+      final list = List<String>.from(_locallyDismissedInviteIds);
+      while (list.length > _maxDismissedIds) {
+        list.removeAt(0);
+      }
+      await p.setStringList(_prefsKey, list);
+    } catch (_) {}
+  }
+
+  void _scheduleSilentStaleClear(String inviteId, FamilyStoryInviteService svc) {
+    if (inviteId.isEmpty || _silentStaleScheduled.contains(inviteId)) return;
+    _silentStaleScheduled.add(inviteId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_silentClearStaleInvite(inviteId, svc));
+    });
+  }
+
+  Future<void> _silentClearStaleInvite(
+    String inviteId,
+    FamilyStoryInviteService svc,
+  ) async {
+    await _rememberDismissedLocally(inviteId);
+    try {
+      await svc.acknowledgeSenderUpdate(
+        inviteId: inviteId,
+        actingUserId: widget.userId,
+      );
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _autoDismissTimer?.cancel();
+    _slide.dispose();
+    super.dispose();
+  }
+
+  void _cancelTimer() {
+    _autoDismissTimer?.cancel();
+    _autoDismissTimer = null;
+  }
+
+  void _onStreamEmpty() {
+    _cancelTimer();
+    if (_dismissing) return;
+    _shownInviteId = null;
+    if (_slide.isAnimating) {
+      _slide.stop();
+    }
+    _slide.reset();
+  }
+
+  void _syncDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    FamilyStoryInviteService svc,
+  ) {
+    final id = doc.id;
+    if (_dismissing) return;
+    if (_shownInviteId == id) return;
+
+    _cancelTimer();
+    _shownInviteId = id;
+    _slide.forward(from: 0).whenComplete(() {
+      if (!mounted || _shownInviteId != id || _dismissing) return;
+      _cancelTimer();
+      _autoDismissTimer = Timer(_autoDismissAfter, () {
+        if (!mounted || _shownInviteId != id || _dismissing) return;
+        unawaited(_dismissAndAck(svc, id));
+      });
+    });
+  }
+
+  Future<void> _dismissAndAck(FamilyStoryInviteService svc, String inviteId) async {
+    if (_dismissing) return;
+    await _rememberDismissedLocally(inviteId);
+    _dismissing = true;
+    _cancelTimer();
+    try {
+      await _slide.reverse();
+      if (!mounted) return;
+      await svc.acknowledgeSenderUpdate(
+        inviteId: inviteId,
+        actingUserId: widget.userId,
+      );
+    } finally {
+      _dismissing = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final svc = Provider.of<FamilyStoryInviteService>(context, listen: false);
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: svc.senderUpdatesStream(userId),
+      stream: svc.senderUpdatesStream(widget.userId),
       builder: (context, snap) {
+        if (!_prefsLoaded) return const SizedBox.shrink();
         if (!snap.hasData) return const SizedBox.shrink();
         final docs = snap.data!.docs.where((d) {
+          if (_locallyDismissedInviteIds.contains(d.id)) return false;
           final m = d.data();
           final acked = m['senderAckAt'] != null;
-          return !acked;
+          if (acked) return false;
+          if (_isStaleSenderNotification(m)) {
+            _scheduleSilentStaleClear(d.id, svc);
+            return false;
+          }
+          return true;
         }).toList()
           ..sort((a, b) {
             final am = a.data();
@@ -266,35 +449,60 @@ class FamilyStoryInviteSenderInfoBar extends StatelessWidget {
                 0;
             return bt.compareTo(at);
           });
-        if (docs.isEmpty) return const SizedBox.shrink();
+        if (docs.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _onStreamEmpty();
+          });
+          return const SizedBox.shrink();
+        }
         final doc = docs.first;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _syncDoc(doc, svc);
+        });
+
         final m = doc.data();
         final to = m['toDisplayName'] as String? ?? 'Aile üyesi';
         final status = (m['status'] as String?) ?? '';
         final text = status == 'declined'
             ? '$to daveti reddetti.'
             : '$to davetine 90 sn içinde cevap vermedi.';
-        return Container(
-          color: const Color(0xFF5B2C2C),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  text,
-                  style: const TextStyle(color: Colors.white, fontSize: 12.5),
-                ),
+
+        return SlideTransition(
+          position: _slideAnim,
+          child: Material(
+            elevation: 12,
+            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF5B2C2C),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: const TextStyle(color: Colors.white, fontSize: 12.5, height: 1.25),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: const Size(48, 40),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: _dismissing
+                        ? null
+                        : () => unawaited(_dismissAndAck(svc, doc.id)),
+                    child: const Text('Tamam', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => svc.acknowledgeSenderUpdate(
-                  inviteId: doc.id,
-                  actingUserId: userId,
-                ),
-                child: const Text('Tamam', style: TextStyle(color: Colors.white70)),
-              ),
-            ],
+            ),
           ),
         );
       },

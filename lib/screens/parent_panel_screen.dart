@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:printing/printing.dart';
 import '../services/auth_service.dart';
 import '../services/pdf_report_service.dart';
+import '../services/pdf_weekly_report_tips.dart';
 import '../services/badge_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
@@ -20,6 +20,7 @@ import '../models/family_member.dart';
 import '../localization/app_localizations.dart';
 import '../localization/parent_panel_l10n.dart';
 import '../providers/locale_provider.dart';
+import '../utils/pdf_share.dart';
 import '../widgets/animated_counter.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/empty_state_lottie.dart';
@@ -110,14 +111,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       if (pinService.isSessionExpired) {
         pinService.endSession();
         if (mounted) {
-          final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(ParentPanelL10n.of(lc, 'pp_session_timeout')),
-              backgroundColor: Colors.orange,
-            ),
-          );
         }
       }
     });
@@ -214,13 +208,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   }
 
   String _pp(BuildContext context, String key) => ParentPanelL10n.of(
-        Provider.of<LocaleProvider>(context).locale.languageCode,
+        Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
         key,
       );
 
   /// Son aktivite metnini formatla (gerçek veri)
   String _formatLastActivity(DateTime? lastPlayedAt, BuildContext context) {
-    final lc = Provider.of<LocaleProvider>(context).locale.languageCode;
+    final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
     if (lastPlayedAt == null) return ParentPanelL10n.of(lc, 'pp_never_played');
     final diff = DateTime.now().difference(lastPlayedAt);
     if (diff.inMinutes < 1) return ParentPanelL10n.of(lc, 'pp_just_now');
@@ -268,71 +262,75 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Listener(
-      onPointerDown: (_) {
-        Provider.of<ParentPinService>(context, listen: false).recordActivity();
-      },
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFE8F5FF),
-                Color(0xFFFFF3E0),
-                Color(0xFFFFF8F8),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 24,
-                  left: 18,
-                  child: Text('⭐', style: TextStyle(fontSize: 22, color: Colors.orange.shade300)),
+    return Consumer<LocaleProvider>(
+      builder: (context, _, __) {
+        return Listener(
+          onPointerDown: (_) {
+            Provider.of<ParentPinService>(context, listen: false).recordActivity();
+          },
+          child: Scaffold(
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFE8F5FF),
+                    Color(0xFFFFF3E0),
+                    Color(0xFFFFF8F8),
+                  ],
                 ),
-                Positioned(
-                  top: 62,
-                  right: 18,
-                  child: Text('🎈', style: TextStyle(fontSize: 24, color: Colors.pink.shade300)),
-                ),
-                NestedScrollView(
-                  headerSliverBuilder: (context, innerBoxIsScrolled) {
-                    return [
-                      SliverToBoxAdapter(
-                        child: _buildCollapsibleHeader(),
-                      ),
-                    ];
-                  },
-                  body: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.06, 0.0),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: KeyedSubtree(
-                      key: ValueKey<int>(_activeTab),
-                      child: _buildTabContent(_activeTab),
+              ),
+              child: SafeArea(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 24,
+                      left: 18,
+                      child: Text('⭐', style: TextStyle(fontSize: 22, color: Colors.orange.shade300)),
                     ),
-                  ),
+                    Positioned(
+                      top: 62,
+                      right: 18,
+                      child: Text('🎈', style: TextStyle(fontSize: 24, color: Colors.pink.shade300)),
+                    ),
+                    NestedScrollView(
+                      headerSliverBuilder: (context, innerBoxIsScrolled) {
+                        return [
+                          SliverToBoxAdapter(
+                            child: _buildCollapsibleHeader(),
+                          ),
+                        ];
+                      },
+                      body: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.06, 0.0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: KeyedSubtree(
+                          key: ValueKey<int>(_activeTab),
+                          child: _buildTabContent(_activeTab),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1958,21 +1956,40 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
         children: [
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _generateAndSharePdf(
-                context,
-                childName: childName,
-                weeklyValues: weeklyValues,
-                stats: stats,
-                accuracy: accuracy,
-                badge: badge,
-              ),
-              icon: const Icon(Icons.picture_as_pdf),
-              label: Text(_pp(context, 'pp_report_generate')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Material(
+              color: const Color(0xFFE53935),
+              borderRadius: BorderRadius.circular(999),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _generateAndSharePdf(
+                  context,
+                  childName: childName,
+                  weeklyValues: weeklyValues,
+                  stats: stats,
+                  accuracy: accuracy,
+                  badge: badge,
+                ),
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      const Icon(Icons.picture_as_pdf, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Text(
+                        _pp(context, 'pp_report_generate'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -2069,7 +2086,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       );
       final fileName =
           'mathfun_rapor_${entry.data.childName.replaceAll(' ', '_')}_${entry.createdAt.millisecondsSinceEpoch}.pdf';
-      await Printing.sharePdf(bytes: bytes, filename: fileName);
+      if (!mounted) return;
+      await sharePdfBytes(
+        bytes,
+        fileName,
+        context: context,
+        dialogTitle: _pp(context, 'pp_pdf_web_download_title'),
+        dialogBody: _pp(context, 'pp_pdf_web_download_body'),
+        downloadLabel: _pp(context, 'pp_pdf_download_btn'),
+        closeLabel: _pp(context, 'pp_cancel'),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2196,19 +2222,6 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     required int accuracy,
     required BadgeService badge,
   }) async {
-    final now = DateTime.now();
-    final isSunday = now.weekday == DateTime.sunday;
-    if (!isSunday) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_pp(context, 'pp_report_sunday_only')),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
     final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
     final localizations = AppLocalizations(locale);
 
@@ -2217,7 +2230,13 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       return def != null ? localizations.get(def.nameKey) : e.badgeId;
     }).toList();
 
-    final recommendations = _getRecommendationsList(context, stats, accuracy);
+    final recommendations = _getRecommendationsList(
+      context,
+      stats,
+      accuracy,
+      weeklyValues,
+      childName,
+    );
 
     final data = PdfReportData(
       childName: childName,
@@ -2247,9 +2266,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
 
       final fileName = 'mathfun_rapor_${childName.replaceAll(' ', '_')}.pdf';
 
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: fileName,
+      if (!context.mounted) return;
+      await sharePdfBytes(
+        bytes,
+        fileName,
+        context: context,
+        dialogTitle: _pp(context, 'pp_pdf_web_download_title'),
+        dialogBody: _pp(context, 'pp_pdf_web_download_body'),
+        downloadLabel: _pp(context, 'pp_pdf_download_btn'),
+        closeLabel: _pp(context, 'pp_cancel'),
       );
 
       setState(() {
@@ -2288,23 +2313,18 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     BuildContext context,
     UserStats? stats,
     int accuracy,
+    List<int> weeklyValues,
+    String childName,
   ) {
-    final items = <String>[];
-    if (accuracy >= 80) {
-      items.add(_pp(context, 'pp_rec_great'));
-    } else if (accuracy >= 60) {
-      items.add(_pp(context, 'pp_rec_practice'));
-    } else {
-      items.add(_pp(context, 'pp_rec_basics'));
-    }
-    final totalQuestions = stats?.totalQuestionsAnswered ?? 0;
-    if (totalQuestions < 50) {
-      items.add(_pp(context, 'pp_rec_more_questions'));
-    }
-    if (items.isEmpty) {
-      items.add(_pp(context, 'pp_rec_keep_playing'));
-    }
-    return items;
+    final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+    return PdfWeeklyReportTips.pickTips(
+      languageCode: lc,
+      childName: childName,
+      accuracy: accuracy,
+      totalQuestions: stats?.totalQuestionsAnswered ?? 0,
+      weeklyValues: weeklyValues,
+      count: 4,
+    );
   }
 
   Widget _buildWeeklyChart(BuildContext context, List<int> values) {

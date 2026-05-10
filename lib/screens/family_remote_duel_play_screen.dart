@@ -112,7 +112,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
   }
 
   Future<bool> _confirmQuitDuel() async {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final loc = AppLocalizations(context.read<LocaleProvider>().locale);
     final r = await showDialog<bool>(
       context: context,
       useRootNavigator: true,
@@ -154,7 +154,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
           );
       if (!ok) {
         if (mounted) {
-          final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+          final loc = AppLocalizations(context.read<LocaleProvider>().locale);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(loc.get('family_remote_duel_forfeit_failed')),
@@ -306,7 +306,6 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       final myUid = context.read<AuthService>().currentUser?.uid ?? '';
       var goldGranted = 0;
       if (myUid.isNotEmpty) {
@@ -320,6 +319,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
       }
 
       if (!mounted) return;
+      final loc = AppLocalizations.of(context);
 
       String headline;
       if (isForfeit && myUid.isNotEmpty && myUid != forfeitedBy) {
@@ -339,11 +339,10 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
       }
 
       final scoreLines = top.map((e) => scoreLine(e.key, e.value)).join('\n');
-      final goldLine = goldGranted > 0
-          ? '\n\n${loc.get('family_remote_duel_summary_gold').replaceAll('{n}', '$goldGranted')}'
-          : '';
 
       final isForfeitWin = isForfeit && myUid.isNotEmpty && myUid != forfeitedBy;
+      final youLeft = isForfeit && myUid.isNotEmpty && myUid == forfeitedBy;
+      final isTie = winners.length > 1;
 
       await showDialog<void>(
         context: context,
@@ -366,58 +365,23 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
               },
             );
           }
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🏆', style: TextStyle(fontSize: 48)),
-                    const SizedBox(height: 8),
-                    Text(
-                      loc.get('family_remote_duel_summary_title'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF5E35B1),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      '$headline\n\n${loc.get('family_remote_duel_summary_scores')}\n$scoreLines$goldLine',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.4,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C4DFF),
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        widget.onDone();
-                      },
-                      child: Text(
-                        loc.get('ok'),
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          return _RemoteDuelSummaryKidDialog(
+            tone: youLeft
+                ? _SummaryKidTone.calmGoodbye
+                : _SummaryKidTone.friendlyFinish,
+            topEmoji: youLeft ? '👋' : (isTie ? '🤝' : '🏆'),
+            headline: headline,
+            summaryTitle: loc.get('family_remote_duel_summary_title'),
+            scoresHeading: loc.get('family_remote_duel_summary_scores'),
+            scoreLines: scoreLines,
+            goldLineText: goldGranted > 0
+                ? loc.get('family_remote_duel_summary_gold').replaceAll('{n}', '$goldGranted')
+                : null,
+            okLabel: loc.get('ok'),
+            onOk: () {
+              Navigator.of(ctx).pop();
+              widget.onDone();
+            },
           );
         },
       );
@@ -443,7 +407,7 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
         );
     if (mounted) setState(() => _busy = false);
     if (!ok && mounted) {
-      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      final loc = AppLocalizations(context.read<LocaleProvider>().locale);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(loc.get('family_remote_duel_answer_failed')),
@@ -655,7 +619,9 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${secs}s',
+                  loc
+                      .get('family_remote_duel_seconds_compact')
+                      .replaceAll('{n}', '$secs'),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -755,6 +721,9 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Dil: MaterialApp / Localizations ile aynı kaynak (LocaleProvider ile senkron).
+    context.watch<LocaleProvider>();
+    final loc = AppLocalizations.of(context);
     final auth = context.watch<AuthService>();
     final svc = context.read<FamilyRemoteDuelService>();
 
@@ -801,9 +770,6 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
                 });
 
                 final status = d['status'] as String? ?? '';
-                final loc = AppLocalizations(
-                  Provider.of<LocaleProvider>(context, listen: false).locale,
-                );
 
                 if (status == 'cancelled') {
                   return Center(
@@ -1048,6 +1014,425 @@ class _FamilyRemoteDuelPlayScreenState extends State<FamilyRemoteDuelPlayScreen>
           ),
         ],
       ),
+      ),
+    );
+  }
+}
+
+enum _SummaryKidTone { calmGoodbye, friendlyFinish }
+
+/// Oyundan çıkma, beraberlik veya normal skor özeti — kutlama kadar yoğun değil ama aynı kalitede animasyon + düzen.
+class _RemoteDuelSummaryKidDialog extends StatefulWidget {
+  const _RemoteDuelSummaryKidDialog({
+    required this.tone,
+    required this.topEmoji,
+    required this.headline,
+    required this.summaryTitle,
+    required this.scoresHeading,
+    required this.scoreLines,
+    required this.goldLineText,
+    required this.okLabel,
+    required this.onOk,
+  });
+
+  final _SummaryKidTone tone;
+  final String topEmoji;
+  final String headline;
+  final String summaryTitle;
+  final String scoresHeading;
+  final String scoreLines;
+  final String? goldLineText;
+  final String okLabel;
+  final VoidCallback onOk;
+
+  @override
+  State<_RemoteDuelSummaryKidDialog> createState() => _RemoteDuelSummaryKidDialogState();
+}
+
+class _RemoteDuelSummaryKidDialogState extends State<_RemoteDuelSummaryKidDialog>
+    with TickerProviderStateMixin {
+  late final AnimationController _drift;
+  late final AnimationController _bounce;
+  late final Animation<double> _entryScale;
+  late final Animation<double> _entryFade;
+
+  static const List<String> _sparklesCalm = ['✨', '✨', '·'];
+  static const List<String> _sparklesFriendly = ['✨', '⭐', '💫', '·'];
+
+  @override
+  void initState() {
+    super.initState();
+    final calm = widget.tone == _SummaryKidTone.calmGoodbye;
+    _drift = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: calm ? 5200 : 3800),
+    )..repeat(reverse: true);
+
+    _bounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1050),
+    );
+    _entryScale = CurvedAnimation(parent: _bounce, curve: Curves.elasticOut);
+    _entryFade = CurvedAnimation(
+      parent: _bounce,
+      curve: const Interval(0, 0.62, curve: Curves.easeOut),
+    );
+    _bounce.forward();
+  }
+
+  @override
+  void dispose() {
+    _drift.dispose();
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final calm = widget.tone == _SummaryKidTone.calmGoodbye;
+    final sparkles = calm ? _sparklesCalm : _sparklesFriendly;
+    final particleCount = calm ? 9 : 15;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_drift, _bounce]),
+        builder: (context, child) {
+          final u = _drift.value;
+          final w = size.width.clamp(280, 900);
+
+          late List<Color> bgColors;
+          if (calm) {
+            bgColors = [
+              Color.lerp(const Color(0xFF263238), const Color(0xFF37474F), u)!,
+              Color.lerp(const Color(0xFF3949AB), const Color(0xFF5C6BC0), 1 - u)!,
+              Color.lerp(const Color(0xFF455A64), const Color(0xFF7986CB), (u * 0.7 + 0.2) % 1.0)!,
+              Color.lerp(const Color(0xFF263238), const Color(0xFF3949AB), u)!,
+            ];
+          } else {
+            bgColors = [
+              Color.lerp(const Color(0xFF26C6DA), const Color(0xFF00ACC1), u)!,
+              Color.lerp(const Color(0xFF7C4DFF), const Color(0xFFAB47BC), 1 - u)!,
+              Color.lerp(const Color(0xFF4DD0E1), const Color(0xFFEC407A), 0.5 + u * 0.25)!,
+              Color.lerp(const Color(0xFF00BCD4), const Color(0xFF7E57C2), u)!,
+            ];
+          }
+
+          return FadeTransition(
+            opacity: _entryFade,
+            child: ScaleTransition(
+              scale: _entryScale,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 420, maxHeight: size.height * 0.88),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(-0.2 + u * 0.15, -1),
+                              end: Alignment(0.25 - u * 0.1, 1.05),
+                              colors: bgColors,
+                              stops: const [0, 0.34, 0.68, 1],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: List<Widget>.generate(particleCount, (i) {
+                              final phase = (i * 0.41) % 1.0;
+                              final slow = calm ? 0.35 : 0.55;
+                              final y = (u * slow + phase) % 1.0;
+                              final x = (math.sin((u + i) * math.pi * 2 * 0.12 + i * 0.8) + 1) / 2;
+                              final emoji = sparkles[i % sparkles.length];
+                              if (emoji == '·') return const SizedBox.shrink();
+                              return Positioned(
+                                left: 6 + x * (w - 52),
+                                top: -16 + y * 400,
+                                child: Opacity(
+                                  opacity: (0.22 + 0.35 * math.sin((u + phase) * math.pi * 2))
+                                      .clamp(0.15, 0.75),
+                                  child: Transform.rotate(
+                                    angle: (u * 0.4 + phase) * math.pi * 0.35,
+                                    child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 26, 20, 22),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0.88, end: 1),
+                                duration: const Duration(milliseconds: 850),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, scale, child) {
+                                  return Transform.scale(scale: scale, child: child);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: calm ? 0.28 : 0.38),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (calm ? Colors.blue : Colors.amber)
+                                            .withValues(alpha: calm ? 0.35 : 0.45),
+                                        blurRadius: calm ? 18 : 22,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(widget.topEmoji, style: const TextStyle(fontSize: 58)),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                widget.summaryTitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white.withValues(alpha: 0.96),
+                                  letterSpacing: 0.4,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      offset: Offset(0, 2),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: calm ? const Color(0xFF90CAF9) : const Color(0xFFFFD54F),
+                                    width: 2.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.14),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    if (calm)
+                                      Text(
+                                        widget.headline,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.4,
+                                          color: Colors.blueGrey.shade900,
+                                        ),
+                                      )
+                                    else
+                                      ShaderMask(
+                                        shaderCallback: (bounds) {
+                                          return LinearGradient(
+                                            colors: [
+                                              const Color(0xFF7C4DFF),
+                                              const Color(0xFF00ACC1),
+                                              const Color(0xFF00C853),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ).createShader(bounds);
+                                        },
+                                        blendMode: BlendMode.srcIn,
+                                        child: Text(
+                                          widget.headline,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1.35,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 14),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        widget.scoresHeading,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.deepPurple.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      widget.scoreLines,
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        height: 1.45,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                    if (widget.goldLineText != null) ...[
+                                      const SizedBox(height: 12),
+                                      TweenAnimationBuilder<double>(
+                                        tween: Tween(begin: 0, end: 1),
+                                        duration: const Duration(milliseconds: 650),
+                                        curve: Curves.easeOutBack,
+                                        builder: (context, v, child) {
+                                          final o = v.clamp(0.0, 1.0);
+                                          return Opacity(
+                                            opacity: o,
+                                            child: Transform.scale(
+                                              scale: 0.94 + 0.06 * o,
+                                              child: child,
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                            horizontal: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.amber.shade400,
+                                                Colors.orange.shade400,
+                                              ],
+                                            ),
+                                            borderRadius: BorderRadius.circular(14),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                '🪙 ',
+                                                style: TextStyle(
+                                                  fontSize: 22,
+                                                  shadows: [
+                                                    Shadow(
+                                                      blurRadius: 4,
+                                                      color: Colors.brown.withValues(alpha: 0.4),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Flexible(
+                                                child: Text(
+                                                  widget.goldLineText!,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Material(
+                                elevation: 6,
+                                borderRadius: BorderRadius.circular(22),
+                                shadowColor: Colors.black.withValues(alpha: 0.35),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(22),
+                                    gradient: LinearGradient(
+                                      colors: calm
+                                          ? const [
+                                              Color(0xFF5C6BC0),
+                                              Color(0xFF3949AB),
+                                              Color(0xFF283593),
+                                            ]
+                                          : const [
+                                              Color(0xFFFF6D00),
+                                              Color(0xFFFFEA00),
+                                              Color(0xFF00E676),
+                                            ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                                  ),
+                                  child: FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 36,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(22),
+                                      ),
+                                    ),
+                                    onPressed: widget.onOk,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          calm ? '💙' : '🎉',
+                                          style: const TextStyle(fontSize: 22),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          widget.okLabel,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 17,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

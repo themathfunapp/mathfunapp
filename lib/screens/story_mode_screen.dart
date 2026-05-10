@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../app_navigator.dart';
 import '../services/auth_service.dart';
 import '../services/story_service.dart';
 import '../services/ad_service.dart';
@@ -80,6 +81,24 @@ class _StoryModeScreenState extends State<StoryModeScreen>
   void dispose() {
     _floatController.dispose();
     super.dispose();
+  }
+
+  /// Ana sayfada: yaş seçimine döner (setState bir sonraki karede).
+  /// Ebeveyn paneli → Oyun Oyna önizlemesi: kök [Navigator] ile bu tam ekranı kapatır
+  /// (`MaterialApp.navigatorKey` — üstteki davet host ile aynı stack).
+  void _requestBackToAgeSelection() {
+    if (!mounted) return;
+    if (widget.openedFromParentPanel) {
+      final nav = appRootNavigatorKey.currentState;
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _showAgeSelection = true);
+    });
   }
 
   @override
@@ -431,13 +450,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
-        if (widget.openedFromParentPanel) {
-          Navigator.of(context).maybePop();
-          return;
-        }
-        setState(() {
-          _showAgeSelection = true;
-        });
+        _requestBackToAgeSelection();
       },
       child: Column(
         children: [
@@ -496,15 +509,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
       child: Row(
         children: [
           IconButton(
-            onPressed: () {
-              if (widget.openedFromParentPanel) {
-                Navigator.of(context).maybePop();
-                return;
-              }
-              setState(() {
-                _showAgeSelection = true;
-              });
-            },
+            onPressed: _requestBackToAgeSelection,
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(

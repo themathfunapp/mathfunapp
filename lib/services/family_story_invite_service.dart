@@ -312,6 +312,10 @@ class FamilyStoryInviteService {
       await ref.update({
         'senderAckAt': FieldValue.serverTimestamp(),
       });
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'FamilyStoryInvite acknowledgeSenderUpdate: ${e.code} ${e.message}',
+      );
     } catch (e) {
       debugPrint('FamilyStoryInvite acknowledgeSenderUpdate: $e');
     }

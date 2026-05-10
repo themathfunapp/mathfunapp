@@ -347,24 +347,29 @@ service cloud.firestore {
           request.resource.data.toUserId
         );
 
+      // pending: alıcı kabul/red/süre; gönderici "Tamam" ile yalnızca senderAckAt (durum expired/declined iken)
       allow update: if signedIn()
-        && resource.data.status == 'pending'
         && request.resource.data.fromUserId == resource.data.fromUserId
         && request.resource.data.toUserId == resource.data.toUserId
         && request.resource.data.worldId == resource.data.worldId
         && request.resource.data.chapterId == resource.data.chapterId
         && request.resource.data.sessionId == resource.data.sessionId
         && request.resource.data.expiresAtMs == resource.data.expiresAtMs
+        && request.resource.data.worldNameKey == resource.data.worldNameKey
+        && request.resource.data.chapterNameKey == resource.data.chapterNameKey
         && (
           (
-            request.auth.uid == resource.data.toUserId
+            resource.data.status == 'pending'
+            && request.auth.uid == resource.data.toUserId
             && request.resource.data.status in ['accepted', 'declined', 'expired', 'cancelled']
           )
           ||
           (
-            request.auth.uid == resource.data.fromUserId
-            && resource.data.status in ['declined', 'expired', 'cancelled']
-            && request.resource.data.status in ['declined', 'expired', 'cancelled']
+            resource.data.status in ['declined', 'expired']
+            && request.auth.uid == resource.data.fromUserId
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.senderAckAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['senderAckAt'])
           )
         );
 

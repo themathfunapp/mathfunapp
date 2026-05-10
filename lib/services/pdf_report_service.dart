@@ -43,6 +43,95 @@ class PdfReportService {
   static String _t(String languageCode, String key) =>
       ParentPanelL10n.of(languageCode, key);
 
+  /// zh-CN vb. → zh; pt-BR → pt (ParentPanelL10n + font seçimi ile uyumlu).
+  static String _normalizeLanguageCode(String? languageCode) {
+    final raw = (languageCode ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return 'tr';
+    if (raw.startsWith('zh')) return 'zh';
+    if (raw.length >= 2) return raw.substring(0, 2);
+    return raw;
+  }
+
+  /// Roboto CJK / Arapça / Urduca / Devanagari göstermez; dil bazlı Noto yüklenir.
+  static Future<pw.ThemeData> _themeForLanguage(String normalizedLang) async {
+    Future<pw.ThemeData> robotoOnly() async {
+      final base = await PdfGoogleFonts.robotoRegular();
+      final bold = await PdfGoogleFonts.robotoBold();
+      return pw.ThemeData.withFont(base: base, bold: bold);
+    }
+
+    Future<pw.ThemeData?> tryLoad(Future<pw.ThemeData> Function() load) async {
+      try {
+        return await load();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    Future<pw.ThemeData?> withRobotoFallback(
+      Future<pw.Font> Function() baseFn,
+      Future<pw.Font> Function() boldFn,
+    ) async {
+      return tryLoad(() async {
+        final b = await baseFn();
+        final bd = await boldFn();
+        final fall = await PdfGoogleFonts.robotoRegular();
+        return pw.ThemeData.withFont(
+          base: b,
+          bold: bd,
+          fontFallback: [fall],
+        );
+      });
+    }
+
+    final lc = normalizedLang;
+    pw.ThemeData? themed;
+
+    switch (lc) {
+      case 'zh':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoSansSCRegular,
+          PdfGoogleFonts.notoSansSCBold,
+        );
+        break;
+      case 'ja':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoSansJPRegular,
+          PdfGoogleFonts.notoSansJPBold,
+        );
+        break;
+      case 'ko':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoSansKRRegular,
+          PdfGoogleFonts.notoSansKRBold,
+        );
+        break;
+      case 'hi':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoSansDevanagariRegular,
+          PdfGoogleFonts.notoSansDevanagariBold,
+        );
+        break;
+      case 'ar':
+      case 'fa':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoSansArabicRegular,
+          PdfGoogleFonts.notoSansArabicBold,
+        );
+        break;
+      case 'ur':
+        themed = await withRobotoFallback(
+          PdfGoogleFonts.notoNastaliqUrduRegular,
+          PdfGoogleFonts.notoNastaliqUrduBold,
+        );
+        break;
+      default:
+        themed = null;
+    }
+
+    return themed ?? await robotoOnly();
+  }
+
   static Future<pw.MemoryImage?> _loadLogoImage() async {
     try {
       final bytes = await rootBundle.load('assets/images/logo.png');
@@ -64,16 +153,10 @@ class PdfReportService {
     PdfReportData data, {
     String languageCode = 'tr',
   }) async {
-    final lc = languageCode.trim().isEmpty ? 'tr' : languageCode.trim().toLowerCase();
+    final lc = _normalizeLanguageCode(languageCode);
     final days = List.generate(7, (d) => _t(lc, 'pp_weekday_$d'));
 
-    // Türkçe karakter desteği için Roboto fontu kullan (ı, ğ, ş, İ, ü, ö, ç)
-    final baseFont = await PdfGoogleFonts.robotoRegular();
-    final boldFont = await PdfGoogleFonts.robotoBold();
-    final theme = pw.ThemeData.withFont(
-      base: baseFont,
-      bold: boldFont,
-    );
+    final theme = await _themeForLanguage(lc);
     final pdf = pw.Document(
       title: 'MathFun ${_t(lc, 'pp_report_pdf_title')} - ${data.childName}',
       author: 'MathFun',
@@ -147,21 +230,7 @@ class PdfReportService {
                       ),
                     ],
                   ),
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.white,
-                      borderRadius: pw.BorderRadius.circular(999),
-                    ),
-                    child: pw.Text(
-                      dateText,
-                      style: pw.TextStyle(
-                        color: _brandBlue,
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  _colorfulDateBadge(lc, now, dateText),
                 ],
               ),
             ),
@@ -203,7 +272,7 @@ class PdfReportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        _t(lc, 'pp_section_progress'),
+                        _t(lc, 'pp_pdf_section_progress'),
                         style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
                       ),
                       pw.SizedBox(height: 3),
@@ -218,7 +287,7 @@ class PdfReportService {
             ),
             pw.SizedBox(height: 20),
             pw.Text(
-              _t(lc, 'pp_section_detailed_stats'),
+              _t(lc, 'pp_pdf_section_detailed_stats'),
               style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: _brandPurple),
             ),
             pw.SizedBox(height: 12),
@@ -226,7 +295,7 @@ class PdfReportService {
               children: [
                 pw.Expanded(
                   child: _statBox(
-                    _t(lc, 'pp_mini_points'),
+                    _t(lc, 'pp_pdf_mini_points'),
                     '${data.totalScore}',
                     PdfColor.fromInt(0xFFEFF4FF),
                   ),
@@ -234,7 +303,7 @@ class PdfReportService {
                 pw.SizedBox(width: 8),
                 pw.Expanded(
                   child: _statBox(
-                    _t(lc, 'pp_detail_total_questions'),
+                    _t(lc, 'pp_pdf_detail_total_questions'),
                     '${data.totalQuestions}',
                     PdfColor.fromInt(0xFFEFFFF7),
                   ),
@@ -242,7 +311,7 @@ class PdfReportService {
                 pw.SizedBox(width: 8),
                 pw.Expanded(
                   child: _statBox(
-                    _t(lc, 'pp_detail_correct_answers'),
+                    _t(lc, 'pp_pdf_detail_correct_answers'),
                     '${data.correctAnswers}',
                     PdfColor.fromInt(0xFFFFF4E8),
                   ),
@@ -250,8 +319,8 @@ class PdfReportService {
                 pw.SizedBox(width: 8),
                 pw.Expanded(
                   child: _statBox(
-                    _t(lc, 'pp_detail_success_rate'),
-                    '%${data.accuracy}',
+                    _t(lc, 'pp_pdf_detail_success_rate'),
+                    '${data.accuracy}%',
                     PdfColor.fromInt(0xFFFFF0F3),
                   ),
                 ),
@@ -268,44 +337,6 @@ class PdfReportService {
                   ),
                 ),
               ],
-            ),
-            pw.SizedBox(height: 18),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(14),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFFDF7EA),
-                borderRadius: pw.BorderRadius.circular(12),
-                border: pw.Border.all(color: PdfColor.fromInt(0xFFF7E1AC)),
-              ),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Container(
-                    width: 14,
-                    height: 14,
-                    alignment: pw.Alignment.center,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromInt(0xFFFFE6A8),
-                      borderRadius: pw.BorderRadius.circular(7),
-                    ),
-                    child: pw.Text(
-                      'i',
-                      style: pw.TextStyle(
-                        color: PdfColor.fromInt(0xFF9A6A00),
-                        fontSize: 9,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(width: 6),
-                  pw.Expanded(
-                    child: pw.Text(
-                      _t(lc, 'pp_report_sunday_only'),
-                      style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey800, height: 1.3),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -372,11 +403,8 @@ class PdfReportService {
                       }),
                     ),
                   ),
-                  pw.SizedBox(height: 6),
-                  pw.Text(
-                    '100%  |  80%+ 🟢  |  50%+ 🟠  |  <50% 🔴',
-                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
-                  ),
+                  pw.SizedBox(height: 8),
+                  _weeklyChartLegend(lc, _good, _mid, _warn),
                 ],
               ),
             ),
@@ -482,6 +510,106 @@ class PdfReportService {
           pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
           pw.SizedBox(height: 4),
           pw.Text(value, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  /// Grafik altı: emoji yerine PDF’te güvenilir renkli noktalar + metin (Roboto).
+  static pw.Widget _weeklyChartLegend(String lc, PdfColor good, PdfColor mid, PdfColor warn) {
+    const legendStyle = pw.TextStyle(fontSize: 8.5, color: PdfColors.grey800);
+    const sepStyle = pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600);
+    pw.Widget dot(PdfColor c) => pw.Container(
+          width: 7,
+          height: 7,
+          decoration: pw.BoxDecoration(
+            color: c,
+            shape: pw.BoxShape.circle,
+            border: pw.Border.all(color: PdfColors.white, width: 0.8),
+          ),
+        );
+    pw.Widget chunk(PdfColor c, String text) => pw.Row(
+          mainAxisSize: pw.MainAxisSize.min,
+          children: [
+            dot(c),
+            pw.SizedBox(width: 4),
+            pw.Text(text, style: legendStyle),
+          ],
+        );
+
+    return pw.Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: pw.WrapCrossAlignment.center,
+      children: [
+        chunk(good, _t(lc, 'pp_pdf_legend_full')),
+        pw.Text('|', style: sepStyle),
+        chunk(good, _t(lc, 'pp_pdf_legend_high')),
+        pw.Text('|', style: sepStyle),
+        chunk(mid, _t(lc, 'pp_pdf_legend_mid')),
+        pw.Text('|', style: sepStyle),
+        chunk(warn, _t(lc, 'pp_pdf_legend_low')),
+      ],
+    );
+  }
+
+  /// Çocuk dostu renkli “bugün” rozeti (gradient + gün adı).
+  static pw.Widget _colorfulDateBadge(String lc, DateTime now, String dateText) {
+    final weekdayIdx = now.weekday - 1; // Mon=0 → pp_weekday_0
+    final weekdayLabel = _t(lc, 'pp_weekday_$weekdayIdx');
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: pw.BoxDecoration(
+        gradient: pw.LinearGradient(
+          colors: [
+            PdfColor.fromInt(0xFFFF6B9D),
+            PdfColor.fromInt(0xFFFFD166),
+            PdfColor.fromInt(0xFF6BCB77),
+            PdfColor.fromInt(0xFF4D96FF),
+          ],
+          begin: pw.Alignment.topLeft,
+          end: pw.Alignment.bottomRight,
+        ),
+        borderRadius: pw.BorderRadius.circular(14),
+        border: pw.Border.all(color: PdfColors.white, width: 2),
+        boxShadow: [
+          pw.BoxShadow(
+            color: PdfColor.fromInt(0x476A4FBF),
+            blurRadius: 6,
+            offset: const PdfPoint(0, 3),
+          ),
+        ],
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text(
+            _t(lc, 'pp_pdf_date_label').toUpperCase(),
+            style: pw.TextStyle(
+              fontSize: 7,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              letterSpacing: 0.6,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            weekdayLabel,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+          ),
+          pw.Text(
+            dateText,
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+          ),
         ],
       ),
     );

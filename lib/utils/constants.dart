@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// Bilgilendirme SnackBar’ları için varsayılan görünürlük süresi.
+const Duration kAppSnackBarDuration = Duration(seconds: 5);
+
 // Renkler
 const Color primaryColor = Color(0xFF4A6FA5);
 const Color secondaryColor = Color(0xFF6B48FF);

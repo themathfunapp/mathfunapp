@@ -55,6 +55,7 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LocaleProvider>();
     final svc = context.read<FamilyRemoteDuelService>();
 
     return Scaffold(
@@ -105,9 +106,7 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
               }
 
               if (status == 'cancelled') {
-                final loc = AppLocalizations(
-                  Provider.of<LocaleProvider>(context, listen: false).locale,
-                );
+                final loc = AppLocalizations.of(context);
                 final reason = data?['cancelReason'] as String? ?? '';
                 final msg = reason == 'declined'
                     ? loc.get('family_remote_duel_waiting_declined')
@@ -115,9 +114,7 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
                 return _Cancelled(onBack: widget.onBack, message: msg);
               }
               if (status == 'expired' || (status == 'waiting_accept' && secondsLeft <= 0)) {
-                final loc = AppLocalizations(
-                  Provider.of<LocaleProvider>(context, listen: false).locale,
-                );
+                final loc = AppLocalizations.of(context);
                 return _Cancelled(
                   onBack: widget.onBack,
                   message: loc.get('family_remote_duel_waiting_expired'),
@@ -156,9 +153,7 @@ class _FamilyRemoteDuelWaitingScreenState extends State<FamilyRemoteDuelWaitingS
                         );
                         if (!context.mounted) return;
                         if (!ok) {
-                          final loc = AppLocalizations(
-                            Provider.of<LocaleProvider>(context, listen: false).locale,
-                          );
+                          final loc = AppLocalizations.of(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(loc.get('family_remote_duel_forfeit_failed')),
@@ -440,9 +435,7 @@ class _Cancelled extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               message ??
-                  AppLocalizations(
-                    Provider.of<LocaleProvider>(context, listen: false).locale,
-                  ).get('family_remote_duel_waiting_cancelled'),
+                  AppLocalizations.of(context).get('family_remote_duel_waiting_cancelled'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontSize: 17),
             ),
@@ -450,9 +443,7 @@ class _Cancelled extends StatelessWidget {
             FilledButton(
               onPressed: onBack,
               child: Text(
-                AppLocalizations(
-                  Provider.of<LocaleProvider>(context, listen: false).locale,
-                ).get('ok'),
+                AppLocalizations.of(context).get('ok'),
               ),
             ),
           ],

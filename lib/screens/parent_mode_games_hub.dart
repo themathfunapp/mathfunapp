@@ -75,6 +75,7 @@ class ParentModeGamesHub extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(ParentPanelL10n.of(lc, 'pp_remote_duel_login')),
+          duration: kAppSnackBarDuration,
         ),
       );
       return;

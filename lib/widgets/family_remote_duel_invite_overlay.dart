@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
+import '../utils/constants.dart';
 
 /// Gelen uzaktan düello daveti — [Stack] içinde [Positioned.fill] ile kullanın.
 /// Süre dolunca (sunucu [expiresAtMs]) kart istemcide gizlenir ve tek seferlik süre sonu işlemi tetiklenir.
@@ -338,20 +339,20 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
     final now = DateTime.now().millisecondsSinceEpoch;
     final secsLeft = exp > 0 ? ((exp - now) / 1000).ceil().clamp(0, 9999) : null;
 
+    // Tam ekran Material kullanma: dokunuşlar kart dışına geçmez; alttaki ekranın geri tuşu kilitlenir.
     return Positioned.fill(
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                ignoring: true,
-                child: ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.45),
-                ),
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: true,
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.45),
               ),
             ),
+          ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ConstrainedBox(
@@ -412,7 +413,10 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
                                   if (!context.mounted) return;
                                   if (!ok) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(_t('accept_failed'))),
+                                      SnackBar(
+                                        content: Text(_t('accept_failed')),
+                                        duration: kAppSnackBarDuration,
+                                      ),
                                     );
                                     return;
                                   }
@@ -474,7 +478,6 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
             ),
           ],
         ),
-      ),
     );
   }
 }

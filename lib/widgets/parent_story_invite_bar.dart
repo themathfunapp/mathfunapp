@@ -9,6 +9,7 @@ import '../models/story_invite_payload.dart';
 import '../services/auth_service.dart';
 import '../services/family_service.dart';
 import '../services/family_story_invite_service.dart';
+import '../utils/constants.dart';
 
 /// Ebeveyn paneli hikâye önizlemesinde: kayıtlı aile üyesine hikâye daveti gönderir.
 class ParentStoryInviteBar extends StatelessWidget {
@@ -52,7 +53,10 @@ class FamilyStoryInviteFlow {
     if (user == null || user.isGuest) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localizations.get('family_story_invite_login_required'))),
+          SnackBar(
+            content: Text(localizations.get('family_story_invite_login_required')),
+            duration: kAppSnackBarDuration,
+          ),
         );
       }
       return;
@@ -63,7 +67,10 @@ class FamilyStoryInviteFlow {
     if (candidates.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(localizations.get('family_story_invite_no_members'))),
+          SnackBar(
+            content: Text(localizations.get('family_story_invite_no_members')),
+            duration: kAppSnackBarDuration,
+          ),
         );
       }
       return;
@@ -179,6 +186,7 @@ class FamilyStoryInviteFlow {
               : localizations.get('family_story_invite_failed'),
         ),
         behavior: SnackBarBehavior.floating,
+        duration: kAppSnackBarDuration,
       ),
     );
   }

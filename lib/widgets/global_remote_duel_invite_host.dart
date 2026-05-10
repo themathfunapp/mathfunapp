@@ -9,6 +9,7 @@ import '../screens/family_remote_duel_waiting_screen.dart';
 import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
 import '../services/push_notification_service.dart';
+import '../utils/constants.dart';
 import 'family_remote_duel_invite_overlay.dart';
 import 'family_story_invite_listen_bars.dart';
 
@@ -53,7 +54,10 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
     if (uid == null || uid.isEmpty || auth.currentUser?.isGuest == true) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('Davet için hesap ile giriş yapın.')),
+        const SnackBar(
+          content: Text('Davet için hesap ile giriş yapın.'),
+          duration: kAppSnackBarDuration,
+        ),
       );
       return;
     }
@@ -70,6 +74,7 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
           content: Text(
             'Kabul edilemedi. Premium veya ağ/Firestore kurallarını kontrol edin.',
           ),
+          duration: kAppSnackBarDuration,
         ),
       );
       return;
@@ -131,32 +136,39 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final user = auth.currentUser;
+    final mw = MediaQuery.sizeOf(context).width;
+    final senderStripW = mw > 420 ? 360.0 : (mw - 24).clamp(200.0, mw);
 
     return Stack(
+      clipBehavior: Clip.none,
       fit: StackFit.expand,
       children: [
         widget.child,
         if (user != null && user.isGuest != true) ...[
+          // Altındaki rotalardaki (ör. Hikâye modu) sol üst geri butonu ile çakışmasın.
           Positioned(
             left: 8,
             right: 8,
-            top: MediaQuery.paddingOf(context).top + 2,
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight + 6,
             child: Material(
               elevation: 8,
               borderRadius: BorderRadius.circular(12),
               clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FamilyStoryInviteIncomingBar(userId: user.uid),
-                  FamilyStoryInviteSenderInfoBar(userId: user.uid),
-                ],
-              ),
+              child: FamilyStoryInviteIncomingBar(userId: user.uid),
             ),
           ),
           FamilyRemoteDuelInviteOverlay(
             userId: user.uid,
             onAcceptNavigate: _openRemoteDuelAfterAccept,
+          ),
+          Positioned(
+            right: 12,
+            top: 0,
+            bottom: 0,
+            width: senderStripW,
+            child: Center(
+              child: FamilyStoryInviteSenderInfoBar(userId: user.uid),
+            ),
           ),
         ],
       ],

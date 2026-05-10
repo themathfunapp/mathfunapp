@@ -628,8 +628,9 @@ class _FairyLandScreenState extends State<FairyLandScreen>
     }
   }
 
-  Future<void> _leaveScreen() async {
-    await _reportFairySession();
+  /// Oturum raporunu arka planda gönderir; navigasyonu ağ beklemesine kilitlemez (web donması önlenir).
+  void _leaveScreen() {
+    unawaited(_reportFairySession());
     if (!mounted) return;
     widget.onBack();
   }
@@ -719,9 +720,9 @@ class _FairyLandScreenState extends State<FairyLandScreen>
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
+      onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        await _leaveScreen();
+        _leaveScreen();
       },
       child: Scaffold(
         body: Container(

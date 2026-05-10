@@ -365,7 +365,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           if (user.isGuest)
             Text(
-              'ID: ${user.guestId}',
+              '${localizations.playerCodeLabel}: ${user.guestId}',
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.orange,
@@ -451,7 +451,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     infoMessage:
                         'Yıldızlar hikaye ilerlemesi ve bonuslardan gelir. Bazı ödül/milestone sistemlerinde kullanılır.',
                   ),
-                  _buildStatItem('🪙', '$coins', 'Altın'),
+                  _buildStatItem('🪙', '$coins', localizations.get('coins')),
                   _buildStatItem('💎', '$diamonds', localizations.get('diamonds')),
                   _buildStatItem('❤️', '$lives/$maxLives', localizations.get('lives')),
                 ],
@@ -1218,10 +1218,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 const Text('🔥', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Macera Serisi',
-                    style: TextStyle(
+                    localizations.get('profile_adventure_series'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF8D5A00),
                     ),
@@ -1298,7 +1298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               Text(
-                                'daha',
+                                localizations.get('profile_badges_more_short'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[500],
@@ -1751,40 +1751,178 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSignOutDialog(AuthService authService, AppUser user, AppLocalizations localizations) {
-    showDialog(
+    final isGuest = user.isGuest;
+    final title = isGuest ? localizations.get('exit_guest_mode') : localizations.get('sign_out');
+    final body = isGuest
+        ? localizations.get('exit_guest_mode_description')
+        : localizations.get('sign_out_description');
+
+    showGeneralDialog<void>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            user.isGuest
-                ? localizations.get('exit_guest_mode')
-                : localizations.get('sign_out'),
-          ),
-          content: Text(
-            user.isGuest
-                ? localizations.get('exit_guest_mode_description')
-                : localizations.get('sign_out_description'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(localizations.get('cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _navigateToLoginScreen(authService);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: const Color(0xFF2D1B4E).withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 420),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 340,
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF8F6FF),
+                    Color(0xFFFFF5F8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF764ba2).withValues(alpha: 0.35),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+                border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
               ),
-              child: Text(localizations.get('yes')),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                      ),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                    ),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.75, end: 1.0),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.elasticOut,
+                      builder: (context, scale, child) {
+                        return Transform.scale(scale: scale, child: child);
+                      },
+                      child: Text(
+                        isGuest ? '🎭' : '👋',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 48),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 22, 22, 10),
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2D3436),
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+                    child: Text(
+                      body,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.4,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              foregroundColor: const Color(0xFF6A4FBF),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Text(
+                              localizations.get('cancel'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.4),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () async {
+                                  Navigator.pop(dialogContext);
+                                  await _navigateToLoginScreen(authService);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  child: Text(
+                                    localizations.get('yes'),
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
           ),
+        );
+      },
+      transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+        final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        final scale = Tween<double>(begin: 0.88, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+        );
+        return FadeTransition(
+          opacity: fade,
+          child: ScaleTransition(scale: scale, child: child),
         );
       },
     );
