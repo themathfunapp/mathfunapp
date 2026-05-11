@@ -12,6 +12,7 @@ import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../utils/locale_text_helpers.dart';
 
 /// Günlük Meydan Okuma Ekranı - 5 CAN SİSTEMİ (GameMechanicsService ile profil senkron)
 class DailyChallengeScreen extends StatefulWidget {
@@ -501,9 +502,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         if (mounted) {
           final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
           if (mechanicsService.currentLives <= 0) {
+            final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Reklam izlenemedi. Tekrar deneyin.'),
+              SnackBar(
+                content: Text(loc.get('simon_ad_failed')),
                 backgroundColor: Colors.orange,
                 behavior: SnackBarBehavior.floating,
               ),
@@ -762,15 +764,16 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
   Widget _buildChallengeInfoView(DailyChallenge? challenge) {
     if (challenge == null) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const CircularProgressIndicator(color: Colors.white),
             const SizedBox(height: 16),
-            const Text(
-              'Yükleniyor...',
-              style: TextStyle(color: Colors.white),
+            Text(
+              loc.get('premium_loading'),
+              style: const TextStyle(color: Colors.white),
             ),
           ],
         ),
@@ -1395,7 +1398,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.center,
                                         child: Text(
-                                          '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                                          LocaleTextHelpers.ltrMathIsolate(
+                                            '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                                          ),
                                           maxLines: 1,
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(

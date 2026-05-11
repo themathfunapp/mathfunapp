@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../utils/locale_text_helpers.dart';
 
 class QuickMathTrueFalseScreen extends StatefulWidget {
   final String ageGroup;
@@ -254,7 +255,7 @@ class _QuickMathTrueFalseScreenState extends State<QuickMathTrueFalseScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            _question,
+            LocaleTextHelpers.ltrMathIsolate(_question),
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.bold,

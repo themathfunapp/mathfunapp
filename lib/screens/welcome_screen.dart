@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,8 +8,10 @@ import 'package:mathfun/config/legal_urls.dart';
 import 'package:mathfun/localization/app_localizations.dart';
 import 'package:mathfun/models/app_user.dart';
 import 'package:mathfun/providers/locale_provider.dart';
+import 'package:mathfun/localization/app_supported_locales.dart';
 import 'package:mathfun/screens/home_screen.dart';
 import 'package:mathfun/services/auth_service.dart';
+import 'package:mathfun/widgets/kurdistan_flag.dart';
 
 
 
@@ -36,28 +40,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool get _isWindows => defaultTargetPlatform == TargetPlatform.windows;
   bool get _isLinux => defaultTargetPlatform == TargetPlatform.linux;
   bool get _isWeb => kIsWeb;
-
-  // Desteklenen diller listesi (LocaleProvider.kSupportedLanguageCodes ile uyumlu)
-  static final List<Map<String, dynamic>> _supportedLanguages = [
-    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
-    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-    {'code': 'ar', 'name': 'العربية', 'flag': '🇸🇦'},
-    {'code': 'fa', 'name': 'فارسی', 'flag': '🇮🇷'},
-    {'code': 'zh', 'name': '中文', 'flag': '🇨🇳'},
-    {'code': 'id', 'name': 'Bahasa Indonesia', 'flag': '🇮🇩'},
-    {'code': 'ku', 'name': 'Kurdî', 'flag': '☀️'},
-    {'code': 'es', 'name': 'Español', 'flag': '🇪🇸'},
-    {'code': 'fr', 'name': 'Français', 'flag': '🇫🇷'},
-    {'code': 'ru', 'name': 'Русский', 'flag': '🇷🇺'},
-    {'code': 'ja', 'name': '日本語', 'flag': '🇯🇵'},
-    {'code': 'ko', 'name': '한국어', 'flag': '🇰🇷'},
-    {'code': 'hi', 'name': 'हिन्दी', 'flag': '🇮🇳'},
-    {'code': 'ur', 'name': 'اردو', 'flag': '🇵🇰'},
-    {'code': 'pt', 'name': 'Português', 'flag': '🇧🇷'},
-    {'code': 'it', 'name': 'Italiano', 'flag': '🇮🇹'},
-    {'code': 'pl', 'name': 'Polski', 'flag': '🇵🇱'},
-  ];
 
   String _platformTitle(Locale locale) {
     if (_isIOS || _isMacOS) return AppLocalizations(locale).get('apple_signin_title');
@@ -157,9 +139,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         });
       }
     } finally {
-      // Sadece hata durumunda değil, başarılı durumda da isLoading'i false yap
-      // Ancak bu kısım zaten yönlendirme yapıldığı için çalışmayabilir
-      if (mounted && _selectedOption.isEmpty) {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -348,10 +328,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await localeProvider.changeLanguage(Locale(languageCode));
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.updateUserLanguage(languageCode);
+    try {
+      await authService.updateUserLanguage(languageCode);
+    } catch (e) {
+      debugPrint('updateUserLanguage: $e');
+    }
 
     if (!mounted) return;
-    final name = _supportedLanguages.firstWhere((lang) => lang['code'] == languageCode)['name'] as String;
+    final name = kLanguagePickerEntries.firstWhere((lang) => lang['code'] == languageCode)['name'] as String;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -436,110 +420,113 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
+  Widget _languageStripFlag(String code, String flagEmoji, {double size = 20}) {
+    if (code == 'ku') {
+      return KurdistanFlag(size: size);
+    }
+    return Text(flagEmoji, style: TextStyle(fontSize: size));
+  }
+
   Widget _buildLanguageSelector(Locale currentLocale) {
-    final current = _supportedLanguages.firstWhere(
+    final current = kLanguagePickerEntries.firstWhere(
       (l) => l['code'] == currentLocale.languageCode,
-      orElse: () => _supportedLanguages.first,
+      orElse: () => kLanguagePickerEntries.first,
     );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: InkWell(
-        onTap: () => _showLanguageSheet(currentLocale),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
+    final currentCode = current['code'] as String;
+    // AppBar içinde + TextButton: gövde/scroll/web katmanlarıyla çakışma yok; en güvenilir tıklama.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.grey[800],
+          backgroundColor: Colors.grey[200],
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[400]!),
+            side: BorderSide(color: Colors.grey[400]!),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.language, color: Colors.grey, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                current['flag'] as String,
-                style: const TextStyle(fontSize: 20),
+        ),
+        onPressed: () => _showLanguageDialog(currentLocale),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🌍', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            _languageStripFlag(currentCode, current['flag'] as String),
+            const SizedBox(width: 8),
+            Text(
+              current['name'] as String,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
               ),
-              const SizedBox(width: 8),
-              Text(
-                current['name'] as String,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_drop_down, color: Colors.grey[700], size: 24),
-            ],
-          ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, color: Colors.grey[700], size: 24),
+          ],
         ),
       ),
     );
   }
 
-  void _showLanguageSheet(Locale currentLocale) {
-    showModalBottomSheet(
+  void _showLanguageDialog(Locale currentLocale) {
+    if (!mounted) return;
+    final loc = AppLocalizations(currentLocale);
+    showDialog<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  AppLocalizations(currentLocale).get('language_setting'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        final mq = MediaQuery.sizeOf(dialogCtx);
+        final listHeight = (mq.height * 0.55).clamp(280.0, 520.0);
+        final listWidth = math.min(360.0, mq.width - 32);
+        return AlertDialog(
+          title: Text(loc.get('language_setting')),
+          content: SizedBox(
+            width: listWidth,
+            height: listHeight,
+            child: ListView.builder(
+              itemCount: kLanguagePickerEntries.length,
+              itemBuilder: (context, index) {
+                final lang = kLanguagePickerEntries[index];
+                final code = lang['code'] as String;
+                final isSelected = currentLocale.languageCode == code;
+                return ListTile(
+                  leading: _languageStripFlag(code, lang['flag'] as String, size: 24),
+                  title: Text(
+                    lang['name'] as String,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
                   ),
-                ),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _supportedLanguages.length,
-                  itemBuilder: (context, index) {
-                    final lang = _supportedLanguages[index];
-                    final code = lang['code'] as String;
-                    final isSelected = currentLocale.languageCode == code;
-                    return ListTile(
-                      leading: Text(lang['flag'] as String, style: const TextStyle(fontSize: 24)),
-                      title: Text(
-                        lang['name'] as String,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        _changeLanguage(code);
-                      },
-                    );
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () {
+                    Navigator.pop(dialogCtx);
+                    _changeLanguage(code);
                   },
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: Text(loc.get('cancel')),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildLoginOptions(AppLocalizations localizations, Locale locale) {
+  Widget _buildLoginScrollableContent(AppLocalizations localizations, Locale locale) {
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildLanguageSelector(locale),
           Text(
             _platformTitle(locale),
             style: TextStyle(
@@ -784,8 +771,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         final localizations = AppLocalizations(currentLocale);
 
         return Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            centerTitle: true,
+            elevation: 1,
+            surfaceTintColor: Colors.transparent,
+            backgroundColor: Colors.grey.shade100,
+            foregroundColor: Colors.grey.shade800,
+            title: _buildLanguageSelector(currentLocale),
+          ),
           body: SafeArea(
-            child: _buildLoginOptions(localizations, currentLocale),
+            top: false,
+            child: _buildLoginScrollableContent(localizations, currentLocale),
           ),
         );
       },

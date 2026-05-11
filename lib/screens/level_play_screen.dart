@@ -12,6 +12,7 @@ import '../models/story_mode.dart';
 import '../localization/app_localizations.dart';
 import 'dart:math';
 import 'package:confetti/confetti.dart';
+import '../utils/locale_text_helpers.dart';
 
 
 
@@ -581,7 +582,7 @@ class _LevelPlayScreenState extends State<LevelPlayScreen>
       return localizations.get(question.questionKey);
     }
     // Otherwise return as is (for math expressions like "2 + 3 = ?")
-    return question.questionKey;
+    return LocaleTextHelpers.ltrMathIsolate(question.questionKey);
   }
 
   Widget _buildAnswers(MathQuestion question, AppLocalizations localizations) {

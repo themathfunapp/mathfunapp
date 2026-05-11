@@ -385,15 +385,18 @@ class _MagicMachineGameState extends State<MagicMachineGame>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.green.shade700, width: 2),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildNumberDisplay(_missingPosition == 'num1' ? '?' : _num1.toString()),
-                  _buildOperatorDisplay(_operation),
-                  _buildNumberDisplay(_missingPosition == 'num2' ? '?' : _num2.toString()),
-                  _buildOperatorDisplay('='),
-                  _buildNumberDisplay(_missingPosition == 'answer' ? '?' : _answer.toString()),
-                ],
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildNumberDisplay(_missingPosition == 'num1' ? '?' : _num1.toString()),
+                    _buildOperatorDisplay(_operation),
+                    _buildNumberDisplay(_missingPosition == 'num2' ? '?' : _num2.toString()),
+                    _buildOperatorDisplay('='),
+                    _buildNumberDisplay(_missingPosition == 'answer' ? '?' : _answer.toString()),
+                  ],
+                ),
               ),
             ),
             

@@ -8,6 +8,7 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/child_exit_dialog.dart';
 import '../models/daily_reward.dart' show TaskType;
+import '../utils/locale_text_helpers.dart';
 
 class NumberColoringScreen extends StatefulWidget {
   final String ageGroup;
@@ -127,7 +128,9 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildTopBar() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
+    final lang = localeProvider.locale.languageCode;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -163,7 +166,10 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6)],
               ),
               child: Text(
-                '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                LocaleTextHelpers.rewardBannerText(
+                  lang,
+                  '${loc.get('level')} $_currentLevel/${widget.totalLevels}',
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
@@ -206,7 +212,9 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
   }
 
   Widget _buildLevelInfo() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
+    final lang = localeProvider.locale.languageCode;
     String levelType = '';
     String rangeInfo = '';
     final mode = widget.levelMode;
@@ -219,11 +227,13 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
       int start = 10 + (((_currentLevel - 1).clamp(0, 8)) * 10);
       int end = (start + 9).clamp(10, 99);
       rangeInfo = loc.get('number_coloring_range').replaceAll('%1', '$start').replaceAll('%2', '$end');
+      rangeInfo = LocaleTextHelpers.rewardBannerText(lang, rangeInfo);
     } else {
       levelType = loc.get('number_mode_triple');
       int start = 100 + (((_currentLevel - 1).clamp(0, 89)) * 10);
       int end = (start + 9).clamp(100, 999);
       rangeInfo = loc.get('number_coloring_range').replaceAll('%1', '$start').replaceAll('%2', '$end');
+      rangeInfo = LocaleTextHelpers.rewardBannerText(lang, rangeInfo);
     }
 
     return Container(
@@ -257,7 +267,10 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            loc.get('color_the_number').replaceAll('%1', '$_currentNumber'),
+            loc.get('color_the_number').replaceAll(
+                  '%1',
+                  LocaleTextHelpers.ltrMathIsolate('$_currentNumber'),
+                ),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -286,46 +299,49 @@ class _NumberColoringScreenState extends State<NumberColoringScreen> {
           ],
         ),
         child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(digits.length, (index) {
-              bool isSelected = _selectedDigitIndex == index;
-              Color? digitColor = _digitColors[index];
-              
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedDigitIndex = index;
-                  });
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isSelected ? Colors.orange : Colors.transparent,
-                      width: 4,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(digits.length, (index) {
+                bool isSelected = _selectedDigitIndex == index;
+                Color? digitColor = _digitColors[index];
+                
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedDigitIndex = index;
+                    });
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected ? Colors.orange : Colors.transparent,
+                        width: 4,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Text(
-                    '${digits[index]}',
-                    style: TextStyle(
-                      fontSize: 120,
-                      fontWeight: FontWeight.bold,
-                      color: digitColor ?? Colors.grey[300],
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.2),
-                          offset: const Offset(2, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
+                    child: Text(
+                      '${digits[index]}',
+                      style: TextStyle(
+                        fontSize: 120,
+                        fontWeight: FontWeight.bold,
+                        color: digitColor ?? Colors.grey[300],
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.2),
+                            offset: const Offset(2, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ),
       ),

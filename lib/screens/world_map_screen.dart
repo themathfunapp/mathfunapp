@@ -21,6 +21,7 @@ import 'money_market_screen.dart';
 import 'multipliers_tower_screen.dart';
 import 'algebra_realm_screen.dart';
 import 'family_remote_duel_setup_screen.dart';
+import '../utils/locale_text_helpers.dart';
 
 class WorldMapScreen extends StatefulWidget {
   final List<StoryWorld> worlds;
@@ -851,26 +852,17 @@ class _KidWorldMapDailyRewardDialog extends StatelessWidget {
     required this.onOk,
   });
 
-  /// RTL yerellerde Latin/عدد karışımında ünlem ve rakamların yanlış sıralanmasını azaltır.
-  static String _embedLtrForDigits(String s) {
-    return s.replaceAllMapped(RegExp(r'[0-9]+'), (m) => '\u200E${m[0]}\u200E');
-  }
-
-  static bool _useLtrDigitIsolation(String languageCode) {
-    const rtlish = {'ar', 'fa', 'ur', 'ku', 'hi'};
-    return rtlish.contains(languageCode);
-  }
-
   @override
   Widget build(BuildContext context) {
     final lang = loc.locale.languageCode;
-    final isolate = _useLtrDigitIsolation(lang);
-    final mainMsg = isolate
-        ? _embedLtrForDigits(loc.get('world_daily_bonus_main'))
-        : loc.get('world_daily_bonus_main');
+    final mainMsg = LocaleTextHelpers.rewardBannerText(
+      lang,
+      loc.get('world_daily_bonus_main'),
+    );
     final ticketsRaw =
         loc.get('world_map_bonus_tickets_row').replaceAll('{count}', '$tickets');
-    final ticketsText = isolate ? _embedLtrForDigits(ticketsRaw) : ticketsRaw;
+    final ticketsText =
+        LocaleTextHelpers.rewardBannerText(lang, ticketsRaw);
 
     return Material(
       color: Colors.transparent,

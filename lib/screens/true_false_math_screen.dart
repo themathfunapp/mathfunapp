@@ -12,6 +12,7 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/game_mechanics_service.dart';
 import '../widgets/child_exit_dialog.dart';
+import '../utils/locale_text_helpers.dart';
 
 class TrueFalseMathScreen extends StatefulWidget {
   final String ageGroup;
@@ -651,6 +652,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   Widget _buildBackButton(VoidCallback onPressed) {
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     return GestureDetector(
       onTap: onPressed,
       child: Container(
@@ -665,7 +667,11 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
           border: Border.all(color: Colors.red.shade200, width: 2),
         ),
         child: Center(
-          child: Icon(Icons.keyboard_arrow_left_rounded, color: Colors.red.shade700, size: 30),
+          child: Icon(
+            rtl ? Icons.keyboard_arrow_right_rounded : Icons.keyboard_arrow_left_rounded,
+            color: Colors.red.shade700,
+            size: 30,
+          ),
         ),
       ),
     );
@@ -823,7 +829,12 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
         final starFont = narrow ? 15.0 : 18.0;
         final boltSize = narrow ? 19.0 : 22.0;
         final boltPad = narrow ? 3.0 : 4.0;
-        final levelText = '${((_currentSection - 1) % 10) + 1}/10';
+        final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+        final lang = localeProvider.locale.languageCode;
+        final levelText = LocaleTextHelpers.rewardBannerText(
+          lang,
+          '${((_currentSection - 1) % 10) + 1}/10',
+        );
 
         return Padding(
           padding: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
@@ -841,10 +852,10 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
               SizedBox(width: gap),
               Expanded(
                 child: Align(
-                  alignment: Alignment.centerRight,
+                  alignment: AlignmentDirectional.centerEnd,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
+                    alignment: AlignmentDirectional.centerEnd,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -884,7 +895,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
                               Icon(Icons.star, color: Colors.amber, size: starFont + 2),
                               SizedBox(width: narrow ? 6 : 8),
                               Text(
-                                '$_score',
+                                LocaleTextHelpers.rewardBannerText(lang, '$_score'),
                                 style: GoogleFonts.quicksand(
                                   fontSize: starFont,
                                   fontWeight: FontWeight.bold,
@@ -915,7 +926,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
                                 children: List.generate(
                                   maxLives,
                                   (i) => Padding(
-                                    padding: EdgeInsets.only(right: boltPad),
+                                    padding: EdgeInsetsDirectional.only(end: boltPad),
                                     child: Icon(
                                       Icons.bolt,
                                       color: i < lives
@@ -942,7 +953,9 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
   }
 
   Widget _buildTimer() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
+    final lang = localeProvider.locale.languageCode;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
@@ -964,7 +977,10 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            '$_timeLeft ${loc.get('fast_math_seconds')}',
+            LocaleTextHelpers.rewardBannerText(
+              lang,
+              '$_timeLeft ${loc.get('fast_math_seconds')}',
+            ),
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -1000,7 +1016,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            _question,
+            LocaleTextHelpers.ltrMathIsolate(_question),
             style: const TextStyle(
               fontSize: 42,
               fontWeight: FontWeight.bold,
@@ -1024,41 +1040,43 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _checkAnswer(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _checkAnswer(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      '✓',
+                      style: TextStyle(
+                        fontSize: 40,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      loc.get('fast_math_true'),
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  const Text(
-                    '✓',
-                    style: TextStyle(
-                      fontSize: 40,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    loc.get('fast_math_true'),
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
           const SizedBox(width: 20),
           Expanded(
             child: ElevatedButton(
@@ -1094,6 +1112,7 @@ class _TrueFalseMathScreenState extends State<TrueFalseMathScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

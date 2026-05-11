@@ -51,6 +51,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   int _runStreak = 0;
   int _bestStreak = 0;
   bool _isAnswered = false;
+  GameMechanicsService? _mechanicsListenTarget;
   int _questionType = 0; // 0:kat, 1:bölen, 2:ekok, 3:ebob
   int _targetNumber = 7;
   int _targetB = 0;
@@ -99,6 +100,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
 
   @override
   void dispose() {
+    _detachMechanicsListener();
     _audio.cancelAmbientSync();
     _jumpController.dispose();
     _shakeController.dispose();
@@ -107,6 +109,39 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     _cloudController.dispose();
     _hintController.dispose();
     super.dispose();
+  }
+
+  void _detachMechanicsListener() {
+    _mechanicsListenTarget?.removeListener(_onMechanicsForNoLivesDialog);
+    _mechanicsListenTarget = null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final m = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!identical(_mechanicsListenTarget, m)) {
+      _detachMechanicsListener();
+      _mechanicsListenTarget = m;
+      m.addListener(_onMechanicsForNoLivesDialog);
+    }
+    _tryScheduleNoLivesDialog(m);
+  }
+
+  void _onMechanicsForNoLivesDialog() {
+    final m = _mechanicsListenTarget;
+    if (m != null && mounted) _tryScheduleNoLivesDialog(m);
+  }
+
+  void _tryScheduleNoLivesDialog(GameMechanicsService mechanics) {
+    if (_hasShownNoLivesDialog || mechanics.hasLives) return;
+    _hasShownNoLivesDialog = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNoLivesDialog();
+      });
+    });
   }
 
   void _updateLevel() {
@@ -336,10 +371,6 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: true);
-    if (!mechanicsService.hasLives && !_hasShownNoLivesDialog) {
-      _hasShownNoLivesDialog = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showNoLivesDialog(); });
-    }
 
     return Scaffold(
       body: Container(
@@ -356,7 +387,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
               _buildClouds(),
               Column(
                 children: [
-                  _buildTopBar(loc),
+                  _buildTopBar(loc, mechanicsService),
                   storyParentInviteStrip(widget.parentPanelStoryInvite),
                   Expanded(
                     child: SingleChildScrollView(
@@ -396,7 +427,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
     );
   }
 
-  Widget _buildTopBar(AppLocalizations loc) {
+  Widget _buildTopBar(AppLocalizations loc, GameMechanicsService mechanicsService) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
@@ -426,24 +457,18 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Consumer<GameMechanicsService?>(
-                        builder: (context, m, _) {
-                          final lives = m?.maxLives ?? 3;
-                          final current = m?.currentLives ?? 3;
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                              lives,
-                              (i) => Padding(
-                                padding: const EdgeInsets.only(left: 2),
-                                child: Opacity(
-                                  opacity: i < current ? 1.0 : 0.3,
-                                  child: const Text('⚡', style: TextStyle(fontSize: 18)),
-                                ),
-                              ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(
+                          mechanicsService.maxLives,
+                          (i) => Padding(
+                            padding: const EdgeInsets.only(left: 2),
+                            child: Opacity(
+                              opacity: i < mechanicsService.currentLives ? 1.0 : 0.3,
+                              child: const Text('⚡', style: TextStyle(fontSize: 18)),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Container(

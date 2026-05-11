@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../localization/ai_storyteller_content.dart';
+import '../models/ai_story_models.dart';
+import '../providers/locale_provider.dart';
 import '../services/ai_storyteller_service.dart';
+import '../utils/locale_text_helpers.dart';
 
 /// AI Hikaye Anlatıcı Ekranı
 /// Kişiselleştirilmiş matematik hikayeleri
@@ -31,10 +37,10 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
   bool _showingMathChallenge = false;
   int? _selectedAnswer;
 
-  final List<Map<String, dynamic>> _topics = [
-    {'id': 'addition', 'name': 'Toplama', 'emoji': '➕'},
-    {'id': 'subtraction', 'name': 'Çıkarma', 'emoji': '➖'},
-    {'id': 'multiplication', 'name': 'Çarpma', 'emoji': '✖️'},
+  static const List<Map<String, String>> _topicDefs = [
+    {'id': 'addition', 'emoji': '➕'},
+    {'id': 'subtraction', 'emoji': '➖'},
+    {'id': 'multiplication', 'emoji': '✖️'},
   ];
 
   @override
@@ -68,6 +74,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           age: widget.age,
           topic: _selectedTopic,
           difficulty: widget.age <= 5 ? 'easy' : (widget.age <= 8 ? 'medium' : 'hard'),
+          languageCode: Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
         );
         _currentChapterIndex = 0;
         _isLoading = false;
@@ -88,6 +95,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
         _currentStory = _service.generateBedtimeStory(
           childName: widget.childName,
           age: widget.age,
+          languageCode: Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
         );
         _currentChapterIndex = 0;
         _isLoading = false;
@@ -133,18 +141,19 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
   }
 
   void _showSuccessDialog() {
+    final lang = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: Colors.green[50],
-        title: const Text('🎉 Harika!', textAlign: TextAlign.center),
+        title: Text(aiStoryUi(lang, 'dialog_success_title'), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Doğru cevap!',
-              style: TextStyle(fontSize: 20),
+            Text(
+              aiStoryUi(lang, 'dialog_success_body'),
+              style: const TextStyle(fontSize: 20),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -153,7 +162,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                 Navigator.pop(context);
                 _nextChapter();
               },
-              child: const Text('Devam Et'),
+              child: Text(aiStoryUi(lang, 'dialog_continue')),
             ),
           ],
         ),
@@ -162,12 +171,13 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
   }
 
   void _showHintDialog(String hint) {
+    final lang = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: Colors.orange[50],
-        title: const Text('💡 İpucu', textAlign: TextAlign.center),
+        title: Text(aiStoryUi(lang, 'dialog_hint_title'), textAlign: TextAlign.center),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -184,7 +194,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   _selectedAnswer = null;
                 });
               },
-              child: const Text('Tekrar Dene'),
+              child: Text(aiStoryUi(lang, 'try_again')),
             ),
           ],
         ),
@@ -194,6 +204,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LocaleProvider>().locale.languageCode;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -210,13 +222,13 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(lang),
               Expanded(
                 child: _isLoading
-                    ? _buildLoadingState()
+                    ? _buildLoadingState(lang)
                     : _currentStory != null
-                        ? _buildStoryContent()
-                        : _buildStorySelection(),
+                        ? _buildStoryContent(lang)
+                        : _buildStorySelection(lang),
               ),
             ],
           ),
@@ -225,7 +237,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String lang) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -242,7 +254,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Hikaye Anlatıcı',
+              aiStoryUi(lang, 'title'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -267,7 +279,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(String lang) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -275,23 +287,23 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           const CircularProgressIndicator(color: Colors.white),
           const SizedBox(height: 24),
           Text(
-            'Hikaye hazırlanıyor...',
+            aiStoryUi(lang, 'loading'),
             style: TextStyle(
               fontSize: 20,
               color: Colors.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '✨ Sihir yapılıyor ✨',
-            style: TextStyle(fontSize: 28),
+          Text(
+            aiStoryUi(lang, 'magic'),
+            style: const TextStyle(fontSize: 28),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStorySelection() {
+  Widget _buildStorySelection(String lang) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -315,7 +327,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Merhaba ${widget.childName}!',
+                    aiStoryUi(lang, 'greeting').replaceAll('{childName}', widget.childName),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -324,7 +336,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _service.generateDailyMessage(widget.childName, 5, 3),
+                    _service.generateDailyMessage(widget.childName, 5, 3, lang),
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white.withOpacity(0.8),
@@ -339,9 +351,9 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           const SizedBox(height: 32),
 
           // Konu seçimi
-          const Text(
-            '📚 Hikaye Konusu Seç',
-            style: TextStyle(
+          Text(
+            aiStoryUi(lang, 'pick_topic'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -351,12 +363,13 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: _topics.map((topic) {
+            children: _topicDefs.map((topic) {
               final isSelected = _selectedTopic == topic['id'];
+              final topicLabel = aiStoryUi(lang, 'topic_${topic['id']}');
               return GestureDetector(
                 onTap: () {
                   setState(() {
-                    _selectedTopic = topic['id'];
+                    _selectedTopic = topic['id']!;
                   });
                 },
                 child: Container(
@@ -372,10 +385,10 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(topic['emoji'], style: const TextStyle(fontSize: 20)),
+                      Text(topic['emoji']!, style: const TextStyle(fontSize: 20)),
                       const SizedBox(width: 8),
                       Text(
-                        topic['name'],
+                        topicLabel,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -394,8 +407,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           // Hikaye başlat butonu
           _buildStoryButton(
             emoji: '🚀',
-            title: 'Macera Hikayesi',
-            subtitle: 'Matematik dolu bir macera başlat!',
+            title: aiStoryUi(lang, 'adventure_title'),
+            subtitle: aiStoryUi(lang, 'adventure_sub'),
             color: Colors.blue,
             onTap: _generateStory,
           ),
@@ -405,8 +418,8 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           // Uyku masalı butonu
           _buildStoryButton(
             emoji: '🌙',
-            title: 'Uyku Masalı',
-            subtitle: 'Tatlı rüyalar için matematik masalı',
+            title: aiStoryUi(lang, 'bedtime_title'),
+            subtitle: aiStoryUi(lang, 'bedtime_sub'),
             color: Colors.purple,
             onTap: _generateBedtimeStory,
           ),
@@ -423,9 +436,9 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '🎭 Hikaye Karakterleri',
-                  style: TextStyle(
+                Text(
+                  aiStoryUi(lang, 'characters_title'),
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -434,11 +447,14 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildCharacterChip('🐿️', 'Sayı Sincabı'),
-                    _buildCharacterChip('🦉', 'Baykuş'),
-                    _buildCharacterChip('🐱', 'Kedi'),
-                  ],
+                  children: () {
+                    final c = aiStoryDefaultCharacters(lang);
+                    return [
+                      _buildCharacterChip(c[0].emoji, c[0].name),
+                      _buildCharacterChip(c[1].emoji, c[1].name),
+                      _buildCharacterChip(c[2].emoji, c[2].name),
+                    ];
+                  }(),
                 ),
               ],
             ),
@@ -525,7 +541,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
     );
   }
 
-  Widget _buildStoryContent() {
+  Widget _buildStoryContent(String lang) {
     final chapter = _currentStory!.chapters[_currentChapterIndex];
 
     return FadeTransition(
@@ -602,7 +618,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
               ElevatedButton.icon(
                 onPressed: _showMathChallenge,
                 icon: const Text('🎯', style: TextStyle(fontSize: 24)),
-                label: const Text('Matematik Meydan Okuması!'),
+                label: Text(aiStoryUi(lang, 'math_challenge_btn')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
                   padding: const EdgeInsets.all(16),
@@ -613,7 +629,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
               ),
 
             if (_showingMathChallenge && chapter.mathChallenge != null)
-              _buildMathChallenge(chapter.mathChallenge!),
+              _buildMathChallenge(chapter.mathChallenge!, lang),
 
             const SizedBox(height: 24),
 
@@ -652,7 +668,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                         _animController.forward();
                       },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      label: const Text('Geri', style: TextStyle(color: Colors.white)),
+                      label: Text(aiStoryUi(lang, 'nav_back'), style: const TextStyle(color: Colors.white)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.white30),
                       ),
@@ -661,7 +677,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                     ElevatedButton.icon(
                       onPressed: _nextChapter,
                       icon: const Icon(Icons.arrow_forward),
-                      label: const Text('İleri'),
+                      label: Text(aiStoryUi(lang, 'nav_forward')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                       ),
@@ -674,7 +690,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
                         });
                       },
                       icon: const Icon(Icons.check),
-                      label: const Text('Bitir'),
+                      label: Text(aiStoryUi(lang, 'nav_finish')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                       ),
@@ -687,7 +703,7 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
     );
   }
 
-  Widget _buildMathChallenge(MathProblem problem) {
+  Widget _buildMathChallenge(MathProblem problem, String lang) {
     final options = _generateOptions(problem.answer);
 
     return Container(
@@ -699,9 +715,9 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            '🧮 Matematik Zamanı!',
-            style: TextStyle(
+          Text(
+            aiStoryUi(lang, 'math_time'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -709,7 +725,9 @@ class _AIStorytellerScreenState extends State<AIStorytellerScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            '${problem.num1} ${problem.operator} ${problem.num2} = ?',
+            LocaleTextHelpers.ltrMathIsolate(
+              '${problem.num1} ${problem.operator} ${problem.num2} = ?',
+            ),
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.bold,

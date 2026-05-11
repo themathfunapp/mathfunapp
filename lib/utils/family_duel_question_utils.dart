@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/utils/locale_text_helpers.dart';
 
 /// Tek/çift cihaz aile düellosu için ortak soru metni ve doğrulama.
 String familyDuelQuestionLine(Map<String, dynamic>? q, AppLocalizations loc) {
@@ -17,10 +18,16 @@ String familyDuelQuestionLine(Map<String, dynamic>? q, AppLocalizations loc) {
       return '${List.filled(cnt, emoji).join(' ')}\n${loc.get('question_how_many')}';
     case 'find_missing':
       final seq = q['sequence'] as String? ?? '';
-      return loc.get('family_duel_find_missing').replaceAll('{sequence}', seq);
+      return loc.get('family_duel_find_missing').replaceAll(
+            '{sequence}',
+            LocaleTextHelpers.ltrMathIsolate(seq),
+          );
     case 'whats_next':
       final seq = q['sequence'] as String? ?? '';
-      return loc.get('family_duel_whats_next').replaceAll('{sequence}', seq);
+      return loc.get('family_duel_whats_next').replaceAll(
+            '{sequence}',
+            LocaleTextHelpers.ltrMathIsolate(seq),
+          );
     case 'before_after':
       final params = q['questionParams'];
       final n = params is Map ? '${params['number'] ?? '?'}' : '?';

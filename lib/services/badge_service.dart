@@ -4,6 +4,7 @@ import 'package:mathfun/models/badge.dart';
 import 'package:mathfun/models/app_user.dart';
 import 'package:mathfun/models/spin_wheel_reward.dart';
 import 'package:mathfun/models/topic_performance_stats.dart';
+import 'package:mathfun/localization/app_supported_locales.dart';
 
 class BadgeService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -354,11 +355,8 @@ class BadgeService extends ChangeNotifier {
     ..._languageExplorerBadges(),
   ];
 
-  /// Uygulama dilinde en az bir oyun oturumu (ParentPanelL10n dilleriyle uyumlu).
+  /// Uygulama dilinde en az bir oyun oturumu ([kSupportedLanguageCodes] ile uyumlu).
   static List<BadgeDefinition> _languageExplorerBadges() {
-    const codes = <String>[
-      'tr', 'en', 'de', 'es', 'fr', 'ar', 'fa', 'zh', 'id', 'ku', 'ru', 'ja', 'ko', 'hi', 'ur', 'pt', 'it', 'pl',
-    ];
     const flags = <String, String>{
       'tr': '🇹🇷',
       'en': '🇬🇧',
@@ -380,7 +378,7 @@ class BadgeService extends ChangeNotifier {
       'pl': '🇵🇱',
     };
     return [
-      for (final c in codes)
+      for (final c in kSupportedLanguageCodes)
         BadgeDefinition(
           id: 'lang_$c',
           nameKey: 'badge_lang_$c',

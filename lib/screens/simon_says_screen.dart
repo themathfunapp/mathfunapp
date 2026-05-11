@@ -13,6 +13,7 @@ import '../models/daily_reward.dart' show TaskType;
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
 import '../widgets/child_exit_dialog.dart';
+import '../utils/locale_text_helpers.dart';
 
 enum SimonDifficulty { easy, medium, hard }
 
@@ -1033,7 +1034,12 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
   }
 
   Widget _buildTitle() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
+    final rememberSteps = LocaleTextHelpers.rewardBannerText(
+      localeProvider.locale.languageCode,
+      loc.get('simon_remember_steps').replaceAll('%1', '${_sequence.length}'),
+    );
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.8, end: 1),
       duration: const Duration(milliseconds: 400),
@@ -1056,7 +1062,8 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              loc.get('simon_remember_steps').replaceAll('%1', '$_sequence.length'),
+              rememberSteps,
+              textAlign: TextAlign.center,
               style: GoogleFonts.quicksand(fontSize: 15, color: Colors.teal.shade600),
             ),
           ],

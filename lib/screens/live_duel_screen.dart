@@ -6,6 +6,7 @@ import '../localization/app_localizations.dart';
 import '../models/friendship.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
+import '../utils/locale_text_helpers.dart';
 
 /// Canlı Düello Ekranı - Optimize Edilmiş Çocuk Tasarımı
 class LiveDuelScreen extends StatefulWidget {
@@ -995,7 +996,9 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                         const Text('🤔', style: TextStyle(fontSize: 28)),
                         const SizedBox(width: 12),
                         Text(
-                          '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                          LocaleTextHelpers.ltrMathIsolate(
+                            '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                          ),
                           style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,

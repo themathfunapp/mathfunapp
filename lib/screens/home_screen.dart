@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
+import '../localization/app_supported_locales.dart';
 import '../settings/SettingsScreen.dart';
 import '../widgets/animated_math_symbol.dart';
 import '../widgets/shiny_button.dart';
@@ -92,28 +93,6 @@ class _HomeScreenState extends State<HomeScreen>
       context.read<GameMechanicsService>().tickLifeRegeneration();
     }
   }
-
-  // Desteklenen diller listesi - Ekrandaki tüm diller
-  final List<Map<String, dynamic>> _supportedLanguages = [
-    {'code': 'tr', 'name': 'Türkçe', 'flag': '🇹🇷'},
-    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-    {'code': 'de', 'name': 'Deutsch', 'flag': '🇩🇪'},
-    {'code': 'ar', 'name': 'العربية (Arapça)', 'flag': '🇸🇦'},
-    {'code': 'fa', 'name': 'فارسی (Farsça)', 'flag': '🇮🇷'},
-    {'code': 'zh', 'name': '中文 (Çince)', 'flag': '🇨🇳'},
-    {'code': 'id', 'name': 'Bahasa (Endonezce)', 'flag': '🇮🇩'},
-    {'code': 'ku', 'name': 'Kurdî (Kürtçe)', 'flag': '☀️'},
-    {'code': 'es', 'name': 'Español (İspanyolca)', 'flag': '🇪🇸'},
-    {'code': 'fr', 'name': 'Français (Fransızca)', 'flag': '🇫🇷'},
-    {'code': 'ru', 'name': 'Русский (Rusça)', 'flag': '🇷🇺'},
-    {'code': 'ja', 'name': '日本語 (Japonca)', 'flag': '🇯🇵'},
-    {'code': 'ko', 'name': '한국어 (Korece)', 'flag': '🇰🇷'},
-    {'code': 'hi', 'name': 'हिन्दी (Hintçe)', 'flag': '🇮🇳'},
-    {'code': 'ur', 'name': 'اردو (Urduca)', 'flag': '🇵🇰'},
-    {'code': 'pt', 'name': 'Português (Portekizce)', 'flag': '🇧🇷'},
-    {'code': 'it', 'name': 'Italiano (İtalyanca)', 'flag': '🇮🇹'},
-    {'code': 'pl', 'name': 'Polski (Lehçe)', 'flag': '🇵🇱'},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen>
         elevation: 4,
       ),
       child: isKurdish
-          ? const KurtceFlag(size: 28)
+          ? const KurtceFlag(size: 28, circular: true)
           : Text(
               _getCurrentFlag(authService),
               style: const TextStyle(fontSize: 24),
@@ -434,9 +413,9 @@ class _HomeScreenState extends State<HomeScreen>
                   Flexible(
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: _supportedLanguages.length,
+                      itemCount: kLanguagePickerEntries.length,
                       itemBuilder: (_, index) {
-                        final lang = _supportedLanguages[index];
+                        final lang = kLanguagePickerEntries[index];
                         final isCurrent = currentLocale.languageCode == lang['code'];
                         
                         return InkWell(
@@ -522,9 +501,9 @@ class _HomeScreenState extends State<HomeScreen>
   // Mevcut dilin bayrağını getir
   String _getCurrentFlag(AuthService authService) {
     final currentLocale = Provider.of<LocaleProvider>(context).locale;
-    final lang = _supportedLanguages.firstWhere(
+    final lang = kLanguagePickerEntries.firstWhere(
           (lang) => lang['code'] == currentLocale.languageCode,
-      orElse: () => _supportedLanguages[0],
+      orElse: () => kLanguagePickerEntries[0],
     );
     return lang['flag'] as String;
   }

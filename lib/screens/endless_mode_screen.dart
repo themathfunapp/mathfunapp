@@ -956,7 +956,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
           // Soru (dar ekranda taşmayı önlemek için)
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Row(
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -1040,6 +1042,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                   ),
                 ),
               ],
+            ),
             ),
           ),
 

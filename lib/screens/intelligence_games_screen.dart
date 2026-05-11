@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
+import '../utils/locale_text_helpers.dart';
 import '../providers/locale_provider.dart';
 import '../services/daily_reward_service.dart';
 import '../services/game_mechanics_service.dart';
@@ -384,7 +385,10 @@ class _KidBrainDailyRewardDialog extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                loc.get('brain_daily_bonus_main'),
+                LocaleTextHelpers.rewardBannerText(
+                  loc.locale.languageCode,
+                  loc.get('brain_daily_bonus_main'),
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 22,

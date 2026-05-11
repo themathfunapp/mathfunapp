@@ -26,9 +26,11 @@ import 'package:mathfun/services/parent_pin_service.dart';
 import 'package:mathfun/services/audio_service.dart';
 import 'package:mathfun/services/push_notification_service.dart';
 import 'package:mathfun/providers/locale_provider.dart';
+import 'package:mathfun/localization/app_supported_locales.dart';
 import 'package:mathfun/screens/app_screen_wrappers.dart';
 import 'package:mathfun/screens/welcome_screen.dart';
 import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/localization/material_localizations_fallback.dart';
 import 'package:mathfun/app_navigator.dart';
 import 'package:mathfun/widgets/global_remote_duel_invite_host.dart';
 
@@ -238,9 +240,18 @@ class MyApp extends StatelessWidget {
           title: 'Matematik Macerası',
           debugShowCheckedModeBanner: false,
           builder: (context, child) {
-            return GlobalRemoteDuelInviteHost(
+            // Kurmanji metinler bu uygulamada Latin; Flutter bazen ku için RTL seçiyor,
+            // karşılama dil şeridinde görsel/hit-test kayması oluyordu.
+            Widget w = GlobalRemoteDuelInviteHost(
               child: child ?? const SizedBox.shrink(),
             );
+            if (localeProvider.locale.languageCode == 'ku') {
+              w = Directionality(
+                textDirection: TextDirection.ltr,
+                child: w,
+              );
+            }
+            return w;
           },
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -261,29 +272,11 @@ class MyApp extends StatelessWidget {
           localizationsDelegates: const [
             AppLocalizationsDelegate(),
             GlobalMaterialLocalizations.delegate,
+            MaterialLocalizationsFallbackDelegate(),
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: const [
-            Locale('tr', 'TR'),
-            Locale('en', 'US'),
-            Locale('de', 'DE'),
-            Locale('ar', 'SA'),
-            Locale('fa', 'IR'),
-            Locale('zh', 'CN'),
-            Locale('id', 'ID'),
-            Locale('ku', 'IQ'),
-            Locale('es', 'ES'),
-            Locale('fr', 'FR'),
-            Locale('ru', 'RU'),
-            Locale('ja', 'JP'),
-            Locale('ko', 'KR'),
-            Locale('hi', 'IN'),
-            Locale('ur', 'PK'),
-            Locale('pt', 'BR'),
-            Locale('it', 'IT'),
-            Locale('pl', 'PL'),
-          ],
+          supportedLocales: kAppSupportedLocales,
           localeResolutionCallback: (locale, supportedLocales) {
             for (var supportedLocale in supportedLocales) {
               if (supportedLocale.languageCode == localeProvider.locale.languageCode) {

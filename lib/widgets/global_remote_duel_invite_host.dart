@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -137,7 +138,11 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
     final auth = context.watch<AuthService>();
     final user = auth.currentUser;
     final mw = MediaQuery.sizeOf(context).width;
-    final senderStripW = mw > 420 ? 360.0 : (mw - 24).clamp(200.0, mw);
+    // Dar pencerede (ör. Chrome DevTools açıkken) (mw-24).clamp(200, mw) alt sınır > üst sınır
+    // olur ve Invalid argument ile her karede build çöker; mouse_tracker ile zincirleme hata görülür.
+    final senderStripW = mw > 420
+        ? 360.0
+        : math.min(math.max(mw - 24, 120.0), math.min(360.0, mw));
 
     return Stack(
       clipBehavior: Clip.none,

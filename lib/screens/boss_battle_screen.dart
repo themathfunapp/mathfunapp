@@ -11,6 +11,7 @@ import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
 import '../services/game_session_report.dart';
+import '../utils/locale_text_helpers.dart';
 
 /// Boss Savaşı Ekranı - 5 CAN (GameMechanicsService ile profil senkron)
 class BossBattleScreen extends StatefulWidget {
@@ -939,7 +940,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               fit: BoxFit.scaleDown,
               alignment: Alignment.center,
               child: Text(
-                '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                LocaleTextHelpers.ltrMathIsolate(
+                  '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                ),
                 maxLines: 1,
                 textAlign: TextAlign.center,
                 style: const TextStyle(

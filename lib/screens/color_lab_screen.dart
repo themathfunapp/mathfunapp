@@ -9,6 +9,7 @@ import '../models/daily_reward.dart' show TaskType;
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/child_exit_dialog.dart';
+import '../utils/locale_text_helpers.dart';
 
 class ColorLabScreen extends StatefulWidget {
   final String ageGroup;
@@ -447,7 +448,7 @@ class _ColorLabScreenState extends State<ColorLabScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            _question,
+            LocaleTextHelpers.ltrMathIsolate(_question),
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,

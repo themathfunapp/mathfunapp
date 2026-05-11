@@ -560,9 +560,9 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '🔒 Bu bölge henüz açılmadı',
-                          style: TextStyle(
+                        Text(
+                          '🔒 ${localizations.get('region_locked_panel_title')}',
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -570,7 +570,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Önceki bölgeleri tamamlayarak açabilirsin.',
+                          localizations.get('region_locked_panel_subtitle'),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.orange.shade200,
@@ -635,7 +635,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFFE67E22),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': 'Rakam Nehri\'ni tamamla',
+        'unlockRequirement': localizations.get('math_map_unlock_time_island'),
       },
       // 5. Bölge - Kesir Pastanesi (KİLİTLİ)
       {
@@ -653,13 +653,13 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       {
         'id': 'colorful_math',
         'emoji': '🎨',
-        'shortName': 'Renkli',
+        'shortName': localizations.get('colorful_math_short'),
         'name': localizations.get('game_color_math'),
         'description': localizations.get('game_color_math_desc'),
         'color': const Color(0xFFFF6B9D),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': 'Zaman Adası\'nı tamamla',
+        'unlockRequirement': localizations.get('math_map_unlock_colorful'),
       },
       // 7. Bölge - Sihirli Makine (KİLİTLİ)
       {
@@ -671,7 +671,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFF00BCD4),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': 'Kesir Fırını\'nı tamamla',
+        'unlockRequirement': localizations.get('math_map_unlock_magic_machine'),
       },
     ];
   }
@@ -856,6 +856,8 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
   }
 
   void _showLockedRegionDialog(Map<String, dynamic> region) {
+    final loc = AppLocalizations.of(context);
+    final name = region['name'] as String? ?? '';
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -877,16 +879,17 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
               const Icon(Icons.lock_clock, color: Colors.orange, size: 60),
               const SizedBox(height: 16),
               Text(
-                '🔒 ${region['name']} Kilitli',
+                '🔒 $name${loc.get('region_locked_name_suffix')}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
-                region['unlockRequirement'] as String? ?? 'Bu bölge henüz açılmadı',
+                region['unlockRequirement'] as String? ?? loc.get('region_locked_panel_title'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.orange.shade200,
@@ -894,9 +897,9 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Önceki bölgeleri tamamlayarak yeni bölgelerin kilidini açabilirsin!',
-                style: TextStyle(
+              Text(
+                loc.get('region_locked_dialog_footer'),
+                style: const TextStyle(
                   fontSize: 12,
                   color: Colors.white70,
                 ),
@@ -913,7 +916,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                 ),
-                child: const Text('TAMAM'),
+                child: Text(loc.get('ok')),
               ),
             ],
           ),

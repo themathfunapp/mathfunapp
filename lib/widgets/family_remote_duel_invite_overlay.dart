@@ -318,17 +318,12 @@ class _FamilyRemoteDuelInviteOverlayState extends State<FamilyRemoteDuelInviteOv
     final svc = context.read<FamilyRemoteDuelService>();
     final snap = _latest;
     if (snap == null) {
-      return const IgnorePointer(
-        ignoring: true,
-        child: SizedBox.expand(),
-      );
+      // Web: tam ekran expand + fare takibi rota geçişinde "never been laid out" döngüsüne yol açabiliyor.
+      return const SizedBox.shrink();
     }
     final pending = snap.docs.where(_docStillShown).toList();
     if (pending.isEmpty) {
-      return const IgnorePointer(
-        ignoring: true,
-        child: SizedBox.expand(),
-      );
+      return const SizedBox.shrink();
     }
 
     final doc = pending.first;

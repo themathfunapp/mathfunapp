@@ -665,17 +665,17 @@ class TopicGameManager {
         };
 
       case 'before_after':
-        // "7'den önce/sonra hangi sayı gelir?" sorusu
+        // "7'den önce/sonra hangi sayı gelir?" sorusu — şıklar birbirinden ve doğru cevaptan farklı olmalı.
         final number = random.nextInt(maxNumber - 2) + 2;
         final isBefore = random.nextBool();
         final correctAnswer = isBefore ? number - 1 : number + 1;
-        
+
         return {
           'type': 'before_after',
           'questionKey': isBefore ? 'question_before_number' : 'question_after_number',
           'questionParams': <String, String>{'number': number.toString()},
           'correctAnswer': correctAnswer,
-          'options': [correctAnswer, number, correctAnswer + 1, correctAnswer - 1]..shuffle(),
+          'options': _countingBeforeAfterOptions(number, correctAnswer, maxNumber, random),
         };
 
       default:
@@ -820,9 +820,10 @@ class TopicGameManager {
 
         return {
           'type': 'identify_shapes',
-          'question': 'Hangi şekil bir $shape?',
+          'questionKey': 'question_geometry_which_shape',
+          'questionParams': <String, String>{},
           'correctAnswer': shape,
-          'shapeToShow': shape, // Gösterilecek şekil
+          'shapeToShow': shape,
           'options': options.take(4).toList(),
           'explanation': 'Bir $shape, ${_getShapeDescription(shape)}.',
         };
@@ -839,9 +840,10 @@ class TopicGameManager {
 
         return {
           'type': 'count_sides',
-          'question': 'Bir $shapeName kaç kenara sahiptir?',
+          'questionKey': 'question_geometry_count_sides',
+          'questionParams': <String, String>{},
           'correctAnswer': sides,
-          'shapeToShow': shapeName, // Gösterilecek şekil
+          'shapeToShow': shapeName,
           'options': [sides, sides + 1, sides - 1, sides + 2]..shuffle(),
         };
 
@@ -851,9 +853,10 @@ class TopicGameManager {
 
         return {
           'type': 'find_area',
-          'question': 'Bir kenarı $side cm olan karenin alanı kaç cm²?',
+          'questionKey': 'question_geometry_square_area',
+          'questionParams': <String, String>{'side': '$side'},
           'correctAnswer': area,
-          'shapeToShow': 'kare', // Gösterilecek şekil
+          'shapeToShow': 'kare',
           'options': _generateOptions(area, random),
           'explanation': 'Karenin alanı = kenar × kenar = $side × $side = $area',
         };
@@ -933,7 +936,7 @@ class TopicGameManager {
 
     return {
       'type': 'read_clock',
-      'question': 'Saat kaçı gösteriyor?',
+      'questionKey': 'question_read_analog_clock',
       'correctAnswer': '$hour:${minute.toString().padLeft(2, '0')}',
       'options': [
         '$hour:${minute.toString().padLeft(2, '0')}',
@@ -1117,6 +1120,39 @@ class TopicGameManager {
   static double _fractionToDecimal(String fraction) {
     final parts = fraction.split('/');
     return int.parse(parts[0]) / int.parse(parts[1]);
+  }
+
+  /// Önce/sonra sayma soruları için 4 farklı pozitif tam sayı (doğru cevap dahil).
+  static List<int> _countingBeforeAfterOptions(
+    int stemNumber,
+    int correctAnswer,
+    int maxNumber,
+    math.Random random,
+  ) {
+    final distractors = <int>{};
+    void tryWrong(int v) {
+      if (v > 0 && v != correctAnswer) distractors.add(v);
+    }
+
+    tryWrong(stemNumber);
+    var step = 1;
+    while (distractors.length < 3 && step <= maxNumber + 50) {
+      tryWrong(correctAnswer + step);
+      tryWrong(correctAnswer - step);
+      tryWrong(stemNumber + step);
+      tryWrong(stemNumber - step);
+      step++;
+    }
+
+    final cap = maxNumber.clamp(20, 999);
+    var guard = 0;
+    while (distractors.length < 3 && guard < 400) {
+      tryWrong(random.nextInt(cap) + 1);
+      guard++;
+    }
+
+    final out = <int>[correctAnswer, ...distractors.take(3)];
+    return out..shuffle(random);
   }
 
   static List<int> _generateOptions(int correctAnswer, math.Random random) {

@@ -215,6 +215,8 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
   void _checkAnswer() {
     if (_isAnswering) return;
 
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final loc = AppLocalizations(localeProvider.locale);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!mechanicsService.hasLives) return;
 
@@ -243,14 +245,14 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
         if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
         _score += 10;
         _audio.playAnswerFeedback(true);
-        _feedback = '🎉 Harika! Doğru saat!';
+        _feedback = '🎉 ${loc.get('time_feedback_correct_clock')}';
         _clockController.forward(from: 0);
       } else {
         _sessWrong++;
         _runStreak = 0;
         _audio.playAnswerFeedback(false);
         mechanicsService.onWrongAnswer();
-        _feedback = '⏰ Tekrar deneyin!';
+        _feedback = '⏰ ${loc.get('time_feedback_wrong_clock')}';
         if (!mechanicsService.hasLives) {
           _showGameOver();
           return;

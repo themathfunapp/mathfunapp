@@ -570,13 +570,31 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
                               ),
                               const SizedBox(height: 12),
                               if (_currentPattern != null) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(child: _buildPatternSection(loc.get('sample_pattern'), _currentPattern!.matrix, false, availableW / 2)),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: _buildPatternSection(loc.get('complete'), _userGrid, true, availableW / 2)),
-                                  ],
+                                // RTL dillerde de: örnek desen solda, tamamlama sağda.
+                                Directionality(
+                                  textDirection: TextDirection.ltr,
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildPatternSection(
+                                          loc.get('sample_pattern'),
+                                          _currentPattern!.matrix,
+                                          false,
+                                          availableW / 2,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildPatternSection(
+                                          loc.get('complete'),
+                                          _userGrid,
+                                          true,
+                                          availableW / 2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 Container(
@@ -824,54 +842,64 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
         children: [
           Text(title, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
           const SizedBox(height: 8),
-          SizedBox(
-            width: gridW,
-            height: gridH,
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
-                childAspectRatio: 1,
-              ),
-              itemCount: rows * cols,
-              itemBuilder: (context, i) {
-                final row = i ~/ cols, col = i % cols;
-                final val = grid[row][col];
-                final isEmpty = val < 11 || val > 84;
-                final isCorrect = _correctIndex == i;
-                final isShake = _shakeIndex == i;
-                return AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (context, child) {
-                    double dx = 0;
-                    if (isShake) dx = 8 * math.sin(_shakeAnimation.value * 4 * math.pi);
-                    return Transform.translate(
-                      offset: Offset(dx, 0),
-                      child: child,
-                    );
-                  },
+          Directionality(
+            // RTL dillerde grid soldan-sağa akışını koru (soru/pattern ters dönmesin).
+            textDirection: TextDirection.ltr,
+            child: SizedBox(
+              width: gridW,
+              height: gridH,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                  childAspectRatio: 1,
+                ),
+                itemCount: rows * cols,
+                itemBuilder: (context, i) {
+                  final row = i ~/ cols, col = i % cols;
+                  final val = grid[row][col];
+                  final isEmpty = val < 11 || val > 84;
+                  final isCorrect = _correctIndex == i;
+                  final isShake = _shakeIndex == i;
+                  return AnimatedBuilder(
+                    animation: _shakeAnimation,
+                    builder: (context, child) {
+                      double dx = 0;
+                      if (isShake) dx = 8 * math.sin(_shakeAnimation.value * 4 * math.pi);
+                      return Transform.translate(
+                        offset: Offset(dx, 0),
+                        child: child,
+                      );
+                    },
                     child: GestureDetector(
-                    onTap: interactive && isEmpty && _emptyIndices.contains(i) ? () => _onCellTap(i) : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: isEmpty ? Colors.grey.shade200 : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isCorrect ? Colors.green : (isEmpty ? Colors.grey.shade400 : Colors.green.shade200),
-                          width: isCorrect ? 3 : 2,
+                      onTap: interactive && isEmpty && _emptyIndices.contains(i) ? () => _onCellTap(i) : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: isEmpty ? Colors.grey.shade200 : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isCorrect ? Colors.green : (isEmpty ? Colors.grey.shade400 : Colors.green.shade200),
+                            width: isCorrect ? 3 : 2,
+                          ),
+                          boxShadow: isCorrect ? [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)] : null,
                         ),
-                        boxShadow: isCorrect ? [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)] : null,
-                      ),
-                      child: isEmpty ? null : Center(
-                        child: _shapeWidget(PatternModel.shapeFromVal(val), (cellSize * 0.6).clamp(20.0, 36.0), _colorFromVal(val)),
+                        child: isEmpty
+                            ? null
+                            : Center(
+                                child: _shapeWidget(
+                                  PatternModel.shapeFromVal(val),
+                                  (cellSize * 0.6).clamp(20.0, 36.0),
+                                  _colorFromVal(val),
+                                ),
+                              ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -886,30 +914,38 @@ class _PatternCompletionScreenState extends State<PatternCompletionScreen>
       for (final c in r) if (c >= 11 && c <= 84) symbolsInPattern.add(c);
     }
     final symbols = symbolsInPattern.toList()..sort();
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 6,
-      runSpacing: 6,
-      children: symbols.map((sym) => GestureDetector(
-        onTap: () => setState(() => _selectedSymbol = _selectedSymbol == sym ? null : sym),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: _selectedSymbol == sym ? Colors.green.shade100 : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: _selectedSymbol == sym ? Colors.green.shade700 : Colors.grey.shade400,
-              width: _selectedSymbol == sym ? 4 : 2,
-            ),
-            boxShadow: _selectedSymbol == sym ? [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 8)] : null,
-          ),
-          child: Center(
-            child: _shapeWidget(PatternModel.shapeFromVal(sym), 22, _colorFromVal(sym)),
-          ),
-        ),
-      )).toList(),
+    return Directionality(
+      // RTL dillerde seçenek şeridi de soldan-sağa kalsın.
+      textDirection: TextDirection.ltr,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 6,
+        runSpacing: 6,
+        children: symbols
+            .map(
+              (sym) => GestureDetector(
+                onTap: () => setState(() => _selectedSymbol = _selectedSymbol == sym ? null : sym),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _selectedSymbol == sym ? Colors.green.shade100 : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _selectedSymbol == sym ? Colors.green.shade700 : Colors.grey.shade400,
+                      width: _selectedSymbol == sym ? 4 : 2,
+                    ),
+                    boxShadow: _selectedSymbol == sym ? [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 8)] : null,
+                  ),
+                  child: Center(
+                    child: _shapeWidget(PatternModel.shapeFromVal(sym), 22, _colorFromVal(sym)),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 

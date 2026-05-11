@@ -285,6 +285,70 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
     }
   }
 
+  void _showCenterSquareFeedback({
+    required String message,
+    required Color backgroundColor,
+    IconData icon = Icons.check_rounded,
+  }) {
+    final overlayState = Overlay.of(context, rootOverlay: true);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) {
+        final side = math.min(MediaQuery.sizeOf(ctx).shortestSide * 0.38, 200.0);
+        return IgnorePointer(
+          child: Material(
+            color: Colors.transparent,
+            child: Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.82, end: 1.0),
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutBack,
+                builder: (context, scale, child) =>
+                    Transform.scale(scale: scale, child: child),
+                child: Container(
+                  width: side,
+                  height: side,
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: BorderRadius.circular(side * 0.14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: backgroundColor.withValues(alpha: 0.4),
+                        blurRadius: 28,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.all(side * 0.1),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: Colors.white, size: side * 0.3),
+                      SizedBox(height: side * 0.06),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.quicksand(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: math.max(13, side * 0.11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlayState.insert(entry);
+    Future.delayed(const Duration(seconds: 1), entry.remove);
+  }
+
   void _checkAnswer(int index) {
     if (index == _correctIndex) {
       _sessCorrect++;
@@ -292,14 +356,10 @@ class _FindDifferentScreenState extends State<FindDifferentScreen> {
       if (_runStreak > _bestStreak) _bestStreak = _runStreak;
       _audio.playAnswerFeedback(true);
       _saveCompletedSection(_currentSection);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Builder(
-            builder: (ctx) => Text('✅ ${AppLocalizations(Provider.of<LocaleProvider>(ctx, listen: false).locale).get('correct_answer')}!'),
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 1),
-        ),
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      _showCenterSquareFeedback(
+        message: '${loc.get('correct_answer')}!',
+        backgroundColor: Colors.green.shade600,
       );
       _onLevelComplete();
     } else {

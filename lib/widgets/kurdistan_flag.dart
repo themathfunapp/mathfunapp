@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Kürtçe dili için bayrak widget'ı
+/// Kürtçe dili için bayrak widget'ı (KRG / Ala Rengîn).
+/// Varsayılan: diğer dil emojileri gibi dikdörtgen (~3:2). [circular: true] yuvarlak (ör. daire dil butonu).
 class KurtceFlag extends StatelessWidget {
   final double size;
+  final bool circular;
 
-  const KurtceFlag({super.key, this.size = 24});
+  const KurtceFlag({super.key, this.size = 24, this.circular = false});
+
+  static const double _ratio = 1.5;
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox(
+    if (circular) {
+      return SizedBox(
         width: size,
         height: size,
         child: ClipOval(
@@ -18,6 +22,19 @@ class KurtceFlag extends StatelessWidget {
             size: Size(size, size),
             painter: _KurtceFlagPainter(),
           ),
+        ),
+      );
+    }
+    final w = size * _ratio;
+    final h = size;
+    return SizedBox(
+      width: w,
+      height: h,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: CustomPaint(
+          size: Size(w, h),
+          painter: _KurtceFlagPainter(),
         ),
       ),
     );

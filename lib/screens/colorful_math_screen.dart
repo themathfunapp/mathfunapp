@@ -8,6 +8,7 @@ import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../utils/locale_text_helpers.dart';
 
 class ColorfulMathScreen extends StatefulWidget {
   final String ageGroup;
@@ -753,7 +754,10 @@ class _KidColorMathDailyRewardDialog extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                loc.get('color_math_daily_bonus_main'),
+                LocaleTextHelpers.rewardBannerText(
+                  loc.locale.languageCode,
+                  loc.get('color_math_daily_bonus_main'),
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 22,

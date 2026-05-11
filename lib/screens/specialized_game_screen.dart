@@ -14,6 +14,7 @@ import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../utils/locale_text_helpers.dart';
 
 class SpecializedGameScreen extends StatefulWidget {
   final TopicGameSettings topicSettings;
@@ -183,16 +184,22 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 22),
-        child: _KidTopicHelpDialog(
-          loc: loc,
-          titleKey: titleKey,
-          aboutKey: aboutKey,
-          onClose: () => Navigator.of(ctx).pop(),
-        ),
-      ),
+      builder: (ctx) {
+        final maxHelpW = math.min(380.0, MediaQuery.sizeOf(ctx).width - 48);
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxHelpW),
+            child: _KidTopicHelpDialog(
+              loc: loc,
+              titleKey: titleKey,
+              aboutKey: aboutKey,
+              onClose: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -554,10 +561,29 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     });
   }
 
+  String _geometryQuestionText(Map<String, dynamic> question, AppLocalizations loc) {
+    final key = question['questionKey'] as String?;
+    if (key != null) {
+      var text = loc.get(key);
+      final shapeId = question['shapeToShow'] as String? ?? '';
+      final params = Map<String, String>.from(
+        question['questionParams'] as Map<String, String>? ?? {},
+      );
+      if (shapeId.isNotEmpty) {
+        params['shape'] = loc.get('geom_shape_$shapeId');
+      }
+      for (final e in params.entries) {
+        text = text.replaceAll('{${e.key}}', e.value);
+      }
+      return text;
+    }
+    return question['question'] as String? ?? '';
+  }
+
   Widget _buildGeometryQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
     final correctAnswer = question['correctAnswer'];
-    final questionText = question['question'] as String? ?? '';
+    final questionText = _geometryQuestionText(question, loc);
     final options = question['options'] as List<dynamic>? ?? [];
 
     switch (type) {
@@ -594,7 +620,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               spacing: 10,
               runSpacing: 10,
               children: options.map((option) {
-                return _buildShapeOption(option.toString());
+                return _buildShapeOption(option.toString(), loc);
               }).toList(),
             ),
           ],
@@ -683,7 +709,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             ),
             const SizedBox(height: 15),
             Text(
-              questionText,
+              LocaleTextHelpers.ltrMathIsolate(questionText),
               style: const TextStyle(
                 fontSize: 20,
                 color: Colors.white,
@@ -723,7 +749,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       default:
         return Center(
           child: Text(
-            questionText,
+            LocaleTextHelpers.ltrMathIsolate(questionText),
             style: const TextStyle(
               fontSize: 28,
               color: Colors.white,
@@ -737,7 +763,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   Widget _buildFractionQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
     final correctAnswer = question['correctAnswer'];
-    final questionText = question['question'] as String? ?? '';
+    final questionText = LocaleTextHelpers.ltrMathIsolate(question['question'] as String? ?? '');
     final options = question['options'] as List<dynamic>? ?? [];
 
     return Column(
@@ -779,7 +805,19 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   Widget _buildTimeQuestion(Map<String, dynamic> question, AppLocalizations loc) {
-    final questionText = question['question'] as String? ?? '';
+    String questionText;
+    final questionKey = question['questionKey'] as String?;
+    final questionParams = question['questionParams'] as Map<String, String>?;
+    if (questionKey != null) {
+      questionText = loc.get(questionKey);
+      if (questionParams != null && questionParams.isNotEmpty) {
+        for (final e in questionParams.entries) {
+          questionText = questionText.replaceAll('{${e.key}}', e.value);
+        }
+      }
+    } else {
+      questionText = question['question'] as String? ?? '';
+    }
     final options = question['options'] as List<dynamic>? ?? [];
     final correctAnswer = question['correctAnswer'];
 
@@ -857,7 +895,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  Widget _buildShapeOption(String shape) {
+  Widget _buildShapeOption(String shape, AppLocalizations loc) {
     final currentQuestion = _questions[_currentQuestionIndex];
     final correctAnswer = currentQuestion['correctAnswer'];
     final isCorrectAnswer = shape == correctAnswer;
@@ -880,7 +918,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             Text(_getShapeEmoji(shape), style: const TextStyle(fontSize: 40)),
             const SizedBox(height: 8),
             Text(
-              _getShapeName(shape),
+              _getShapeName(shape, loc),
               style: const TextStyle(color: Colors.white),
             ),
           ],
@@ -1037,8 +1075,11 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     }
   }
 
-  String _getShapeName(String shape) {
-    switch (shape.toLowerCase()) {
+  String _getShapeName(String shape, AppLocalizations loc) {
+    final id = shape.toLowerCase();
+    final localized = loc.get('geom_shape_$id');
+    if (localized != 'geom_shape_$id') return localized;
+    switch (id) {
       case 'daire': return 'Daire';
       case 'kare': return 'Kare';
       case 'üçgen': return 'Üçgen';
@@ -1179,7 +1220,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               border: Border.all(color: Colors.white, width: 3),
             ),
             child: Text(
-              question['sequence'] as String,
+              LocaleTextHelpers.ltrMathIsolate(question['sequence'] as String),
               style: const TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
@@ -1226,7 +1267,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   Widget _buildDecimalsQuestion(Map<String, dynamic> question, AppLocalizations loc) {
     final type = question['type'] as String? ?? '';
-    final questionText = question['question'] as String? ?? '';
+    final questionText = LocaleTextHelpers.ltrMathIsolate(question['question'] as String? ?? '');
     final options = question['options'] as List<dynamic>? ?? [];
 
     List<dynamic> optionsList = [];
@@ -1319,7 +1360,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   Widget _buildAlgebraQuestion(Map<String, dynamic> question, AppLocalizations loc) {
-    final questionText = question['question'] as String? ?? '';
+    final questionText = LocaleTextHelpers.ltrMathIsolate(question['question'] as String? ?? '');
     final options = question['options'] as List<dynamic>? ?? [];
     final optionsList = options.whereType<int>().toList();
 
@@ -1393,7 +1434,9 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   Widget _buildBasicMathQuestion(Map<String, dynamic> question, AppLocalizations loc) {
-    final questionText = question['question'] as String? ?? '? = ?';
+    final questionText = LocaleTextHelpers.ltrMathIsolate(
+      question['question'] as String? ?? '? = ?',
+    );
     final options = question['options'] as List<dynamic>? ?? [];
     final optionsList = options.whereType<int>().toList();
 
@@ -1677,126 +1720,153 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
       barrierDismissible: false,
       builder: (context) {
         final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+        final maxW = math.min(320.0, MediaQuery.sizeOf(context).width - 32);
         return Dialog(
           backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  widget.topicSettings.color,
-                  widget.topicSettings.color.withOpacity(0.7),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${widget.topicSettings.emoji} ${_getLocalizedTopicTitle(loc)}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Text(
-                percentage >= 60 ? '🎉 Tebrikler!' : '💪 Daha Çok Çalışmalısın',
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                ),
-              ),
-              if (!isTime) ...[
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(3, (index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        index < stars ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 48,
-                      ),
-                    );
-                  }),
-                ),
-              ],
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _buildStatRow('Doğru Cevaplar', '$_correctAnswers / ${_questions.length}'),
-                    if (!isTime) ...[
-                      const Divider(color: Colors.white24),
-                      _buildStatRow('Skor', '$_score'),
-                    ],
-                    const Divider(color: Colors.white24),
-                    _buildStatRow('Başarı Oranı', '%$percentage'),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxW),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    widget.topicSettings.color,
+                    widget.topicSettings.color.withOpacity(0.7),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onBack();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Ana Menü',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _restartGame();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Tekrar Oyna',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${widget.topicSettings.emoji} ${_getLocalizedTopicTitle(loc)}',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      percentage >= 60
+                          ? '🎉 ${loc.get('congratulations')}'
+                          : loc.get('results_practice_more'),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  if (!isTime) ...[
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(3, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < stars ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 44,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildResultsStatBlock(
+                          loc.get('correct_answers'),
+                          '$_correctAnswers / ${_questions.length}',
+                        ),
+                        if (!isTime) ...[
+                          const Divider(color: Colors.white24, height: 20),
+                          _buildResultsStatBlock(loc.get('score'), '$_score'),
+                        ],
+                        const Divider(color: Colors.white24, height: 20),
+                        _buildResultsStatBlock(loc.get('success_rate'), '%$percentage'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _restartGame();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.3),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          loc.get('play_again'),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onBack();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          loc.get('main_menu'),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      );
+        );
       },
     );
   }
@@ -1816,6 +1886,35 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Konu oyunu sonuç diyaloğu — etiket ve değer dikey, dar ekranlarda taşmayı azaltır.
+  Widget _buildResultsStatBlock(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.2),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
             ),
           ),
         ],
@@ -2116,7 +2215,10 @@ class _KidClockDailyRewardDialogState extends State<_KidClockDailyRewardDialog>
               ),
               const SizedBox(height: 14),
               Text(
-                widget.loc.get('clock_daily_bonus_main'),
+                LocaleTextHelpers.rewardBannerText(
+                  widget.loc.locale.languageCode,
+                  widget.loc.get('clock_daily_bonus_main'),
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 22,
@@ -2221,7 +2323,7 @@ class _KidTopicHelpDialog extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '🌟 ${loc.get('daily_entry_bonus_line')}',
+            '🌟 ${LocaleTextHelpers.rewardBannerText(loc.locale.languageCode, loc.get('daily_entry_bonus_line'))}',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,

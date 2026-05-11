@@ -1,22 +1,26 @@
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 
-/// AI Hikaye Anlatıcı Servisi
-/// Kişiselleştirilmiş matematik hikayeleri oluşturur
+import 'package:mathfun/localization/ai_storyteller_content.dart';
+import 'package:mathfun/localization/app_supported_locales.dart';
+import 'package:mathfun/models/ai_story_models.dart';
+
+/// Kişiselleştirilmiş matematik hikayeleri — seçilen arayüz diline göre metin üretir.
 class AIStorytellerService extends ChangeNotifier {
   final math.Random _random = math.Random();
 
-  /// Kişiselleştirilmiş matematik hikayesi oluştur
   MathStory generateStory({
     required String childName,
     required int age,
     required String topic,
     required String difficulty,
+    required String languageCode,
     List<String>? interests,
   }) {
-    final template = _getStoryTemplate(topic, age);
-    final characters = _generateCharacters(interests);
-    final problem = _generateMathProblem(topic, difficulty);
+    final templates = aiStoryTemplates(languageCode);
+    final template = _pickTemplate(templates, topic, age);
+    final characters = _generateCharacters(languageCode, interests);
+    final problem = _generateMathProblem(topic, difficulty, languageCode);
 
     return MathStory(
       title: _personalizeText(template.title, childName),
@@ -31,30 +35,34 @@ class AIStorytellerService extends ChangeNotifier {
       }).toList(),
       characters: characters,
       mathTopic: topic,
-      totalDuration: template.chapters.length * 3, // dakika
+      totalDuration: template.chapters.length * 3,
     );
   }
 
-  /// Uyku öncesi matematik masalı
   MathStory generateBedtimeStory({
     required String childName,
     required int age,
+    required String languageCode,
   }) {
-    final stories = _bedtimeStories;
+    final stories = aiStoryBedtimeList(languageCode);
     final template = stories[_random.nextInt(stories.length)];
 
     return MathStory(
       title: _personalizeText(template['title']!, childName),
       chapters: [
         StoryChapter(
-          title: 'Başlangıç',
+          title: aiStoryChapterStart(languageCode),
           content: _personalizeText(template['content']!, childName),
           image: template['image']!,
           choices: [],
         ),
       ],
       characters: [
-        StoryCharacter(name: 'Sayı Perisi', emoji: '🧚', role: 'yardımcı'),
+        StoryCharacter(
+          name: aiStoryFairyName(languageCode),
+          emoji: '🧚',
+          role: aiStoryBedtimeFairyRole(languageCode),
+        ),
       ],
       mathTopic: 'counting',
       totalDuration: 5,
@@ -62,71 +70,150 @@ class AIStorytellerService extends ChangeNotifier {
     );
   }
 
-  /// Günlük mesaj oluştur
-  String generateDailyMessage(String childName, int streak, int level) {
-    final messages = [
-      '$childName, bugün matematik macerasına hazır mısın? 🚀',
-      'Harika! $streak gündür arka arkaya giriş yaptın! 🔥',
-      'Seviye $level\'e ulaştın! Süper gidiyorsun! ⭐',
-      '$childName, sayılar seni bekliyor! 🔢',
-      'Bugün yeni bir şeyler öğrenmeye ne dersin? 📚',
-      'Matematik kahramanı $childName sahneye! 🦸',
-    ];
-
-    return messages[_random.nextInt(messages.length)];
+  String generateDailyMessage(String childName, int streak, int level, String languageCode) {
+    return aiStoryDailyLine(languageCode, _random, childName, streak, level);
   }
 
-  /// Soru için hikaye bağlamı oluştur
   String generateQuestionContext({
     required int num1,
     required int num2,
-    required String operator,
     required String topic,
+    required String languageCode,
   }) {
-    final contexts = _questionContexts[topic] ?? _questionContexts['default']!;
-    final template = contexts[_random.nextInt(contexts.length)];
+    final contexts = aiStoryQuestionContexts(languageCode);
+    final list = contexts[topic] ?? contexts['default']!;
+    final template = list[_random.nextInt(list.length)];
 
-    return template
-        .replaceAll('{num1}', num1.toString())
-        .replaceAll('{num2}', num2.toString());
+    return template.replaceAll('{num1}', num1.toString()).replaceAll('{num2}', num2.toString());
   }
 
-  StoryTemplate _getStoryTemplate(String topic, int age) {
-    final templates = _storyTemplates[topic] ?? _storyTemplates['default']!;
-    
-    // Yaşa uygun şablon seç
+  StoryTemplate _pickTemplate(Map<String, List<StoryTemplate>> templates, String topic, int age) {
+    final list = templates[topic] ?? templates['default']!;
     if (age <= 5) {
-      return templates.where((t) => t.ageGroup == 'preschool').first;
+      return list.firstWhere((t) => t.ageGroup == 'preschool');
     } else if (age <= 8) {
-      return templates.where((t) => t.ageGroup == 'elementary').first;
+      return list.firstWhere((t) => t.ageGroup == 'elementary');
     } else {
-      return templates.where((t) => t.ageGroup == 'advanced').first;
+      return list.firstWhere((t) => t.ageGroup == 'advanced');
     }
   }
 
-  List<StoryCharacter> _generateCharacters(List<String>? interests) {
-    final baseCharacters = [
-      StoryCharacter(name: 'Sayı Sincabı', emoji: '🐿️', role: 'yardımcı'),
-      StoryCharacter(name: 'Geometri Baykuşu', emoji: '🦉', role: 'akıl hocası'),
-      StoryCharacter(name: 'Toplama Kedisi', emoji: '🐱', role: 'arkadaş'),
-    ];
+  List<StoryCharacter> _generateCharacters(String languageCode, List<String>? interests) {
+    final base = List<StoryCharacter>.from(aiStoryDefaultCharacters(languageCode));
 
     if (interests != null && interests.contains('space')) {
-      baseCharacters.add(
-        StoryCharacter(name: 'Uzay Robotu', emoji: '🤖', role: 'rehber'),
-      );
+      base.add(StoryCharacter(name: _spaceRobotName(languageCode), emoji: '🤖', role: _guideRole(languageCode)));
     }
 
     if (interests != null && interests.contains('animals')) {
-      baseCharacters.add(
-        StoryCharacter(name: 'Matematik Aslanı', emoji: '🦁', role: 'koruyucu'),
-      );
+      base.add(StoryCharacter(name: _mathLionName(languageCode), emoji: '🦁', role: _guardRole(languageCode)));
     }
 
-    return baseCharacters;
+    return base;
   }
 
-  MathProblem _generateMathProblem(String topic, String difficulty) {
+  String _spaceRobotName(String languageCode) {
+    const m = {
+      'tr': 'Uzay robotu',
+      'en': 'Space robot',
+      'de': 'Weltraumroboter',
+      'ar': 'روبوت فضاء',
+      'fa': 'ربات فضایی',
+      'zh': '太空机器人',
+      'id': 'Robot luar angkasa',
+      'ku': 'Robotê fezayê',
+      'es': 'Robot espacial',
+      'fr': 'Robot spatial',
+      'ru': 'Космический робот',
+      'ja': 'うちゅうロボット',
+      'ko': '우주 로봇',
+      'hi': 'अंतरिक्ष रोबोट',
+      'ur': 'خلائی روبوٹ',
+      'pt': 'Robô espacial',
+      'it': 'Robot spaziale',
+      'pl': 'Robot kosmiczny',
+    };
+    return m[_norm(languageCode)] ?? m['en']!;
+  }
+
+  String _mathLionName(String languageCode) {
+    const m = {
+      'tr': 'Matematik aslanı',
+      'en': 'Math lion',
+      'de': 'Mathe-Löwe',
+      'ar': 'أسد الرياضيات',
+      'fa': 'شیر ریاضی',
+      'zh': '数学狮子',
+      'id': 'Singa matematika',
+      'ku': 'Şêrê matematîkê',
+      'es': 'León de las mates',
+      'fr': 'Lion des maths',
+      'ru': 'Математический лев',
+      'ja': 'すうがくのライオン',
+      'ko': '수학 사자',
+      'hi': 'गणित शेर',
+      'ur': 'ریاضی کا شیر',
+      'pt': 'Leão da matemática',
+      'it': 'Leone della matematica',
+      'pl': 'Lew matematyki',
+    };
+    return m[_norm(languageCode)] ?? m['en']!;
+  }
+
+  String _guideRole(String languageCode) {
+    const m = {
+      'tr': 'rehber',
+      'en': 'guide',
+      'de': 'Führer',
+      'ar': 'دليل',
+      'fa': 'راهنما',
+      'zh': '向导',
+      'id': 'pandu',
+      'ku': 'rêber',
+      'es': 'guía',
+      'fr': 'guide',
+      'ru': 'проводник',
+      'ja': 'ガイド',
+      'ko': '안내자',
+      'hi': 'मार्गदर्शक',
+      'ur': 'رہنما',
+      'pt': 'guia',
+      'it': 'guida',
+      'pl': 'przewodnik',
+    };
+    return m[_norm(languageCode)] ?? m['en']!;
+  }
+
+  String _guardRole(String languageCode) {
+    const m = {
+      'tr': 'koruyucu',
+      'en': 'guardian',
+      'de': 'Beschützer',
+      'ar': 'حارس',
+      'fa': 'نگهبان',
+      'zh': '守护者',
+      'id': 'penjaga',
+      'ku': 'parêzer',
+      'es': 'guardián',
+      'fr': 'gardien',
+      'ru': 'страж',
+      'ja': 'まもりがみ',
+      'ko': '수호자',
+      'hi': 'रक्षक',
+      'ur': 'محافظ',
+      'pt': 'guardião',
+      'it': 'guardiano',
+      'pl': 'strażnik',
+    };
+    return m[_norm(languageCode)] ?? m['en']!;
+  }
+
+  String _norm(String code) {
+    final c = code.toLowerCase();
+    return kSupportedLanguageCodes.contains(c) ? c : 'en';
+  }
+
+  MathProblem _generateMathProblem(String topic, String difficulty, String languageCode) {
     int num1, num2, answer;
     String operator;
     int maxNum;
@@ -176,230 +263,11 @@ class AIStorytellerService extends ChangeNotifier {
       num2: num2,
       operator: operator,
       answer: answer,
-      hint: _generateHint(num1, num2, operator),
+      hint: aiStoryHint(languageCode, num1, num2, operator),
     );
-  }
-
-  String _generateHint(int num1, int num2, String operator) {
-    switch (operator) {
-      case '+':
-        return 'İpucu: $num1 sayısından başla ve $num2 tane daha say';
-      case '-':
-        return 'İpucu: $num1 sayısından $num2 tane geri say';
-      case '×':
-        return 'İpucu: $num1 sayısını $num2 kere topla';
-      default:
-        return 'Dikkatli düşün!';
-    }
   }
 
   String _personalizeText(String text, String childName) {
     return text.replaceAll('{childName}', childName);
   }
-
-  // Hikaye şablonları
-  final Map<String, List<StoryTemplate>> _storyTemplates = {
-    'addition': [
-      StoryTemplate(
-        title: '{childName} ve Kayıp Elmalar',
-        ageGroup: 'preschool',
-        chapters: [
-          ChapterTemplate(
-            title: 'Elma Bahçesi',
-            content: 'Bir gün {childName}, elma bahçesine gitti. Ağaçta güzel elmalar vardı...',
-            image: '🍎',
-            choices: ['Elmaları topla', 'Bekle'],
-          ),
-          ChapterTemplate(
-            title: 'Toplama Zamanı',
-            content: 'Birinci ağaçtan 3 elma, ikinci ağaçtan 4 elma topladı. Kaç elma oldu?',
-            image: '🧺',
-            choices: ['Hesapla'],
-          ),
-        ],
-      ),
-      StoryTemplate(
-        title: '{childName} ve Yıldız Toplama',
-        ageGroup: 'elementary',
-        chapters: [
-          ChapterTemplate(
-            title: 'Gökyüzü Macerası',
-            content: '{childName} uzay gemisine bindi ve yıldız toplamaya çıktı...',
-            image: '🚀',
-            choices: ['Uçuşa başla'],
-          ),
-        ],
-      ),
-      StoryTemplate(
-        title: '{childName}: Matematik Şampiyonu',
-        ageGroup: 'advanced',
-        chapters: [
-          ChapterTemplate(
-            title: 'Turnuva',
-            content: 'Büyük matematik turnuvasında {childName} yarışmaya hazır...',
-            image: '🏆',
-            choices: ['Yarışmaya katıl'],
-          ),
-        ],
-      ),
-    ],
-    'default': [
-      StoryTemplate(
-        title: '{childName}\'ın Matematik Macerası',
-        ageGroup: 'preschool',
-        chapters: [
-          ChapterTemplate(
-            title: 'Yeni Bir Gün',
-            content: 'Güneşli bir sabah, {childName} yeni bir maceraya atıldı...',
-            image: '☀️',
-            choices: ['Başla'],
-          ),
-        ],
-      ),
-    ],
-  };
-
-  // Uyku öncesi hikayeler
-  final List<Map<String, String>> _bedtimeStories = [
-    {
-      'title': '{childName} ve Sayı Yıldızları',
-      'content': '''Gecenin karanlığında, {childName} gökyüzüne baktı. 
-      Yıldızlar parıl parıl parlıyordu. Bir, iki, üç... diye saymaya başladı.
-      Her yıldız bir sayı fısıldıyordu rüzgarla. 
-      "Beş artı beş on eder" dedi en parlak yıldız.
-      {childName} gülümsedi ve tatlı bir uykuya daldı.
-      Rüyasında sayılarla dans etti, matematiğin büyülü dünyasında gezdi.
-      Günaydın dediğinde, yeni sayılar öğrenmeye hazırdı...''',
-      'image': '⭐',
-    },
-    {
-      'title': '{childName} ve Ay\'ın Gizemi',
-      'content': '''Dolunay gökyüzünde parlıyordu.
-      {childName} pencereden izlerken, ay konuşmaya başladı:
-      "Sence kaç yıldız var bu gece?" diye sordu.
-      {childName} saymaya başladı... bir, iki, üç...
-      Sayarken gözleri yavaş yavaş kapandı.
-      Rüyasında ay ile matematik soruları çözdü.
-      Ertesi gün uyanınca gülümsedi.
-      Matematiğin ne kadar eğlenceli olduğunu hatırladı...''',
-      'image': '🌙',
-    },
-  ];
-
-  // Soru bağlamları
-  final Map<String, List<String>> _questionContexts = {
-    'addition': [
-      'Sepetinde {num1} elma var. Arkadaşın sana {num2} elma daha verdi.',
-      '{num1} tane kuş ağaçta oturuyor. {num2} tane daha geldi.',
-      'Parkta {num1} çocuk oynuyor. {num2} çocuk daha katıldı.',
-    ],
-    'subtraction': [
-      'Kutunda {num1} şeker vardı. {num2} tanesini yedin.',
-      'Bahçede {num1} kelebek uçuyordu. {num2} tanesi gitti.',
-      '{num1} balonun vardı. {num2} tanesi patladı.',
-    ],
-    'multiplication': [
-      '{num1} tabakta {num2}\'şer kurabiye var.',
-      '{num1} arabanın her birinde {num2} tekerlek var.',
-      '{num1} çiçeğin her birinde {num2} yaprak var.',
-    ],
-    'default': [
-      'Matematik sorusu: {num1} ve {num2} sayılarını kullan.',
-    ],
-  };
 }
-
-/// Matematik Hikayesi
-class MathStory {
-  final String title;
-  final List<StoryChapter> chapters;
-  final List<StoryCharacter> characters;
-  final String mathTopic;
-  final int totalDuration;
-  final bool isBedtimeStory;
-
-  MathStory({
-    required this.title,
-    required this.chapters,
-    required this.characters,
-    required this.mathTopic,
-    required this.totalDuration,
-    this.isBedtimeStory = false,
-  });
-}
-
-/// Hikaye Bölümü
-class StoryChapter {
-  final String title;
-  final String content;
-  final String image;
-  final MathProblem? mathChallenge;
-  final List<String> choices;
-
-  StoryChapter({
-    required this.title,
-    required this.content,
-    required this.image,
-    this.mathChallenge,
-    required this.choices,
-  });
-}
-
-/// Hikaye Karakteri
-class StoryCharacter {
-  final String name;
-  final String emoji;
-  final String role;
-
-  StoryCharacter({
-    required this.name,
-    required this.emoji,
-    required this.role,
-  });
-}
-
-/// Matematik Problemi
-class MathProblem {
-  final int num1;
-  final int num2;
-  final String operator;
-  final int answer;
-  final String hint;
-
-  MathProblem({
-    required this.num1,
-    required this.num2,
-    required this.operator,
-    required this.answer,
-    required this.hint,
-  });
-}
-
-/// Hikaye Şablonu
-class StoryTemplate {
-  final String title;
-  final String ageGroup;
-  final List<ChapterTemplate> chapters;
-
-  StoryTemplate({
-    required this.title,
-    required this.ageGroup,
-    required this.chapters,
-  });
-}
-
-/// Bölüm Şablonu
-class ChapterTemplate {
-  final String title;
-  final String content;
-  final String image;
-  final List<String> choices;
-
-  ChapterTemplate({
-    required this.title,
-    required this.content,
-    required this.image,
-    required this.choices,
-  });
-}
-

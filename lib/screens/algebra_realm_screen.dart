@@ -40,6 +40,8 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
   late Animation<double> _jumpAnimation;
   late Animation<double> _shakeAnimation;
 
+  GameMechanicsService? _mechanicsListenTarget;
+
   int _keysCollected = 0;
   int _sessCorrect = 0;
   int _currentQuestionInRegion = 0;
@@ -92,19 +94,57 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     _glowController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    )..repeat(reverse: true);
-    _generateQuestion();
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _glowController.repeat(reverse: true);
+    });
+    _generateQuestion(skipRebuild: true);
   }
 
   @override
   void dispose() {
+    _detachMechanicsListener();
     _jumpController.dispose();
     _shakeController.dispose();
     _glowController.dispose();
     super.dispose();
   }
 
-  void _generateQuestion() {
+  void _detachMechanicsListener() {
+    _mechanicsListenTarget?.removeListener(_onMechanicsForNoLivesDialog);
+    _mechanicsListenTarget = null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final m = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!identical(_mechanicsListenTarget, m)) {
+      _detachMechanicsListener();
+      _mechanicsListenTarget = m;
+      m.addListener(_onMechanicsForNoLivesDialog);
+    }
+    _tryScheduleNoLivesDialog(m);
+  }
+
+  void _onMechanicsForNoLivesDialog() {
+    final m = _mechanicsListenTarget;
+    if (m != null && mounted) _tryScheduleNoLivesDialog(m);
+  }
+
+  void _tryScheduleNoLivesDialog(GameMechanicsService mechanics) {
+    if (_hasShownNoLivesDialog || mechanics.hasLives) return;
+    _hasShownNoLivesDialog = true;
+    // Web: tek kare yetmeyebilir; rota + GlobalRemoteDuelInviteHost stack yerleşmeden showDialog fare takibini bozuyor.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showGameOver();
+      });
+    });
+  }
+
+  void _generateQuestion({bool skipRebuild = false}) {
     final random = math.Random();
     _isAnswered = false;
     _isBossQuestion = _currentQuestionInRegion == _questionsPerRegion - 1;
@@ -126,7 +166,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         _generateMixedEquation(random);
         break;
     }
-    setState(() {});
+    if (!skipRebuild && mounted) setState(() {});
   }
 
   void _generateVisualEquation(math.Random random) {
@@ -274,12 +314,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     final mechanics = Provider.of<GameMechanicsService>(context, listen: true);
-    if (!mechanics.hasLives && !_hasShownNoLivesDialog) {
-      _hasShownNoLivesDialog = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showGameOver();
-      });
-    }
 
     return Scaffold(
       body: Container(
@@ -355,16 +389,18 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
               ],
             ),
           ),
-          Consumer<GameMechanicsService?>(builder: (context, m, _) {
-            final lives = m?.maxLives ?? 3;
-            final current = m?.currentLives ?? 3;
-            return Row(
-              children: List.generate(lives, (i) => Padding(
+          Row(
+            children: List.generate(
+              mechanics.maxLives,
+              (i) => Padding(
                 padding: const EdgeInsets.only(left: 2),
-                child: Opacity(opacity: i < current ? 1.0 : 0.3, child: const Text('⚡', style: TextStyle(fontSize: 18))),
-              )),
-            );
-          }),
+                child: Opacity(
+                  opacity: i < mechanics.currentLives ? 1.0 : 0.3,
+                  child: const Text('⚡', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -377,7 +413,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
       final suffix = loc.get('algebra_how_many_suffix');
       return Center(
         child: Text.rich(
-          textAlign: TextAlign.center,
           TextSpan(
             children: [
               TextSpan(
@@ -387,6 +422,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
               TextSpan(text: suffix, style: style),
             ],
           ),
+          textAlign: TextAlign.center,
         ),
       );
     }
