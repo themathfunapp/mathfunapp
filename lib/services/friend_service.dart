@@ -269,11 +269,13 @@ class FriendService extends ChangeNotifier {
 
     final trimmedQuery = query.trim();
 
-    if (AppUser.queryLooksLikePlayerCode(trimmedQuery)) {
-      final userByCode = await searchUserByCode(trimmedQuery);
+    final mergedCode = AppUser.mergePlayerCodeInput(trimmedQuery);
+    if (mergedCode != null) {
+      final userByCode = await searchUserByCode(mergedCode);
       if (userByCode != null && userByCode.uid != _currentUserId && !userByCode.isGuest) {
         return [userByCode];
       }
+      return [];
     }
 
     // Firebase ID ile dene

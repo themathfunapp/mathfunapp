@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 
 import 'package:mathfun/config/legal_urls.dart';
@@ -86,6 +87,23 @@ class _PremiumScreenState extends State<PremiumScreen>
                             ),
                           ),
                   ),
+                  if (kIsWeb)
+                    Material(
+                      color: Colors.red.shade800,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        child: Text(
+                          localizations.premiumWebIapNotSupported,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -455,7 +473,10 @@ class _PremiumScreenState extends State<PremiumScreen>
                 final success = await premiumService.buyPremium();
                 if (!success && mounted) {
                   _showErrorSnackBar(
-                    premiumService.errorMessage ?? localizations.errorOccurred,
+                    kIsWeb
+                        ? localizations.premiumWebIapNotSupported
+                        : (premiumService.errorMessage ??
+                            localizations.errorOccurred),
                   );
                 } else if (success && premiumService.isPremium && mounted) {
                   _showSuccessSnackBar(localizations.premiumActivated);

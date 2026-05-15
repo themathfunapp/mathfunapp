@@ -153,7 +153,7 @@ class _TrainJourneyGameState extends State<TrainJourneyGame>
 
   void _showResultDialog(int stars, int coinsEarned) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'tr'));
+    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'en'));
 
     showDialog(
       context: context,
@@ -229,7 +229,7 @@ class _TrainJourneyGameState extends State<TrainJourneyGame>
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'tr'));
+    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'en'));
 
     return Scaffold(
       body: Container(

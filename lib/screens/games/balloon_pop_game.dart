@@ -316,7 +316,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
 
   void _showResultDialog(int stars, int coinsEarned) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentLocale = authService.currentUser?.selectedLanguage ?? 'en';
     final localizations = AppLocalizations(Locale(currentLocale));
 
     showDialog(
@@ -431,7 +431,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentLocale = authService.currentUser?.selectedLanguage ?? 'en';
     final localizations = AppLocalizations(Locale(currentLocale));
 
     return Scaffold(

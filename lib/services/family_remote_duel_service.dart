@@ -286,6 +286,10 @@ class FamilyRemoteDuelService {
       return false;
     }
     final inviteRef = _db.collection(invitesCol).doc(inviteId);
+    String sessionId = '';
+    String hostUid = '';
+    String topicKey = '';
+    var everyoneAccepted = false;
 
     try {
       await _db.runTransaction((tx) async {
@@ -301,8 +305,9 @@ class FamilyRemoteDuelService {
           });
           throw Exception('invite_expired');
         }
-        final sessionId = d['sessionId'] as String? ?? '';
+        sessionId = d['sessionId'] as String? ?? '';
         if (sessionId.isEmpty) throw Exception('no_session');
+        hostUid = (d['fromUserId'] as String?) ?? '';
 
         final sessionRef = _db.collection(sessionsCol).doc(sessionId);
         final s = await tx.get(sessionRef);
@@ -332,7 +337,8 @@ class FamilyRemoteDuelService {
             .toSet();
         accepted.add(acceptingUserId);
 
-        final everyoneAccepted = accepted.length == invited.length && invited.isNotEmpty;
+        everyoneAccepted = accepted.length == invited.length && invited.isNotEmpty;
+        topicKey = (sd['topicKey'] as String?) ?? '';
         tx.update(inviteRef, {
           'status': 'accepted',
           'respondedAt': FieldValue.serverTimestamp(),
@@ -344,6 +350,22 @@ class FamilyRemoteDuelService {
           if (everyoneAccepted) 'turnDeadlineAtMs': _nowMs() + turnAnswerWindowMs,
         });
       });
+
+      if (hostUid.isNotEmpty && sessionId.isNotEmpty) {
+        await _writeDuelInviteAcceptedNotification(
+          hostUid: hostUid,
+          sessionId: sessionId,
+          accepterUserId: acceptingUserId,
+          topicKey: topicKey,
+        );
+        if (everyoneAccepted) {
+          await _writeDuelStartedNotification(
+            hostUid: hostUid,
+            sessionId: sessionId,
+            topicKey: topicKey,
+          );
+        }
+      }
       return true;
     } catch (e) {
       debugPrint('FamilyRemoteDuel acceptInvite: $e');
@@ -355,6 +377,8 @@ class FamilyRemoteDuelService {
     try {
       final ref = _db.collection(invitesCol).doc(inviteId);
       String sessionId = '';
+      String hostUid = '';
+      String topicKey = '';
       await _db.runTransaction((tx) async {
         final inv = await tx.get(ref);
         if (!inv.exists) return;
@@ -362,12 +386,17 @@ class FamilyRemoteDuelService {
         if (d['toUserId'] != userId) return;
         if (d['status'] != 'pending') return;
         sessionId = (d['sessionId'] as String?) ?? '';
+        hostUid = (d['fromUserId'] as String?) ?? '';
         tx.update(ref, {
           'status': 'declined',
           'respondedAt': FieldValue.serverTimestamp(),
         });
         if (sessionId.isNotEmpty) {
-          tx.update(_db.collection(sessionsCol).doc(sessionId), {
+          final sRef = _db.collection(sessionsCol).doc(sessionId);
+          final sSnap = await tx.get(sRef);
+          final sd = sSnap.data();
+          topicKey = (sd?['topicKey'] as String?) ?? '';
+          tx.update(sRef, {
             'status': 'cancelled',
             'cancelReason': 'declined',
           });
@@ -388,9 +417,117 @@ class FamilyRemoteDuelService {
           });
         }
       }
+
+      if (hostUid.isNotEmpty && sessionId.isNotEmpty) {
+        await _writeDuelInviteDeclinedNotification(
+          hostUid: hostUid,
+          sessionId: sessionId,
+          declinerUserId: userId,
+          topicKey: topicKey,
+        );
+      }
     } catch (e) {
       debugPrint('FamilyRemoteDuel declineInvite: $e');
     }
+  }
+
+  Future<void> _writeDuelInviteAcceptedNotification({
+    required String hostUid,
+    required String sessionId,
+    required String accepterUserId,
+    required String topicKey,
+  }) async {
+    final docId = 'frd_invite_accepted_${sessionId}_$accepterUserId';
+    final ref = _db
+        .collection('users')
+        .doc(hostUid)
+        .collection('in_app_notifications')
+        .doc(docId);
+    try {
+      final existing = await ref.get();
+      if (existing.exists) return;
+      await ref.set({
+        'type': 'family_remote_duel_invite_accepted',
+        'fromUid': accepterUserId,
+        'actorDisplayName': await _readDisplayNameQuick(accepterUserId),
+        'topicKey': topicKey,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'sessionId': sessionId,
+      });
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel _writeDuelInviteAcceptedNotification: $e');
+    }
+  }
+
+  Future<void> _writeDuelInviteDeclinedNotification({
+    required String hostUid,
+    required String sessionId,
+    required String declinerUserId,
+    required String topicKey,
+  }) async {
+    final docId = 'frd_invite_declined_${sessionId}_$declinerUserId';
+    final ref = _db
+        .collection('users')
+        .doc(hostUid)
+        .collection('in_app_notifications')
+        .doc(docId);
+    try {
+      final existing = await ref.get();
+      if (existing.exists) return;
+      await ref.set({
+        'type': 'family_remote_duel_invite_declined',
+        'fromUid': declinerUserId,
+        'actorDisplayName': await _readDisplayNameQuick(declinerUserId),
+        'topicKey': topicKey,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'sessionId': sessionId,
+      });
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel _writeDuelInviteDeclinedNotification: $e');
+    }
+  }
+
+  Future<void> _writeDuelStartedNotification({
+    required String hostUid,
+    required String sessionId,
+    required String topicKey,
+  }) async {
+    final docId = 'frd_started_$sessionId';
+    final ref = _db
+        .collection('users')
+        .doc(hostUid)
+        .collection('in_app_notifications')
+        .doc(docId);
+    try {
+      final existing = await ref.get();
+      if (existing.exists) return;
+      await ref.set({
+        'type': 'family_remote_duel_started',
+        'fromUid': hostUid,
+        'actorDisplayName': '',
+        'topicKey': topicKey,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'sessionId': sessionId,
+      });
+    } catch (e) {
+      debugPrint('FamilyRemoteDuel _writeDuelStartedNotification: $e');
+    }
+  }
+
+  Future<String> _readDisplayNameQuick(String uid) async {
+    if (uid.isEmpty) return '';
+    try {
+      final snap = await _db.collection('users').doc(uid).get();
+      final d = snap.data();
+      final n = d?['displayName'] as String?;
+      if (n != null && n.trim().isNotEmpty) return n.trim();
+      final email = d?['email'] as String?;
+      if (email != null && email.contains('@')) return email.split('@').first.trim();
+    } catch (_) {}
+    return '';
   }
 
   /// Davet süresi (ör. 90 sn) dolduğunda davetli cihazdan çağrılır: davet `expired`, oturum `waiting_accept` ise `expired`, ebeveyne uygulama içi bildirim.

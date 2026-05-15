@@ -101,8 +101,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       if (user != null) {
         if (!mounted) return;
-        // Dil tercihini kaydet
-        await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
+        // Girişte cloud dili ezilmesin: kayıtlı kullanıcıda Firestore -> cihaz yönünde senkronla.
+        final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+        await localeProvider.syncWithAuth(authService);
         if (!mounted) return;
 
         // Kullanıcı tipine göre yönlendirme
@@ -268,7 +269,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       }
 
                       if (user != null) {
-                        await authService.updateUserLanguage(Provider.of<LocaleProvider>(context, listen: false).locale.languageCode);
+                        final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+                        await localeProvider.syncWithAuth(authService);
                         Navigator.pop(context);
 
                         if (user.isGuest) {

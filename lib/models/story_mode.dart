@@ -17,6 +17,7 @@ enum WorldTheme {
   moneyMarket, // Para Pazarı - Para kavramı
   measurementLand, // Ölçüm Diyarı - Ölçme/Boyut
   multipliersTower, // Çarpanlar Kulesi - Çarpım tablosu ve bölünebilme
+  algebraRealm, // Cebir Diyarı (numberForest ile karışmasın — Siber Atölye yönlendirmesi)
 }
 
 /// Matematik konuları

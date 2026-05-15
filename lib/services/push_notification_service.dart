@@ -105,25 +105,14 @@ class PushNotificationService {
     final sessionId = '${data['sessionId'] ?? ''}'.trim();
     if (inviteId.isEmpty || sessionId.isEmpty) return;
 
-    const android = AndroidNotificationDetails(
-      'family_remote_duel',
-      'Aile düellosu',
-      channelDescription: 'Uzaktan düello davetleri',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const ios = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-    const details = NotificationDetails(android: android, iOS: ios);
+    final body = message.notification?.body ?? 'Uzaktan düello davetin var.';
+    final details = AppLocalNotifications.familyRemoteDuelForegroundDetails(body);
 
     try {
       await AppLocalNotifications.plugin.show(
         91001,
         message.notification?.title ?? 'MathFun',
-        message.notification?.body ?? 'Uzaktan düello davetin var.',
+        body,
         details,
         payload: _encodeRemoteDuelPayload(inviteId, sessionId),
       );

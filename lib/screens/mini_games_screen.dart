@@ -71,7 +71,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentLocale = authService.currentUser?.selectedLanguage ?? 'en';
     final localizations = AppLocalizations(Locale(currentLocale));
     final miniGameService = Provider.of<MiniGameService>(context);
 
@@ -130,23 +130,31 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  localizations.get('mini_games'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    localizations.get('mini_games'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                Text(
-                  '${service.allGames.length} ${localizations.get('games_available')}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${service.allGames.length} ${localizations.get('games_available')}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
               ],
@@ -293,6 +301,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
     final isComingSoon = _isComingSoon(game);
     final isUnlocked = progress?.unlockedGames.contains(game.id) ?? game.requiredStars == 0;
     final stats = progress?.gameStats[game.id];
+    final hideBalloonMeta = game.id == 'balloon_pop';
 
     return GestureDetector(
       onTap: isComingSoon
@@ -409,7 +418,7 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      if (isUnlocked && stats != null)
+                      if (!hideBalloonMeta && isUnlocked && stats != null)
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -467,7 +476,11 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
               ),
 
             // Best score badge - küçük rozet (sadece aktif oyunlarda göster)
-            if (!isComingSoon && isUnlocked && stats != null && stats.bestScore > 0)
+            if (!hideBalloonMeta &&
+                !isComingSoon &&
+                isUnlocked &&
+                stats != null &&
+                stats.bestScore > 0)
               Positioned(
                 top: 4,
                 right: 4,

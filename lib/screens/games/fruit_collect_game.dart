@@ -172,7 +172,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
           children: [
             const Text('❌'),
             const SizedBox(width: 8),
-            Text(AppLocalizations(Locale('tr')).get('wrong_fruit')),
+            Text(AppLocalizations(Locale('en')).get('wrong_fruit')),
           ],
         ),
         duration: const Duration(seconds: 1),
@@ -246,7 +246,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
 
   void _showResultDialog(int stars, int coinsEarned) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentLocale = authService.currentUser?.selectedLanguage ?? 'en';
     final localizations = AppLocalizations(Locale(currentLocale));
 
     showDialog(
@@ -316,7 +316,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final currentLocale = authService.currentUser?.selectedLanguage ?? 'tr';
+    final currentLocale = authService.currentUser?.selectedLanguage ?? 'en';
     final localizations = AppLocalizations(Locale(currentLocale));
 
     return Scaffold(

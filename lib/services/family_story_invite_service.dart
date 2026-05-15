@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'in_app_notification_service.dart';
+
 /// Ebeveynin hikâye modundan bir dünya/bölüm için ailedeki çocuğa gönderdiği davet.
 class FamilyStoryInviteService {
   FamilyStoryInviteService({FirebaseFirestore? firestore})
@@ -118,6 +120,19 @@ class FamilyStoryInviteService {
         });
       }
       await batch.commit();
+
+      final sid = sessionRef.id;
+      for (final t in validTargets) {
+        await InAppNotificationService.sendFamilyStorySuggestedToRecipient(
+          firestore: _db,
+          toUserId: t.userId,
+          fromUserId: fromUserId,
+          fromDisplayName: fromDisplayName,
+          sessionId: sid,
+          worldNameKey: worldNameKey,
+          chapterNameKey: chapterNameKey,
+        );
+      }
       return true;
     } catch (e) {
       debugPrint('FamilyStoryInvite createGroupInvites: $e');

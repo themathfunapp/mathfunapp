@@ -570,6 +570,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return InkWell(
       onTap: () async {
+        await Provider.of<LocaleProvider>(context, listen: false)
+            .changeLanguage(Locale(code));
         await authService.updateUserLanguage(code);
         Navigator.pop(context);
         // Yenilemek için

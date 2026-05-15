@@ -21,12 +21,16 @@ class InAppNotificationService extends ChangeNotifier {
 
   int get unreadCount => _items.where((e) => !e.read).length;
 
-  void initialize(AppUser? user) {
+  /// Aile bildirimleri ebeveyn / Premium kapsamındadır; [premiumActive] false iken dinlenmez.
+  void initialize(AppUser? user, {bool premiumActive = false}) {
     _sub?.cancel();
     _sub = null;
     _userId = user?.uid;
 
-    if (user == null || user.isGuest || user.uid.isEmpty) {
+    if (user == null ||
+        user.isGuest ||
+        user.uid.isEmpty ||
+        !premiumActive) {
       _items = [];
       notifyListeners();
       return;
@@ -46,6 +50,11 @@ class InAppNotificationService extends ChangeNotifier {
       },
       onError: (Object e) {
         debugPrint('InAppNotificationService stream error: $e');
+        // PERMISSION_DENIED vb. sürekli hata → kare başına log/notify döngüsünü kes
+        _sub?.cancel();
+        _sub = null;
+        _items = [];
+        notifyListeners();
       },
     );
   }
@@ -227,5 +236,236 @@ class InAppNotificationService extends ChangeNotifier {
     }
 
     return out.toList();
+  }
+
+  static Future<String> _fetchDisplayName(
+    FirebaseFirestore firestore,
+    String uid,
+  ) async {
+    if (uid.isEmpty) return '';
+    try {
+      final snap = await firestore.collection('users').doc(uid).get();
+      final d = snap.data();
+      final n = d?['displayName'] as String?;
+      if (n != null && n.trim().isNotEmpty) return n.trim();
+      final email = d?['email'] as String?;
+      if (email != null && email.contains('@')) {
+        return email.split('@').first.trim();
+      }
+    } catch (e) {
+      debugPrint('InAppNotification _fetchDisplayName: $e');
+    }
+    return '';
+  }
+
+  static Map<String, dynamic> _notificationPayload({
+    required String type,
+    required String fromUid,
+    String actorDisplayName = '',
+    String badgeNameKey = '',
+    String worldNameKey = '',
+    String chapterNameKey = '',
+    String oldDisplayName = '',
+    String newDisplayName = '',
+    int numberValue = 0,
+    String topicKey = '',
+  }) {
+    return {
+      'type': type,
+      'fromUid': fromUid,
+      'actorDisplayName': actorDisplayName,
+      'badgeNameKey': badgeNameKey,
+      'worldNameKey': worldNameKey,
+      'chapterNameKey': chapterNameKey,
+      'oldDisplayName': oldDisplayName,
+      'newDisplayName': newDisplayName,
+      'numberValue': numberValue,
+      'topicKey': topicKey,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  /// Çocuk rozet kazandığında ailedeki diğer üyelere (ebeveyn vb.) bildirim.
+  static Future<void> sendChildBadgeEarnedToFamily({
+    required FirebaseFirestore firestore,
+    required String childUid,
+    required String badgeNameKey,
+  }) async {
+    if (childUid.isEmpty || badgeNameKey.isEmpty) return;
+    final recipients = await _collectFamilyRecipientUserIds(
+      firestore: firestore,
+      actorUid: childUid,
+    );
+    if (recipients.isEmpty) return;
+    final childName = await _fetchDisplayName(firestore, childUid);
+
+    var batch = firestore.batch();
+    var n = 0;
+    for (final targetUid in recipients) {
+      final ref = firestore
+          .collection('users')
+          .doc(targetUid)
+          .collection('in_app_notifications')
+          .doc();
+      batch.set(
+        ref,
+        _notificationPayload(
+          type: 'child_badge_earned',
+          fromUid: childUid,
+          actorDisplayName: childName,
+          badgeNameKey: badgeNameKey,
+        ),
+      );
+      n++;
+      if (n >= 400) {
+        await batch.commit();
+        batch = firestore.batch();
+        n = 0;
+      }
+    }
+    if (n > 0) await batch.commit();
+  }
+
+  /// Günlük meydan okuma başarıyla bitince aile üyelerine.
+  static Future<void> sendDailyChallengeCompletedToFamily({
+    required FirebaseFirestore firestore,
+    required String childUid,
+    required String childDisplayName,
+  }) async {
+    if (childUid.isEmpty) return;
+    final recipients = await _collectFamilyRecipientUserIds(
+      firestore: firestore,
+      actorUid: childUid,
+    );
+    if (recipients.isEmpty) return;
+    final name = childDisplayName.trim().isNotEmpty
+        ? childDisplayName.trim()
+        : await _fetchDisplayName(firestore, childUid);
+
+    var batch = firestore.batch();
+    var n = 0;
+    for (final targetUid in recipients) {
+      final ref = firestore
+          .collection('users')
+          .doc(targetUid)
+          .collection('in_app_notifications')
+          .doc();
+      batch.set(
+        ref,
+        _notificationPayload(
+          type: 'child_daily_challenge_complete',
+          fromUid: childUid,
+          actorDisplayName: name,
+        ),
+      );
+      n++;
+      if (n >= 400) {
+        await batch.commit();
+        batch = firestore.batch();
+        n = 0;
+      }
+    }
+    if (n > 0) await batch.commit();
+  }
+
+  /// Ebeveynin gönderdiği hikâye önerisi — çocuğun bildirim kutusuna.
+  static Future<void> sendFamilyStorySuggestedToRecipient({
+    required FirebaseFirestore firestore,
+    required String toUserId,
+    required String fromUserId,
+    required String fromDisplayName,
+    required String sessionId,
+    required String worldNameKey,
+    required String chapterNameKey,
+  }) async {
+    if (toUserId.isEmpty || sessionId.isEmpty) return;
+    final docId = 'fs_story_${sessionId}_$toUserId';
+    final ref = firestore
+        .collection('users')
+        .doc(toUserId)
+        .collection('in_app_notifications')
+        .doc(docId);
+    try {
+      final existing = await ref.get();
+      if (existing.exists) return;
+      await ref.set(
+        _notificationPayload(
+          type: 'family_story_suggested',
+          fromUid: fromUserId,
+          actorDisplayName: fromDisplayName.trim(),
+          worldNameKey: worldNameKey,
+          chapterNameKey: chapterNameKey,
+        ),
+      );
+    } catch (e) {
+      debugPrint('sendFamilyStorySuggestedToRecipient: $e');
+    }
+  }
+
+  /// Ebeveyn PDF haftalık raporu oluşturduktan sonra kendi bildirimine kayıt.
+  static Future<void> sendWeeklyReportReadyNotification({
+    required FirebaseFirestore firestore,
+    required String parentUid,
+    required String childName,
+  }) async {
+    if (parentUid.isEmpty || childName.trim().isEmpty) return;
+    final ref = firestore
+        .collection('users')
+        .doc(parentUid)
+        .collection('in_app_notifications')
+        .doc();
+    try {
+      await ref.set(
+        _notificationPayload(
+          type: 'weekly_report_ready',
+          fromUid: parentUid,
+          actorDisplayName: childName.trim(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('sendWeeklyReportReadyNotification: $e');
+    }
+  }
+
+  /// Çocuk seviye atlayınca ailedeki diğer üyelere (ebeveyn vb.) bildirim.
+  static Future<void> sendChildLevelUpToFamily({
+    required FirebaseFirestore firestore,
+    required String childUid,
+    required int newLevel,
+  }) async {
+    if (childUid.isEmpty || newLevel <= 1) return;
+    final recipients = await _collectFamilyRecipientUserIds(
+      firestore: firestore,
+      actorUid: childUid,
+    );
+    if (recipients.isEmpty) return;
+    final childName = await _fetchDisplayName(firestore, childUid);
+
+    var batch = firestore.batch();
+    var n = 0;
+    for (final targetUid in recipients) {
+      final ref = firestore
+          .collection('users')
+          .doc(targetUid)
+          .collection('in_app_notifications')
+          .doc();
+      batch.set(
+        ref,
+        _notificationPayload(
+          type: 'child_level_up',
+          fromUid: childUid,
+          actorDisplayName: childName,
+          numberValue: newLevel,
+        ),
+      );
+      n++;
+      if (n >= 400) {
+        await batch.commit();
+        batch = firestore.batch();
+        n = 0;
+      }
+    }
+    if (n > 0) await batch.commit();
   }
 }

@@ -148,6 +148,7 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
       clipBehavior: Clip.none,
       fit: StackFit.expand,
       children: [
+        // Navigator: Positioned.fill yerine doğrudan Stack çocuğu (web’de 0 yükseklik riski).
         widget.child,
         if (user != null && user.isGuest != true) ...[
           // Altındaki rotalardaki (ör. Hikâye modu) sol üst geri butonu ile çakışmasın.

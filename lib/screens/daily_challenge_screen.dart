@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
 import 'package:provider/provider.dart';
 import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
+import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
+import '../services/in_app_notification_service.dart';
 import '../services/ad_service.dart';
 import '../models/game_mechanics.dart';
 import '../localization/app_localizations.dart';
@@ -329,6 +332,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       );
     }
     mechanicsService.completeChallenge(_score, _correctAnswers);
+
+    if (success) {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final child = auth.currentUser;
+      if (child != null && !child.isGuest) {
+        final name = (child.displayName != null && child.displayName!.trim().isNotEmpty)
+            ? child.displayName!.trim()
+            : (child.email != null && child.email!.contains('@')
+                ? child.email!.split('@').first
+                : child.uid);
+        unawaited(
+          InAppNotificationService.sendDailyChallengeCompletedToFamily(
+            firestore: FirebaseFirestore.instance,
+            childUid: child.uid,
+            childDisplayName: name,
+          ),
+        );
+      }
+    }
 
     _showResultsDialog();
   }
@@ -816,18 +838,25 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               final description = loc.get('challenge_description_format')
                   .replaceAll('{count}', '${challenge.targetCorrect}')
                   .replaceAll('{minutes}', '${challenge.timeLimit ~/ 60}');
-              return Padding(
-                padding: const EdgeInsets.all(24),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 380;
+                  return Padding(
+                padding: EdgeInsets.all(compact ? 16 : 24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Başlık
-                    Text(
-                      '🎯 ${loc.get('daily_task')} 🎯',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '🎯 ${loc.get('daily_task')} 🎯',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
                       ),
                     ),
 
@@ -835,7 +864,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
                     // Challenge kartı
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(compact ? 16 : 24),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(24),
@@ -846,12 +875,16 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                       ),
                       child: Column(
                         children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -865,9 +898,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                           ),
                           const SizedBox(height: 24),
 
-                          // Hedefler
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          // Hedefler (dar ekranlarda taşmayı önlemek için wrap)
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: compact ? 12 : 20,
+                            runSpacing: 10,
                             children: [
                               _buildTargetItem(
                                 '⏱️',
@@ -896,33 +931,37 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                               color: Colors.amber.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 6,
                               children: [
-                                Text('🏆 ${loc.get('reward')}: ',
-                                    style: const TextStyle(color: Colors.white)),
-                            const Text('🪙', style: TextStyle(fontSize: 18)),
-                            Text(
-                              ' ${challenge.rewardCoins}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber,
-                              ),
+                                Text(
+                                  '🏆 ${loc.get('reward')}:',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                const Text('🪙', style: TextStyle(fontSize: 18)),
+                                Text(
+                                  '${challenge.rewardCoins}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                                const Text('⭐', style: TextStyle(fontSize: 18)),
+                                Text(
+                                  '${challenge.rewardXp} ${loc.get('xp')}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 16),
-                            const Text('⭐', style: TextStyle(fontSize: 18)),
-                            Text(
-                              ' ${challenge.rewardXp} ${loc.get('xp')}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
 
                       if (challenge.isCompleted) ...[
                         const SizedBox(height: 16),
@@ -993,6 +1032,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
               ],
             ),
           );
+                },
+              );
             },
           ),
         ),
@@ -1014,27 +1055,35 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   }
 
   Widget _buildTargetItem(String emoji, String value, String label) {
-    return Column(
+    return SizedBox(
+      width: 88,
+      child: Column(
       children: [
         Text(emoji, style: const TextStyle(fontSize: 28)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.7),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
         ),
       ],
-    );
+    ));
   }
 
   // OYUN EKRANI - CAN GÖSTERGESİ EKLENDİ

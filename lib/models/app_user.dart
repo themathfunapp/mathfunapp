@@ -56,7 +56,7 @@ class AppUser {
       displayName: user.displayName,
       photoURL: user.photoURL,
       profileEmoji: null,
-      selectedLanguage: 'tr',
+      selectedLanguage: 'en',
       createdAt: user.metadata.creationTime,
       lastSignInTime: user.metadata.lastSignInTime,
       emailVerified: user.emailVerified,
@@ -76,7 +76,7 @@ class AppUser {
       displayName: map['displayName'],
       photoURL: map['photoURL'],
       profileEmoji: map['profileEmoji'],
-      selectedLanguage: map['selectedLanguage'] ?? 'tr',
+      selectedLanguage: map['selectedLanguage'] ?? 'en',
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : null,
@@ -104,7 +104,7 @@ class AppUser {
       'displayName': displayName,
       'photoURL': photoURL,
       'profileEmoji': profileEmoji,
-      'selectedLanguage': selectedLanguage ?? 'tr',
+      'selectedLanguage': selectedLanguage ?? 'en',
       'createdAt': createdAt?.toIso8601String(),
       'lastSignInTime': lastSignInTime?.toIso8601String(),
       'emailVerified': emailVerified ?? false,
@@ -159,7 +159,7 @@ class AppUser {
   // 🔥 GUEST USER OLUŞTUR
   // =========================
   factory AppUser.guest({
-    String languageCode = 'tr',
+    String languageCode = 'en',
   }) {
     final code = _generateUserCode();
     return AppUser(
@@ -179,9 +179,30 @@ class AppUser {
   static int get playerCodeTotalLength =>
       playerCodePrefix.length + playerCodeSuffixLength;
 
-  /// Arkadaş araması: sorgu MTN oyuncu kodu gibi mi?
+  /// Arama / davet: yalnız 10 rakam veya `MTN`+10 rakam → tam `MTN` kodu; değilse null.
+  static String? mergePlayerCodeInput(String raw) {
+    final compact =
+        raw.trim().toUpperCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    if (compact.isEmpty) return null;
+    if (compact.startsWith(playerCodePrefix)) {
+      final rest = compact.substring(playerCodePrefix.length);
+      if (rest.length == playerCodeSuffixLength &&
+          RegExp(r'^[1-9]\d{9}$').hasMatch(rest)) {
+        return '$playerCodePrefix$rest';
+      }
+      return null;
+    }
+    if (compact.length == playerCodeSuffixLength &&
+        RegExp(r'^[1-9]\d{9}$').hasMatch(compact)) {
+      return '$playerCodePrefix$compact';
+    }
+    return null;
+  }
+
+  /// Arkadaş araması: tam kod veya `MTN` ile başlayan (tamamlanmamış) girdi.
   static bool queryLooksLikePlayerCode(String query) {
-    return query.trim().toUpperCase().startsWith(playerCodePrefix);
+    return mergePlayerCodeInput(query) != null ||
+        query.trim().toUpperCase().startsWith(playerCodePrefix);
   }
 
   // MTN + 10 haneli ID (ilk rakam 1–9)

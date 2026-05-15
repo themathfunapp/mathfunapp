@@ -83,6 +83,21 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     super.dispose();
   }
 
+  void _storySnack(BuildContext context, String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  String _storyProgressFailedMessage(BuildContext context) {
+    final code =
+        Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+    return code == 'tr'
+        ? 'Hikaye dünyaları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.'
+        : 'Could not load story worlds. Check your connection and try again.';
+  }
+
   /// Ana sayfada: yaş seçimine döner (setState bir sonraki karede).
   /// Ebeveyn paneli → Oyun Oyna önizlemesi: kök [Navigator] ile bu tam ekranı kapatır
   /// (`MaterialApp.navigatorKey` — üstteki davet host ile aynı stack).
@@ -255,6 +270,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                     delegate: SliverChildListDelegate([
                       _buildAgeCard(
                         context: context,
+                        localizations: localizations,
                         scale: scale,
                         title: localizations.get('number_adventures'),
                         subtitle: localizations.get('colorful_animals_discovery'),
@@ -268,6 +284,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                       SizedBox(height: 11 * scale),
                       _buildAgeCard(
                         context: context,
+                        localizations: localizations,
                         scale: scale,
                         title: localizations.get('math_explorers'),
                         subtitle: localizations.get('time_space_journey'),
@@ -281,6 +298,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                       SizedBox(height: 11 * scale),
                       _buildAgeCard(
                         context: context,
+                        localizations: localizations,
                         scale: scale,
                         title: localizations.get('math_kingdom'),
                         subtitle: localizations.get('kingdom_rescue_mission'),
@@ -305,6 +323,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
 
   Widget _buildAgeCard({
     required BuildContext context,
+    required AppLocalizations localizations,
     required double scale,
     required String title,
     required String subtitle,
@@ -322,31 +341,32 @@ class _StoryModeScreenState extends State<StoryModeScreen>
 
     return GestureDetector(
       onTap: () async {
-        await storyService.selectAgeGroup(ageGroup);
-
-        // TODO: Avatar özelliği yayın sonrası güncellemede aktif edilecek
-        // Avatar oluşturma ekranını atlayıp direkt devam et
-        // if (mounted) {
-        //   final result = await Navigator.push<bool>(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (context) => AvatarCreatorScreen(ageGroup: ageGroup),
-        //     ),
-        //   );
-        //
-        //   if (result == true) {
-        //     setState(() {
-        //       _showAgeSelection = false;
-        //     });
-        //   }
-        // }
-        
-        // Varsayılan avatar ile direkt devam et
-        if (mounted) {
-          setState(() {
-            _showAgeSelection = false;
-          });
+        final auth = Provider.of<AuthService>(context, listen: false);
+        final uid = auth.currentUser?.uid ?? '';
+        if (uid.isEmpty) {
+          if (!context.mounted) return;
+          _storySnack(context, localizations.get('parent_panel_login_required_desc'));
+          return;
         }
+
+        // Yarış: ilk karede progress henüz yüklenmemiş olabilir; Firestore hatasında da null kalırdı.
+        if (storyService.progress == null) {
+          await storyService.loadProgress(uid);
+        }
+        if (!mounted) return;
+        if (storyService.progress == null) {
+          _storySnack(context, _storyProgressFailedMessage(context));
+          return;
+        }
+
+        await storyService.selectAgeGroup(ageGroup);
+        if (!mounted) return;
+        if (storyService.worlds.isEmpty) {
+          _storySnack(context, _storyProgressFailedMessage(context));
+          return;
+        }
+
+        setState(() => _showAgeSelection = false);
       },
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),

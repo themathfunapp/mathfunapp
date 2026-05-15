@@ -151,7 +151,7 @@ class PdfReportService {
   /// PDF raporu oluştur ve bytes döndür
   static Future<Uint8List> generateReport(
     PdfReportData data, {
-    String languageCode = 'tr',
+    String languageCode = 'en',
   }) async {
     final lc = _normalizeLanguageCode(languageCode);
     final days = List.generate(7, (d) => _t(lc, 'pp_weekday_$d'));

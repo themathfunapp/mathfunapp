@@ -736,7 +736,7 @@ final Map<String, Map<String, List<StoryTemplate>>> _templates = {
     addAdvCh1Title: 'Turnuva',
     addAdvCh1Content: 'Büyük matematik turnuvasında {childName} yarışmaya hazır...',
     addAdvCh1C1: 'Yarışmaya katıl',
-    defTitle: '{childName}\'ın Matematik Macerası',
+    defTitle: '{childName} ile Mathfun',
     defCh1Title: 'Yeni Bir Gün',
     defCh1Content: 'Güneşli bir sabah, {childName} yeni bir maceraya atıldı...',
     defCh1C1: 'Başla',

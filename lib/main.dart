@@ -25,6 +25,7 @@ import 'package:mathfun/services/parent_mode_service.dart';
 import 'package:mathfun/services/parent_pin_service.dart';
 import 'package:mathfun/services/audio_service.dart';
 import 'package:mathfun/services/push_notification_service.dart';
+import 'package:mathfun/services/parent_panel_background_nudge_service.dart';
 import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/localization/app_supported_locales.dart';
 import 'package:mathfun/screens/app_screen_wrappers.dart';
@@ -42,6 +43,7 @@ Future<void> main() async {
 
   // AdMob'u başlat
   await AdService().initialize();
+  await ParentPanelBackgroundNudgeService.initialize();
 
   // Performans için debugPrint ayarları
   debugPrint = (String? message, {int? wrapWidth}) {
@@ -57,9 +59,18 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        // Dil yönetimi
-        ChangeNotifierProvider<LocaleProvider>(
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+        // Dil yönetimi (hesap bazlı senkron: web/mobil)
+        ChangeNotifierProxyProvider<AuthService, LocaleProvider>(
           create: (_) => LocaleProvider(),
+          update: (_, authService, localeProvider) {
+            final locale = localeProvider ?? LocaleProvider();
+            // ignore: discarded_futures
+            locale.syncWithAuth(authService);
+            return locale;
+          },
         ),
         ChangeNotifierProvider<AudioService>(
           lazy: false,
@@ -71,17 +82,6 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<ParentModeService>(
           create: (_) => ParentModeService(),
-        ),
-        // Lazy loading'i aç - sadece ihtiyaç duyulunca oluştur
-        ChangeNotifierProvider<AuthService>(
-          create: (_) => AuthService(),
-        ),
-        ChangeNotifierProxyProvider<AuthService, InAppNotificationService>(
-          create: (_) => InAppNotificationService(),
-          update: (_, authService, notifService) {
-            notifService!.initialize(authService.currentUser);
-            return notifService;
-          },
         ),
         ChangeNotifierProxyProvider<AuthService, FriendService>(
           create: (_) => FriendService(),
@@ -115,6 +115,18 @@ Future<void> main() async {
               userCode: u?.userCode,
             );
             return premiumService;
+          },
+        ),
+        ChangeNotifierProxyProvider2<AuthService, PremiumService, InAppNotificationService>(
+          create: (_) => InAppNotificationService(),
+          update: (_, authService, premiumService, notifService) {
+            final u = authService.currentUser;
+            final premiumOk = u != null &&
+                !u.isGuest &&
+                u.uid.isNotEmpty &&
+                premiumService.isPremium;
+            notifService!.initialize(u, premiumActive: premiumOk);
+            return notifService;
           },
         ),
         ChangeNotifierProxyProvider2<AuthService, PremiumService, GameMechanicsService>(
@@ -232,16 +244,20 @@ class MyApp extends StatelessWidget {
     return Consumer<LocaleProvider>(
       builder: (context, localeProvider, child) {
         if (localeProvider.isLoading) {
-          return _buildLoadingApp();
+          return _buildLoadingApp(localeProvider.locale);
         }
 
+        final appName = AppLocalizations(localeProvider.locale).appName;
         return MaterialApp(
           navigatorKey: appRootNavigatorKey,
-          title: 'Matematik Macerası',
+          title: appName,
           debugShowCheckedModeBanner: false,
           builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
             // Kurmanji metinler bu uygulamada Latin; Flutter bazen ku için RTL seçiyor,
             // karşılama dil şeridinde görsel/hit-test kayması oluyordu.
+            // child null iken mor ColoredBox dolgu web’de rota itildikten sonra kalıcı
+            // “boş ekran” yapıyordu (Navigator geçici null); sadece gerçek child kullan.
             Widget w = GlobalRemoteDuelInviteHost(
               child: child ?? const SizedBox.shrink(),
             );
@@ -251,7 +267,14 @@ class MyApp extends StatelessWidget {
                 child: w,
               );
             }
-            return w;
+            // Tüm cihazlarda ve tüm dillerde (özellikle uzun RTL metinlerde)
+            // sistem font ölçeklemesinden kaynaklanan taşmaları azalt.
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: const TextScaler.linear(1.0),
+              ),
+              child: w,
+            );
           },
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -285,6 +308,8 @@ class MyApp extends StatelessWidget {
             }
             return localeProvider.locale;
           },
+          // locale: yeterli; ValueKey ile AuthWrapper sıfırlanınca dil değişiminde
+          // auth stream yeniden beklemeye düşüp sonsuz yükleme ekranına takılabiliyordu.
           home: const AuthWrapper(),
         );
       },
@@ -292,7 +317,8 @@ class MyApp extends StatelessWidget {
   }
 
   // Basit loading ekranı
-  static Widget _buildLoadingApp() {
+  static Widget _buildLoadingApp(Locale locale) {
+    final appName = AppLocalizations(locale).appName;
     return MaterialApp(
       home: Scaffold(
         body: Center(
@@ -302,7 +328,7 @@ class MyApp extends StatelessWidget {
               const CircularProgressIndicator(),
               const SizedBox(height: 20),
               Text(
-                'Matematik Macerası',
+                appName,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -331,13 +357,16 @@ class AuthWrapper extends StatelessWidget {
             // currentUser öncelikli: misafir çıkışında stream güncellenmediği için
             // snapshot.data eski kalabilir; signOut sonrası WelcomeScreen göstermek için
             // currentUser tek kaynak (snapshot sadece stream'in çalışması için)
-            final user = authService.currentUser;
+            final user = authService.currentUser ?? snapshot.data;
             if (user != null) {
               return const HomeScreenWrapper();
             }
 
             switch (snapshot.connectionState) {
               case ConnectionState.waiting:
+                if (authService.currentUser != null) {
+                  return const HomeScreenWrapper();
+                }
                 return _AuthWrapperLoadingScreen();
 
               case ConnectionState.active:
@@ -374,6 +403,8 @@ class AuthWrapper extends StatelessWidget {
 class _AuthWrapperLoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final appName = AppLocalizations(locale).appName;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -392,7 +423,7 @@ class _AuthWrapperLoadingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'Matematik Macerası',
+                appName,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

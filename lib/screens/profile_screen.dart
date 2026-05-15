@@ -21,6 +21,7 @@ import '../providers/locale_provider.dart';
 import 'badges_screen.dart';
 import '../widgets/bottom_action_button.dart';
 import 'parent_panel_screen.dart';
+import 'premium_screen.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
 import 'world_leaderboard_screen.dart';
@@ -392,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Icon(Icons.language, size: 16, color: Colors.grey),
               const SizedBox(width: 4),
               Text(
-                (user.selectedLanguage ?? 'tr').toUpperCase(),
+                (user.selectedLanguage ?? 'en').toUpperCase(),
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF5A4FCF),
@@ -1427,6 +1428,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _showParentPanelGuestDialog(localizations, authService);
             return;
           }
+          if (!authService.isPremium) {
+            _showParentPanelPremiumDialog(localizations);
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1502,6 +1507,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showParentPanelPremiumDialog(AppLocalizations localizations) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.workspace_premium, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                localizations.parentPanelPremiumRequired,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          localizations.parentPanelPremiumRequiredDesc,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(localizations.close, style: const TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PremiumScreen(
+                    onBack: () => Navigator.pop(context),
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black87,
+            ),
+            child: Text(localizations.upgradeToPremium),
+          ),
+        ],
       ),
     );
   }

@@ -71,6 +71,6 @@ class UserPreferencesService {
 
     // Sonra local'den dene
     final localLang = await getSavedLanguage();
-    return localLang ?? 'tr'; // Default Türkçe
+    return localLang ?? 'en';
   }
 }

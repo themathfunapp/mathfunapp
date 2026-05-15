@@ -5,6 +5,7 @@ import '../utils/locale_text_helpers.dart';
 import '../providers/locale_provider.dart';
 import '../services/daily_reward_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/auth_service.dart';
 import 'memory_cards_screen.dart';
 import 'find_different_screen.dart';
 import 'pattern_completion_screen.dart';
@@ -35,7 +36,12 @@ class _IntelligenceGamesScreenState extends State<IntelligenceGamesScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantBrainDailyBonus());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final auth = Provider.of<AuthService>(context, listen: false);
+      if (!auth.isPremium) return;
+      await _maybeGrantBrainDailyBonus();
+    });
   }
 
   @override
@@ -87,6 +93,24 @@ class _IntelligenceGamesScreenState extends State<IntelligenceGamesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!authService.isPremium) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+        Navigator.of(context).pop();
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(loc.get('premium_exclusive_message')),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Scaffold(
       body: Container(

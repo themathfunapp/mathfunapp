@@ -21,6 +21,7 @@ import 'money_market_screen.dart';
 import 'multipliers_tower_screen.dart';
 import 'algebra_realm_screen.dart';
 import 'family_remote_duel_setup_screen.dart';
+import '../app_navigator.dart';
 import '../utils/locale_text_helpers.dart';
 
 class WorldMapScreen extends StatefulWidget {
@@ -580,6 +581,11 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   }
 
   TopicType? _topicForWorld(StoryWorld world) {
+    if (world.id == 'algebra_realm' ||
+        world.nameKey == 'world_algebra_realm' ||
+        world.theme == WorldTheme.algebraRealm) {
+      return TopicType.algebra;
+    }
     if (world.theme == WorldTheme.numberForest ||
         world.nameKey == 'world_number_forest' ||
         world.nameKey == 'world_fairy_land' ||
@@ -603,9 +609,6 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     if (world.nameKey == 'world_fraction_bakery' ||
         world.theme == WorldTheme.fractionBakery) {
       return TopicType.fractions;
-    }
-    if (world.id == 'algebra_realm' || world.nameKey == 'world_algebra_realm') {
-      return TopicType.algebra;
     }
     return null;
   }
@@ -691,9 +694,32 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     final StoryInvitePayload? parentInvite =
         widget.openedFromParentPanel ? StoryInvitePayload.fromWorld(world) : null;
 
+    // Cebir Diyarı — numberForest temasıyla çakışmayı önlemek için diğer özel dünyalardan önce
+    if (world.id == 'algebra_realm' ||
+        world.nameKey == 'world_algebra_realm' ||
+        world.theme == WorldTheme.algebraRealm) {
+      final nav = appRootNavigatorKey.currentState ?? Navigator.of(context);
+      nav.push<void>(
+        MaterialPageRoute<void>(
+          fullscreenDialog: false,
+          builder: (routeContext) => AlgebraRealmScreen(
+            onBack: () {
+              if (nav.canPop()) {
+                nav.pop();
+              }
+            },
+            parentPanelStoryInvite: parentInvite,
+          ),
+        ),
+      );
+      return;
+    }
+
     // Siber Atölye / Sayı Ormanı teması - özel ekrana yönlendir
-    // NOT: Sadece Matematik Gezginleri (6-8 yaş) için Siber Atölye
-    if ((world.nameKey == 'world_siber_atolye' ||
+    // NOT: Sadece Matematik Gezginleri (6-8 yaş) için Siber Atölye; Cebir Diyarı asla buraya düşmesin
+    if (world.id != 'algebra_realm' &&
+        world.theme != WorldTheme.algebraRealm &&
+        (world.nameKey == 'world_siber_atolye' ||
          world.nameKey == 'world_number_forest' ||
          world.theme == WorldTheme.numberForest) &&
         world.targetAge == AgeGroup.earlyElementary) {
@@ -804,20 +830,6 @@ class _WorldMapScreenState extends State<WorldMapScreen>
         context,
         MaterialPageRoute(
           builder: (context) => MultipliersTowerScreen(
-            onBack: () => Navigator.pop(context),
-            parentPanelStoryInvite: parentInvite,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Cebir Diyarı - özel ekrana yönlendir
-    if (world.id == 'algebra_realm' || world.nameKey == 'world_algebra_realm') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlgebraRealmScreen(
             onBack: () => Navigator.pop(context),
             parentPanelStoryInvite: parentInvite,
           ),

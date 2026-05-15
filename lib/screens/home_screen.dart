@@ -25,6 +25,7 @@ import '../screens/story_mode_screen.dart';
 import '../screens/mini_games_screen.dart';
 import '../screens/game_start_screen.dart';
 import '../screens/parent_panel_screen.dart';
+import '../screens/premium_screen.dart';
 import '../screens/world_leaderboard_screen.dart';
 import '../screens/parent_mode_games_hub.dart';
 import '../screens/notifications_screen.dart';
@@ -104,6 +105,8 @@ class _HomeScreenState extends State<HomeScreen>
         parentMode.isParentMode &&
         authService.currentUser?.isGuest != true;
 
+    final topInset = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: primaryGradient),
@@ -112,7 +115,12 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             // Liste altta; üstteki katmanlar tıklanabilir olsun diye önce ListView.
             ListView(
-              padding: const EdgeInsets.only(top: 24.0, left: 24.0, right: 24.0, bottom: 24.0),
+              padding: EdgeInsets.only(
+                top: topInset + 24.0,
+                left: 24.0,
+                right: 24.0,
+                bottom: 24.0,
+              ),
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -139,11 +147,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ..._buildStandardHomeBody(context, localizations, authService),
               ],
             ),
-            const Positioned(
-              top: 80,
+            Positioned(
+              top: topInset + 80,
               left: 0,
               right: 0,
-              child: IgnorePointer(
+              child: const IgnorePointer(
                 child: AnimatedMathSymbol(),
               ),
             ),
@@ -173,15 +181,23 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           ScaleTransition(
             scale: _titleAnimation,
-            child: Text(
-              localizations.homeTitle,
-              style: titleStyle,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                localizations.homeTitle,
+                maxLines: 1,
+                style: titleStyle,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            localizations.homeSubtitle,
-            style: subtitleStyle,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              localizations.homeSubtitle,
+              maxLines: 1,
+              style: subtitleStyle,
+            ),
           ),
         ],
       ),
@@ -189,25 +205,33 @@ class _HomeScreenState extends State<HomeScreen>
       const SizedBox(height: 40),
 
       // Orta içerik Metinleri
-      Text(
-        localizations.homeImproveSkills,
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          localizations.homeImproveSkills,
+          maxLines: 1,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
 
       const SizedBox(height: 16),
 
-      Text(
-        localizations.homeLearnFun,
-        style: const TextStyle(
-          fontSize: 16,
-          color: Colors.white70,
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          localizations.homeLearnFun,
+          maxLines: 1,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.white70,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
 
       const SizedBox(height: 40),
@@ -514,13 +538,12 @@ class _HomeScreenState extends State<HomeScreen>
     Navigator.of(dialogContext).pop();
     
     try {
-      // AuthService üzerinden dil güncelle
-      await authService.updateUserLanguage(languageCode);
-
-      // LocaleProvider üzerinden dil değiştir - anında değişiklik
+      // Önce UI dilini güncelle (tam uygulama sıfırlaması yok)
       if (mounted) {
-        context.read<LocaleProvider>().changeLanguage(Locale(languageCode));
+        await context.read<LocaleProvider>().changeLanguage(Locale(languageCode));
       }
+      // Bulut / yerel kayıt (Firestore) arka planda
+      await authService.updateUserLanguage(languageCode);
     } catch (e) {
       if (mounted) {
         _showErrorSnackbar(context, 'Dil değiştirilirken bir hata oluştu: $e');
@@ -568,8 +591,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildNotificationsButton(BuildContext context) {
-    return Consumer<InAppNotificationService>(
-      builder: (context, notif, _) {
+    return Consumer2<InAppNotificationService, PremiumService>(
+      builder: (context, notif, premium, _) {
+        if (!premium.isPremium) {
+          return const SizedBox.shrink();
+        }
         final count = notif.unreadCount;
         return GestureDetector(
           onTap: () => _openNotificationsScreen(context),
@@ -703,6 +729,10 @@ class _HomeScreenState extends State<HomeScreen>
       _showParentPanelGuestDialog(context);
       return;
     }
+    if (!authService.isPremium) {
+      _showParentPanelPremiumDialog(context);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -749,6 +779,57 @@ class _HomeScreenState extends State<HomeScreen>
               foregroundColor: Colors.black87,
             ),
             child: Text(localizations.createAccount),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showParentPanelPremiumDialog(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C3E50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.workspace_premium, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                localizations.parentPanelPremiumRequired,
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          localizations.parentPanelPremiumRequiredDesc,
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(localizations.close, style: const TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PremiumScreen(
+                    onBack: () => Navigator.pop(context),
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black87,
+            ),
+            child: Text(localizations.upgradeToPremium),
           ),
         ],
       ),

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FCM / bildirim şeridinde vurgu rengi (uygulama mor gradyanı) -->
+    <color name="notification_color">#FF6A11CB</color>
+</resources>

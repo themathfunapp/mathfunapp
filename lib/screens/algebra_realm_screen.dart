@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../models/story_invite_payload.dart';
 import '../widgets/story_parent_invite_strip.dart';
@@ -34,13 +35,11 @@ enum AlgebraRegion {
 
 class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     with TickerProviderStateMixin {
+  late final AudioService _audio;
   late AnimationController _jumpController;
   late AnimationController _shakeController;
-  late AnimationController _glowController;
   late Animation<double> _jumpAnimation;
   late Animation<double> _shakeAnimation;
-
-  GameMechanicsService? _mechanicsListenTarget;
 
   int _keysCollected = 0;
   int _sessCorrect = 0;
@@ -77,6 +76,9 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
   @override
   void initState() {
     super.initState();
+    _audio = context.read<AudioService>();
+    scheduleSectionAmbient(context, SoundscapeTheme.space);
+
     _jumpController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -91,57 +93,15 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
-    _glowController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _glowController.repeat(reverse: true);
-    });
     _generateQuestion(skipRebuild: true);
   }
 
   @override
   void dispose() {
-    _detachMechanicsListener();
+    _audio.cancelAmbientSync();
     _jumpController.dispose();
     _shakeController.dispose();
-    _glowController.dispose();
     super.dispose();
-  }
-
-  void _detachMechanicsListener() {
-    _mechanicsListenTarget?.removeListener(_onMechanicsForNoLivesDialog);
-    _mechanicsListenTarget = null;
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final m = Provider.of<GameMechanicsService>(context, listen: false);
-    if (!identical(_mechanicsListenTarget, m)) {
-      _detachMechanicsListener();
-      _mechanicsListenTarget = m;
-      m.addListener(_onMechanicsForNoLivesDialog);
-    }
-    _tryScheduleNoLivesDialog(m);
-  }
-
-  void _onMechanicsForNoLivesDialog() {
-    final m = _mechanicsListenTarget;
-    if (m != null && mounted) _tryScheduleNoLivesDialog(m);
-  }
-
-  void _tryScheduleNoLivesDialog(GameMechanicsService mechanics) {
-    if (_hasShownNoLivesDialog || mechanics.hasLives) return;
-    _hasShownNoLivesDialog = true;
-    // Web: tek kare yetmeyebilir; rota + GlobalRemoteDuelInviteHost stack yerleşmeden showDialog fare takibini bozuyor.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showGameOver();
-      });
-    });
   }
 
   void _generateQuestion({bool skipRebuild = false}) {
@@ -276,7 +236,7 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
 
   void _showGameOver() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -315,8 +275,18 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
     final mechanics = Provider.of<GameMechanicsService>(context, listen: true);
 
+    if (!mechanics.hasLives && !_hasShownNoLivesDialog) {
+      _hasShownNoLivesDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showGameOver();
+      });
+    }
+
     return Scaffold(
+      backgroundColor: const Color(0xFF311b92),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -326,20 +296,23 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         ),
         child: SafeArea(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildTopBar(loc, mechanics),
               storyParentInviteStrip(widget.parentPanelStoryInvite),
               Expanded(
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildRegionBadge(loc),
                       const SizedBox(height: 24),
                       _buildQuestionCard(loc),
                       const SizedBox(height: 24),
-                      _buildZiki(loc),
+                      Center(child: _buildZiki(loc)),
                       const SizedBox(height: 16),
-                      _buildKeysDisplay(loc),
+                      Center(child: _buildKeysDisplay(loc)),
                     ],
                   ),
                 ),
@@ -391,7 +364,8 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
           ),
           Row(
             children: List.generate(
-              mechanics.maxLives,
+              // Bozuk/büyük Firestore değerleri web’de binlerce ⚡ ile layout’u kilitleyebilir.
+              mechanics.maxLives.clamp(0, 24),
               (i) => Padding(
                 padding: const EdgeInsets.only(left: 2),
                 child: Opacity(
@@ -417,7 +391,12 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
             children: [
               TextSpan(
                 text: _questionEmoji,
-                style: GoogleFonts.quicksand(fontSize: 26, fontWeight: FontWeight.bold, color: _purple, height: 1.1),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: _purple,
+                  height: 1.1,
+                ),
               ),
               TextSpan(text: suffix, style: style),
             ],
@@ -497,7 +476,11 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
                   constraints: BoxConstraints(maxWidth: constraints.maxWidth),
                   child: Text(
                     _questionDisplay,
-                    style: GoogleFonts.quicksand(fontSize: fs, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: fs,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                     textAlign: TextAlign.center,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
@@ -507,17 +490,41 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
             },
           ),
           const SizedBox(height: 24),
+          _buildAnswerGrid(canTap),
+        ],
+      ),
+    );
+  }
+
+  /// Tek satır + stretch, kaydırılabilir sütunda web’de layout çökmesine yol açabiliyordu.
+  Widget _buildAnswerGrid(bool canTap) {
+    if (_options.isEmpty) {
+      return const SizedBox(height: 48);
+    }
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildOptionButton(_options[0], canTap)),
+            if (_options.length > 1) ...[
+              const SizedBox(width: 8),
+              Expanded(child: _buildOptionButton(_options[1], canTap)),
+            ],
+          ],
+        ),
+        if (_options.length > 2) ...[
+          const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (int i = 0; i < _options.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _buildOptionButton(_options[i], canTap)),
+              Expanded(child: _buildOptionButton(_options[2], canTap)),
+              if (_options.length > 3) ...[
+                const SizedBox(width: 8),
+                Expanded(child: _buildOptionButton(_options[3], canTap)),
               ],
             ],
           ),
         ],
-      ),
+      ],
     );
   }
 
@@ -612,6 +619,9 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     );
   }
 
-  static TextStyle _textStyle(Color color, {double size = 16, bool bold = false}) =>
-      GoogleFonts.quicksand(color: color, fontSize: size, fontWeight: bold ? FontWeight.bold : FontWeight.w500);
+  static TextStyle _textStyle(Color color, {double size = 16, bool bold = false}) => TextStyle(
+        color: color,
+        fontSize: size,
+        fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+      );
 }

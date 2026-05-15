@@ -12,7 +12,7 @@ class GameManager extends ChangeNotifier {
   bool _vibrationEnabled = true;
   bool _notificationsEnabled = true;
   String _difficulty = 'medium'; // easy, medium, hard
-  String _selectedLanguage = 'tr';
+  String _selectedLanguage = 'en';
   String _playerName = 'Matematik Şampiyonu';
 
   // === OYUN İSTATİSTİKLERİ ===
@@ -133,7 +133,7 @@ class GameManager extends ChangeNotifier {
       _soundEnabled = prefs.getBool(_prefSound) ?? true;
       _musicEnabled = prefs.getBool(_prefMusic) ?? true;
       _difficulty = prefs.getString(_prefDifficulty) ?? 'medium';
-      _selectedLanguage = prefs.getString(_prefLanguage) ?? 'tr';
+      _selectedLanguage = prefs.getString(_prefLanguage) ?? 'en';
       _playerName = prefs.getString(_prefPlayerName) ?? 'Matematik Şampiyonu';
       _totalScore = prefs.getInt(_prefTotalScore) ?? 0;
       _gamesPlayed = prefs.getInt(_prefGamesPlayed) ?? 0;

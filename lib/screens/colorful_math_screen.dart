@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'number_coloring_screen.dart';
 import 'shape_coloring_screen.dart';
 import 'color_lab_screen.dart';
+import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
 import '../localization/app_localizations.dart';
@@ -38,7 +39,12 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
       duration: const Duration(milliseconds: 900),
       vsync: this,
     )..repeat(reverse: true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeGrantColorMathDailyBonus());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final auth = Provider.of<AuthService>(context, listen: false);
+      if (!auth.isPremium) return;
+      await _maybeGrantColorMathDailyBonus();
+    });
   }
 
   @override
@@ -91,6 +97,24 @@ class _ColorfulMathScreenState extends State<ColorfulMathScreen>
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!authService.isPremium) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+        Navigator.of(context).pop();
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(loc.get('premium_exclusive_message')),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     return Scaffold(
       body: Container(

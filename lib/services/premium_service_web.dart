@@ -77,7 +77,6 @@ class PremiumService extends ChangeNotifier {
   }
 
   Future<bool> buyPremium() async {
-    _errorMessage = 'Web\'de uygulama içi satın alma desteklenmiyor';
     notifyListeners();
     return false;
   }

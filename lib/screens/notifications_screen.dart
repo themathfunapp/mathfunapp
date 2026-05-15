@@ -9,9 +9,42 @@ import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../models/in_app_notification.dart';
 import '../services/in_app_notification_service.dart';
+import '../services/premium_service_export.dart';
+import 'premium_screen.dart';
 
 /// Ana sayfa üzerinde sağdan kayan, dar bildirim paneli açar (tam ekran değil).
 Future<void> showInAppNotificationsPanel(BuildContext context) {
+  final premium = Provider.of<PremiumService>(context, listen: false);
+  if (!premium.isPremium) {
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.notificationsPremiumRequiredTitle,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(l.notificationsPremiumRequiredBody),
+          ],
+        ),
+        action: SnackBarAction(
+          label: l.upgradeToPremium,
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PremiumScreen()),
+            );
+          },
+        ),
+      ),
+    );
+    return Future.value();
+  }
+
   final barrierLabel = MaterialLocalizations.of(context).modalBarrierDismissLabel;
   return showGeneralDialog<void>(
     context: context,
@@ -38,8 +71,10 @@ Future<void> showInAppNotificationsPanel(BuildContext context) {
     },
     pageBuilder: (dialogContext, animation, secondaryAnimation) {
       final size = MediaQuery.sizeOf(dialogContext);
-      final maxW = math.min(400.0, size.width * 0.92);
-      final maxH = size.height * 0.88;
+      // Sabit his: yalnızca max değil — Expanded içeride max’a yayılıyordu (~%88 ekran).
+      // Oran + dp tavanı/d tabanı: kısa/uzun telefon ve tablette aşırı büyük-küçük farkı azalır.
+      final panelW = math.min(360.0, math.max(272.0, size.width * 0.86));
+      final panelH = math.min(500.0, math.max(296.0, size.height * 0.54));
       return SafeArea(
         child: Align(
           alignment: AlignmentDirectional.centerEnd,
@@ -47,11 +82,9 @@ Future<void> showInAppNotificationsPanel(BuildContext context) {
             padding: const EdgeInsetsDirectional.only(top: 8, bottom: 8, end: 8),
             child: Material(
               color: Colors.transparent,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: maxW,
-                  maxHeight: maxH,
-                ),
+              child: SizedBox(
+                width: panelW,
+                height: panelH,
                 child: const _NotificationsPanelCard(),
               ),
             ),
@@ -250,6 +283,84 @@ String _messageForItem(AppLocalizations l, InAppNotificationItem item) {
   }
   if (item.type == 'family_remote_duel_invite_timeout') {
     return l.notificationsBodyDuelInviteTimeout;
+  }
+  if (item.type == 'family_remote_duel_invite_accepted') {
+    final who = item.actorDisplayName.isNotEmpty ? item.actorDisplayName : '—';
+    var topic = item.topicKey.isNotEmpty ? l.get(item.topicKey) : '';
+    if (topic == item.topicKey) topic = item.topicKey;
+    return l
+        .get('notifications_body_family_remote_duel_invite_accepted')
+        .replaceAll('{who}', who)
+        .replaceAll('{topic}', topic.isNotEmpty ? topic : '—');
+  }
+  if (item.type == 'family_remote_duel_invite_declined') {
+    final who = item.actorDisplayName.isNotEmpty ? item.actorDisplayName : '—';
+    var topic = item.topicKey.isNotEmpty ? l.get(item.topicKey) : '';
+    if (topic == item.topicKey) topic = item.topicKey;
+    return l
+        .get('notifications_body_family_remote_duel_invite_declined')
+        .replaceAll('{who}', who)
+        .replaceAll('{topic}', topic.isNotEmpty ? topic : '—');
+  }
+  if (item.type == 'family_remote_duel_started') {
+    var topic = item.topicKey.isNotEmpty ? l.get(item.topicKey) : '';
+    if (topic == item.topicKey) topic = item.topicKey;
+    return l
+        .get('notifications_body_family_remote_duel_started')
+        .replaceAll('{topic}', topic.isNotEmpty ? topic : '—');
+  }
+  if (item.type == 'child_badge_earned') {
+    final child = item.actorDisplayName.isNotEmpty
+        ? item.actorDisplayName
+        : item.oldDisplayName;
+    final badgeLabel =
+        item.badgeNameKey.isNotEmpty ? l.get(item.badgeNameKey) : '';
+    return l
+        .get('notifications_body_child_badge')
+        .replaceAll('{child}', child.isNotEmpty ? child : '—')
+        .replaceAll('{badge}', badgeLabel);
+  }
+  if (item.type == 'child_daily_challenge_complete') {
+    final child = item.actorDisplayName.isNotEmpty
+        ? item.actorDisplayName
+        : item.oldDisplayName;
+    return l
+        .get('notifications_body_child_daily_challenge')
+        .replaceAll('{child}', child.isNotEmpty ? child : '—');
+  }
+  if (item.type == 'child_level_up') {
+    final child = item.actorDisplayName.isNotEmpty
+        ? item.actorDisplayName
+        : item.oldDisplayName;
+    final lv = item.numberValue > 0 ? '${item.numberValue}' : '—';
+    return l
+        .get('notifications_body_child_level_up')
+        .replaceAll('{child}', child.isNotEmpty ? child : '—')
+        .replaceAll('{level}', lv);
+  }
+  if (item.type == 'family_story_suggested') {
+    final parent = item.actorDisplayName.isNotEmpty
+        ? item.actorDisplayName
+        : item.oldDisplayName;
+    var world = item.worldNameKey.isNotEmpty ? l.get(item.worldNameKey) : '';
+    if (world.isEmpty) world = item.worldNameKey;
+    if (item.chapterNameKey.isNotEmpty) {
+      var ch = l.get(item.chapterNameKey);
+      if (ch == item.chapterNameKey) ch = item.chapterNameKey;
+      if (ch.isNotEmpty) {
+        world = world.isNotEmpty ? '$world · $ch' : ch;
+      }
+    }
+    return l
+        .get('notifications_body_family_story')
+        .replaceAll('{parent}', parent.isNotEmpty ? parent : '—')
+        .replaceAll('{world}', world.isNotEmpty ? world : '—');
+  }
+  if (item.type == 'weekly_report_ready') {
+    final c = item.actorDisplayName;
+    return l
+        .get('notifications_body_weekly_report_ready')
+        .replaceAll('{child}', c.isNotEmpty ? c : '—');
   }
   return '';
 }

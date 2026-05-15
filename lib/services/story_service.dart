@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/story_mode.dart';
 import 'game_mechanics_service.dart';
+import 'in_app_notification_service.dart';
 
 class StoryService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -52,6 +53,12 @@ class StoryService extends ChangeNotifier {
       await _loadActiveQuests(oderId);
     } catch (e) {
       debugPrint('Error loading story progress: $e');
+      // Firestore kapalı / izin / ağ hatasında progress null kalırdı; yaş seçimi haritayı boş açıyordu.
+      _progress ??= StoryProgress(
+        oderId: oderId,
+        selectedAgeGroup: AgeGroup.preschool,
+        avatar: PlayerAvatar(oderId: oderId, odername: 'Kahraman'),
+      );
     }
 
     _isLoading = false;
@@ -131,6 +138,8 @@ class StoryService extends ChangeNotifier {
     if (_progress == null) {
       return LevelCompleteResult(stars: 0, coinsEarned: 0, expEarned: 0);
     }
+
+    final oldLevel = _progress!.avatar.level;
 
     // Yıldız hesapla
     final percentage = (correctAnswers / totalQuestions) * 100;
@@ -213,13 +222,15 @@ class StoryService extends ChangeNotifier {
       totalStars += wp.totalStars;
     }
 
+    final newLevel = _calculateLevel(_progress!.avatar.experience + expEarned);
+
     // İlerlemeyi güncelle
     _progress = StoryProgress(
       oderId: _progress!.oderId,
       selectedAgeGroup: _progress!.selectedAgeGroup,
       avatar: _progress!.avatar.copyWith(
         experience: _progress!.avatar.experience + expEarned,
-        level: _calculateLevel(_progress!.avatar.experience + expEarned),
+        level: newLevel,
       ),
       worldProgress: worldProgress,
       completedQuests: _progress!.completedQuests,
@@ -236,6 +247,15 @@ class StoryService extends ChangeNotifier {
     await _updateQuestProgress('complete_level', 1);
     if (coinsEarned > 0) {
       _mechanicsWallet?.addCoins(coinsEarned);
+    }
+
+    if (newLevel > oldLevel) {
+      // ignore: discarded_futures
+      InAppNotificationService.sendChildLevelUpToFamily(
+        firestore: _firestore,
+        childUid: _progress!.oderId,
+        newLevel: newLevel,
+      );
     }
     notifyListeners();
 
@@ -557,7 +577,7 @@ class StoryService extends ChangeNotifier {
       ),
       StoryWorld(
         id: 'algebra_realm',
-        theme: WorldTheme.numberForest,
+        theme: WorldTheme.algebraRealm,
         nameKey: 'world_algebra_realm',
         descriptionKey: 'world_algebra_realm_desc',
         iconEmoji: '🔮',

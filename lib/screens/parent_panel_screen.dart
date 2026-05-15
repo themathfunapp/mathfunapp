@@ -1,20 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/in_app_notification_service.dart';
 import '../services/pdf_report_service.dart';
 import '../services/pdf_weekly_report_tips.dart';
 import '../services/badge_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
+import '../models/app_user.dart';
 import '../services/family_service.dart';
 import '../services/family_remote_duel_service.dart';
 import '../services/parent_pin_service.dart';
 import '../services/parent_panel_notification_scheduler.dart';
+import '../services/parent_panel_background_nudge_service.dart';
 import '../models/badge.dart';
 import '../models/family_member.dart';
 import '../localization/app_localizations.dart';
@@ -86,6 +90,7 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   bool _inactivityWarningEnabled = true;
   List<_ReportHistoryEntry> _reportHistory = [];
   bool _showReportHistory = false;
+  bool _didRunContextualNotifCheck = false;
 
   @override
   void initState() {
@@ -178,7 +183,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
   Future<void> _bootstrapNotificationPrefs() async {
     await _loadNotificationPrefs();
     if (!mounted) return;
-    await ParentPanelNotificationScheduler.instance.syncFromDisk();
+    final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(ParentPanelNotificationScheduler.prefLanguageCode, lc);
+    final parentUid = Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
+    if (parentUid.isNotEmpty) {
+      await prefs.setString(ParentPanelNotificationScheduler.prefParentUid, parentUid);
+    }
+    if (!mounted) return;
+    await ParentPanelNotificationScheduler.instance.syncFromDisk(languageCode: lc);
+    await ParentPanelBackgroundNudgeService.syncRegistrationFromPrefs();
   }
 
   Future<void> _loadNotificationPrefs() async {
@@ -204,7 +218,14 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
     await prefs.setBool(_prefSuccessMessages, _successMessagesEnabled);
     await prefs.setBool(_prefWeeklySummary, _weeklySummaryEnabled);
     await prefs.setBool(_prefInactivityWarning, _inactivityWarningEnabled);
-    await ParentPanelNotificationScheduler.instance.syncFromDisk();
+    final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+    await prefs.setString(ParentPanelNotificationScheduler.prefLanguageCode, lc);
+    final parentUid = Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
+    if (parentUid.isNotEmpty) {
+      await prefs.setString(ParentPanelNotificationScheduler.prefParentUid, parentUid);
+    }
+    await ParentPanelNotificationScheduler.instance.syncFromDisk(languageCode: lc);
+    await ParentPanelBackgroundNudgeService.syncRegistrationFromPrefs();
   }
 
   String _pp(BuildContext context, String key) => ParentPanelL10n.of(
@@ -258,6 +279,22 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           Navigator.of(context).pop();
           _showGuestBlockedSnackbar(context);
         }
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (!authService.isPremium) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final text = AppLocalizations.of(context).parentPanelPremiumRequiredDesc;
+        Navigator.of(context).pop();
+        messenger?.showSnackBar(
+          SnackBar(
+            content: Text(text),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       });
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -944,17 +981,41 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'MTN1234567890',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Opacity(
+                  opacity: 0.45,
+                  child: Text(
+                    AppUser.playerCodePrefix,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(AppUser.playerCodeSuffixLength),
+                    ],
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: '1234567890',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -965,9 +1026,21 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              final code = controller.text.trim();
-              if (code.isEmpty) return;
-              final ok = await familyService.addChildByUserCode(code, '');
+              final raw = controller.text.trim();
+              final merged = AppUser.mergePlayerCodeInput(raw);
+              if (merged == null) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_pp(context, 'pp_child_code_invalid')),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+                return;
+              }
+              final ok = await familyService.addChildByUserCode(merged, '');
               if (context.mounted) Navigator.pop(context);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1337,6 +1410,30 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               _buildDetailedStats(context, badge, mechanics),
             ],
           );
+        }
+
+        if (!_didRunContextualNotifCheck) {
+          _didRunContextualNotifCheck = true;
+          final lc = Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+          final snap = entries
+              .map(
+                (e) => ParentPanelFamilySnapshotEntry(
+                  userId: e.userId,
+                  displayName: e.displayName,
+                  lastPlayedAt: e.lastPlayedAt,
+                  earnedBadges: e.earnedBadges,
+                  isParent: e.isParent,
+                ),
+              )
+              .toList(growable: false);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            unawaited(
+              ParentPanelNotificationScheduler.instance.maybeShowContextualFromFamily(
+                languageCode: lc,
+                entries: snap,
+              ),
+            );
+          });
         }
 
         return ListView(
@@ -2289,6 +2386,15 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
       });
       await _saveReportHistory();
 
+      final parentUid = Provider.of<AuthService>(context, listen: false).currentUser?.uid;
+      if (parentUid != null && parentUid.isNotEmpty) {
+        await InAppNotificationService.sendWeeklyReportReadyNotification(
+          firestore: FirebaseFirestore.instance,
+          parentUid: parentUid,
+          childName: childName,
+        );
+      }
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2810,7 +2916,16 @@ class _ParentPanelScreenState extends State<ParentPanelScreen>
               });
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool(ParentPanelNotificationScheduler.prefMaster, value);
-              await ParentPanelNotificationScheduler.instance.syncFromDisk();
+              final lc =
+                  Provider.of<LocaleProvider>(context, listen: false).locale.languageCode;
+              await prefs.setString(ParentPanelNotificationScheduler.prefLanguageCode, lc);
+              final parentUid =
+                  Provider.of<AuthService>(context, listen: false).currentUser?.uid ?? '';
+              if (parentUid.isNotEmpty) {
+                await prefs.setString(ParentPanelNotificationScheduler.prefParentUid, parentUid);
+              }
+              await ParentPanelNotificationScheduler.instance.syncFromDisk(languageCode: lc);
+              await ParentPanelBackgroundNudgeService.syncRegistrationFromPrefs();
             },
             activeColor: Colors.green,
           ),

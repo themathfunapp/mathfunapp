@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import 'game_start_screen.dart'; // AgeGroupSelection için
 import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
+import 'premium_screen.dart';
 
 class DiscoverScreen extends StatefulWidget {
   final AgeGroupSelection ageGroup;
@@ -31,7 +32,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Beyin jimnastiği yap, matematiksel düşünme becerilerini geliştir!',
       color: Color(0xFF00CEC9),
       isNew: true,
-      isPremium: false,
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎨',
@@ -40,7 +41,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       description: 'Renklerle matematik öğren, görsel hafızana hitap eden oyunlar!',
       color: Color(0xFF74B9FF),
       isNew: true,
-      isPremium: false,
+      isPremium: true,
     ),
     DiscoverItem(
       emoji: '🎵',
@@ -741,6 +742,77 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     );
   }
 
+  void _showPremiumRequiredForDiscover(String localizedFeatureName) {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2D1B69),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Text('👑', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                loc.get('premium_feature'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              localizedFeatureName,
+              style: const TextStyle(
+                color: Colors.amber,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              loc.get('premium_exclusive_message'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.get('close'), style: const TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => PremiumScreen(
+                    onBack: () => Navigator.pop(context),
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: const Color(0xFF8B4513),
+            ),
+            child: Text(loc.get('upgrade_to_premium')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPremiumFeature(String emoji, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -762,6 +834,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   void _launchFeature(DiscoverItem item) {
     final ageSlug = widget.ageGroup.toString().split('.').last;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final loc = AppLocalizations(locale);
+
+    if (item.isPremium && !authService.isPremium) {
+      final name = item.emoji == '🧩'
+          ? loc.get('intelligence_games')
+          : loc.get('colorful_math');
+      _showPremiumRequiredForDiscover(name);
+      return;
+    }
 
     if (item.title == 'Zeka Oyunları') {
       Navigator.of(context).push(

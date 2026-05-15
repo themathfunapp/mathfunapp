@@ -61,6 +61,10 @@ class AppLocalizations {
       get('notifications_body_duel_invite_timeout');
   String get notificationsSwipeDelete => get('notifications_swipe_delete');
   String get notificationsPanelSubtitle => get('notifications_panel_subtitle');
+  String get notificationsPremiumRequiredTitle =>
+      get('notifications_premium_required_title');
+  String get notificationsPremiumRequiredBody =>
+      get('notifications_premium_required_body');
 
   // Profile related
   String get guestUser => get('guest_user');
@@ -134,6 +138,13 @@ class AppLocalizations {
   String get googleSigninWebOriginMismatch =>
       get('google_signin_web_origin_mismatch');
   String get playerCodeLabel => get('player_code_label');
+  String get friendsPlayerCodeTitle => get('friends_player_code_title');
+  String get friendsPlayerCodeYourLabel => get('friends_player_code_your_label');
+  String get friendsPlayerCodeInstructions => get('friends_player_code_instructions');
+  String get friendsPlayerCodeOk => get('friends_player_code_ok');
+  String friendsPlayerCodeCopied(String code) =>
+      get('friends_player_code_copied').replaceAll('{code}', code);
+  String get friendsSearchHint => get('friends_search_hint');
   String get skipDescription => get('skip_description');
 
   // Premium
@@ -159,6 +170,9 @@ class AppLocalizations {
   String get parentPanelDesc => get('parent_panel_desc');
   String get parentPanelLoginRequired => get('parent_panel_login_required');
   String get parentPanelLoginRequiredDesc => get('parent_panel_login_required_desc');
+  String get parentPanelPremiumRequired => get('parent_panel_premium_required');
+  String get parentPanelPremiumRequiredDesc =>
+      get('parent_panel_premium_required_desc');
   String get monthlyPremium => get('monthly_premium');
   String get perMonth => get('per_month');
   String get firstMonthDiscount => get('first_month_discount');
@@ -166,6 +180,7 @@ class AppLocalizations {
   String get subscribeNow => get('subscribe_now');
   String get errorOccurred => get('error_occurred');
   String get premiumActivated => get('premium_activated');
+  String get premiumWebIapNotSupported => get('premium_web_iap_not_supported');
   String get restorePurchases => get('restore_purchases');
   String get checkingPurchases => get('checking_purchases');
   String get restoreFailed => get('restore_failed');
@@ -217,7 +232,7 @@ class AppLocalizations {
     // ========================= TR =========================
     'tr': {
       // Home
-      'home_title': 'Matematik Macerası',
+      'home_title': 'Mathfun',
       'home_subtitle': 'Eğlenerek Öğren',
       'home_improve_skills': 'Matematik Becerilerini Geliştir!',
       'home_learn_fun': 'Matematik öğrenmek hiç bu kadar eğlenceli olmamıştı!',
@@ -348,7 +363,7 @@ class AppLocalizations {
       'friend_duel_guest':
           'Arkadaşla yarışmak için hesap oluşturmalı ve arkadaş eklemelisin.',
       'friend_duel_empty':
-          'Henüz arkadaşın yok. Aynı oyunu indirip kayıt olan birini MTN koduyla ekleyerek buradan seçebilirsin.',
+          'Henüz arkadaşın yok. Aynı oyunu indirip kayıt olan birini 10 haneli oyuncu numarasıyla ekleyerek buradan seçebilirsin.',
       'searching_for_opponent': 'Rakip Aranıyor...',
       'result_congratulations': 'TEBRİKLER!',
       'result_draw': 'BERABERE!',
@@ -682,8 +697,23 @@ class AppLocalizations {
           '{count} bildiriminizi silmek istediğinize emin misiniz?',
       'notifications_body_rename': '{old} adını {new} olarak değiştirdi.',
       'notifications_body_duel_invite_timeout': 'Davetinize cevap alınamadı.',
+      'notifications_body_child_badge': '{child} yeni rozet kazandı: {badge}',
+      'notifications_body_family_story': '{parent} bir hikâye önerdi: {world}',
+      'notifications_body_weekly_report_ready':
+          '{child} için haftalık rapor hazır; paylaşabilirsiniz.',
+      'notifications_body_child_daily_challenge':
+          '{child} bugünkü günlük görevi tamamladı!',
+      'notifications_body_child_level_up': '{child} seviye atladı: {level}',
+      'notifications_body_family_remote_duel_invite_accepted':
+          '{who} düello davetini kabul etti ({topic}).',
+      'notifications_body_family_remote_duel_invite_declined':
+          '{who} düello davetini reddetti ({topic}).',
+      'notifications_body_family_remote_duel_started': 'Düello başladı ({topic})!',
       'notifications_swipe_delete': 'Sil',
       'notifications_panel_subtitle': 'Ailenden haberler burada',
+      'notifications_premium_required_title': 'Premium gerekli',
+      'notifications_premium_required_body':
+          'Aile bildirimleri yalnızca Premium üyeler içindir. Ebeveyn paneliyle ilgili haberler burada görünür.',
 
       // Profile
       'guest_user': 'Misafir Kullanıcı',
@@ -728,7 +758,7 @@ class AppLocalizations {
       'error': 'Hata',
 
       // Welcome
-      'app_name': 'Matematik Macerası',
+      'app_name': 'Mathfun',
       'app_motto': 'Eğlenerek Öğren',
       'welcome_title': 'Matematiğe Hoş Geldiniz!',
       'welcome_description':
@@ -769,6 +799,12 @@ class AppLocalizations {
           'Google (origin_mismatch): Bu adresi Google Cloud Console’da Web OAuth istemcinize “Authorized JavaScript origins” olarak ekleyin. Geliştirme için http://localhost:8080 önerilir (VS Code’dan Flutter Chrome ile çalıştırın). Yayında sitenizin https://… adresini de ekleyin.',
       'player_code_label': 'ID',
       'skip_description': 'Demo modunda göz atın',
+      'friends_player_code_title': 'Oyuncu Kodu',
+      'friends_player_code_your_label': 'Senin kodun:',
+      'friends_player_code_instructions':
+          'Arkadaşlarını eklemek için:\n1. Arkadaşının 10 haneli oyuncu numarasını iste (ekrandaki soluk önek sabittir)\n2. Ara sekmesinde yalnız rakamları yaz\n3. Arkadaş olarak ekle\n4. Düelloya davet et!',
+      'friends_player_code_ok': 'Anladım',
+      'friends_player_code_copied': 'Oyuncu kodun kopyalandı: {code}',
 
       // Privacy
       'privacy_terms_agreement':
@@ -1186,7 +1222,8 @@ class AppLocalizations {
       'no_requests_title': 'Bekleyen İstek Yok',
       'no_requests_description': 'Yeni arkadaşlık istekleri burada görünecek.',
       'search_users_title': 'Kullanıcı Ara',
-      'search_users_description': 'ID veya isim girerek kullanıcı arayabilirsiniz.',
+      'search_users_description': '10 haneli numara veya isim yazarak kullanıcı arayabilirsin.',
+      'friends_search_hint': '10 haneli numara veya isim ara…',
       'search_hint': 'ID veya isim girin...',
       'search': 'Ara',
       'add_friend': 'Ekle',
@@ -1732,6 +1769,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Premium üyelere özel içerikler',
       'parent_panel': 'Ebeveyn Paneli',
       'parent_panel_desc': 'Çocuğunuzun gelişimini takip edin',
+      'parent_panel_premium_required': 'Premium Gerekli',
+      'parent_panel_premium_required_desc':
+          'Ebeveyn paneline yalnızca Premium üyeler erişebilir. Kullanmak için Premium üyeliğe geçin.',
       'parent_world_how_start': 'Nasıl başlatmak istersiniz?',
       'parent_world_start_on_device': 'Bu cihazda başlat',
       'parent_world_send_family_remote': 'Aile üyelerine istek gönder (uzaktan)',
@@ -1799,6 +1839,7 @@ class AppLocalizations {
       'error_occurred': 'Bir hata oluştu',
       'premium_activated': 'Premium üyeliğiniz aktif edildi! 🎉',
       'premium_coming_soon': 'Premium üyelik yakında aktif olacak! 👑',
+      'premium_web_iap_not_supported': 'Web\'de uygulama içi satın alma desteklenmiyor',
       'premium_badge': 'PRO',
       'restore_purchases': 'Satın Almaları Geri Yükle',
       'checking_purchases': 'Satın almalar kontrol ediliyor...',
@@ -1945,7 +1986,7 @@ class AppLocalizations {
       'friend_duel_guest':
           'Create an account and add friends to race with someone.',
       'friend_duel_empty':
-          'No friends yet. Ask someone who installed the app to register, then add them with their code.',
+          'No friends yet. Ask someone who installed the app to register, then add them with their 10-digit player ID.',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -2299,8 +2340,23 @@ class AppLocalizations {
       'notifications_body_rename': '{old} changed their name to {new}.',
       'notifications_body_duel_invite_timeout':
           'No response to your invite.',
+      'notifications_body_child_badge': '{child} earned a new badge: {badge}',
+      'notifications_body_family_story': '{parent} suggested a story: {world}',
+      'notifications_body_weekly_report_ready':
+          'Weekly report for {child} is ready to share.',
+      'notifications_body_child_daily_challenge':
+          '{child} completed today\'s daily challenge!',
+      'notifications_body_child_level_up': '{child} leveled up: {level}',
+      'notifications_body_family_remote_duel_invite_accepted':
+          '{who} accepted the duel invite ({topic}).',
+      'notifications_body_family_remote_duel_invite_declined':
+          '{who} declined the duel invite ({topic}).',
+      'notifications_body_family_remote_duel_started': 'Duel started ({topic})!',
       'notifications_swipe_delete': 'Delete',
       'notifications_panel_subtitle': 'News from your family',
+      'notifications_premium_required_title': 'Premium required',
+      'notifications_premium_required_body':
+          'Family notifications are for Premium members only. Parent-related updates appear here.',
 
       // Profile
       'guest_user': 'Guest User',
@@ -2382,6 +2438,12 @@ class AppLocalizations {
           'Google (origin_mismatch): Add this site URL to your Web OAuth client’s “Authorized JavaScript origins” in Google Cloud Console. For local dev use http://localhost:8080 (run Flutter Chrome from VS Code). For production add your https://… domain.',
       'player_code_label': 'ID',
       'skip_description': 'Browse in demo mode',
+      'friends_player_code_title': 'Player Code',
+      'friends_player_code_your_label': 'Your code:',
+      'friends_player_code_instructions':
+          'To add friends:\n1. Ask your friend for their 10-digit player ID (the faded prefix is fixed)\n2. In the Search tab, type only the digits\n3. Add as a friend\n4. Invite them to a duel!',
+      'friends_player_code_ok': 'Got it',
+      'friends_player_code_copied': 'Player code copied: {code}',
 
       'privacy_terms_agreement':
       'By continuing, you agree to our Terms of Service and Privacy Policy.',
@@ -2778,7 +2840,8 @@ class AppLocalizations {
       'no_requests_title': 'No Pending Requests',
       'no_requests_description': 'New friend requests will appear here.',
       'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
+      'search_users_description': 'Search by 10-digit player ID or by name.',
+      'friends_search_hint': '10-digit player ID or name…',
       'search_hint': 'Enter ID or name...',
       'search': 'Search',
       'add_friend': 'Add',
@@ -3324,6 +3387,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Exclusive content for premium members',
       'parent_panel': 'Parent Panel',
       'parent_panel_desc': 'Track your child\'s progress',
+      'parent_panel_premium_required': 'Premium required',
+      'parent_panel_premium_required_desc':
+          'The parent panel is only for Premium members. Upgrade to Premium to use it.',
       'parent_world_how_start': 'How would you like to start?',
       'parent_world_start_on_device': 'Start on this device',
       'parent_world_send_family_remote': 'Send request to family members (remote)',
@@ -3391,6 +3457,7 @@ class AppLocalizations {
       'error_occurred': 'An error occurred',
       'premium_activated': 'Your premium membership is activated! 🎉',
       'premium_coming_soon': 'Premium membership will be active soon! 👑',
+      'premium_web_iap_not_supported': 'In-app purchases are not supported on the web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Restore Purchases',
       'checking_purchases': 'Checking purchases...',
@@ -3530,6 +3597,14 @@ class AppLocalizations {
       'boss_won': 'hat gewonnen!',
       'friend_race': 'Freundschaftsrennen',
       'math_duel': 'Mathe-Duell',
+      'friend_duel_pick_title': 'Mit wem möchtest du antreten?',
+      'friend_duel_subtitle':
+          'Hier erscheinen nur Spieler, die sich in der App registriert haben und auf deiner Freundesliste stehen.',
+      'friend_duel_connecting': 'Bereite dich mit deinem Freund vor…',
+      'friend_duel_guest':
+          'Erstelle ein Konto und füge Freunde hinzu, um gegen jemanden anzutreten.',
+      'friend_duel_empty':
+          'Noch keine Freunde. Bitte jemanden, die App zu installieren und sich zu registrieren, dann füge ihn mit seinem Code hinzu.',
       'searching_for_opponent': 'Gegner wird gesucht...',
       'result_congratulations': 'GLÜCKWUNSCH!',
       'result_draw': 'UNENTSCHIEDEN!',
@@ -3775,6 +3850,14 @@ class AppLocalizations {
       'notifications_body_rename': '{old} hat den Namen in {new} geändert.',
       'notifications_body_duel_invite_timeout':
           'Keine Antwort auf deine Einladung.',
+      'notifications_body_child_badge':
+          '{child} hat ein neues Abzeichen erhalten: {badge}',
+      'notifications_body_family_story':
+          '{parent} hat eine Geschichte vorgeschlagen: {world}',
+      'notifications_body_weekly_report_ready':
+          'Der Wochenbericht für {child} ist zum Teilen fertig.',
+      'notifications_body_child_daily_challenge':
+          '{child} hat die heutige Tagesaufgabe geschafft!',
       'notifications_swipe_delete': 'Löschen',
       'notifications_panel_subtitle': 'Neues von deiner Familie',
 
@@ -3854,6 +3937,12 @@ class AppLocalizations {
       'sign_up': 'Registrieren',
       'login_error': 'Anmeldefehler',
       'skip_description': 'Im Demo-Modus stöbern',
+      'friends_player_code_title': 'Spielercode',
+      'friends_player_code_your_label': 'Dein Code:',
+      'friends_player_code_instructions':
+          'So fügst du Freunde hinzu:\n1. Bitte deinen Freund um seinen MTN-Code\n2. Gib den Code im Tab „Suchen“ ein\n3. Als Freund hinzufügen\n4. Zum Duell einladen!',
+      'friends_player_code_ok': 'Verstanden',
+      'friends_player_code_copied': 'Spielercode kopiert: {code}',
 
       'privacy_terms_agreement':
       'Durch die Fortsetzung stimmen Sie unseren Nutzungsbedingungen und der Datenschutzrichtlinie zu.',
@@ -4281,6 +4370,7 @@ class AppLocalizations {
       'no_requests_description': 'Neue Freundschaftsanfragen werden hier angezeigt.',
       'search_users_title': 'Benutzer Suchen',
       'search_users_description': 'Sie können Benutzer nach ID oder Name suchen.',
+      'friends_search_hint': 'MTN-Code oder Namen suchen...',
       'search_hint': 'ID oder Name eingeben...',
       'search': 'Suchen',
       'add_friend': 'Hinzufügen',
@@ -4765,6 +4855,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Exklusive Inhalte für Premium-Mitglieder',
       'parent_panel': 'Eltern-Panel',
       'parent_panel_desc': 'Verfolgen Sie den Fortschritt Ihres Kindes',
+      'parent_panel_premium_required': 'Premium erforderlich',
+      'parent_panel_premium_required_desc':
+          'Das Eltern-Panel ist nur für Premium-Mitglieder. Upgraden Sie auf Premium, um es zu nutzen.',
       'parent_world_how_start': 'Wie möchten Sie starten?',
       'parent_world_start_on_device': 'Auf diesem Gerät starten',
       'parent_world_send_family_remote': 'Anfrage an Familienmitglieder senden (remote)',
@@ -4815,6 +4908,8 @@ class AppLocalizations {
       'error_occurred': 'Ein Fehler ist aufgetreten',
       'premium_activated': 'Ihre Premium-Mitgliedschaft wurde aktiviert! 🎉',
       'premium_coming_soon': 'Premium-Mitgliedschaft wird bald aktiv! 👑',
+      'premium_web_iap_not_supported':
+          'In-App-Käufe werden im Web nicht unterstützt.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Käufe wiederherstellen',
       'checking_purchases': 'Käufe werden überprüft...',
@@ -4925,6 +5020,12 @@ class AppLocalizations {
           'هل تريد حذف جميع الإشعارات ({count})؟',
       'notifications_body_rename': '{old} غيّر اسمه إلى {new}.',
       'notifications_body_duel_invite_timeout': 'لم يتم الرد على دعوتك.',
+      'notifications_body_child_badge': 'حصل {child} على شارة جديدة: {badge}',
+      'notifications_body_family_story': '{parent} اقترح قصة: {world}',
+      'notifications_body_weekly_report_ready':
+          'تقرير الأسبوع لـ {child} جاهز للمشاركة.',
+      'notifications_body_child_daily_challenge':
+          'أكمل {child} التحدي اليومي!',
       'notifications_swipe_delete': 'حذف',
       'notifications_panel_subtitle': 'أخبار من عائلتك',
       'guest_user': 'مستخدم ضيف',
@@ -4993,6 +5094,12 @@ class AppLocalizations {
       'sign_up': 'تسجيل',
       'login_error': 'خطأ في تسجيل الدخول',
       'skip_description': 'تصفح في وضع العرض',
+      'friends_player_code_title': 'رمز اللاعب',
+      'friends_player_code_your_label': 'رمزك:',
+      'friends_player_code_instructions':
+          'لإضافة الأصدقاء:\n1. اطلب من صديقك رمز MTN\n2. اكتب الرمز في تبويب البحث\n3. أضف كصديق\n4. ادعُه إلى مبارزة!',
+      'friends_player_code_ok': 'فهمت',
+      'friends_player_code_copied': 'تم نسخ رمز اللاعب: {code}',
       'privacy_terms_agreement': 'بالمتابعة، أنت توافق على شروط الخدمة وسياسة الخصوصية.',
 
       // Languages
@@ -5526,6 +5633,14 @@ class AppLocalizations {
       'boss_won': 'فاز!',
       'friend_race': 'سباق الأصدقاء',
       'math_duel': 'مبارزة رياضيات',
+      'friend_duel_pick_title': 'مع من ستتسابق؟',
+      'friend_duel_subtitle':
+          'يظهر هنا فقط اللاعبون المسجّلون في التطبيق والموجودون في قائمة أصدقائك.',
+      'friend_duel_connecting': 'جارٍ التحضير مع صديقك…',
+      'friend_duel_guest':
+          'أنشئ حسابًا وأضف أصدقاء لتتسابق مع شخص ما.',
+      'friend_duel_empty':
+          'لا أصدقاء بعد. اطلب من شخص أن يثبّت التطبيق ويسجّل، ثم أضفه برمزه.',
       'searching_for_opponent': 'جاري البحث عن خصم...',
       'result_congratulations': 'تهانينا!',
       'result_draw': 'تعادل!',
@@ -5628,6 +5743,7 @@ class AppLocalizations {
       'no_requests_description': 'ستظهر طلبات الصداقة الجديدة هنا.',
       'search_users_title': 'بحث المستخدمين',
       'search_users_description': 'ابحث عن مستخدمين بالاسم أو المعرف.',
+      'friends_search_hint': 'ابحث عن رمز MTN أو الاسم...',
       'search_hint': 'أدخل الاسم أو المعرف...',
       'search': 'بحث',
       'add_friend': 'إضافة',
@@ -6082,6 +6198,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'محتوى حصري لأعضاء بريميوم',
       'parent_panel': 'لوحة الوالدين',
       'parent_panel_desc': 'تتبع تقدم طفلك',
+      'parent_panel_premium_required': 'بريميوم مطلوب',
+      'parent_panel_premium_required_desc':
+          'لوحة الوالدين للمشتركين في بريميوم فقط. ترقّ للاستخدام.',
       'parent_world_how_start': 'كيف تريد أن تبدأ؟',
       'parent_world_start_on_device': 'ابدأ على هذا الجهاز',
       'parent_world_send_family_remote': 'أرسل طلبًا لأفراد العائلة (عن بُعد)',
@@ -6130,6 +6249,8 @@ class AppLocalizations {
       'error_occurred': 'حدث خطأ',
       'premium_activated': 'تم تفعيل عضويتك البريميوم! 🎉',
       'premium_coming_soon': 'العضوية البريميوم ستكون نشطة قريباً! 👑',
+      'premium_web_iap_not_supported':
+          'عمليات الشراء داخل التطبيق غير مدعومة على الويب.',
       'premium_badge': 'بريميوم',
       'restore_purchases': 'استعادة المشتريات',
       'checking_purchases': 'جاري التحقق من المشتريات...',
@@ -6239,6 +6360,12 @@ class AppLocalizations {
       'notifications_delete_all_confirm': 'همه ({count}) اعلان حذف شوند؟',
       'notifications_body_rename': '{old} نامش را به {new} تغییر داد.',
       'notifications_body_duel_invite_timeout': 'پاسخی به دعوت شما نرسید.',
+      'notifications_body_child_badge': '{child} نشان جدید گرفت: {badge}',
+      'notifications_body_family_story': '{parent} یک داستان پیشنهاد داد: {world}',
+      'notifications_body_weekly_report_ready':
+          'گزارش هفتگی {child} آمادهٔ اشتراک است.',
+      'notifications_body_child_daily_challenge':
+          '{child} چالش روزانهٔ امروز را تمام کرد!',
       'notifications_swipe_delete': 'حذف',
       'notifications_panel_subtitle': 'خبرهای خانواده‌ات اینجاست',
       'guest_user': 'کاربر مهمان',
@@ -6307,6 +6434,12 @@ class AppLocalizations {
       'sign_up': 'ثبت‌نام',
       'login_error': 'خطای ورود',
       'skip_description': 'مرور در حالت دمو',
+      'friends_player_code_title': 'کد بازیکن',
+      'friends_player_code_your_label': 'کد تو:',
+      'friends_player_code_instructions':
+          'برای افزودن دوستان:\n1. کد MTN دوستت را بخواه\n2. در تب جستجو کد را بنویس\n3. به‌عنوان دوست اضافه کن\n4. به دوئل دعوتش کن!',
+      'friends_player_code_ok': 'متوجه شدم',
+      'friends_player_code_copied': 'کد بازیکن کپی شد: {code}',
       'privacy_terms_agreement': 'با ادامه، شما شرایط و سیاست حریم خصوصی را می‌پذیرید.',
 
       // Languages
@@ -6719,6 +6852,14 @@ class AppLocalizations {
       'boss_won': 'برنده شد!',
       'friend_race': 'مسابقه دوستان',
       'math_duel': 'دوئل ریاضی',
+      'friend_duel_pick_title': 'با چه کسی مسابقه می‌دهی؟',
+      'friend_duel_subtitle':
+          'فقط بازیکنانی که در اپ ثبت‌نام کرده‌اند و در فهرست دوستان تو هستند اینجا نمایش داده می‌شوند.',
+      'friend_duel_connecting': 'در حال آماده‌شدن با دوستت…',
+      'friend_duel_guest':
+          'برای مسابقه با دیگران حساب بساز و دوستان اضافه کن.',
+      'friend_duel_empty':
+          'هنوز دوستی نداری. از کسی بخواه اپ را نصب و ثبت‌نام کند، بعد با کدش اضافه‌اش کن.',
       'searching_for_opponent': 'در حال جستجوی حریف...',
       'result_congratulations': 'تبریک!',
       'result_draw': 'مساوی!',
@@ -6821,6 +6962,7 @@ class AppLocalizations {
       'no_requests_description': 'درخواست‌های جدید اینجا نمایش داده می‌شوند.',
       'search_users_title': 'جستجوی کاربران',
       'search_users_description': 'با نام یا شناسه جستجو کنید.',
+      'friends_search_hint': 'کد MTN یا نام را جستجو کنید...',
       'search_hint': 'نام یا شناسه را وارد کنید...',
       'search': 'جستجو',
       'add_friend': 'افزودن',
@@ -7391,6 +7533,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'محتوای اختصاصی برای اعضای پریمیوم',
       'parent_panel': 'پنل والدین',
       'parent_panel_desc': 'پیشرفت فرزند خود را دنبال کنید',
+      'parent_panel_premium_required': 'پریمیوم لازم است',
+      'parent_panel_premium_required_desc':
+          'پنل والدین فقط برای اعضای پریمیوم است. برای استفاده ارتقا دهید.',
       'parent_world_how_start': 'چطور می‌خواهید شروع کنید؟',
       'parent_world_start_on_device': 'شروع روی این دستگاه',
       'parent_world_send_family_remote': 'ارسال درخواست به اعضای خانواده (از راه دور)',
@@ -7439,6 +7584,8 @@ class AppLocalizations {
       'error_occurred': 'خطایی رخ داد',
       'premium_activated': 'عضویت پریمیوم شما فعال شد! 🎉',
       'premium_coming_soon': 'عضویت پریمیوم به زودی فعال می‌شود! 👑',
+      'premium_web_iap_not_supported':
+          'خرید درون‌برنامه‌ای در وب پشتیبانی نمی‌شود.',
       'premium_badge': 'پریمیوم',
       'restore_purchases': 'بازیابی خریدها',
       'checking_purchases': 'در حال بررسی خریدها...',
@@ -7548,6 +7695,10 @@ class AppLocalizations {
       'notifications_delete_all_confirm': '确定删除全部 {count} 条通知？',
       'notifications_body_rename': '{old} 将名字改为 {new}。',
       'notifications_body_duel_invite_timeout': '邀请暂无回应。',
+      'notifications_body_child_badge': '{child} 获得了新徽章：{badge}',
+      'notifications_body_family_story': '{parent} 推荐了一个故事：{world}',
+      'notifications_body_weekly_report_ready': '{child} 的周报已准备好分享。',
+      'notifications_body_child_daily_challenge': '{child} 完成了今日每日挑战！',
       'notifications_swipe_delete': '删除',
       'notifications_panel_subtitle': '家人的动态',
       'guest_user': '访客用户',
@@ -7616,6 +7767,12 @@ class AppLocalizations {
       'sign_up': '注册',
       'login_error': '登录错误',
       'skip_description': '以演示模式浏览',
+      'friends_player_code_title': '玩家代号',
+      'friends_player_code_your_label': '你的代号：',
+      'friends_player_code_instructions':
+          '添加好友：\n1. 向好友索要 MTN 代号\n2. 在「搜索」标签页输入代号\n3. 添加为好友\n4. 邀请决斗！',
+      'friends_player_code_ok': '知道了',
+      'friends_player_code_copied': '已复制玩家代号：{code}',
       'privacy_terms_agreement': '继续即表示您同意我们的服务条款和隐私政策。',
 
       // Settings
@@ -8027,6 +8184,13 @@ class AppLocalizations {
       'boss_won': '赢了！',
       'friend_race': '好友竞赛',
       'math_duel': '数学对决',
+      'friend_duel_pick_title': '你要和谁比赛？',
+      'friend_duel_subtitle':
+          '这里只显示已在应用中注册且在你好友列表中的玩家。',
+      'friend_duel_connecting': '正在与好友准备…',
+      'friend_duel_guest': '创建账号并添加好友后即可与他人比赛。',
+      'friend_duel_empty':
+          '还没有好友。请让安装了应用的人注册，然后用对方的代码添加。',
       'searching_for_opponent': '正在寻找对手...',
       'result_congratulations': '恭喜！',
       'result_draw': '平局！',
@@ -8129,6 +8293,7 @@ class AppLocalizations {
       'no_requests_description': '新的好友请求将显示在这里。',
       'search_users_title': '搜索用户',
       'search_users_description': '按姓名或ID搜索用户。',
+      'friends_search_hint': '搜索 MTN 代号或姓名...',
       'search_hint': '输入姓名或ID...',
       'search': '搜索',
       'add_friend': '添加',
@@ -8699,6 +8864,8 @@ class AppLocalizations {
       'special_game_modes_desc': '高级会员专属内容',
       'parent_panel': '家长面板',
       'parent_panel_desc': '跟踪孩子的进步',
+      'parent_panel_premium_required': '需要高级版',
+      'parent_panel_premium_required_desc': '家长面板仅面向高级会员。请升级后使用。',
       'parent_world_how_start': '您想如何开始？',
       'parent_world_start_on_device': '在此设备上开始',
       'parent_world_send_family_remote': '向家庭成员发送请求（远程）',
@@ -8744,6 +8911,7 @@ class AppLocalizations {
       'error_occurred': '发生错误',
       'premium_activated': '您的高级会员已激活！🎉',
       'premium_coming_soon': '高级会员即将激活！👑',
+      'premium_web_iap_not_supported': '网页版不支持应用内购买。',
       'premium_badge': '高级',
       'restore_purchases': '恢复购买',
       'checking_purchases': '正在检查购买...',
@@ -8854,6 +9022,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} mengubah nama menjadi {new}.',
       'notifications_body_duel_invite_timeout':
           'Undangan Anda tidak mendapat balasan.',
+      'notifications_body_child_badge': '{child} mendapat lencana baru: {badge}',
+      'notifications_body_family_story': '{parent} menyarankan cerita: {world}',
+      'notifications_body_weekly_report_ready':
+          'Laporan mingguan untuk {child} siap dibagikan.',
+      'notifications_body_child_daily_challenge':
+          '{child} menyelesaikan tantangan harian hari ini!',
       'notifications_swipe_delete': 'Hapus',
       'notifications_panel_subtitle': 'Kabar dari keluargamu',
       'guest_user': 'Pengguna Tamu',
@@ -8922,6 +9096,12 @@ class AppLocalizations {
       'sign_up': 'Daftar',
       'login_error': 'Kesalahan Masuk',
       'skip_description': 'Jelajahi dalam mode demo',
+      'friends_player_code_title': 'Kode pemain',
+      'friends_player_code_your_label': 'Kode kamu:',
+      'friends_player_code_instructions':
+          'Untuk menambah teman:\n1. Minta kode MTN temanmu\n2. Ketik kode di tab Cari\n3. Tambah sebagai teman\n4. Undang ke duel!',
+      'friends_player_code_ok': 'Mengerti',
+      'friends_player_code_copied': 'Kode pemain disalin: {code}',
       'privacy_terms_agreement': 'Dengan melanjutkan, Anda menyetujui Ketentuan Layanan dan Kebijakan Privasi kami.',
 
       // Settings
@@ -9334,6 +9514,14 @@ class AppLocalizations {
       'boss_won': 'menang!',
       'friend_race': 'Balapan Teman',
       'math_duel': 'Duel matematika',
+      'friend_duel_pick_title': 'Kamu akan berlomba dengan siapa?',
+      'friend_duel_subtitle':
+          'Hanya pemain yang terdaftar di aplikasi dan ada di daftar temanmu yang muncul di sini.',
+      'friend_duel_connecting': 'Bersiap dengan temanmu…',
+      'friend_duel_guest':
+          'Buat akun dan tambahkan teman untuk berlomba dengan seseorang.',
+      'friend_duel_empty':
+          'Belum ada teman. Minta seseorang menginstal aplikasi dan mendaftar, lalu tambahkan dengan kodenya.',
       'searching_for_opponent': 'Mencari lawan...',
       'result_congratulations': 'SELAMAT!',
       'result_draw': 'SERI!',
@@ -9436,6 +9624,7 @@ class AppLocalizations {
       'no_requests_description': 'Permintaan pertemanan baru akan muncul di sini.',
       'search_users_title': 'Cari Pengguna',
       'search_users_description': 'Cari pengguna berdasarkan nama atau ID.',
+      'friends_search_hint': 'Cari kode MTN atau nama...',
       'search_hint': 'Masukkan nama atau ID...',
       'search': 'Cari',
       'add_friend': 'Tambah',
@@ -10006,6 +10195,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Konten eksklusif untuk anggota premium',
       'parent_panel': 'Panel Orang Tua',
       'parent_panel_desc': 'Pantau kemajuan anak Anda',
+      'parent_panel_premium_required': 'Premium diperlukan',
+      'parent_panel_premium_required_desc':
+          'Panel orang tua hanya untuk anggota Premium. Tingkatkan untuk mengakses.',
       'parent_world_how_start': 'Bagaimana Anda ingin memulai?',
       'parent_world_start_on_device': 'Mulai di perangkat ini',
       'parent_world_send_family_remote': 'Kirim permintaan ke anggota keluarga (jarak jauh)',
@@ -10054,6 +10246,8 @@ class AppLocalizations {
       'error_occurred': 'Terjadi kesalahan',
       'premium_activated': 'Keanggotaan premium Anda telah diaktifkan! 🎉',
       'premium_coming_soon': 'Keanggotaan premium akan segera aktif! 👑',
+      'premium_web_iap_not_supported':
+          'Pembelian dalam aplikasi tidak didukung di web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Pulihkan Pembelian',
       'checking_purchases': 'Memeriksa pembelian...',
@@ -10165,6 +10359,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} navê xwe kir {new}.',
       'notifications_body_duel_invite_timeout':
           'Li vexwendina te bersiv nehat.',
+      'notifications_body_child_badge': '{child} rozeteke nû wergirt: {badge}',
+      'notifications_body_family_story': '{parent} çîrokek pêşniyar kir: {world}',
+      'notifications_body_weekly_report_ready':
+          'Rapora heftî ya {child} amade ye ku were parvekirin.',
+      'notifications_body_child_daily_challenge':
+          '{child} pêşbaziya rojane ya îro qedand!',
       'notifications_swipe_delete': 'Jê bibe',
       'notifications_panel_subtitle': 'Nûçeyên malbatê li vir in',
       'guest_user': 'Bikarhênerê Mêvan',
@@ -10233,6 +10433,12 @@ class AppLocalizations {
       'sign_up': 'Tomar Bibe',
       'login_error': 'Çewtiya Têketinê',
       'skip_description': 'Di moda demo de bigere',
+      'friends_player_code_title': 'Koda lîstikvan',
+      'friends_player_code_your_label': 'Koda te:',
+      'friends_player_code_instructions':
+          'Ji bo hevalan zêdekirin:\n1. Koda MTN ya hevalê xwe bipirse\n2. Di tabê Lêgerîn de kodê binivîse\n3. Weke heval zêde bike\n4. Bo dûelê vexwîne!',
+      'friends_player_code_ok': 'Fêm kir',
+      'friends_player_code_copied': 'Koda lîstikvan hate kopîkirin: {code}',
       'privacy_terms_agreement': 'Bi domandina, tu li gorî Şertên Xizmetê û Siyaseta Nepenîtiyê dipejirînî.',
 
       // Settings
@@ -10645,6 +10851,14 @@ class AppLocalizations {
       'boss_won': 'bi ser ket!',
       'friend_race': 'Pêşbaziya Hevalan',
       'math_duel': 'Duel matematîk',
+      'friend_duel_pick_title': 'Tu dê bi kî re pêşbazî bikî?',
+      'friend_duel_subtitle':
+          'Tenê lîstikvanên ku di sepanê de tomar bûne û di nav hevalên te de ne li vir derdikevin.',
+      'friend_duel_connecting': 'Bi hevalê te amade dibe…',
+      'friend_duel_guest':
+          'Hesabek çêke û hevalan zêde bike da ku bi kesekî re pêşbazî bikî.',
+      'friend_duel_empty':
+          'Hê heval tune. Ji kesî xwestekî sepanê saz bike û tomar bibe, paşê bi kodê wê zêde bike.',
       'searching_for_opponent': 'Rêber tê lêgerîn...',
       'result_congratulations': 'PÎROZ BE!',
       'result_draw': 'WEKHEV!',
@@ -10746,6 +10960,7 @@ class AppLocalizations {
       'no_requests_description': 'Daxwazên nû yên hevalîtiyê li vir xuya dibin.',
       'search_users_title': 'Bikarhêneran Bigere',
       'search_users_description': 'Bi nav an ID-ê bigere.',
+      'friends_search_hint': 'Koda MTN an nav bigere...',
       'search_hint': 'Nav an ID binivîsîne...',
       'search': 'Bigere',
       'add_friend': 'Zêde Bike',
@@ -11316,6 +11531,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Naveroka taybet ji bo endamên premium',
       'parent_panel': 'Panela Dêûbavan',
       'parent_panel_desc': 'Pêşveçûna zarokê xwe bişopîne',
+      'parent_panel_premium_required': 'Pêwîstiya Premium',
+      'parent_panel_premium_required_desc':
+          'Panela dêûbavan tenê ji bo endamên Premium e. Ji bo bikaranînê bilind bike.',
       'parent_world_how_start': 'Tu dixwazî çawa dest pê bikî?',
       'parent_world_start_on_device': 'Li ser vê cîhazê dest pê bike',
       'parent_world_send_family_remote': 'Daxwaza ji endamên malbatê re bişîne (dûr)',
@@ -11364,6 +11582,8 @@ class AppLocalizations {
       'error_occurred': 'Çewtî çêbû',
       'premium_activated': 'Endamtiya te ya premium hat çalakkirin! 🎉',
       'premium_coming_soon': 'Endamtiya premium zû dê çalak bibe! 👑',
+      'premium_web_iap_not_supported':
+          'Li ser webê kirînên nav-app nayên piştgirî kirin.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Kirînan Vegerîne',
       'checking_purchases': 'Kirîn tên kontrolkirin...',
@@ -11475,6 +11695,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} cambió su nombre a {new}.',
       'notifications_body_duel_invite_timeout':
           'Sin respuesta a tu invitación.',
+      'notifications_body_child_badge': '{child} ganó una nueva insignia: {badge}',
+      'notifications_body_family_story': '{parent} sugirió una historia: {world}',
+      'notifications_body_weekly_report_ready':
+          'El informe semanal de {child} está listo para compartir.',
+      'notifications_body_child_daily_challenge':
+          '¡{child} completó el desafío diario de hoy!',
       'notifications_swipe_delete': 'Eliminar',
       'notifications_panel_subtitle': 'Noticias de tu familia',
       'guest_user': 'Usuario Invitado',
@@ -11543,6 +11769,12 @@ class AppLocalizations {
       'sign_up': 'Registrarse',
       'login_error': 'Error de Inicio',
       'skip_description': 'Explorar en modo demo',
+      'friends_player_code_title': 'Código de jugador',
+      'friends_player_code_your_label': 'Tu código:',
+      'friends_player_code_instructions':
+          'Para añadir amigos:\n1. Pide a tu amigo su código MTN\n2. Escribe el código en la pestaña Buscar\n3. Añade como amigo\n4. ¡Invítalo a un duelo!',
+      'friends_player_code_ok': 'Entendido',
+      'friends_player_code_copied': 'Código de jugador copiado: {code}',
       'privacy_terms_agreement': 'Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.',
 
       // Settings
@@ -11955,6 +12187,14 @@ class AppLocalizations {
       'boss_won': '¡ganó!',
       'friend_race': 'Carrera de Amigos',
       'math_duel': 'Duelo de matemáticas',
+      'friend_duel_pick_title': '¿Con quién competirás?',
+      'friend_duel_subtitle':
+          'Solo aparecen aquí los jugadores registrados en la app que están en tu lista de amigos.',
+      'friend_duel_connecting': 'Preparándote con tu amigo…',
+      'friend_duel_guest':
+          'Crea una cuenta y añade amigos para competir con alguien.',
+      'friend_duel_empty':
+          'Aún no tienes amigos. Pide a alguien que instale la app y se registre, luego añádelo con su código.',
       'searching_for_opponent': 'Buscando oponente...',
       'result_congratulations': '¡FELICIDADES!',
       'result_draw': '¡EMPATE!',
@@ -12057,6 +12297,7 @@ class AppLocalizations {
       'no_requests_description': 'Las nuevas solicitudes aparecerán aquí.',
       'search_users_title': 'Buscar Usuarios',
       'search_users_description': 'Busca por nombre o ID.',
+      'friends_search_hint': 'Buscar código MTN o nombre...',
       'search_hint': 'Ingresa nombre o ID...',
       'search': 'Buscar',
       'add_friend': 'Agregar',
@@ -12627,6 +12868,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Contenido exclusivo para miembros premium',
       'parent_panel': 'Panel de Padres',
       'parent_panel_desc': 'Sigue el progreso de tu hijo',
+      'parent_panel_premium_required': 'Se requiere Premium',
+      'parent_panel_premium_required_desc':
+          'El panel de padres es solo para miembros Premium. Mejora para acceder.',
       'parent_world_how_start': '¿Cómo te gustaría empezar?',
       'parent_world_start_on_device': 'Empezar en este dispositivo',
       'parent_world_send_family_remote': 'Enviar solicitud a la familia (a distancia)',
@@ -12675,6 +12919,8 @@ class AppLocalizations {
       'error_occurred': 'Ocurrió un error',
       'premium_activated': '¡Tu membresía premium ha sido activada! 🎉',
       'premium_coming_soon': '¡La membresía premium estará activa pronto! 👑',
+      'premium_web_iap_not_supported':
+          'Las compras dentro de la app no están disponibles en la web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Restaurar Compras',
       'checking_purchases': 'Verificando compras...',
@@ -12786,6 +13032,14 @@ class AppLocalizations {
       'notifications_body_rename': '{old} a changé son nom en {new}.',
       'notifications_body_duel_invite_timeout':
           'Pas de réponse à ton invitation.',
+      'notifications_body_child_badge':
+          '{child} a gagné un nouveau badge : {badge}',
+      'notifications_body_family_story':
+          '{parent} a suggéré une histoire : {world}',
+      'notifications_body_weekly_report_ready':
+          'Le rapport hebdomadaire de {child} est prêt à être partagé.',
+      'notifications_body_child_daily_challenge':
+          '{child} a terminé le défi quotidien du jour !',
       'notifications_swipe_delete': 'Supprimer',
       'notifications_panel_subtitle': 'Nouvelles de ta famille',
       'guest_user': 'Utilisateur Invité',
@@ -12854,6 +13108,12 @@ class AppLocalizations {
       'sign_up': 'S\'inscrire',
       'login_error': 'Erreur de Connexion',
       'skip_description': 'Explorer en mode démo',
+      'friends_player_code_title': 'Code joueur',
+      'friends_player_code_your_label': 'Ton code :',
+      'friends_player_code_instructions':
+          'Pour ajouter des amis :\n1. Demande à ton ami son code MTN\n2. Saisis le code dans l’onglet Recherche\n3. Ajoute comme ami\n4. Invite-le en duel !',
+      'friends_player_code_ok': 'Compris',
+      'friends_player_code_copied': 'Code joueur copié : {code}',
       'privacy_terms_agreement': 'En continuant, vous acceptez nos Conditions d\'Utilisation et Politique de Confidentialité.',
 
       // Settings
@@ -13266,6 +13526,14 @@ class AppLocalizations {
       'boss_won': 'a gagné !',
       'friend_race': 'Course d\'Amis',
       'math_duel': 'Duel de maths',
+      'friend_duel_pick_title': 'Contre qui vas-tu courir ?',
+      'friend_duel_subtitle':
+          'Seuls les joueurs inscrits dans l\'app et présents dans ta liste d\'amis apparaissent ici.',
+      'friend_duel_connecting': 'Préparation avec ton ami…',
+      'friend_duel_guest':
+          'Crée un compte et ajoute des amis pour faire une course contre quelqu\'un.',
+      'friend_duel_empty':
+          'Pas encore d\'amis. Demande à quelqu\'un d\'installer l\'app et de s\'inscrire, puis ajoute-le avec son code.',
       'searching_for_opponent': 'Recherche d\'adversaire...',
       'result_congratulations': 'FÉLICITATIONS !',
       'result_draw': 'MATCH NUL !',
@@ -13368,6 +13636,7 @@ class AppLocalizations {
       'no_requests_description': 'Les nouvelles demandes apparaîtront ici.',
       'search_users_title': 'Rechercher Utilisateurs',
       'search_users_description': 'Recherchez par nom ou ID.',
+      'friends_search_hint': 'Rechercher code MTN ou nom...',
       'search_hint': 'Entrez nom ou ID...',
       'search': 'Rechercher',
       'add_friend': 'Ajouter',
@@ -13938,6 +14207,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Contenu exclusif pour les membres premium',
       'parent_panel': 'Panneau Parent',
       'parent_panel_desc': 'Suivez les progrès de votre enfant',
+      'parent_panel_premium_required': 'Premium requis',
+      'parent_panel_premium_required_desc':
+          'Le panneau parents est réservé aux membres Premium. Passez à Premium pour y accéder.',
       'parent_world_how_start': 'Comment souhaitez-vous commencer ?',
       'parent_world_start_on_device': 'Démarrer sur cet appareil',
       'parent_world_send_family_remote': 'Envoyer une demande à la famille (à distance)',
@@ -13986,6 +14258,8 @@ class AppLocalizations {
       'error_occurred': 'Une erreur s\'est produite',
       'premium_activated': 'Votre abonnement premium a été activé! 🎉',
       'premium_coming_soon': 'L\'abonnement premium sera bientôt actif! 👑',
+      'premium_web_iap_not_supported':
+          'Les achats intégrés ne sont pas pris en charge sur le web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Restaurer les Achats',
       'checking_purchases': 'Vérification des achats...',
@@ -14097,6 +14371,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} сменил(а) имя на {new}.',
       'notifications_body_duel_invite_timeout':
           'Нет ответа на твоё приглашение.',
+      'notifications_body_child_badge': '{child} получил(а) новый значок: {badge}',
+      'notifications_body_family_story': '{parent} предложил(а) историю: {world}',
+      'notifications_body_weekly_report_ready':
+          'Недельный отчёт для {child} готов к отправке.',
+      'notifications_body_child_daily_challenge':
+          '{child} завершил(а) сегодняшний ежедневный вызов!',
       'notifications_swipe_delete': 'Удалить',
       'notifications_panel_subtitle': 'Новости семьи',
       'guest_user': 'Гость',
@@ -14165,6 +14445,12 @@ class AppLocalizations {
       'sign_up': 'Регистрация',
       'login_error': 'Ошибка Входа',
       'skip_description': 'Просмотреть в демо-режиме',
+      'friends_player_code_title': 'Код игрока',
+      'friends_player_code_your_label': 'Твой код:',
+      'friends_player_code_instructions':
+          'Как добавить друзей:\n1. Попроси у друга код MTN\n2. Введи код на вкладке «Поиск»\n3. Добавь в друзья\n4. Пригласи на дуэль!',
+      'friends_player_code_ok': 'Понятно',
+      'friends_player_code_copied': 'Код игрока скопирован: {code}',
       'privacy_terms_agreement': 'Продолжая, вы соглашаетесь с Условиями Использования и Политикой Конфиденциальности.',
 
       // Settings
@@ -14577,6 +14863,14 @@ class AppLocalizations {
       'boss_won': 'победил!',
       'friend_race': 'Гонка с друзьями',
       'math_duel': 'Математический поединок',
+      'friend_duel_pick_title': 'С кем ты будешь соревноваться?',
+      'friend_duel_subtitle':
+          'Здесь видны только игроки, зарегистрированные в приложении и находящиеся в твоём списке друзей.',
+      'friend_duel_connecting': 'Готовимся с другом…',
+      'friend_duel_guest':
+          'Создай аккаунт и добавь друзей, чтобы соревноваться с кем-то.',
+      'friend_duel_empty':
+          'Пока нет друзей. Пусть кто-то установит приложение и зарегистрируется, затем добавь его по коду.',
       'searching_for_opponent': 'Поиск соперника...',
       'result_congratulations': 'ПОЗДРАВЛЯЕМ!',
       'result_draw': 'НИЧЬЯ!',
@@ -14679,6 +14973,7 @@ class AppLocalizations {
       'no_requests_description': 'Новые запросы появятся здесь.',
       'search_users_title': 'Поиск Пользователей',
       'search_users_description': 'Ищите по имени или ID.',
+      'friends_search_hint': 'Поиск кода MTN или имени...',
       'search_hint': 'Введите имя или ID...',
       'search': 'Искать',
       'add_friend': 'Добавить',
@@ -15249,6 +15544,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Эксклюзивный контент для премиум участников',
       'parent_panel': 'Панель Родителя',
       'parent_panel_desc': 'Следите за успехами вашего ребёнка',
+      'parent_panel_premium_required': 'Нужен Premium',
+      'parent_panel_premium_required_desc':
+          'Родительская панель только для участников Premium. Оформите подписку, чтобы пользоваться.',
       'parent_world_how_start': 'Как вы хотите начать?',
       'parent_world_start_on_device': 'Начать на этом устройстве',
       'parent_world_send_family_remote': 'Отправить запрос семье (удалённо)',
@@ -15297,6 +15595,8 @@ class AppLocalizations {
       'error_occurred': 'Произошла ошибка',
       'premium_activated': 'Ваша премиум подписка активирована! 🎉',
       'premium_coming_soon': 'Премиум подписка скоро будет активна! 👑',
+      'premium_web_iap_not_supported':
+          'Встроенные покупки в веб-версии не поддерживаются.',
       'premium_badge': 'ПРО',
       'restore_purchases': 'Восстановить Покупки',
       'checking_purchases': 'Проверка покупок...',
@@ -15407,6 +15707,12 @@ class AppLocalizations {
           '通知を{count}件すべて削除しますか？',
       'notifications_body_rename': '{old}さんが名前を{new}に変更しました。',
       'notifications_body_duel_invite_timeout': '招待に返事がありません。',
+      'notifications_body_child_badge': '{child}が新しいバッジを獲得：{badge}',
+      'notifications_body_family_story': '{parent}がストーリーを提案：{world}',
+      'notifications_body_weekly_report_ready':
+          '{child}の週次レポートを共有できます。',
+      'notifications_body_child_daily_challenge':
+          '{child}が今日のデイリーチャレンジを完了！',
       'notifications_swipe_delete': '削除',
       'notifications_panel_subtitle': '家族からのお知らせ',
       'guest_user': 'ゲストユーザー',
@@ -15475,6 +15781,12 @@ class AppLocalizations {
       'sign_up': '登録',
       'login_error': 'ログインエラー',
       'skip_description': 'デモモードで閲覧',
+      'friends_player_code_title': 'プレイヤーコード',
+      'friends_player_code_your_label': 'あなたのコード：',
+      'friends_player_code_instructions':
+          '友だちを追加するには：\n1. 友だちのMTNコードを聞く\n2. 「検索」タブでコードを入力\n3. 友だちとして追加\n4. デュエルに招待！',
+      'friends_player_code_ok': 'わかった',
+      'friends_player_code_copied': 'プレイヤーコードをコピーしました：{code}',
       'privacy_terms_agreement': '続けることで、利用規約とプライバシーポリシーに同意します。',
 
       // Settings
@@ -15886,6 +16198,13 @@ class AppLocalizations {
       'boss_won': '勝った！',
       'friend_race': 'フレンドレース',
       'math_duel': '数学対決',
+      'friend_duel_pick_title': '誰とレースする？',
+      'friend_duel_subtitle':
+          'アプリに登録していて、友だちリストにいるプレイヤーだけがここに表示されます。',
+      'friend_duel_connecting': '友だちと準備中…',
+      'friend_duel_guest': 'アカウントを作成して友だちを追加すると、誰かとレースできます。',
+      'friend_duel_empty':
+          'まだ友だちがいません。アプリを入れて登録してもらい、コードで追加しましょう。',
       'searching_for_opponent': '対戦相手を検索中...',
       'result_congratulations': 'おめでとう！',
       'result_draw': '引き分け！',
@@ -15988,6 +16307,7 @@ class AppLocalizations {
       'no_requests_description': '新しいリクエストはここに表示されます。',
       'search_users_title': 'ユーザー検索',
       'search_users_description': '名前やIDで検索できます。',
+      'friends_search_hint': 'MTNコードまたは名前で検索...',
       'search_hint': '名前かIDを入力...',
       'search': '検索',
       'add_friend': '追加',
@@ -16558,6 +16878,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'プレミアム会員限定コンテンツ',
       'parent_panel': '保護者パネル',
       'parent_panel_desc': 'お子様の成長を追跡',
+      'parent_panel_premium_required': 'プレミアムが必要',
+      'parent_panel_premium_required_desc':
+          '保護者パネルはプレミアム会員専用です。利用するにはアップグレードしてください。',
       'parent_world_how_start': 'どのように始めますか？',
       'parent_world_start_on_device': 'この端末で始める',
       'parent_world_send_family_remote': '家族にリクエストを送る（リモート）',
@@ -16606,6 +16929,7 @@ class AppLocalizations {
       'error_occurred': 'エラーが発生しました',
       'premium_activated': 'プレミアム会員が有効になりました！🎉',
       'premium_coming_soon': 'プレミアム会員は近日有効になります！👑',
+      'premium_web_iap_not_supported': 'Web版ではアプリ内課金に対応していません。',
       'premium_badge': 'プロ',
       'restore_purchases': '購入を復元',
       'checking_purchases': '購入を確認中...',
@@ -16716,6 +17040,12 @@ class AppLocalizations {
           '알림 {count}개를 모두 삭제할까요?',
       'notifications_body_rename': '{old}님이 이름을 {new}(으)로 변경했습니다.',
       'notifications_body_duel_invite_timeout': '초대에 응답이 없습니다.',
+      'notifications_body_child_badge': '{child}님이 새 배지를 획득했어요: {badge}',
+      'notifications_body_family_story': '{parent}님이 이야기를 추천했어요: {world}',
+      'notifications_body_weekly_report_ready':
+          '{child}의 주간 리포트를 공유할 수 있어요.',
+      'notifications_body_child_daily_challenge':
+          '{child}님이 오늘의 데일리 챌린지를 완료했어요!',
       'notifications_swipe_delete': '삭제',
       'notifications_panel_subtitle': '가족 소식',
       'guest_user': '게스트 사용자',
@@ -16784,6 +17114,12 @@ class AppLocalizations {
       'sign_up': '가입',
       'login_error': '로그인 오류',
       'skip_description': '데모 모드로 둘러보기',
+      'friends_player_code_title': '플레이어 코드',
+      'friends_player_code_your_label': '내 코드:',
+      'friends_player_code_instructions':
+          '친구를 추가하려면:\n1. 친구에게 MTN 코드를 물어보세요\n2. 검색 탭에서 코드를 입력하세요\n3. 친구로 추가하세요\n4. 결투에 초대하세요!',
+      'friends_player_code_ok': '알겠어요',
+      'friends_player_code_copied': '플레이어 코드가 복사됨: {code}',
       'privacy_terms_agreement': '계속하면 서비스 약관 및 개인정보 보호정책에 동의하게 됩니다.',
 
       // Settings
@@ -17196,6 +17532,13 @@ class AppLocalizations {
       'boss_won': '승리했다!',
       'friend_race': '친구 레이스',
       'math_duel': '수학 대결',
+      'friend_duel_pick_title': '누구와 경주할까요?',
+      'friend_duel_subtitle':
+          '앱에 가입했고 친구 목록에 있는 플레이어만 여기에 표시됩니다.',
+      'friend_duel_connecting': '친구와 준비 중…',
+      'friend_duel_guest': '계정을 만들고 친구를 추가하면 다른 사람과 경주할 수 있어요.',
+      'friend_duel_empty':
+          '아직 친구가 없어요. 앱을 설치하고 가입한 사람을 코드로 추가해 보세요.',
       'searching_for_opponent': '상대 찾는 중...',
       'result_congratulations': '축하합니다!',
       'result_draw': '무승부!',
@@ -17298,6 +17641,7 @@ class AppLocalizations {
       'no_requests_description': '새 요청이 여기에 표시됩니다.',
       'search_users_title': '사용자 검색',
       'search_users_description': '이름이나 ID로 검색하세요.',
+      'friends_search_hint': 'MTN 코드 또는 이름 검색...',
       'search_hint': '이름 또는 ID 입력...',
       'search': '검색',
       'add_friend': '추가',
@@ -17868,6 +18212,9 @@ class AppLocalizations {
       'special_game_modes_desc': '프리미엄 회원 전용 콘텐츠',
       'parent_panel': '부모 패널',
       'parent_panel_desc': '자녀의 진행 상황 추적',
+      'parent_panel_premium_required': '프리미엄 필요',
+      'parent_panel_premium_required_desc':
+          '부모 패널은 프리미엄 회원 전용입니다. 이용하려면 업그레이드하세요.',
       'parent_world_how_start': '어떻게 시작할까요?',
       'parent_world_start_on_device': '이 기기에서 시작',
       'parent_world_send_family_remote': '가족에게 요청 보내기 (원격)',
@@ -17915,6 +18262,7 @@ class AppLocalizations {
       'error_occurred': '오류가 발생했습니다',
       'premium_activated': '프리미엄 멤버십이 활성화되었습니다! 🎉',
       'premium_coming_soon': '프리미엄 멤버십이 곧 활성화됩니다! 👑',
+      'premium_web_iap_not_supported': '웹에서는 인앱 구매가 지원되지 않습니다.',
       'premium_badge': '프로',
       'restore_purchases': '구매 복원',
       'checking_purchases': '구매 확인 중...',
@@ -18041,6 +18389,13 @@ class AppLocalizations {
       'boss_won': 'won!',
       'friend_race': 'दोस्तों की दौड़',
       'math_duel': 'गणित द्वंद्व',
+      'friend_duel_pick_title': 'आप किसके साथ दौड़ेंगे?',
+      'friend_duel_subtitle':
+          'यहाँ केवल वे खिलाड़ी दिखते हैं जो ऐप में पंजीकृत हैं और आपकी दोस्त सूची में हैं।',
+      'friend_duel_connecting': 'आपके दोस्त के साथ तैयार हो रहे हैं…',
+      'friend_duel_guest': 'किसी के साथ दौड़ने के लिए खाता बनाएँ और दोस्त जोड़ें।',
+      'friend_duel_empty':
+          'अभी कोई दोस्त नहीं। किसी से ऐप इंस्टॉल करके पंजीकरण करवाएँ, फिर उसके कोड से जोड़ें।',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -18281,6 +18636,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} ने नाम बदलकर {new} कर दिया।',
       'notifications_body_duel_invite_timeout':
           'आमंत्रण पर कोई प्रतिक्रिया नहीं।',
+      'notifications_body_child_badge': '{child} ने नया बैज जीता: {badge}',
+      'notifications_body_family_story': '{parent} ने एक कहानी सुझाई: {world}',
+      'notifications_body_weekly_report_ready':
+          '{child} की साप्ताहिक रिपोर्ट साझा करने के लिए तैयार है।',
+      'notifications_body_child_daily_challenge':
+          '{child} ने आज की दैनिक चुनौती पूरी की!',
       'notifications_swipe_delete': 'हटाएँ',
       'notifications_panel_subtitle': 'आपके परिवार की खबरें',
       'guest_user': 'मेहमान उपयोगकर्ता',
@@ -18357,6 +18718,12 @@ class AppLocalizations {
       'sign_up': 'साइन अप',
       'login_error': 'साइन इन त्रुटि',
       'skip_description': 'डेमो मोड में देखें',
+      'friends_player_code_title': 'खिलाड़ी कोड',
+      'friends_player_code_your_label': 'आपका कोड:',
+      'friends_player_code_instructions':
+          'दोस्त जोड़ने के लिए:\n1. अपने दोस्त से उनका MTN कोड माँगें\n2. खोज टैब में कोड टाइप करें\n3. दोस्त के रूप में जोड़ें\n4. द्वंद्व में आमंत्रित करें!',
+      'friends_player_code_ok': 'समझ गया',
+      'friends_player_code_copied': 'खिलाड़ी कोड कॉपी किया गया: {code}',
       'privacy_terms_agreement':
           'जारी रखकर, आप हमारी सेवा की शर्तों और गोपनीयता नीति से सहमत होते हैं।',
       'select_language': 'भाषा चुनें',
@@ -18788,19 +19155,22 @@ class AppLocalizations {
       'start_exclamation': 'शुरू करें!',
       'play_again_action': 'फिर खेलें',
       'challenge_completed': 'पूर्ण!',
-      'friends_tab': 'Friends',
-      'requests_tab': 'Requests',
-      'search_tab': 'Search',
-      'guest_cannot_add_friends': 'Guest users cannot add friends. Create an account!',
-      'friends_locked_title': 'Friends Locked',
-      'friends_locked_description': 'You need to create an account to add friends and see friend requests.',
-      'no_friends_title': 'No Friends Yet',
-      'no_friends_description': 'Search for users in the search tab to add friends.',
-      'no_requests_title': 'No Pending Requests',
-      'no_requests_description': 'New friend requests will appear here.',
-      'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
-      'search_hint': 'Enter ID or name...',
+      'friends_tab': 'दोस्त',
+      'requests_tab': 'अनुरोध',
+      'search_tab': 'खोज',
+      'guest_cannot_add_friends':
+          'अतिथि उपयोगकर्ता दोस्त नहीं जोड़ सकते। कृपया खाता बनाएं!',
+      'friends_locked_title': 'दोस्त अभी उपलब्ध नहीं',
+      'friends_locked_description':
+          'दोस्त जोड़ने और अनुरोध देखने के लिए खाता बनाना होगा।',
+      'no_friends_title': 'अभी कोई दोस्त नहीं',
+      'no_friends_description': 'खोज टैब में उपयोगकर्ता खोजकर दोस्त जोड़ें।',
+      'no_requests_title': 'कोई लंबित अनुरोध नहीं',
+      'no_requests_description': 'नए दोस्ती के अनुरोध यहाँ दिखेंगे।',
+      'search_users_title': 'उपयोगकर्ता खोजें',
+      'search_users_description': 'नाम या आईडी से उपयोगकर्ता खोजें।',
+      'friends_search_hint': 'MTN कोड या नाम खोजें...',
+      'search_hint': 'नाम या आईडी दर्ज करें...',
       'search': 'खोज',
       'add_friend': 'जोड़ें',
       'remove_friend': 'Remove Friend',
@@ -19253,6 +19623,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'प्रीमियम सदस्यों के लिए विशेष सामग्री',
       'parent_panel': 'अभिभावक पैनल',
       'parent_panel_desc': 'अपने बच्चे की प्रगति देखें',
+      'parent_panel_premium_required': 'प्रीमियम आवश्यक',
+      'parent_panel_premium_required_desc':
+          'अभिभावक पैनल केवल प्रीमियम सदस्यों के लिए है। उपयोग के लिए अपग्रेड करें।',
       'parent_world_how_start': 'आप कैसे शुरू करना चाहते हैं?',
       'parent_world_start_on_device': 'इस डिवाइस पर शुरू करें',
       'parent_world_send_family_remote': 'परिवार के सदस्यों को अनुरोध भेजें (रिमोट)',
@@ -19301,6 +19674,8 @@ class AppLocalizations {
       'error_occurred': 'एक त्रुटि हुई',
       'premium_activated': 'आपकी प्रीमियम सदस्यता सक्रिय हो गई! 🎉',
       'premium_coming_soon': 'प्रीमियम सदस्यता जल्द सक्रिय होगी! 👑',
+      'premium_web_iap_not_supported':
+          'वेब पर इन-ऐप खरीदारी समर्थित नहीं है।',
       'premium_badge': 'प्रो',
       'restore_purchases': 'खरीदारी पुनर्स्थापित करें',
       'checking_purchases': 'खरीदारी जांच रहा है...',
@@ -19427,6 +19802,13 @@ class AppLocalizations {
       'boss_won': 'won!',
       'friend_race': 'دوستوں کی دوڑ',
       'math_duel': 'ریاضی مقابلہ',
+      'friend_duel_pick_title': 'آپ کس کے ساتھ دوڑ لگائیں گے؟',
+      'friend_duel_subtitle':
+          'یہاں صرف وہ کھلاڑی نظر آتے ہیں جو ایپ میں رجسٹر ہیں اور آپ کی دوستوں کی فہرست میں ہیں۔',
+      'friend_duel_connecting': 'آپ کے دوست کے ساتھ تیاری ہو رہی ہے…',
+      'friend_duel_guest': 'کسی کے ساتھ دوڑ کے لیے اکاؤنٹ بنائیں اور دوست شامل کریں۔',
+      'friend_duel_empty':
+          'ابھی کوئی دوست نہیں۔ کسی سے ایپ انسٹال کر کے رجسٹر ہونے کہیں، پھر ان کا کوڈ دے کر شامل کریں۔',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -19667,6 +20049,12 @@ class AppLocalizations {
           'کیا تمام {count} اطلاعات حذف کریں؟',
       'notifications_body_rename': '{old} نے نام {new} کر دیا۔',
       'notifications_body_duel_invite_timeout': 'دعوت کا کوئی جواب نہیں۔',
+      'notifications_body_child_badge': '{child} نے نیا بیج حاصل کیا: {badge}',
+      'notifications_body_family_story': '{parent} نے کہانی تجویز کی: {world}',
+      'notifications_body_weekly_report_ready':
+          '{child} کی ہفتہ وار رپورٹ شیئر کرنے کے لیے تیار ہے۔',
+      'notifications_body_child_daily_challenge':
+          '{child} نے آج کی روزانہ چیلنج مکمل کی!',
       'notifications_swipe_delete': 'حذف کریں',
       'notifications_panel_subtitle': 'خاندان کی خبریں',
       'guest_user': 'مہمان صارف',
@@ -19743,6 +20131,12 @@ class AppLocalizations {
       'sign_up': 'سائن اپ',
       'login_error': 'سائن ان میں خرابی',
       'skip_description': 'ڈیمو موڈ میں دیکھیں',
+      'friends_player_code_title': 'کھلاڑی کا کوڈ',
+      'friends_player_code_your_label': 'آپ کا کوڈ:',
+      'friends_player_code_instructions':
+          'دوستوں کو شامل کرنے کے لیے:\n1. اپنے دوست سے ان کا MTN کوڈ مانگیں\n2. تلاش کے ٹیب میں کوڈ لکھیں\n3. دوست کے طور پر شامل کریں\n4. دوئل کی دعوت دیں!',
+      'friends_player_code_ok': 'سمجھ گیا',
+      'friends_player_code_copied': 'کھلاڑی کا کوڈ کاپی ہوا: {code}',
       'privacy_terms_agreement':
           'جاری رکھ کر، آپ ہماری سروس کی شرائط اور رازداری کی پالیسی سے اتفاق کرتے ہیں۔',
       'select_language': 'زبان منتخب کریں',
@@ -20174,19 +20568,23 @@ class AppLocalizations {
       'start_exclamation': 'شروع کریں!',
       'play_again_action': 'دوبارہ کھیلیں',
       'challenge_completed': 'مکمل!',
-      'friends_tab': 'Friends',
-      'requests_tab': 'Requests',
-      'search_tab': 'Search',
-      'guest_cannot_add_friends': 'Guest users cannot add friends. Create an account!',
-      'friends_locked_title': 'Friends Locked',
-      'friends_locked_description': 'You need to create an account to add friends and see friend requests.',
-      'no_friends_title': 'No Friends Yet',
-      'no_friends_description': 'Search for users in the search tab to add friends.',
-      'no_requests_title': 'No Pending Requests',
-      'no_requests_description': 'New friend requests will appear here.',
-      'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
-      'search_hint': 'Enter ID or name...',
+      'friends_tab': 'دوست',
+      'requests_tab': 'درخواستیں',
+      'search_tab': 'تلاش',
+      'guest_cannot_add_friends':
+          'مہمان صارف دوست نہیں شامل کر سکتے۔ اکاؤنٹ بنائیں!',
+      'friends_locked_title': 'دوست فیچر بند',
+      'friends_locked_description':
+          'دوست شامل کرنے اور درخواستیں دیکھنے کے لیے اکاؤنٹ بنانا ہوگا۔',
+      'no_friends_title': 'ابھی کوئی دوست نہیں',
+      'no_friends_description':
+          'تلاش کے ٹیب میں صارف تلاش کر کے دوست شامل کریں۔',
+      'no_requests_title': 'کوئی زیر التواء درخواست نہیں',
+      'no_requests_description': 'نئی دوستی کی درخواستیں یہاں نظر آئیں گی۔',
+      'search_users_title': 'صارف تلاش کریں',
+      'search_users_description': 'نام یا آئی ڈی سے تلاش کریں۔',
+      'friends_search_hint': 'MTN کوڈ یا نام تلاش کریں...',
+      'search_hint': 'نام یا آئی ڈی درج کریں...',
       'search': 'تلاش',
       'add_friend': 'اضافہ',
       'remove_friend': 'Remove Friend',
@@ -20640,6 +21038,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'پریمیم اراکین کے لیے خصوصی مواد',
       'parent_panel': 'والدین پینل',
       'parent_panel_desc': 'اپنے بچے کی پیشرفت دیکھیں',
+      'parent_panel_premium_required': 'پریمیم درکار',
+      'parent_panel_premium_required_desc':
+          'والدین پینل صرف پریمیم ممبرز کے لیے ہے۔ استعمال کے لیے اپ گریڈ کریں۔',
       'parent_world_how_start': 'آپ کیسے شروع کرنا چاہیں گے؟',
       'parent_world_start_on_device': 'اس ڈیوائس پر شروع کریں',
       'parent_world_send_family_remote': 'خاندان کے اراکین کو درخواست بھیجیں (ریموٹ)',
@@ -20688,6 +21089,8 @@ class AppLocalizations {
       'error_occurred': 'ایک خرابی پیش آئی',
       'premium_activated': 'آپ کی پریمیم رکنیت فعال ہو گئی! 🎉',
       'premium_coming_soon': 'پریمیم رکنیت جلد فعال ہو گی! 👑',
+      'premium_web_iap_not_supported':
+          'ویب پر ان-ایپ خریداری معاون نہیں۔',
       'premium_badge': 'پریمیم',
       'restore_purchases': 'خریداری بحال کریں',
       'checking_purchases': 'خریداریاں چیک ہو رہی ہیں...',
@@ -20814,6 +21217,14 @@ class AppLocalizations {
       'boss_won': 'won!',
       'friend_race': 'Corrida com Amigos',
       'math_duel': 'Duelo de matemática',
+      'friend_duel_pick_title': 'Com quem você vai correr?',
+      'friend_duel_subtitle':
+          'Aparecem aqui apenas jogadores cadastrados no app que estão na sua lista de amigos.',
+      'friend_duel_connecting': 'Preparando com seu amigo…',
+      'friend_duel_guest':
+          'Crie uma conta e adicione amigos para competir com alguém.',
+      'friend_duel_empty':
+          'Ainda sem amigos. Peça para alguém instalar o app e se cadastrar, depois adicione com o código.',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -21055,6 +21466,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} mudou o nome para {new}.',
       'notifications_body_duel_invite_timeout':
           'Sem resposta ao seu convite.',
+      'notifications_body_child_badge': '{child} ganhou um novo emblema: {badge}',
+      'notifications_body_family_story': '{parent} sugeriu uma história: {world}',
+      'notifications_body_weekly_report_ready':
+          'O relatório semanal de {child} está pronto para partilhar.',
+      'notifications_body_child_daily_challenge':
+          '{child} concluiu o desafio diário de hoje!',
       'notifications_swipe_delete': 'Apagar',
       'notifications_panel_subtitle': 'Novidades da sua família',
       'guest_user': 'Utilizador convidado',
@@ -21131,6 +21548,12 @@ class AppLocalizations {
       'sign_up': 'Registar',
       'login_error': 'Erro de início de sessão',
       'skip_description': 'Navegar em modo demonstração',
+      'friends_player_code_title': 'Código do jogador',
+      'friends_player_code_your_label': 'Seu código:',
+      'friends_player_code_instructions':
+          'Para adicionar amigos:\n1. Peça o código MTN do seu amigo\n2. Digite o código no separador Pesquisar\n3. Adicione como amigo\n4. Convide para um duelo!',
+      'friends_player_code_ok': 'Entendi',
+      'friends_player_code_copied': 'Código do jogador copiado: {code}',
       'privacy_terms_agreement':
           'Ao continuar, aceita os nossos Termos de Serviço e a Política de Privacidade.',
       'select_language': 'Selecionar idioma',
@@ -21562,19 +21985,23 @@ class AppLocalizations {
       'start_exclamation': 'COMEÇAR!',
       'play_again_action': 'JOGAR NOVAMENTE',
       'challenge_completed': 'CONCLUÍDO!',
-      'friends_tab': 'Friends',
-      'requests_tab': 'Requests',
-      'search_tab': 'Search',
-      'guest_cannot_add_friends': 'Guest users cannot add friends. Create an account!',
-      'friends_locked_title': 'Friends Locked',
-      'friends_locked_description': 'You need to create an account to add friends and see friend requests.',
-      'no_friends_title': 'No Friends Yet',
-      'no_friends_description': 'Search for users in the search tab to add friends.',
-      'no_requests_title': 'No Pending Requests',
-      'no_requests_description': 'New friend requests will appear here.',
-      'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
-      'search_hint': 'Enter ID or name...',
+      'friends_tab': 'Amigos',
+      'requests_tab': 'Pedidos',
+      'search_tab': 'Buscar',
+      'guest_cannot_add_friends':
+          'Contas convidado não podem adicionar amigos. Crie uma conta!',
+      'friends_locked_title': 'Amigos bloqueados',
+      'friends_locked_description':
+          'Crie uma conta para adicionar amigos e ver pedidos.',
+      'no_friends_title': 'Ainda sem amigos',
+      'no_friends_description':
+          'Pesquise utilizadores no separador Buscar para adicionar amigos.',
+      'no_requests_title': 'Sem pedidos pendentes',
+      'no_requests_description': 'Novos pedidos de amizade aparecerão aqui.',
+      'search_users_title': 'Pesquisar utilizadores',
+      'search_users_description': 'Pesquise por nome ou ID.',
+      'friends_search_hint': 'Pesquisar código MTN ou nome...',
+      'search_hint': 'Introduza nome ou ID...',
       'search': 'Buscar',
       'add_friend': 'Adicionar',
       'remove_friend': 'Remove Friend',
@@ -22028,6 +22455,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Conteúdo exclusivo para membros premium',
       'parent_panel': 'Painel dos Pais',
       'parent_panel_desc': 'Acompanhe o progresso do seu filho',
+      'parent_panel_premium_required': 'Premium necessário',
+      'parent_panel_premium_required_desc':
+          'O painel dos pais é só para assinantes Premium. Faça upgrade para usar.',
       'parent_world_how_start': 'Como você quer começar?',
       'parent_world_start_on_device': 'Começar neste dispositivo',
       'parent_world_send_family_remote': 'Enviar pedido aos familiares (remoto)',
@@ -22076,6 +22506,8 @@ class AppLocalizations {
       'error_occurred': 'Ocorreu um erro',
       'premium_activated': 'Sua assinatura premium foi ativada! 🎉',
       'premium_coming_soon': 'Assinatura premium estará ativa em breve! 👑',
+      'premium_web_iap_not_supported':
+          'Compras no aplicativo não são suportadas na web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Restaurar Compras',
       'checking_purchases': 'Verificando compras...',
@@ -22202,6 +22634,14 @@ class AppLocalizations {
       'boss_won': 'won!',
       'friend_race': 'Gara con Amici',
       'math_duel': 'Duello di matematica',
+      'friend_duel_pick_title': 'Contro chi correrai?',
+      'friend_duel_subtitle':
+          'Qui compaiono solo i giocatori registrati nell\'app e presenti nella tua lista amici.',
+      'friend_duel_connecting': 'Preparazione con il tuo amico…',
+      'friend_duel_guest':
+          'Crea un account e aggiungi amici per correre contro qualcuno.',
+      'friend_duel_empty':
+          'Ancora nessun amico. Chiedi a qualcuno di installare l\'app e registrarsi, poi aggiungilo con il suo codice.',
       'searching_for_opponent': 'Searching for Opponent...',
       'result_congratulations': 'CONGRATULATIONS!',
       'result_draw': 'DRAW!',
@@ -22443,6 +22883,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} ha cambiato nome in {new}.',
       'notifications_body_duel_invite_timeout':
           'Nessuna risposta al tuo invito.',
+      'notifications_body_child_badge': '{child} ha ottenuto un nuovo badge: {badge}',
+      'notifications_body_family_story': '{parent} ha suggerito una storia: {world}',
+      'notifications_body_weekly_report_ready':
+          'Il report settimanale di {child} è pronto da condividere.',
+      'notifications_body_child_daily_challenge':
+          '{child} ha completato la sfida giornaliera di oggi!',
       'notifications_swipe_delete': 'Elimina',
       'notifications_panel_subtitle': 'Novità dalla tua famiglia',
       'guest_user': 'Utente ospite',
@@ -22519,6 +22965,12 @@ class AppLocalizations {
       'sign_up': 'Registrati',
       'login_error': 'Errore di accesso',
       'skip_description': 'Sfoglia in modalità demo',
+      'friends_player_code_title': 'Codice giocatore',
+      'friends_player_code_your_label': 'Il tuo codice:',
+      'friends_player_code_instructions':
+          'Per aggiungere amici:\n1. Chiedi al tuo amico il suo codice MTN\n2. Scrivi il codice nella scheda Cerca\n3. Aggiungi come amico\n4. Invitalo a un duello!',
+      'friends_player_code_ok': 'Ho capito',
+      'friends_player_code_copied': 'Codice giocatore copiato: {code}',
       'privacy_terms_agreement':
           'Continuando, accetti i nostri Termini di servizio e l\'Informativa sulla privacy.',
       'select_language': 'Seleziona lingua',
@@ -22950,19 +23402,23 @@ class AppLocalizations {
       'start_exclamation': 'INIZIA!',
       'play_again_action': 'GIOCA ANCORA',
       'challenge_completed': 'COMPLETATO!',
-      'friends_tab': 'Friends',
-      'requests_tab': 'Requests',
-      'search_tab': 'Search',
-      'guest_cannot_add_friends': 'Guest users cannot add friends. Create an account!',
-      'friends_locked_title': 'Friends Locked',
-      'friends_locked_description': 'You need to create an account to add friends and see friend requests.',
-      'no_friends_title': 'No Friends Yet',
-      'no_friends_description': 'Search for users in the search tab to add friends.',
-      'no_requests_title': 'No Pending Requests',
-      'no_requests_description': 'New friend requests will appear here.',
-      'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
-      'search_hint': 'Enter ID or name...',
+      'friends_tab': 'Amici',
+      'requests_tab': 'Richieste',
+      'search_tab': 'Cerca',
+      'guest_cannot_add_friends':
+          'Gli ospiti non possono aggiungere amici. Crea un account!',
+      'friends_locked_title': 'Amici non disponibili',
+      'friends_locked_description':
+          'Devi creare un account per aggiungere amici e vedere le richieste.',
+      'no_friends_title': 'Ancora nessun amico',
+      'no_friends_description':
+          'Cerca utenti nella scheda Cerca per aggiungere amici.',
+      'no_requests_title': 'Nessuna richiesta in sospeso',
+      'no_requests_description': 'Le nuove richieste di amicizia appariranno qui.',
+      'search_users_title': 'Cerca utenti',
+      'search_users_description': 'Cerca per nome o ID.',
+      'friends_search_hint': 'Cerca codice MTN o nome...',
+      'search_hint': 'Inserisci nome o ID...',
       'search': 'Cerca',
       'add_friend': 'Aggiungi',
       'remove_friend': 'Remove Friend',
@@ -23416,6 +23872,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Contenuto esclusivo per membri premium',
       'parent_panel': 'Pannello Genitori',
       'parent_panel_desc': 'Monitora i progressi di tuo figlio',
+      'parent_panel_premium_required': 'Richiesto Premium',
+      'parent_panel_premium_required_desc':
+          'Il pannello genitori è solo per membri Premium. Passa a Premium per usarlo.',
       'parent_world_how_start': 'Come vuoi iniziare?',
       'parent_world_start_on_device': 'Inizia su questo dispositivo',
       'parent_world_send_family_remote': 'Invia richiesta ai familiari (da remoto)',
@@ -23464,6 +23923,8 @@ class AppLocalizations {
       'error_occurred': 'Si è verificato un errore',
       'premium_activated': 'Il tuo abbonamento premium è stato attivato! 🎉',
       'premium_coming_soon': 'L\'abbonamento premium sarà attivo presto! 👑',
+      'premium_web_iap_not_supported':
+          'Gli acquisti in-app non sono supportati sul web.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Ripristina Acquisti',
       'checking_purchases': 'Verifica acquisti in corso...',
@@ -23590,6 +24051,14 @@ class AppLocalizations {
       'boss_won': 'wygrana!',
       'friend_race': 'Wyścig z Przyjaciółmi',
       'math_duel': 'Pojedynek matematyczny',
+      'friend_duel_pick_title': 'Z kim będziesz się ścigać?',
+      'friend_duel_subtitle':
+          'Tutaj widoczni są tylko gracze zarejestrowani w aplikacji i znajdujący się na twojej liście znajomych.',
+      'friend_duel_connecting': 'Przygotowanie z przyjacielem…',
+      'friend_duel_guest':
+          'Utwórz konto i dodaj znajomych, aby ścigać się z kimś.',
+      'friend_duel_empty':
+          'Na razie brak znajomych. Poproś kogoś o instalację aplikacji i rejestrację, potem dodaj go kodem.',
       'searching_for_opponent': 'Szukam przeciwnika...',
       'result_congratulations': 'GRATULACJE!',
       'result_draw': 'REMIS!',
@@ -23831,6 +24300,12 @@ class AppLocalizations {
       'notifications_body_rename': '{old} zmienił(a) nazwę na {new}.',
       'notifications_body_duel_invite_timeout':
           'Brak odpowiedzi na zaproszenie.',
+      'notifications_body_child_badge': '{child} zdobył(a) nową odznakę: {badge}',
+      'notifications_body_family_story': '{parent} zaproponował(a) historię: {world}',
+      'notifications_body_weekly_report_ready':
+          'Tygodniowy raport dla {child} jest gotowy do udostępnienia.',
+      'notifications_body_child_daily_challenge':
+          '{child} ukończył(a) dzisiejsze wyzwanie dnia!',
       'notifications_swipe_delete': 'Usuń',
       'notifications_panel_subtitle': 'Wiadomości od rodziny',
       'guest_user': 'Użytkownik gość',
@@ -23907,6 +24382,12 @@ class AppLocalizations {
       'sign_up': 'Zarejestruj się',
       'login_error': 'Błąd logowania',
       'skip_description': 'Przeglądaj w trybie demo',
+      'friends_player_code_title': 'Kod gracza',
+      'friends_player_code_your_label': 'Twój kod:',
+      'friends_player_code_instructions':
+          'Aby dodać znajomych:\n1. Poproś znajomego o jego kod MTN\n2. Wpisz kod w zakładce Szukaj\n3. Dodaj jako znajomego\n4. Zaproś na pojedynek!',
+      'friends_player_code_ok': 'Rozumiem',
+      'friends_player_code_copied': 'Skopiowano kod gracza: {code}',
       'privacy_terms_agreement':
           'Kontynuując, akceptujesz Regulamin i Politykę prywatności.',
       'select_language': 'Wybierz język',
@@ -24338,19 +24819,23 @@ class AppLocalizations {
       'start_exclamation': 'ROZPOCZNIJ!',
       'play_again_action': 'GRAJ PONOWNIE',
       'challenge_completed': 'UKOŃCZONE!',
-      'friends_tab': 'Friends',
-      'requests_tab': 'Requests',
-      'search_tab': 'Search',
-      'guest_cannot_add_friends': 'Guest users cannot add friends. Create an account!',
-      'friends_locked_title': 'Friends Locked',
-      'friends_locked_description': 'You need to create an account to add friends and see friend requests.',
-      'no_friends_title': 'No Friends Yet',
-      'no_friends_description': 'Search for users in the search tab to add friends.',
-      'no_requests_title': 'No Pending Requests',
-      'no_requests_description': 'New friend requests will appear here.',
-      'search_users_title': 'Search Users',
-      'search_users_description': 'You can search for users by ID or name.',
-      'search_hint': 'Enter ID or name...',
+      'friends_tab': 'Znajomi',
+      'requests_tab': 'Prośby',
+      'search_tab': 'Szukaj',
+      'guest_cannot_add_friends':
+          'Goście nie mogą dodawać znajomych. Utwórz konto!',
+      'friends_locked_title': 'Znajomi niedostępni',
+      'friends_locked_description':
+          'Utwórz konto, aby dodawać znajomych i widzieć prośby.',
+      'no_friends_title': 'Brak znajomych',
+      'no_friends_description':
+          'Wyszukaj użytkowników w zakładce Szukaj, aby dodać znajomych.',
+      'no_requests_title': 'Brak oczekujących próśb',
+      'no_requests_description': 'Nowe zaproszenia pojawią się tutaj.',
+      'search_users_title': 'Szukaj użytkowników',
+      'search_users_description': 'Szukaj po nazwie lub ID.',
+      'friends_search_hint': 'Szukaj kodu MTN lub nazwy...',
+      'search_hint': 'Wpisz nazwę lub ID...',
       'search': 'Szukaj',
       'add_friend': 'Dodaj',
       'remove_friend': 'Remove Friend',
@@ -24803,6 +25288,9 @@ class AppLocalizations {
       'special_game_modes_desc': 'Ekskluzywna treść dla członków premium',
       'parent_panel': 'Panel Rodzica',
       'parent_panel_desc': 'Śledź postępy swojego dziecka',
+      'parent_panel_premium_required': 'Wymagane Premium',
+      'parent_panel_premium_required_desc':
+          'Panel rodzica jest tylko dla członków Premium. Ulepsz, aby korzystać.',
       'parent_world_how_start': 'Jak chcesz rozpocząć?',
       'parent_world_start_on_device': 'Rozpocznij na tym urządzeniu',
       'parent_world_send_family_remote': 'Wyślij prośbę do rodziny (zdalnie)',
@@ -24851,6 +25339,8 @@ class AppLocalizations {
       'error_occurred': 'Wystąpił błąd',
       'premium_activated': 'Twoje członkostwo premium zostało aktywowane! 🎉',
       'premium_coming_soon': 'Członkostwo premium wkrótce będzie aktywne! 👑',
+      'premium_web_iap_not_supported':
+          'Zakupy w aplikacji nie są obsługiwane w przeglądarce.',
       'premium_badge': 'PRO',
       'restore_purchases': 'Przywróć Zakupy',
       'checking_purchases': 'Sprawdzanie zakupów...',

@@ -18,7 +18,7 @@ class BottomActionButton extends StatelessWidget {
     this.icon,
     required this.onPressed,
     this.width,
-    this.height = 76,
+    this.height = 82,
     this.fontSize = 13,
     this.textColor = Colors.white,
   });
@@ -28,7 +28,8 @@ class BottomActionButton extends StatelessWidget {
     final Widget top = icon ??
         Text(
           emoji,
-          style: TextStyle(fontSize: fontSize + 4),
+          textScaler: const TextScaler.linear(1.0),
+          style: TextStyle(fontSize: fontSize + 3),
         );
 
     return Container(
@@ -45,13 +46,13 @@ class BottomActionButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 top,
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     return FittedBox(
@@ -61,6 +62,7 @@ class BottomActionButton extends StatelessWidget {
                         constraints: BoxConstraints(maxWidth: constraints.maxWidth),
                         child: Text(
                           text,
+                          textScaler: const TextScaler.linear(1.0),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           softWrap: true,

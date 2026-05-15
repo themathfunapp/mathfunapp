@@ -162,7 +162,7 @@ class _MagicClockGameState extends State<MagicClockGame> {
 
   void _showResultDialog(int stars, int coinsEarned) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'tr'));
+    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'en'));
 
     showDialog(
       context: context,
@@ -238,7 +238,7 @@ class _MagicClockGameState extends State<MagicClockGame> {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'tr'));
+    final localizations = AppLocalizations(Locale(authService.currentUser?.selectedLanguage ?? 'en'));
 
     return Scaffold(
       body: Container(

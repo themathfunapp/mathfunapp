@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mathfun/models/badge.dart';
@@ -5,6 +7,7 @@ import 'package:mathfun/models/app_user.dart';
 import 'package:mathfun/models/spin_wheel_reward.dart';
 import 'package:mathfun/models/topic_performance_stats.dart';
 import 'package:mathfun/localization/app_supported_locales.dart';
+import 'package:mathfun/services/in_app_notification_service.dart';
 
 class BadgeService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -649,6 +652,16 @@ class BadgeService extends ChangeNotifier {
         achievementsUnlocked: _earnedBadges.length,
       );
       await _saveUserStats();
+
+      for (final b in newlyUnlocked) {
+        unawaited(
+          InAppNotificationService.sendChildBadgeEarnedToFamily(
+            firestore: _firestore,
+            childUid: _userId!,
+            badgeNameKey: b.nameKey,
+          ),
+        );
+      }
     }
 
     return newlyUnlocked;

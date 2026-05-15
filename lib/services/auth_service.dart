@@ -57,6 +57,7 @@ class AuthService extends ChangeNotifier {
 
   // Current user
   AppUser? _currentUser;
+  bool _lastUserReadFailed = false;
 
   // Stream kontrolü
   Stream<AppUser?>? _userStream;
@@ -85,7 +86,7 @@ class AuthService extends ChangeNotifier {
 
       if (isGuest) {
         final guestId = prefs.getString(_guestIdKey);
-        final language = prefs.getString(_languageKey) ?? 'tr';
+        final language = prefs.getString(_languageKey) ?? 'en';
 
         if (guestId != null) {
           _currentUser = AppUser(
@@ -120,9 +121,13 @@ class AuthService extends ChangeNotifier {
           await _saveOrUpdateUserInFirestore(_currentUser!);
         }
       } else {
-        // Create new user
-        _currentUser = AppUser.fromFirebaseUser(firebaseUser);
-        await _saveOrUpdateUserInFirestore(_currentUser!);
+        // Firestore okuma hatasında cloud verisini ezme.
+        _currentUser = AppUser.fromFirebaseUser(firebaseUser).copyWith(
+          selectedLanguage: await getSavedLanguage(),
+        );
+        if (!_lastUserReadFailed) {
+          await _saveOrUpdateUserInFirestore(_currentUser!);
+        }
       }
 
       // Clear guest flag
@@ -145,7 +150,7 @@ class AuthService extends ChangeNotifier {
 
         if (isGuest) {
           final guestId = prefs.getString(_guestIdKey);
-          final language = prefs.getString(_languageKey) ?? 'tr';
+          final language = prefs.getString(_languageKey) ?? 'en';
 
           if (guestId != null) {
             _currentUser = AppUser(
@@ -155,11 +160,17 @@ class AuthService extends ChangeNotifier {
               guestId: guestId,
               createdAt: DateTime.now(),
             );
+            notifyListeners();
             return _currentUser;
           }
         }
-        _currentUser = null;
-        return null;
+        // Geçici null olayında (ör. locale değişimi sonrası stream yeniden dinleme)
+        // oturumu hemen silme; yalnızca gerçek çıkışta temizlenir.
+        if (_auth.currentUser == null) {
+          _currentUser = null;
+          notifyListeners();
+        }
+        return _currentUser;
       }
 
       // Firebase user exists
@@ -178,13 +189,18 @@ class AuthService extends ChangeNotifier {
           await _saveOrUpdateUserInFirestore(_currentUser!);
         }
       } else {
-        _currentUser = AppUser.fromFirebaseUser(firebaseUser);
-        await _saveOrUpdateUserInFirestore(_currentUser!);
+        _currentUser = AppUser.fromFirebaseUser(firebaseUser).copyWith(
+          selectedLanguage: await getSavedLanguage(),
+        );
+        if (!_lastUserReadFailed) {
+          await _saveOrUpdateUserInFirestore(_currentUser!);
+        }
       }
 
       // Clear guest flag
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_isGuestKey, false);
+      notifyListeners();
 
       return _currentUser;
     } catch (e) {
@@ -204,7 +220,7 @@ class AuthService extends ChangeNotifier {
       final existingGuestId = prefs.getString(_guestIdKey);
 
       if (existingGuestId != null) {
-        final language = prefs.getString(_languageKey) ?? 'tr';
+        final language = prefs.getString(_languageKey) ?? 'en';
         final appUser = AppUser(
           uid: existingGuestId,
           selectedLanguage: language,
@@ -221,7 +237,7 @@ class AuthService extends ChangeNotifier {
       } else {
         // Create new guest
         final guestId = _generateUniqueGuestId();
-        final language = prefs.getString(_languageKey) ?? 'tr';
+        final language = prefs.getString(_languageKey) ?? 'en';
 
         final appUser = AppUser(
           uid: guestId,
@@ -398,10 +414,14 @@ class AuthService extends ChangeNotifier {
     if (appUserFromFirestore != null) {
       appUser = appUserFromFirestore;
     } else {
-      appUser = AppUser.fromFirebaseUser(firebaseUser);
+      appUser = AppUser.fromFirebaseUser(firebaseUser).copyWith(
+        selectedLanguage: await getSavedLanguage(),
+      );
     }
 
-    await _saveOrUpdateUserInFirestore(appUser);
+    if (!_lastUserReadFailed) {
+      await _saveOrUpdateUserInFirestore(appUser);
+    }
     if (_currentUser?.uid != appUser.uid) {
       _currentUser = appUser;
     }
@@ -475,7 +495,9 @@ class AuthService extends ChangeNotifier {
           );
         }
 
-        await _saveOrUpdateUserInFirestore(appUser);
+        if (!_lastUserReadFailed) {
+          await _saveOrUpdateUserInFirestore(appUser);
+        }
 
         // Guest flag'ini temizle
         final prefs = await SharedPreferences.getInstance();
@@ -507,7 +529,7 @@ class AuthService extends ChangeNotifier {
 
       if (isGuest) {
         final guestId = prefs.getString(_guestIdKey);
-        final language = prefs.getString(_languageKey) ?? 'tr';
+        final language = prefs.getString(_languageKey) ?? 'en';
 
         if (guestId != null) {
           _currentUser = AppUser(
@@ -558,12 +580,14 @@ class AuthService extends ChangeNotifier {
 
   // Get user from Firestore
   Future<AppUser?> getUserFromFirestore(String userId) async {
+    _lastUserReadFailed = false;
     try {
       final doc = await _firestore.collection('users').doc(userId).get();
       if (doc.exists && doc.data() != null) {
         return AppUser.fromMap(doc.data()!);
       }
     } catch (e) {
+      _lastUserReadFailed = true;
       debugPrint("Get user from Firestore error: $e");
     }
     return null;
@@ -642,10 +666,10 @@ class AuthService extends ChangeNotifier {
   Future<String> getSavedLanguage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_languageKey) ?? 'tr';
+      return prefs.getString(_languageKey) ?? 'en';
     } catch (e) {
       debugPrint("Get saved language error: $e");
-      return 'tr';
+      return 'en';
     }
   }
 
@@ -666,7 +690,10 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
-      final doc = await _firestore.collection('users').doc(userId).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get(const GetOptions(source: Source.server));
       if (doc.exists) {
         final lang = doc.data()?['selectedLanguage'] as String?;
         if (lang != null) {
@@ -683,23 +710,41 @@ class AuthService extends ChangeNotifier {
 
   // Update user language
   Future<void> updateUserLanguage(String languageCode) async {
-    if (_currentUser != null) {
-      if (!_currentUser!.isGuest) {
-        // Save to Firestore for registered users
-        try {
-          await _firestore.collection('users').doc(_currentUser!.uid).set(
-            {
-              'selectedLanguage': languageCode,
-              'updatedAt': Timestamp.now(),
-            },
-            SetOptions(merge: true),
-          );
-        } catch (e) {
-          debugPrint("Update language in Firestore error: $e");
-        }
-      }
+    // Cloud sync için en güvenilir kaynak FirebaseAuth oturumudur.
+    // _currentUser bazı geçişlerde (özellikle web) kısa süre misafir kalabildiği için
+    // yalnızca ona bakmak tek yönlü dil senkronuna yol açabiliyor.
+    final firebaseUid = _auth.currentUser?.uid;
+    final cachedRegisteredUid =
+        (_currentUser != null &&
+                !_currentUser!.isGuest &&
+                _currentUser!.uid.isNotEmpty)
+            ? _currentUser!.uid
+            : null;
+    final userId = firebaseUid ?? cachedRegisteredUid;
 
-      // Update current user
+    if (userId != null && userId.isNotEmpty) {
+      // Save to Firestore for registered users.
+      // _currentUser henüz hydrate olmamış olsa bile FirebaseAuth uid ile yaz.
+      try {
+        await _firestore.collection('users').doc(userId).set(
+          {
+            'selectedLanguage': languageCode,
+            'updatedAt': Timestamp.now(),
+          },
+          SetOptions(merge: true),
+        );
+        debugPrint('Language synced to Firestore: $userId -> $languageCode');
+      } catch (e) {
+        debugPrint("Update language in Firestore error: $e");
+      }
+    } else {
+      debugPrint(
+        'Language cloud sync skipped (no authenticated uid). Local only: $languageCode',
+      );
+    }
+
+    if (_currentUser != null) {
+      // Update current user cache
       _currentUser = _currentUser!.copyWith(selectedLanguage: languageCode);
     }
 

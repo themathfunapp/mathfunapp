@@ -13,6 +13,7 @@ import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
 import 'live_duel_screen.dart';
 import 'game_start_screen.dart' show AgeGroupSelection;
+import '../widgets/player_code_visual.dart';
 
 class FriendsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -37,6 +38,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _searchController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -217,7 +221,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               ),
             ),
           ),
-          // BAŞLIK ve oyuncu kodu (MTN)
+          // BAŞLIK ve oyuncu kodu (ön ek soluk)
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -236,7 +240,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 ),
                 if (currentUser != null && !authService.isGuest)
                   GestureDetector(
-                    onTap: () => _copyUserCode(currentUser.playerCode),
+                    onTap: () => _copyUserCode(AppLocalizations.of(context), currentUser.playerCode),
                     child: Container(
                       margin: const EdgeInsets.only(top: 4),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -250,14 +254,11 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         children: [
                           const Icon(Icons.copy, size: 14, color: Colors.white70),
                           const SizedBox(width: 6),
-                          Text(
-                            currentUser.playerCode,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1,
-                            ),
+                          PlayerCodeVisual(
+                            fullCode: currentUser.playerCode,
+                            fontSize: 12,
+                            letterSpacing: 1,
+                            color: Colors.white,
                           ),
                         ],
                       ),
@@ -276,7 +277,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _copyUserCode(String code) async {
+  Future<void> _copyUserCode(AppLocalizations localizations, String code) async {
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +292,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Oyuncu kodun kopyalandı: $code',
+                localizations.friendsPlayerCodeCopied(code),
                 maxLines: 4,
                 softWrap: true,
                 style: const TextStyle(color: Colors.white),
@@ -316,10 +317,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Text('🎮 '),
-            Text('Oyuncu Kodu'),
+            const Text('🎮 '),
+            Text(localizations.friendsPlayerCodeTitle),
           ],
         ),
         content: Column(
@@ -327,7 +328,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (currentUser != null && !authService.isGuest) ...[
-              const Text('Senin kodun:', style: TextStyle(color: Colors.grey)),
+              Text(localizations.friendsPlayerCodeYourLabel, style: const TextStyle(color: Colors.grey)),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -340,27 +341,20 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      currentUser.playerCode,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
+                    PlayerCodeVisual(
+                      fullCode: currentUser.playerCode,
+                      fontSize: 24,
+                      letterSpacing: 2,
+                      color: Colors.white,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
             ],
-            const Text(
-              'Arkadaşlarını eklemek için:\n'
-              '1. Arkadaşının MTN kodunu iste\n'
-              '2. Ara sekmesinde kodu yaz\n'
-              '3. Arkadaş olarak ekle\n'
-              '4. Düelloya davet et!',
-              style: TextStyle(height: 1.6),
+            Text(
+              localizations.friendsPlayerCodeInstructions,
+              style: const TextStyle(height: 1.6),
             ),
           ],
         ),
@@ -371,7 +365,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               backgroundColor: const Color(0xFF667eea),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Anladım', style: TextStyle(color: Colors.white)),
+            child: Text(localizations.friendsPlayerCodeOk, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -735,15 +729,41 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         color: Colors.purple.shade50,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        friend.friendUserCode ?? 'MTN••••••••••',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
-                          letterSpacing: 1,
-                        ),
-                      ),
+                      child: friend.friendUserCode != null &&
+                              friend.friendUserCode!.isNotEmpty
+                          ? PlayerCodeVisual(
+                              fullCode: friend.friendUserCode!,
+                              fontSize: 11,
+                              letterSpacing: 1,
+                              color: Colors.purple.shade700,
+                              prefixOpacity: 0.38,
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              textDirection: TextDirection.ltr,
+                              children: [
+                                Opacity(
+                                  opacity: 0.38,
+                                  child: Text(
+                                    AppUser.playerCodePrefix,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.purple.shade700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '••••••••••',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple.shade700,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -1017,15 +1037,53 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           child: Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'MTN kodu veya isim ara...',
-                    border: InputBorder.none,
-                    icon: Icon(Icons.search, color: Color(0xFF667eea)),
-                  ),
-                  onSubmitted: (_) => _performSearch(),
-                  textCapitalization: TextCapitalization.characters,
+                child: Builder(
+                  builder: (context) {
+                    final q = _searchController.text.trim();
+                    final idEntryMode =
+                        q.isEmpty || RegExp(r'^\d{0,10}$').hasMatch(q);
+                    return Row(
+                      children: [
+                        if (idEntryMode) ...[
+                          Opacity(
+                            opacity: 0.42,
+                            child: Text(
+                              AppUser.playerCodePrefix,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: localizations.friendsSearchHint,
+                              border: InputBorder.none,
+                              icon: const Icon(Icons.search, color: Color(0xFF667eea)),
+                            ),
+                            keyboardType: idEntryMode
+                                ? TextInputType.number
+                                : TextInputType.text,
+                            inputFormatters: idEntryMode
+                                ? <TextInputFormatter>[
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(
+                                      AppUser.playerCodeSuffixLength,
+                                    ),
+                                  ]
+                                : null,
+                            onSubmitted: (_) => _performSearch(),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
               if (_searchController.text.isNotEmpty)
@@ -1179,14 +1237,12 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         color: Colors.purple.shade50,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        user.playerCode,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
-                          letterSpacing: 0.5,
-                        ),
+                      child: PlayerCodeVisual(
+                        fullCode: user.playerCode,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                        color: Colors.purple.shade700,
+                        prefixOpacity: 0.38,
                       ),
                     ),
                   ],

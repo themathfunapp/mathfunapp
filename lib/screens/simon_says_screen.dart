@@ -936,98 +936,113 @@ class _SimonSaysScreenState extends State<SimonSaysScreen>
               onExit: () => Navigator.pop(context),
             );
           }),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 6)],
-            ),
-            child: Text(
-              '${loc.get('level')} $_level',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal.shade800),
-            ),
-          ),
-          const Spacer(),
-          Consumer<GameMechanicsService>(
-            builder: (context, mechanicsService, _) {
-              final lives = mechanicsService.currentLives;
-              final maxLives = mechanicsService.maxLives;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 6)],
-                ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxLives,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: i < lives ? Colors.teal.shade400 : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: i < lives ? Colors.teal.shade600 : Colors.grey.shade400,
-                            width: 1.5,
-                          ),
-                        ),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 6)],
+                      ),
+                      child: Text(
+                        '${loc.get('level')} $_level',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal.shade800),
                       ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 10),
-          if (_timeAttackActive) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _timeRemaining <= 10 ? Colors.orange.shade400 : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: (_timeRemaining <= 10 ? Colors.orange : Colors.teal).withOpacity(0.3), blurRadius: 6)],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('⏱️', style: GoogleFonts.quicksand(fontSize: 18)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$_timeRemaining',
-                    style: GoogleFonts.quicksand(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _timeRemaining <= 10 ? Colors.white : Colors.teal.shade800,
+                    const SizedBox(width: 8),
+                    Consumer<GameMechanicsService>(
+                      builder: (context, mechanicsService, _) {
+                        final lives = mechanicsService.currentLives;
+                        final maxLives = mechanicsService.maxLives;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.2), blurRadius: 6)],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              maxLives,
+                              (i) => Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    color: i < lives ? Colors.teal.shade400 : Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: i < lives ? Colors.teal.shade600 : Colors.grey.shade400,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ],
+                    if (_timeAttackActive) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _timeRemaining <= 10 ? Colors.orange.shade400 : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [BoxShadow(color: (_timeRemaining <= 10 ? Colors.orange : Colors.teal).withOpacity(0.3), blurRadius: 6)],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('⏱️', style: GoogleFonts.quicksand(fontSize: 18)),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$_timeRemaining',
+                              style: GoogleFonts.quicksand(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _timeRemaining <= 10 ? Colors.white : Colors.teal.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
+                      ),
+                      child: Row(
+                        children: [
+                          Text('⭐', style: GoogleFonts.quicksand(fontSize: 18)),
+                          const SizedBox(width: 6),
+                          Text('$_score', style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-          ],
-          Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 6)],
-              ),
-              child: Row(
-                children: [
-                  Text('⭐', style: GoogleFonts.quicksand(fontSize: 18)),
-                  const SizedBox(width: 6),
-                  Text('$_score', style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
+          ),
         ],
       ),
     );
