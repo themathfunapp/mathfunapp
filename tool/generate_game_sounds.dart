@@ -28,48 +28,40 @@ void main() {
     _writeWav(File('${dir.path}/${e.key}.wav'), _ambientSamples(e.value, seconds: 2.2));
   }
 
-  // Short SFX (file base name -> generator)
-  final sfx = <String, List<double>>{
-    'button_tap': [880, 0.06],
-    'button_hover': [660, 0.05],
-    'page_flip': [400, 0.08],
-    'correct_answer': [523, 0.12], // C5; two-tone in body
-    'wrong_answer': [140, 0.18],
-    'timeout': [200, 0.25],
-    'hint_reveal': [740, 0.1],
-    'level_up': [392, 0.35],
-    'achievement_unlock': [587, 0.3],
-    'streak_bonus': [659, 0.15],
-    'combo_hit': [784, 0.12],
-    'coin_collect': [988, 0.1],
-    'star_earn': [1047, 0.14],
-    'box_open': [311, 0.2],
-    'spin_wheel': [440, 0.15],
-    'character_happy': [659, 0.12],
-    'character_sad': [196, 0.2],
-    'character_cheer': [784, 0.18],
-    'notification': [523, 0.12],
-    'error_beep': [150, 0.15],
-    'success_chime': [784, 0.2],
+  // Çocuk dostu kısa efektler (44.1 kHz — web uyumlu)
+  final childSfx = <String, Int16List Function()>{
+    'button_tap': () => _sfxPop(pluckHz: 1046.5, vol: 0.14),
+    'button_hover': () => _sfxPop(pluckHz: 1318.5, vol: 0.07, duration: 0.04),
+    'page_flip': () => _sfxWhoosh(vol: 0.1),
+    'correct_answer': () => _sfxCorrectDing(vol: 0.2),
+    'wrong_answer': () => _sfxSoftWrong(vol: 0.15),
+    'timeout': () => _sfxSoftWrong(vol: 0.12),
+    'hint_reveal': () => _sfxNoteSequence([659.25, 784, 988], noteLen: 0.07, vol: 0.14),
+    'level_up': () => _sfxNoteSequence([523.25, 659.25, 783.99, 1046.5], noteLen: 0.1, vol: 0.18),
+    'achievement_unlock': () => _sfxNoteSequence([523.25, 659.25, 783.99, 1046.5, 1318.5], noteLen: 0.09, vol: 0.2),
+    'streak_bonus': () => _sfxNoteSequence([784, 988, 1174.7], noteLen: 0.08, vol: 0.17),
+    'combo_hit': () => _sfxNoteSequence([880, 1046.5], noteLen: 0.06, vol: 0.16),
+    'coin_collect': () => _sfxNoteSequence([1318.5, 1568, 1760], noteLen: 0.05, vol: 0.15),
+    'star_earn': () => _sfxNoteSequence([1046.5, 1318.5, 1568], noteLen: 0.07, vol: 0.17),
+    'box_open': () => _sfxPop(pluckHz: 523.25, vol: 0.12, duration: 0.1),
+    'spin_wheel': () => _sfxNoteSequence([440, 554.37, 659.25, 880], noteLen: 0.05, vol: 0.12),
+    'character_happy': () => _sfxNoteSequence([523.25, 659.25, 783.99], noteLen: 0.08, vol: 0.16),
+    'character_sad': () => _sfxNoteSequence([392, 349.23], noteLen: 0.14, vol: 0.12),
+    'character_cheer': () => _sfxNoteSequence([659.25, 783.99, 987.77, 1174.7], noteLen: 0.07, vol: 0.18),
+    'notification': () => _sfxPop(pluckHz: 880, vol: 0.12),
+    'error_beep': () => _sfxSoftWrong(vol: 0.1),
+    'success_chime': () => _sfxCorrectDing(vol: 0.18),
   };
 
-  for (final e in sfx.entries) {
-    final freq = e.value[0];
-    final dur = e.value[1];
-    Int16List samples;
-    if (e.key == 'correct_answer') {
-      samples = _twoTone(523, 659, dur, vol: 0.22);
-    } else if (e.key == 'wrong_answer') {
-      samples = _buzz(dur, vol: 0.2);
-    } else if (e.key == 'level_up') {
-      samples = _arpeggio(dur, vol: 0.2);
-    } else {
-      samples = _sineTone(freq, dur, vol: e.key.contains('character') ? 0.18 : 0.22);
-    }
-    _writeWav(File('${dir.path}/sfx_${e.key}.wav'), samples);
+  for (final e in childSfx.entries) {
+    _writeWav(
+      File('${dir.path}/sfx_${e.key}.wav'),
+      e.value(),
+      sampleRate: _sfxSampleRate,
+    );
   }
 
-  // Music mood loops (soft, distinct root)
+  // Music mood loops (soft, distinct root) — eski drone tabanlı placeholder'lar
   final moods = <String, double>{
     'music_calm_instrumental': 196,
     'music_intense_beat': 110,
@@ -82,10 +74,83 @@ void main() {
     _writeWav(File('${dir.path}/${e.key}.wav'), _ambientSamples(e.value, seconds: 3.0, vol: 0.12));
   }
 
-  stdout.writeln('Wrote ${ambients.length + sfx.length + moods.length} WAV files to ${dir.path}');
+  // Uygulama geneli BGM: tanıdık çocuk melodisi, 44.1 kHz (web uyumlu)
+  _writeWav(
+    File('${dir.path}/music_kids_playful.wav'),
+    _kidsPlayfulBgm(seconds: 8.0, vol: 0.14),
+    sampleRate: _bgmSampleRate,
+  );
+
+  stdout.writeln(
+    'Wrote ${ambients.length + childSfx.length + moods.length + 1} WAV files to ${dir.path}',
+  );
 }
 
 const int _sampleRate = 22050;
+/// Web + mobil için net efektler.
+const int _sfxSampleRate = 44100;
+/// Web tarayıcıları için BGM: standart 44.1 kHz PCM.
+const int _bgmSampleRate = 44100;
+
+/// Oyuncak xilofon / glocken vuruşu.
+Int16List _pluck(double freq, double duration, {double vol = 0.18, int sr = _sfxSampleRate}) {
+  final n = (duration * sr).round();
+  final out = Int16List(n);
+  final amp = 32767 * vol;
+  for (var i = 0; i < n; i++) {
+    final t = i / sr;
+    final env = math.exp(-t * 7.5) * (1 - math.exp(-t * 180));
+    final s = amp *
+        env *
+        (0.55 * math.sin(2 * math.pi * freq * t) +
+            0.25 * math.sin(2 * math.pi * freq * 2.01 * t) +
+            0.1 * math.sin(2 * math.pi * freq * 3.0 * t));
+    out[i] = s.round().clamp(-32768, 32767);
+  }
+  return out;
+}
+
+Int16List _sfxNoteSequence(
+  List<double> freqs, {
+  double noteLen = 0.09,
+  double gap = 0.015,
+  double vol = 0.16,
+}) {
+  final total = freqs.length * noteLen + (freqs.length - 1) * gap;
+  final n = (total * _sfxSampleRate).round();
+  final out = Int16List(n);
+  for (var i = 0; i < freqs.length; i++) {
+    final note = _pluck(freqs[i], noteLen, vol: vol);
+    final start = ((i * (noteLen + gap)) * _sfxSampleRate).round();
+    for (var j = 0; j < note.length && start + j < n; j++) {
+      final mixed = out[start + j] + note[j];
+      out[start + j] = mixed.clamp(-32768, 32767);
+    }
+  }
+  return out;
+}
+
+Int16List _sfxCorrectDing({double vol = 0.2}) =>
+    _sfxNoteSequence([523.25, 659.25, 783.99], noteLen: 0.09, vol: vol);
+
+Int16List _sfxSoftWrong({double vol = 0.14}) =>
+    _sfxNoteSequence([440, 392], noteLen: 0.11, gap: 0.02, vol: vol);
+
+Int16List _sfxPop({required double pluckHz, double vol = 0.14, double duration = 0.06}) =>
+    _pluck(pluckHz, duration, vol: vol);
+
+Int16List _sfxWhoosh({double vol = 0.1}) {
+  final n = (_sfxSampleRate * 0.12).round();
+  final out = Int16List(n);
+  final amp = 32767 * vol;
+  for (var i = 0; i < n; i++) {
+    final t = i / n;
+    final env = math.sin(math.pi * t) * (1 - t);
+    final noise = (math.Random(i).nextDouble() * 2 - 1);
+    out[i] = (amp * env * noise * 0.35).round().clamp(-32768, 32767);
+  }
+  return out;
+}
 
 Int16List _sineTone(double freqHz, double seconds, {double vol = 0.2}) {
   final n = (seconds * _sampleRate).round();
@@ -141,6 +206,52 @@ Int16List _arpeggio(double seconds, {double vol = 0.2}) {
   return out;
 }
 
+/// Neşeli çocuk oyun müziği — tanıdık “parlak yıldız” tarzı melodi (C majör).
+Int16List _kidsPlayfulBgm({double seconds = 8.0, double vol = 0.14}) {
+  // C C G G A A G | E E D D C  (çocukların tanıdığı, neşeli motif)
+  const melody = [
+    523.25, 523.25, 783.99, 783.99, 880.0, 880.0, 783.99,
+    659.25, 659.25, 587.33, 587.33, 523.25,
+  ];
+  const bpm = 96.0;
+  final beatSec = 60.0 / bpm;
+  final noteDur = beatSec * 0.78;
+
+  final n = (seconds * _bgmSampleRate).round();
+  final out = Int16List(n);
+  final amp = 32767 * vol;
+
+  for (var i = 0; i < n; i++) {
+    final t = i / _bgmSampleRate;
+    final beatIndex = (t / beatSec).floor();
+    final noteIndex = beatIndex % melody.length;
+    final noteStart = beatIndex * beatSec;
+    final localT = t - noteStart;
+
+    var sample = 0.0;
+
+    if (localT < noteDur) {
+      final freq = melody[noteIndex];
+      // Oyuncak piyano / glockenspiel — parlak, kısa, sevimli
+      final env = math.exp(-localT * 4.8) * (1 - math.exp(-localT * 100));
+      sample = amp *
+          env *
+          (0.5 * math.sin(2 * math.pi * freq * localT) +
+              0.28 * math.sin(2 * math.pi * freq * 2.0 * localT) +
+              0.12 * math.sin(2 * math.pi * freq * 3.0 * localT));
+    }
+
+    // Hafif ritim tıkı (oyuncak metronom)
+    final phase = t % beatSec;
+    if (phase < 0.025) {
+      sample += amp * 0.1 * math.exp(-phase * 90);
+    }
+
+    out[i] = sample.round().clamp(-32768, 32767);
+  }
+  return out;
+}
+
 Int16List _ambientSamples(double rootHz, {required double seconds, double vol = 0.16}) {
   final n = (seconds * _sampleRate).round();
   final out = Int16List(n);
@@ -159,9 +270,8 @@ Int16List _ambientSamples(double rootHz, {required double seconds, double vol = 
   return out;
 }
 
-void _writeWav(File file, Int16List pcm) {
+void _writeWav(File file, Int16List pcm, {int sampleRate = _sampleRate}) {
   final dataSize = pcm.length * 2;
-  final headerSize = 44;
   final buffer = BytesBuilder(copy: false);
   buffer.add(_ascii('RIFF'));
   buffer.add(_u32(36 + dataSize));
@@ -170,8 +280,8 @@ void _writeWav(File file, Int16List pcm) {
   buffer.add(_u32(16)); // PCM chunk size
   buffer.add(_u16(1)); // audio format PCM
   buffer.add(_u16(1)); // mono
-  buffer.add(_u32(_sampleRate));
-  buffer.add(_u32(_sampleRate * 2)); // byte rate
+  buffer.add(_u32(sampleRate));
+  buffer.add(_u32(sampleRate * 2)); // byte rate
   buffer.add(_u16(2)); // block align
   buffer.add(_u16(16)); // bits per sample
   buffer.add(_ascii('data'));

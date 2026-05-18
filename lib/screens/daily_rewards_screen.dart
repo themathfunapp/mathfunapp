@@ -75,7 +75,7 @@ class _DailyRewardsScreenState extends State<DailyRewardsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Bir hata oluştu: $e'),
+            content: Text('${AppLocalizations.of(context).get('error_occurred')}: $e'),
             backgroundColor: Colors.red,
           ),
         );

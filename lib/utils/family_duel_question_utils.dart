@@ -79,6 +79,29 @@ dynamic _sanitizeValue(dynamic v) {
   return v.toString();
 }
 
+/// Aynı oturumda tekrar sorulmaması için kararlı parmak izi.
+String questionFingerprint(Map<String, dynamic> q) {
+  final type = q['type']?.toString() ?? '';
+  final key = q['questionKey']?.toString() ?? '';
+  final params = q['questionParams'];
+  final paramsStr = params is Map
+      ? params.entries.map((e) => '${e.key}=${e.value}').join(',')
+      : '';
+  return [
+    type,
+    key,
+    paramsStr,
+    '${q['num1']}',
+    '${q['num2']}',
+    '${q['operator']}',
+    '${q['correctAnswer']}',
+    '${q['count']}',
+    '${q['emoji']}',
+    '${q['sequence']}',
+    '${q['shapeToShow']}',
+  ].join('|');
+}
+
 List<Map<String, dynamic>> decodeQuestionsList(dynamic raw) {
   if (raw is! List) return [];
   final out = <Map<String, dynamic>>[];

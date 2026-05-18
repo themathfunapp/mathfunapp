@@ -4,9 +4,11 @@ import 'dart:math' as math;
 import '../models/game_mechanics.dart' as GameMechanics;
 import '../services/game_mechanics_service.dart';
 import '../localization/app_localizations.dart';
-import '../providers/locale_provider.dart';
 import 'specialized_game_screen.dart';
 import 'game_start_screen.dart';
+import '../widgets/no_lives_gate_dialog.dart';
+import '../widgets/topic_level_flow.dart';
+import '../providers/locale_provider.dart';
 
 /// Öğrenme Yolculuğu Haritası
 /// Görsel ilerleme haritası, beceri ağacı, başarı duvarı
@@ -342,9 +344,11 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
                   _enterRegion(region);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Bu bölge henüz kilitli! Önceki bölgeleri tamamlayın.'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(context).get('region_locked_panel_subtitle'),
+                      ),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }
@@ -448,15 +452,34 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
   void _startRegionGame(JourneyRegion region) {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!mechanicsService.hasLives) {
-      _showNoLivesDialog();
+      showNoLivesGateDialog(context);
       return;
     }
+
+    const levelFlowTopics = {'counting', 'subtraction', 'multiplication', 'division', 'geometry'};
+    if (levelFlowTopics.contains(region.id)) {
+      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+      TopicLevelFlow.openStandardMathTopic(
+        context,
+        topicId: region.id,
+        ageGroup: AgeGroupSelection.elementary,
+        color: region.color,
+        emoji: region.emoji,
+        title: switch (region.id) {
+          'counting' => loc.get('counting'),
+          'subtraction' => loc.get('subtraction'),
+          'multiplication' => loc.get('multiplication'),
+          'division' => loc.get('division'),
+          'geometry' => loc.get('geometry'),
+          _ => region.name,
+        },
+      );
+      return;
+    }
+
     // Region ID'sine göre TopicType belirle
     GameMechanics.TopicType topicType;
     switch (region.id) {
-      case 'counting':
-        topicType = GameMechanics.TopicType.counting;
-        break;
       case 'addition':
         topicType = GameMechanics.TopicType.addition;
         break;
@@ -489,34 +512,6 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
           difficulty: 'Orta',
           onBack: () => Navigator.pop(context),
         ),
-      ),
-    );
-  }
-
-  void _showNoLivesDialog() {
-    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.favorite_border, color: Colors.red, size: 32),
-            const SizedBox(width: 12),
-            Text(loc.get('lives_finished')),
-          ],
-        ),
-        content: Text(
-          loc.get('no_lives_play'),
-          style: const TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.get('ok')),
-          ),
-        ],
       ),
     );
   }
@@ -586,9 +581,9 @@ class _LearningJourneyScreenState extends State<LearningJourneyScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'İPTAL',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalizations.of(context).get('cancel'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

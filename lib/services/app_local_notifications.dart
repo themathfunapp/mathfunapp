@@ -28,6 +28,28 @@ class AppLocalNotifications {
     );
   }
 
+  /// Ön planda gelen FCM arkadaş düellosu bildirimi.
+  static NotificationDetails friendDuelForegroundDetails(String expandedBody) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        'friend_duel',
+        'Arkadaş düellosu',
+        channelDescription: 'Arkadaş düello davetleri',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@drawable/ic_stat_notification',
+        color: _brandNotificationColor,
+        largeIcon: const DrawableResourceAndroidBitmap('@drawable/ic_notification_large'),
+        styleInformation: BigTextStyleInformation(expandedBody),
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
   /// Ön planda gelen FCM aile düellosu bildirimi.
   static NotificationDetails familyRemoteDuelForegroundDetails(String expandedBody) {
     return NotificationDetails(
@@ -101,6 +123,14 @@ class AppLocalNotifications {
             'Ebeveyn hatırlatmaları',
             description: 'Günlük ve haftalık hatırlatmalar',
             importance: Importance.defaultImportance,
+          ),
+        );
+        await androidImpl.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'instant_math_reminders',
+            'Anında Matematik',
+            description: 'Günlük Anında Matematik görev hatırlatmaları',
+            importance: Importance.high,
           ),
         );
       }

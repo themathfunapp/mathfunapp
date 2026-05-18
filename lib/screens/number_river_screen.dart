@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/age_group_selection.dart';
+import '../services/game_mechanics_service.dart';
+import '../widgets/daily_gold_help_sheet.dart';
 
 /// Rakam Nehri - Balıklarla Sayma Oyunu
 class NumberRiverScreen extends StatefulWidget {
@@ -26,11 +28,11 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
 
   int _currentLevel = 1;
   int _score = 0;
-  int _stars = 0;
   int _targetNumber = 0;
   List<int> _options = [];
   bool _isAnswered = false;
   bool _isCorrect = false;
+  bool _exitHandled = false;
 
   // Deniz canlıları
   final List<String> _fishes = ['🐟', '🐠', '🐡', '🦈', '🐬', '🦑', '🐙', '🦀', '🐋', '🐊'];
@@ -125,6 +127,116 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
     }
   }
 
+  Future<void> _showNumberRiverRewardDialog() async {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0277BD), Color(0xFF006994)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                loc.get('digit_river_daily_complete_msg'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${GameMechanicsService.numberRiverDailyRewardCoins}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF006994),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(loc.get('ok')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _leaveNumberRiver() async {
+    if (_exitHandled) return;
+    _exitHandled = true;
+
+    if (mounted) {
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      final outcome = await mechanics.tryClaimNumberRiverDailyRewardOnExit();
+      if (mounted && outcome.rewardGranted) {
+        await _showNumberRiverRewardDialog();
+      }
+    }
+    widget.onBack();
+  }
+
+  void _showNumberRiverGoldHelp(AppLocalizations loc) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final correct = mechanics.numberRiverCorrectAnswersToday;
+    final claimed = mechanics.numberRiverDailyRewardClaimed;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DailyGoldHelpSheet(
+          title: loc.get('digit_river_daily_help_title'),
+          rules: [
+            loc.get('digit_river_daily_help_rule_1'),
+            loc.get('digit_river_daily_help_rule_2'),
+            loc.get('digit_river_daily_help_rule_3'),
+            loc.get('digit_river_daily_help_rule_4'),
+          ],
+          progressLabel: loc
+              .get('digit_river_daily_help_progress')
+              .replaceAll('{0}', '$correct'),
+          progressValue: correct / GameMechanicsService.numberRiverDailyCorrectTarget,
+          claimed: claimed,
+          claimedMessage: loc.get('digit_river_daily_help_claimed'),
+          closeLabel: loc.get('ok'),
+        );
+      },
+    );
+  }
+
   void _checkAnswer(int answer) {
     if (_isAnswered) return;
 
@@ -134,8 +246,8 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
 
       if (_isCorrect) {
         _score += 10;
-        _stars++;
         _celebrationController.forward(from: 0);
+        Provider.of<GameMechanicsService>(context, listen: false).recordNumberRiverCorrectAnswer();
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -160,7 +272,12 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: true).locale);
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveNumberRiver();
+      },
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -192,11 +309,6 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Seviye ve skor
-                          _buildLevelInfo(loc),
-
-                          const SizedBox(height: 30),
-
                           // Soru bölümü - Nehir ve balıklar
                           _buildQuestionArea(loc),
 
@@ -220,6 +332,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -230,7 +343,7 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
         children: [
           // Geri butonu
           GestureDetector(
-            onTap: widget.onBack,
+            onTap: _leaveNumberRiver,
             child: Container(
               width: 44,
               height: 44,
@@ -271,88 +384,20 @@ class _NumberRiverScreenState extends State<NumberRiverScreen>
               ],
             ),
           ),
-
-          // Skor
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 4),
-                Text(
-                  '$_stars',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+          GestureDetector(
+            onTap: () => _showNumberRiverGoldHelp(loc),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.help_outline, size: 20, color: Colors.white),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLevelInfo(AppLocalizations loc) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
-          Container(
-            width: 1,
-            height: 36,
-            color: Colors.white.withOpacity(0.25),
-          ),
-          _buildStatItem(loc.get('score'), _score.toString(), '🏆'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, String emoji) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(width: 8),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                height: 1.05,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                height: 1.1,
-                color: Colors.white.withOpacity(0.85),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 

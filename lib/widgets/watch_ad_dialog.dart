@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../localization/app_localizations.dart';
 import '../services/ad_service.dart';
 import '../services/game_mechanics_service.dart';
 
@@ -16,8 +17,10 @@ class WatchAdForLifeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AdService>(
-      builder: (context, adService, child) {
+    final loc = AppLocalizations.of(context);
+    return Consumer2<AdService, GameMechanicsService>(
+      builder: (context, adService, mechanics, child) {
+        final canWatch = mechanics.canWatchAdForLife;
         return AlertDialog(
           backgroundColor: const Color(0xFF2D1B69),
           shape: RoundedRectangleBorder(
@@ -34,10 +37,10 @@ class WatchAdForLifeDialog extends StatelessWidget {
                 child: const Text('❤️', style: TextStyle(fontSize: 24)),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Canların Bitti!',
-                  style: TextStyle(
+                  loc.get('no_lives_title'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -62,41 +65,66 @@ class WatchAdForLifeDialog extends StatelessWidget {
                       style: TextStyle(fontSize: 40),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Kısa bir reklam izleyerek\n1 can kazanabilirsin!',
+                    Text(
+                      loc.get('watch_ad_prompt_short'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          adService.isRewardedAdLoaded
-                              ? Icons.check_circle
-                              : Icons.hourglass_empty,
-                          color: adService.isRewardedAdLoaded
-                              ? Colors.green
-                              : Colors.orange,
-                          size: 16,
+                    if (canWatch)
+                      Text(
+                        loc.get('life_ads_remaining').replaceAll(
+                          '{count}',
+                          '${mechanics.remainingLifeAdsToday}',
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          adService.isRewardedAdLoaded
-                              ? 'Reklam hazır'
-                              : 'Reklam yükleniyor...',
-                          style: TextStyle(
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 13,
+                        ),
+                      )
+                    else
+                      Text(
+                        loc.get('life_ads_limit_reached'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.orangeAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (canWatch) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            adService.isRewardedAdLoaded
+                                ? Icons.check_circle
+                                : Icons.hourglass_empty,
                             color: adService.isRewardedAdLoaded
                                 ? Colors.green
                                 : Colors.orange,
-                            fontSize: 12,
+                            size: 16,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 4),
+                          Text(
+                            adService.isRewardedAdLoaded
+                                ? loc.get('watch_ad_ready')
+                                : loc.get('watch_ad_loading'),
+                            style: TextStyle(
+                              color: adService.isRewardedAdLoaded
+                                  ? Colors.green
+                                  : Colors.orange,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -110,14 +138,14 @@ class WatchAdForLifeDialog extends StatelessWidget {
                 onCancel?.call();
               },
               child: Text(
-                'Vazgeç',
+                loc.get('give_up'),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ),
             ElevatedButton.icon(
-              onPressed: adService.isRewardedAdLoaded
+              onPressed: canWatch && adService.isRewardedAdLoaded
                   ? () => _watchAd(context)
                   : null,
               style: ElevatedButton.styleFrom(
@@ -142,9 +170,9 @@ class WatchAdForLifeDialog extends StatelessWidget {
                       ),
                     )
                   : const Text('🎬', style: TextStyle(fontSize: 16)),
-              label: const Text(
-                'Reklam İzle',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              label: Text(
+                loc.get('watch_ad_gain_life'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ),
           ],
@@ -156,10 +184,24 @@ class WatchAdForLifeDialog extends StatelessWidget {
   void _watchAd(BuildContext context) async {
     final adService = Provider.of<AdService>(context, listen: false);
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final loc = AppLocalizations.of(context);
+
+    if (!mechanicsService.canWatchAdForLife) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.get('life_ads_limit_reached')),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
 
     final success = await adService.watchAdForLife(
       onLifeEarned: () {
-        mechanicsService.earnLifeFromAd();
+        if (!mechanicsService.earnLifeFromAd()) return;
         onLifeEarned?.call();
       },
       onAdClosed: () {
@@ -172,7 +214,7 @@ class WatchAdForLifeDialog extends StatelessWidget {
     if (!success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Reklam şu anda yüklenemiyor. Lütfen daha sonra tekrar deneyin.'),
+          content: Text(loc.get('watch_ad_load_failed')),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -275,7 +317,9 @@ class LivesIndicator extends StatelessWidget {
                 ),
               ),
               // Reklam izle butonu
-              if (showWatchAdButton && !mechanicsService.isFullLives) ...[
+              if (showWatchAdButton &&
+                  !mechanicsService.isFullLives &&
+                  mechanicsService.canWatchAdForLife) ...[
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () {

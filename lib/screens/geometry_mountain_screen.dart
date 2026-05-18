@@ -319,11 +319,6 @@ class _GeometryMountainScreenState extends State<GeometryMountainScreen>
                       physics: const BouncingScrollPhysics(),
                       child: Column(
                         children: [
-                          // Seviye ve skor
-                          _buildLevelInfo(),
-                          
-                          const SizedBox(height: 8),
-                          
                           // Dağ ve tırmanıcı
                           _buildMountainArea(),
                           
@@ -404,79 +399,8 @@ class _GeometryMountainScreenState extends State<GeometryMountainScreen>
               ],
             ),
           ),
-          
-          // Skor
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 4),
-                Text(
-                  '$_correctAnswers',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLevelInfo() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('Soru', '$_currentQuestion/$_totalQuestions', '🎯'),
-          _buildStatItem('Skor', _score.toString(), '🏆'),
-          _buildStatItem('Doğru', '$_correctAnswers', '✅'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, String emoji) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          emoji,
-          style: const TextStyle(fontSize: 18),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-      ],
     );
   }
 

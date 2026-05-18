@@ -244,19 +244,12 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
   List<Widget> _buildWorldCards(AppLocalizations localizations) {
     return widget.worlds.map((world) {
-      final worldProgress = widget.progress?.worldProgress[world.id];
-      final isLocked = world.requiredStars > (widget.progress?.totalStars ?? 0);
       final isFractionBakery = world.theme == WorldTheme.fractionBakery;
 
-      // Kesir Pastanesi: Kilitliyken pastel tema (koyu gri yerine)
-      final List<Color> cardColors = isFractionBakery && isLocked
-          ? [_pastelPink.withOpacity(0.85), _blueberryPurple.withOpacity(0.6)]
-          : isLocked
-              ? [Colors.grey.shade700, Colors.grey.shade800]
-              : [
-                  Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
-                  Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
-                ];
+      final List<Color> cardColors = [
+        Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
+        Color(int.parse(world.colors[1].replaceFirst('#', '0xFF'))),
+      ];
 
       return AnimatedBuilder(
         animation: Listenable.merge([_floatAnimation, _pulseAnimation]),
@@ -264,7 +257,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           return Transform.translate(
             offset: Offset(0, _floatAnimation.value * 0.5),
             child: Transform.scale(
-              scale: !isLocked ? (1.0 + (_pulseAnimation.value - 1) * 0.2) : 1.0,
+              scale: 1.0 + (_pulseAnimation.value - 1) * 0.2,
               child: child,
             ),
           );
@@ -289,9 +282,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: isLocked
-                  ? () => _showLockedDialog(localizations, world)
-                  : () => _openWorld(world),
+              onTap: () => _openWorld(world),
               borderRadius: BorderRadius.circular(25),
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -302,7 +293,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       animation: _pulseAnimation,
                       builder: (context, child) {
                         return Transform.scale(
-                          scale: !isLocked ? _pulseAnimation.value : 1.0,
+                          scale: _pulseAnimation.value,
                           child: child,
                         );
                       },
@@ -310,20 +301,16 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                         width: 70,
                         height: 70,
                         decoration: BoxDecoration(
-                          color: isFractionBakery && isLocked
-                              ? _lightTurquoise.withOpacity(0.4)
-                              : Colors.white.withOpacity(0.2),
+                          color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isFractionBakery && isLocked
-                                ? _blueberryPurple.withOpacity(0.4)
-                                : Colors.white.withOpacity(0.3),
+                            color: Colors.white.withOpacity(0.3),
                             width: 2,
                           ),
                         ),
                         child: Center(
                           child: Text(
-                            isLocked ? '🔒' : world.iconEmoji,
+                            world.iconEmoji,
                             style: const TextStyle(fontSize: 36),
                           ),
                         ),
@@ -346,38 +333,33 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                                           ? GoogleFonts.quicksand(
                                               fontSize: 20,
                                               fontWeight: FontWeight.bold,
-                                              color: isLocked
-                                                  ? _blueberryPurple
-                                                  : Colors.white,
+                                              color: Colors.white,
                                             )
-                                          : TextStyle(
+                                          : const TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.bold,
-                                              color: isLocked
-                                                  ? Colors.grey
-                                                  : Colors.white,
+                                              color: Colors.white,
                                             )),
                                 ),
                               ),
-                              if (!isLocked)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    localizations.get('start'),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isLocked ? Colors.grey : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  localizations.get('start'),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                              ),
                             ],
                           ),
 
@@ -388,100 +370,17 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                             style: (isFractionBakery
                                     ? GoogleFonts.quicksand(
                                         fontSize: 14,
-                                        color: isLocked
-                                            ? _blueberryPurple.withOpacity(0.9)
-                                            : Colors.white.withOpacity(0.9),
+                                        color: Colors.white.withOpacity(0.9),
                                         height: 1.3,
                                       )
                                     : TextStyle(
                                         fontSize: 14,
-                                        color: isLocked
-                                            ? Colors.grey
-                                            : Colors.white.withOpacity(0.9),
+                                        color: Colors.white.withOpacity(0.9),
                                         height: 1.3,
                                       )),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-
-                          const SizedBox(height: 8),
-
-                          // İlerleme barı
-                          if (!isLocked)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Text('⭐',
-                                            style: TextStyle(fontSize: 14)),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${worldProgress?.totalStars ?? 0}',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Text(
-                                      isLocked
-                                          ? localizations.get('world_locked')
-                                          : '${((worldProgress?.totalStars ?? 0) / 100 * 100).toInt()}%',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: LinearProgressIndicator(
-                                    value: isLocked
-                                        ? 0
-                                        : (worldProgress?.totalStars ?? 0) / 100,
-                                    backgroundColor: Colors.white.withOpacity(0.2),
-                                    valueColor: AlwaysStoppedAnimation(
-                                      Color(int.parse(world.colors[0].replaceFirst('#', '0xFF'))),
-                                    ),
-                                    minHeight: 6,
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.lock,
-                                  color: isFractionBakery
-                                      ? _blueberryPurple
-                                      : Colors.grey,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${world.requiredStars} ⭐ ${localizations.get('stars_required')}',
-                                  style: isFractionBakery
-                                      ? GoogleFonts.quicksand(
-                                          fontSize: 14,
-                                          color: _blueberryPurple,
-                                          fontWeight: FontWeight.w600,
-                                        )
-                                      : const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
-                                ),
-                              ],
-                            ),
                         ],
                       ),
                     ),

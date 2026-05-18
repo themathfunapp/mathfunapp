@@ -11,6 +11,7 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../widgets/daily_gold_help_sheet.dart';
 
 /// Sonsuz Mod Ekranı
 /// Yanlış yapana kadar devam eden sınırsız sorular - 5 CAN (GameMechanicsService ile profil senkron)
@@ -66,6 +67,12 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
   String? _reactionEmoji;
   late AnimationController _playfulLoopController;
 
+  Timer? _playTimeTimer;
+  int _sessionSeconds = 0;
+  bool _exitHandled = false;
+
+  bool get _countsPlayTime => !_isGameOver && !_gamePaused;
+
   @override
   void initState() {
     super.initState();
@@ -102,10 +109,201 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
 
     _generateQuestion();
     _startTimer();
+    _startPlayTimeTracking();
+  }
+
+  void _startPlayTimeTracking() {
+    _playTimeTimer?.cancel();
+    _playTimeTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_countsPlayTime) return;
+      setState(() => _sessionSeconds++);
+    });
+  }
+
+  String _formatMinutesSeconds(int totalSeconds) {
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildEndlessHelpButton(AppLocalizations loc) {
+    return AnimatedBuilder(
+      animation: _playfulLoopController,
+      builder: (context, child) {
+        final pulse = 1.0 + 0.06 * math.sin(_playfulLoopController.value * math.pi * 2);
+        final glow = 0.35 + 0.25 * math.sin(_playfulLoopController.value * math.pi * 2 + 0.4);
+        return Transform.scale(
+          scale: pulse,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showEndlessGoldHelp(loc),
+              customBorder: const CircleBorder(),
+              child: Ink(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD54F), Color(0xFFFF8F00)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFB300).withOpacity(glow),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.help_outline_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEndlessGoldHelp(AppLocalizations loc) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final totalSeconds = (mechanics.endlessPlaySecondsToday + _sessionSeconds)
+        .clamp(0, GameMechanicsService.endlessDailyPlayTargetSeconds);
+    final claimed = mechanics.endlessDailyRewardClaimed;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DailyGoldHelpSheet(
+          progressLabel: loc
+              .get('endless_daily_help_progress')
+              .replaceAll('{0}', _formatMinutesSeconds(totalSeconds)),
+          progressValue: totalSeconds / GameMechanicsService.endlessDailyPlayTargetSeconds,
+          claimed: claimed,
+          claimedMessage: loc.get('endless_daily_help_claimed'),
+          rules: [
+            loc.get('endless_daily_help_rule_1'),
+            loc.get('endless_daily_help_rule_2'),
+            loc.get('endless_daily_help_rule_3'),
+            loc.get('endless_daily_help_rule_4'),
+          ],
+          title: loc.get('endless_daily_help_title'),
+          closeLabel: loc.get('ok'),
+        );
+      },
+    );
+  }
+
+  Future<void> _flushSessionPlayTime() async {
+    if (_sessionSeconds <= 0 || !mounted) return;
+    final seconds = _sessionSeconds;
+    _sessionSeconds = 0;
+    await Provider.of<GameMechanicsService>(context, listen: false)
+        .addEndlessActivePlaySeconds(seconds);
+  }
+
+  Future<void> _showEndlessRewardDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                loc.get('endless_daily_complete_msg'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${GameMechanicsService.endlessDailyRewardCoins}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF5E35B1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(loc.get('ok')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _leaveEndlessMode() async {
+    if (_exitHandled) return;
+    _exitHandled = true;
+    _playTimeTimer?.cancel();
+    _timer?.cancel();
+    _burstConfetti.stop();
+
+    if (mounted) {
+      await _flushSessionPlayTime();
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      final outcome = await mechanics.tryClaimEndlessDailyRewardOnExit();
+      if (mounted && outcome.rewardGranted) {
+        await _showEndlessRewardDialog();
+      }
+    }
+    widget.onBack();
   }
 
   @override
   void dispose() {
+    _playTimeTimer?.cancel();
+    if (!_exitHandled && _sessionSeconds > 0) {
+      final seconds = _sessionSeconds;
+      _sessionSeconds = 0;
+      try {
+        context.read<GameMechanicsService>().addEndlessActivePlaySeconds(seconds);
+      } catch (_) {}
+    }
     _audio.cancelAmbientSync();
     _timer?.cancel();
     _shakeController.dispose();
@@ -436,7 +634,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                 child: TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    widget.onBack();
+                    _leaveEndlessMode();
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withOpacity(0.7),
@@ -535,9 +733,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
         _startTimer();
       },
       onExit: () {
-        _timer?.cancel();
-        _burstConfetti.stop();
-        widget.onBack();
+        _leaveEndlessMode();
       },
     );
   }
@@ -547,7 +743,13 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
     final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
     final loc = AppLocalizations(localeProvider.locale);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _leaveEndlessMode();
+      },
+      child: Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -656,51 +858,6 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 7,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.amber.shade400,
-                                      Colors.orange.shade600,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(25),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.5),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.amber.withOpacity(0.4),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                      '⭐',
-                                      style: TextStyle(fontSize: 17),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      '$_score',
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
                               ScaleTransition(
                                 scale: _heartAnimation,
                                 child: Container(
@@ -880,12 +1037,18 @@ class _EndlessModeScreenState extends State<EndlessModeScreen>
                         ),
                       ),
                     ),
+                  Positioned(
+                    right: 14,
+                    bottom: 12,
+                    child: _buildEndlessHelpButton(loc),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    ),
     );
   }
 

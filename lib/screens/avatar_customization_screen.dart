@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../localization/app_localizations.dart';
 import '../models/avatar_customization.dart';
+import '../providers/locale_provider.dart';
 
 /// Avatar Özelleştirme Ekranı
 class AvatarCustomizationScreen extends StatefulWidget {
@@ -120,7 +124,8 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
             if (_coins < part.cost) ...[
               const SizedBox(height: 8),
               Text(
-                'Yeterli altın yok!',
+                AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale)
+                    .get('not_enough_gold'),
                 style: TextStyle(color: Colors.red.shade300),
               ),
             ],
@@ -129,7 +134,11 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İPTAL', style: TextStyle(color: Colors.white70)),
+            child: Text(
+              AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale)
+                  .get('cancel'),
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
           if (_coins >= part.cost)
             ElevatedButton(
@@ -145,7 +154,10 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
                 backgroundColor: Colors.amber,
                 foregroundColor: Colors.black,
               ),
-              child: const Text('SATIN AL'),
+              child: Text(
+                AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale)
+                    .get('buy_action'),
+              ),
             ),
         ],
       ),
@@ -478,8 +490,10 @@ class _AvatarCustomizationScreenState extends State<AvatarCustomizationScreen>
         onTap: () {
           widget.onSave?.call(_avatar);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Avatar kaydedildi! ✨'),
+            SnackBar(
+              content: Text(
+                '${AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('avatar_saved_success')} ✨',
+              ),
               backgroundColor: Colors.green,
             ),
           );

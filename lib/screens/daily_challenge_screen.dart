@@ -8,6 +8,7 @@ import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
 import '../services/auth_service.dart';
 import '../services/game_mechanics_service.dart';
+import '../services/daily_challenge_question_pool.dart';
 import '../services/game_session_report.dart';
 import '../services/in_app_notification_service.dart';
 import '../services/ad_service.dart';
@@ -33,7 +34,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   // Oyun durumu
   bool _isPlaying = false;
   int _currentQuestionIndex = 0;
-  int _score = 0;
   int _correctAnswers = 0;
   int _wrongAnswers = 0;
   bool _isAnswered = false;
@@ -55,6 +55,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
   int _combo = 0;
   int _maxCombo = 0;
   bool _sessionReported = false;
+  bool _isPreparingChallenge = false;
 
   // Animasyonlar
   late AnimationController _pulseController;
@@ -114,10 +115,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     super.dispose();
   }
 
-  void _startChallenge(DailyChallenge challenge) {
+  Future<void> _startChallenge(DailyChallenge challenge) async {
+    if (_isPreparingChallenge) return;
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
     if (!mechanicsService.hasLives) {
-      final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(loc.get('no_lives_play')),
@@ -127,12 +129,35 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       );
       return;
     }
-    _generateQuestions(challenge);
+
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final user = auth.currentUser;
+    final storageUserId = user == null
+        ? 'local'
+        : (user.isGuest ? 'guest_${user.uid}' : user.uid);
+
+    setState(() => _isPreparingChallenge = true);
+    try {
+      await _generateQuestions(storageUserId: storageUserId);
+    } catch (e) {
+      if (mounted) setState(() => _isPreparingChallenge = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.get('premium_loading')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (mounted) setState(() => _isPreparingChallenge = false);
+
+    if (!mounted || _questions.isEmpty) return;
+
     scheduleSectionAmbient(context, SoundscapeTheme.mountain);
     setState(() {
       _isPlaying = true;
       _currentQuestionIndex = 0;
-      _score = 0;
       _correctAnswers = 0;
       _wrongAnswers = 0;
       _gameOver = false;
@@ -149,91 +174,23 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     _startTimer();
   }
 
-  // KARIŞIK SORU ÜRETİCİ - Toplama, Çıkarma, Çarpma, Bölme
-  void _generateQuestions(DailyChallenge challenge) {
-    _questions = [];
-    final random = math.Random();
-    final allTopics = ['addition', 'subtraction', 'multiplication', 'division'];
-
-    for (int i = 0; i < challenge.targetCorrect + 5; i++) {
-      // Karışık topic - rastgele seç
-      final topic = allTopics[random.nextInt(allTopics.length)];
-      _questions.add(_generateQuestion(topic, challenge.difficulty, random));
-    }
-  }
-
-  _ChallengeQuestion _generateQuestion(
-      String topic,
-      String difficulty,
-      math.Random random,
-      ) {
-    int num1, num2, answer;
-    String operator;
-    int maxNum;
-
-    switch (difficulty) {
-      case 'easy':
-        maxNum = 10;
-        break;
-      case 'medium':
-        maxNum = 20;
-        break;
-      case 'hard':
-        maxNum = 50;
-        break;
-      default:
-        maxNum = 10;
-    }
-
-    switch (topic) {
-      case 'addition':
-        operator = '+';
-        num1 = random.nextInt(maxNum) + 1;
-        num2 = random.nextInt(maxNum) + 1;
-        answer = num1 + num2;
-        break;
-      case 'subtraction':
-        operator = '-';
-        num1 = random.nextInt(maxNum) + 1;
-        num2 = random.nextInt(num1) + 1;
-        answer = num1 - num2;
-        break;
-      case 'multiplication':
-        operator = '×';
-        num1 = random.nextInt(10) + 1;
-        num2 = random.nextInt(10) + 1;
-        answer = num1 * num2;
-        break;
-      case 'division':
-        operator = '÷';
-        num2 = random.nextInt(9) + 1;
-        answer = random.nextInt(10) + 1;
-        num1 = num2 * answer;
-        break;
-      default:
-        operator = '+';
-        num1 = random.nextInt(maxNum) + 1;
-        num2 = random.nextInt(maxNum) + 1;
-        answer = num1 + num2;
-    }
-
-    // Seçenekler oluştur
-    List<int> options = [answer];
-    while (options.length < 4) {
-      int wrong = answer + random.nextInt(10) - 5;
-      if (wrong > 0 && wrong != answer && !options.contains(wrong)) {
-        options.add(wrong);
-      }
-    }
-    options.shuffle();
-
-    return _ChallengeQuestion(
-      num1: num1,
-      num2: num2,
-      operator: operator,
-      correctAnswer: answer,
-      options: options,
+  Future<void> _generateQuestions({required String storageUserId}) async {
+    final pool = await DailyChallengeQuestionPool.generateSession(
+      storageUserId: storageUserId,
+      date: DateTime.now(),
     );
+    _questions = pool
+        .map(
+          (d) => _ChallengeQuestion(
+            num1: d.num1,
+            num2: d.num2,
+            operator: d.operator,
+            correctAnswer: d.correctAnswer,
+            options: List<int>.from(d.options),
+            fingerprint: d.fingerprint,
+          ),
+        )
+        .toList();
   }
 
   void _startTimer() {
@@ -266,8 +223,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
       _combo++;
       if (_combo > _maxCombo) _maxCombo = _combo;
 
-      // Her doğru cevap 10 puan
-      _score += 10;
       _audio.playSound(SoundEffect.characterHappy);
       _confettiController.stop();
       _confettiController.play();
@@ -321,17 +276,20 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final challenge = mechanicsService.todayChallenge;
-    final success = challenge != null &&
-        _score >= challenge.targetScore &&
-        _correctAnswers >= challenge.targetCorrect;
-    if ((_correctAnswers + _wrongAnswers) > 0) {
+    final totalAnswered = _correctAnswers + _wrongAnswers;
+    final success = challenge != null && totalAnswered >= challenge.targetCorrect;
+    if (totalAnswered > 0) {
       final badges = success ? 2 : 1;
       mechanicsService.grantAdventurePassBadges(
         mode: 'daily',
         earnedBadges: badges,
       );
     }
-    mechanicsService.completeChallenge(_score, _correctAnswers);
+    mechanicsService.completeChallenge(
+      _correctAnswers,
+      _correctAnswers,
+      totalAnswered: totalAnswered,
+    );
 
     if (success) {
       final auth = Provider.of<AuthService>(context, listen: false);
@@ -366,7 +324,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
         questionsAnswered: q,
         correctAnswers: _correctAnswers,
         wrongAnswers: _wrongAnswers,
-        score: _score,
+        score: _correctAnswers,
         averageAnswerTimeSeconds: 5.0,
         fastAnswersCount: 0,
         superFastAnswersCount: 0,
@@ -510,11 +468,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             _selectedAnswer = null;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎬 Reklam izlendi! +1 can kazandın!'),
+            SnackBar(
+              content: Text(
+                '🎬 ${AppLocalizations.of(context).get('ad_watched_extra_life')}',
+              ),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
           _startTimer();
@@ -543,8 +503,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     final challenge = mechanicsService.todayChallenge;
 
-    final isSuccess = _correctAnswers >= (challenge?.targetCorrect ?? 0) &&
-        _score >= (challenge?.targetScore ?? 0);
+    final totalAnswered = _correctAnswers + _wrongAnswers;
+    final isSuccess =
+        totalAnswered >= (challenge?.targetCorrect ?? DailyChallengeQuestionPool.questionCount);
 
     // Her 3 oyunda bir geçiş reklamı göster (Premium değilse)
     final adService = AdService();
@@ -574,59 +535,48 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                isSuccess ? '🎉 ${loc.get('challenge_success')} 🎉' : '💪 ${loc.get('challenge_try_again')}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              if (isSuccess) ...[
+                const Text('🎉', style: TextStyle(fontSize: 48)),
+                const SizedBox(height: 12),
+                Text(
+                  loc.get('daily_challenge_complete_msg'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Sonuçlar
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildResultRow('⭐ ${loc.get('score')}', '$_score'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('✅ ${loc.get('correct')}', '$_correctAnswers'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('❌ ${loc.get('wrong')}', '$_wrongAnswers'),
-                    const Divider(color: Colors.white24),
-                    _buildResultRow('🔥 ${loc.get('max_combo')}', '$_maxCombo'),
+                    const Text('🪙', style: TextStyle(fontSize: 32)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+${GameMechanicsService.dailyChallengeRewardCoins}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-
-              if (isSuccess && challenge != null) ...[
+              ] else ...[
+                Text(
+                  '💪 ${loc.get('challenge_try_again')}',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('🪙', style: TextStyle(fontSize: 24)),
-                      const SizedBox(width: 8),
-                      Text(
-                        '+${challenge.rewardCoins} ${loc.get('money_market_currency')}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  '${loc.get('correct')}: $_correctAnswers • ${loc.get('wrong')}: $_wrongAnswers',
+                  style: const TextStyle(color: Colors.white70, fontSize: 15),
                 ),
               ],
 
@@ -834,10 +784,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
             builder: (context) {
               final localeProvider = Provider.of<LocaleProvider>(context, listen: true);
               final loc = AppLocalizations(localeProvider.locale);
-              final title = _getChallengeTitle(loc, challenge.difficulty);
-              final description = loc.get('challenge_description_format')
-                  .replaceAll('{count}', '${challenge.targetCorrect}')
-                  .replaceAll('{minutes}', '${challenge.timeLimit ~/ 60}');
+              final intro = loc.get('daily_challenge_intro');
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 380;
@@ -875,24 +822,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                       ),
                       child: Column(
                         children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
                           Text(
-                            description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.8),
+                            intro,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -910,14 +845,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                                 loc.get('duration'),
                               ),
                               _buildTargetItem(
-                                '✅',
-                                '${challenge.targetCorrect}',
-                                loc.get('correct'),
-                              ),
-                              _buildTargetItem(
-                                '⭐',
-                                '${challenge.targetScore}',
-                                loc.get('score'),
+                                '📝',
+                                '${DailyChallengeQuestionPool.questionCount}',
+                                loc.get('daily_challenge_questions_label'),
                               ),
                             ],
                           ),
@@ -943,16 +873,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                                 ),
                                 const Text('🪙', style: TextStyle(fontSize: 18)),
                                 Text(
-                                  '${challenge.rewardCoins}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                                const Text('⭐', style: TextStyle(fontSize: 18)),
-                                Text(
-                                  '${challenge.rewardXp} ${loc.get('xp')}',
+                                  '${GameMechanicsService.dailyChallengeRewardCoins} ${loc.get('money_market_currency')}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -1137,33 +1058,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 17),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$_score',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Consumer<GameMechanicsService>(
+                    child: Consumer<GameMechanicsService>(
                           builder: (context, mechanicsService, _) {
                             final lives = mechanicsService.currentLives;
                             final maxLives = mechanicsService.maxLives;
@@ -1195,8 +1090,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                             );
                           },
                         ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -1464,6 +1357,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen>
                                               ),
                                             ],
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.45),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${_currentQuestionIndex + 1}/${_questions.length}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
                                       ),
                                     ),
@@ -1784,6 +1697,7 @@ class _ChallengeQuestion {
   final String operator;
   final int correctAnswer;
   final List<int> options;
+  final String fingerprint;
 
   _ChallengeQuestion({
     required this.num1,
@@ -1791,5 +1705,6 @@ class _ChallengeQuestion {
     required this.operator,
     required this.correctAnswer,
     required this.options,
+    required this.fingerprint,
   });
 }

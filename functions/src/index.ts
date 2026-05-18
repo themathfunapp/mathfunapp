@@ -189,3 +189,50 @@ export const onFamilyRemoteDuelInviteCreated = functions.firestore
       functions.logger.error("onFamilyRemoteDuelInviteCreated FCM error", err);
     }
   });
+
+/**
+ * Arkadaş düellosu: davet oluşunca karşı tarafa FCM bildirimi.
+ */
+export const onFriendDuelInviteCreated = functions.firestore
+  .document("friendDuelInvites/{inviteId}")
+  .onCreate(async (snap, context) => {
+    const d = snap.data();
+    if (!d || d.status !== "pending") {
+      return;
+    }
+    const toUid = d.toUserId as string | undefined;
+    const fromName = (d.fromDisplayName as string) || "Arkadaşın";
+    const sessionId = (d.sessionId as string) || "";
+    if (!toUid) {
+      return;
+    }
+
+    const tokenSnap = await admin
+      .firestore()
+      .doc(`users/${toUid}/private/fcm/current`)
+      .get();
+    const token = tokenSnap.data()?.token as string | undefined;
+    if (!token) {
+      functions.logger.info("onFriendDuelInviteCreated: no FCM token", {
+        toUid,
+      });
+      return;
+    }
+
+    try {
+      await admin.messaging().send({
+        token,
+        notification: {
+          title: "MathFun — Düello",
+          body: `${fromName} seni düelloya davet etti.`,
+        },
+        data: {
+          type: "friend_duel_invite",
+          inviteId: context.params.inviteId as string,
+          sessionId,
+        },
+      });
+    } catch (err) {
+      functions.logger.error("onFriendDuelInviteCreated FCM error", err);
+    }
+  });

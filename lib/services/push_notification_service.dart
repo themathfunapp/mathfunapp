@@ -19,6 +19,17 @@ class RemoteDuelInvitePayload {
   final String sessionId;
 }
 
+/// Arkadaş düellosu FCM `data` yükü.
+class FriendDuelInvitePayload {
+  const FriendDuelInvitePayload({
+    required this.inviteId,
+    required this.sessionId,
+  });
+
+  final String inviteId;
+  final String sessionId;
+}
+
 /// FCM jetonunu Firestore’a yazar; Cloud Function davet bildirimi için okur.
 /// Davet bildirimine tıklanınca yükü kuyruğa alır — [HomeScreen] tüketir.
 /// Ön planda gelen FCM için yerel bildirim gösterir.
@@ -28,13 +39,16 @@ class PushNotificationService {
   static final instance = PushNotificationService._();
 
   static const String _remoteDuelPayloadPrefix = 'frd';
+  static const String _friendDuelPayloadPrefix = 'fdd';
   static const String _prefNotificationsEnabled = 'notifications_enabled';
 
   bool _started = false;
 
   final ValueNotifier<int> remoteDuelInviteQueueVersion = ValueNotifier<int>(0);
+  final ValueNotifier<int> friendDuelInviteQueueVersion = ValueNotifier<int>(0);
 
   final List<RemoteDuelInvitePayload> _remoteDuelInviteQueue = <RemoteDuelInvitePayload>[];
+  final List<FriendDuelInvitePayload> _friendDuelInviteQueue = <FriendDuelInvitePayload>[];
 
   /// Ana sayfa açıldığında bir kez veya kuyruk güncellenince dinleyicide çağrılır.
   List<RemoteDuelInvitePayload> drainRemoteDuelInvites() {
@@ -46,54 +60,111 @@ class PushNotificationService {
     return out;
   }
 
+  List<FriendDuelInvitePayload> drainFriendDuelInvites() {
+    if (_friendDuelInviteQueue.isEmpty) {
+      return const <FriendDuelInvitePayload>[];
+    }
+    final out = List<FriendDuelInvitePayload>.from(_friendDuelInviteQueue);
+    _friendDuelInviteQueue.clear();
+    return out;
+  }
+
   void _enqueueRemoteDuelInvite(RemoteDuelInvitePayload payload) {
     _remoteDuelInviteQueue.add(payload);
     remoteDuelInviteQueueVersion.value = remoteDuelInviteQueueVersion.value + 1;
   }
 
-  void _decodeRemoteDuelPayloadAndEnqueue(String? payload) {
-    if (payload == null || !payload.startsWith('$_remoteDuelPayloadPrefix|')) {
+  void _enqueueFriendDuelInvite(FriendDuelInvitePayload payload) {
+    _friendDuelInviteQueue.add(payload);
+    friendDuelInviteQueueVersion.value = friendDuelInviteQueueVersion.value + 1;
+  }
+
+  void _decodeNotificationPayloadAndEnqueue(String? payload) {
+    if (payload == null) return;
+    if (payload.startsWith('$_remoteDuelPayloadPrefix|')) {
+      final parts = payload.split('|');
+      if (parts.length < 3) return;
+      final inviteId = parts[1].trim();
+      final sessionId = parts[2].trim();
+      if (inviteId.isEmpty || sessionId.isEmpty) return;
+      _enqueueRemoteDuelInvite(
+        RemoteDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
+      );
       return;
     }
-    final parts = payload.split('|');
-    if (parts.length < 3) return;
-    final inviteId = parts[1].trim();
-    final sessionId = parts[2].trim();
-    if (inviteId.isEmpty || sessionId.isEmpty) return;
-    _enqueueRemoteDuelInvite(
-      RemoteDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
-    );
+    if (payload.startsWith('$_friendDuelPayloadPrefix|')) {
+      final parts = payload.split('|');
+      if (parts.length < 3) return;
+      final inviteId = parts[1].trim();
+      final sessionId = parts[2].trim();
+      if (inviteId.isEmpty || sessionId.isEmpty) return;
+      _enqueueFriendDuelInvite(
+        FriendDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
+      );
+    }
   }
 
   String _encodeRemoteDuelPayload(String inviteId, String sessionId) {
     return '$_remoteDuelPayloadPrefix|$inviteId|$sessionId';
   }
 
+  String _encodeFriendDuelPayload(String inviteId, String sessionId) {
+    return '$_friendDuelPayloadPrefix|$inviteId|$sessionId';
+  }
+
   void _handleNotificationOpen(RemoteMessage message) {
     final data = message.data;
-    if (data['type'] != 'family_remote_duel_invite') {
-      return;
-    }
+    final type = data['type'] as String? ?? '';
     final inviteId = '${data['inviteId'] ?? ''}'.trim();
     final sessionId = '${data['sessionId'] ?? ''}'.trim();
     if (inviteId.isEmpty || sessionId.isEmpty) {
       debugPrint('PushNotificationService: eksik inviteId/sessionId');
       return;
     }
-    _enqueueRemoteDuelInvite(
-      RemoteDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
-    );
+    if (type == 'family_remote_duel_invite') {
+      _enqueueRemoteDuelInvite(
+        RemoteDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
+      );
+    } else if (type == 'friend_duel_invite') {
+      _enqueueFriendDuelInvite(
+        FriendDuelInvitePayload(inviteId: inviteId, sessionId: sessionId),
+      );
+    }
   }
 
   Future<void> _initLocalNotifications() async {
     try {
       await AppLocalNotifications.initialize(
         onSelect: (NotificationResponse r) {
-          _decodeRemoteDuelPayloadAndEnqueue(r.payload);
+          _decodeNotificationPayloadAndEnqueue(r.payload);
         },
       );
     } catch (e) {
       debugPrint('PushNotificationService local init: $e');
+    }
+  }
+
+  Future<void> _showForegroundFriendDuel(RemoteMessage message) async {
+    if (!await notificationsEnabled()) return;
+    final data = message.data;
+    if (data['type'] != 'friend_duel_invite') return;
+    final inviteId = '${data['inviteId'] ?? ''}'.trim();
+    final sessionId = '${data['sessionId'] ?? ''}'.trim();
+    if (inviteId.isEmpty || sessionId.isEmpty) return;
+
+    final body = message.notification?.body ?? 'Arkadaşın seni düelloya davet etti.';
+    final details = AppLocalNotifications.friendDuelForegroundDetails(body);
+
+    try {
+      await AppLocalNotifications.plugin.show(
+        91002,
+        message.notification?.title ?? 'MathFun',
+        body,
+        details,
+        payload: _encodeFriendDuelPayload(inviteId, sessionId),
+      );
+    } catch (e) {
+      debugPrint('PushNotificationService friend duel foreground: $e');
     }
   }
 
@@ -151,8 +222,11 @@ class PushNotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationOpen);
 
     FirebaseMessaging.onMessage.listen((RemoteMessage m) {
-      if (m.data['type'] == 'family_remote_duel_invite') {
+      final type = m.data['type'];
+      if (type == 'family_remote_duel_invite') {
         _showForegroundFamilyRemoteDuel(m);
+      } else if (type == 'friend_duel_invite') {
+        _showForegroundFriendDuel(m);
       }
     });
 

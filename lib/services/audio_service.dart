@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Ses ve müzik: `assets/sounds/` altındaki WAV dosyalarını çalar.
@@ -10,7 +13,9 @@ class AudioService extends ChangeNotifier {
     _ambientPlayer = AudioPlayer();
     _sfxPlayer = AudioPlayer();
     _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+    _ambientPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _sfxPlayer.setReleaseMode(ReleaseMode.release);
+    _sfxPlayer.setPlayerMode(PlayerMode.lowLatency);
   }
 
   late final AudioPlayer _ambientPlayer;
@@ -25,6 +30,23 @@ class AudioService extends ChangeNotifier {
   SoundscapeTheme _currentSoundscape = SoundscapeTheme.forest;
   bool _isPlaying = false;
   bool _disposed = false;
+  String? _playingBgmAsset;
+  /// Web: tarayıcı ilk dokunuş olmadan ses çalmaz (autoplay politikası).
+  bool _userAudioUnlocked = !kIsWeb;
+  bool _pendingBgmStart = false;
+
+  /// Kısa döngü (~800 KB) — hızlı yükleme; tam parça: music_kids_bgm.mp3 (3 MB).
+  static const String _globalBgmAsset = 'sounds/music_kids_bgm_loop.mp3';
+
+  Uint8List? _cachedBgmBytes;
+  final Map<String, Uint8List> _sfxByteCache = {};
+  bool _bgmBytesLoading = false;
+  Completer<void>? _bgmBytesLoadCompleter;
+  bool _bgmStartInProgress = false;
+  /// Web: bir kez bulunan hızlı asset yolu (her seferinde iki URL denemesin).
+  String? _resolvedWebBgmUrl;
+  /// Müzik sesi (cızırtıyı önlemek için orta).
+  static const double _bgmVolumeScale = 0.45;
 
   bool get musicEnabled => _musicEnabled;
   bool get soundEffectsEnabled => _soundEffectsEnabled;
@@ -39,10 +61,50 @@ class AudioService extends ChangeNotifier {
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
     _musicEnabled = _prefs?.getBool('music_enabled') ?? true;
-    _soundEffectsEnabled = _prefs?.getBool('effects_enabled') ?? true;
+    _soundEffectsEnabled = _prefs?.getBool('effects_enabled') ??
+        _prefs?.getBool('sound_enabled') ??
+        true;
     _musicVolume = _prefs?.getDouble('music_volume') ?? 0.7;
     _effectsVolume = _prefs?.getDouble('effects_volume') ?? 1.0;
     notifyListeners();
+    if (_musicEnabled) {
+      warmUpBgm();
+      if (!kIsWeb) {
+        await ensureBackgroundMusic();
+      }
+    }
+  }
+
+  /// Uygulama açılırken MP3'ü arka planda yükle (çalma için dokunuş yine gerekir — web).
+  void warmUpBgm() {
+    // ignore: discarded_futures
+    _preloadBgmBytes();
+    warmUpSfx();
+  }
+
+  /// Sık kullanılan efektleri önbelleğe al (gecikmeyi azaltır).
+  void warmUpSfx() {
+    const warm = [
+      SoundEffect.buttonTap,
+      SoundEffect.correct,
+      SoundEffect.wrong,
+      SoundEffect.characterHappy,
+      SoundEffect.characterSad,
+      SoundEffect.levelUp,
+    ];
+    for (final effect in warm) {
+      // ignore: discarded_futures
+      _preloadSfx(effect);
+    }
+  }
+
+  Future<void> _preloadSfx(SoundEffect effect) async {
+    final fileName = effect.fileName;
+    if (_sfxByteCache.containsKey(fileName)) return;
+    try {
+      final data = await rootBundle.load('assets/sounds/sfx_$fileName.wav');
+      _sfxByteCache[fileName] = data.buffer.asUint8List();
+    } catch (_) {}
   }
 
   Future<void> setMusicEnabled(bool enabled) async {
@@ -50,6 +112,9 @@ class AudioService extends ChangeNotifier {
     await _prefs?.setBool('music_enabled', enabled);
     if (!enabled) {
       await stopMusic();
+    } else {
+      _userAudioUnlocked = true;
+      await ensureBackgroundMusic();
     }
     notifyListeners();
   }
@@ -57,15 +122,18 @@ class AudioService extends ChangeNotifier {
   Future<void> setSoundEffectsEnabled(bool enabled) async {
     _soundEffectsEnabled = enabled;
     await _prefs?.setBool('effects_enabled', enabled);
+    await _prefs?.setBool('sound_enabled', enabled);
     notifyListeners();
   }
 
   Future<void> setMusicVolume(double volume) async {
     _musicVolume = volume.clamp(0.0, 1.0);
     await _prefs?.setDouble('music_volume', _musicVolume);
-    await _ambientPlayer.setVolume(_musicVolume * 0.5);
+    await _ambientPlayer.setVolume(_effectiveBgmVolume);
     notifyListeners();
   }
+
+  double get _effectiveBgmVolume => _musicVolume * _bgmVolumeScale;
 
   Future<void> setEffectsVolume(double volume) async {
     _effectsVolume = volume.clamp(0.0, 1.0);
@@ -85,57 +153,238 @@ class AudioService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Arka plan döngüleri kapalı (uğultu / ambient çocuklar için kaldırıldı).
-  /// Kısa SFX [playSound] ile çalmaya devam eder.
-  Future<void> playMenuAmbientLoop() async {
-    await stopMusic();
-  }
+  /// Uygulama geneli arka plan müziği (menü, oyun, tüm ekranlar).
+  Future<void> playMenuAmbientLoop() => ensureBackgroundMusic();
 
-  /// Bölüm ortam sesi döngüsü — çalmaz; [setSoundscape] tema bilgisini güncellemek için kullanılabilir.
-  Future<void> playAmbientLoop() async {
-    await stopMusic();
-  }
+  /// Bölüm değişiminde de aynı global müzik devam eder.
+  Future<void> playAmbientLoop() => ensureBackgroundMusic();
 
-  /// Boss / zaman baskısı döngüleri — çalmaz; yalnızca [setMusicMood] güncellenir.
+  /// Yoğun modda da aynı parça; yalnızca ruh hali kaydı güncellenir.
   Future<void> playMoodLoop(MusicMood mood) async {
     setMusicMood(mood);
-    await stopMusic();
+    await ensureBackgroundMusic();
   }
 
-  Future<void> playMusic() => playAmbientLoop();
+  Future<void> playMusic() => ensureBackgroundMusic();
+
+  /// İlk dokunuş / buton — web autoplay kilidini açar, müziği hemen başlatır.
+  Future<void> unlockUserAudio() async {
+    _userAudioUnlocked = true;
+    if (!_musicEnabled) return;
+    if (_bgmActuallyPlaying()) return;
+
+    _bgmStartInProgress = true;
+    try {
+      await _ambientPlayer.setVolume(_effectiveBgmVolume);
+      final started = await _startBgmPlayback(restart: false);
+      if (started) {
+        _playingBgmAsset = _globalBgmAsset;
+        _isPlaying = true;
+        _pendingBgmStart = false;
+        notifyListeners();
+      } else {
+        await ensureBackgroundMusic(force: true);
+      }
+    } finally {
+      _bgmStartInProgress = false;
+    }
+  }
+
+  Future<void> _preloadBgmBytes() async {
+    if (_cachedBgmBytes != null) return;
+    if (_bgmBytesLoading) {
+      await (_bgmBytesLoadCompleter?.future ?? Future.value());
+      return;
+    }
+    _bgmBytesLoading = true;
+    _bgmBytesLoadCompleter = Completer<void>();
+    try {
+      final data = await rootBundle.load('assets/$_globalBgmAsset');
+      _cachedBgmBytes = data.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('BGM ön yükleme: $e');
+    } finally {
+      _bgmBytesLoading = false;
+      _bgmBytesLoadCompleter?.complete();
+      _bgmBytesLoadCompleter = null;
+    }
+  }
+
+  bool _bgmActuallyPlaying() =>
+      _ambientPlayer.state == PlayerState.playing &&
+      _playingBgmAsset == _globalBgmAsset;
+
+  /// Müzik açıksa global döngüyü başlatır (gereksiz stop/play yok).
+  Future<void> ensureBackgroundMusic({bool force = false}) async {
+    if (_disposed || !_musicEnabled || _bgmStartInProgress) return;
+
+    if (kIsWeb && !_userAudioUnlocked) {
+      _pendingBgmStart = true;
+      return;
+    }
+
+    if (!force && _bgmActuallyPlaying()) return;
+
+    final state = _ambientPlayer.state;
+    if (!force && state == PlayerState.paused && _playingBgmAsset == _globalBgmAsset) {
+      try {
+        await _ambientPlayer.setVolume(_effectiveBgmVolume);
+        await _ambientPlayer.resume();
+        _isPlaying = true;
+        return;
+      } catch (e) {
+        debugPrint('BGM resume: $e');
+      }
+    }
+
+    _bgmStartInProgress = true;
+    try {
+      final started = await _startBgmPlayback(restart: force || !_bgmActuallyPlaying());
+      if (started) {
+        _playingBgmAsset = _globalBgmAsset;
+        _isPlaying = true;
+        _pendingBgmStart = false;
+        notifyListeners();
+      } else {
+        _isPlaying = false;
+        _playingBgmAsset = null;
+        debugPrint('Arka plan müziği başlatılamadı');
+      }
+    } catch (e) {
+      _isPlaying = false;
+      _playingBgmAsset = null;
+      final msg = e.toString();
+      if (msg.contains('NotAllowed') || msg.contains("didn't interact")) {
+        _userAudioUnlocked = false;
+        _pendingBgmStart = true;
+      } else {
+        debugPrint('Arka plan müziği: $e');
+      }
+    } finally {
+      _bgmStartInProgress = false;
+    }
+  }
+
+  /// Beğenilen parça: music_kids_bgm.mp3 — web'de URL önce (3 MB bayt beklenmez).
+  Future<bool> _startBgmPlayback({required bool restart}) async {
+    if (!restart && _ambientPlayer.state == PlayerState.playing) return true;
+
+    if (restart) {
+      try {
+        await _ambientPlayer.stop();
+      } catch (_) {}
+    }
+
+    if (kIsWeb) {
+      if (await _playWebBgmUrl()) return true;
+    } else if (_cachedBgmBytes != null) {
+      try {
+        await _ambientPlayer.play(
+          BytesSource(_cachedBgmBytes!, mimeType: 'audio/mpeg'),
+        );
+        return true;
+      } catch (e) {
+        debugPrint('BGM bytes: $e');
+      }
+    }
+
+    if (!kIsWeb) {
+      try {
+        await _ambientPlayer.play(AssetSource(_globalBgmAsset));
+        return true;
+      } catch (e) {
+        debugPrint('BGM asset: $e');
+      }
+    }
+
+    await _preloadBgmBytes();
+    if (_cachedBgmBytes != null) {
+      try {
+        await _ambientPlayer.play(
+          BytesSource(_cachedBgmBytes!, mimeType: 'audio/mpeg'),
+        );
+        return true;
+      } catch (e) {
+        debugPrint('BGM bytes (geç): $e');
+      }
+    }
+
+    if (kIsWeb) {
+      return _playWebBgmUrl();
+    }
+    return false;
+  }
+
+  Future<bool> _playWebBgmUrl() async {
+    final candidates = _resolvedWebBgmUrl != null
+        ? [_resolvedWebBgmUrl!]
+        : [
+            'assets/assets/$_globalBgmAsset',
+            'assets/$_globalBgmAsset',
+          ];
+    for (final url in candidates) {
+      try {
+        await _ambientPlayer.play(UrlSource(url));
+        _resolvedWebBgmUrl = url;
+        return true;
+      } catch (e) {
+        debugPrint('BGM web ($url): $e');
+      }
+    }
+    return false;
+  }
+
+  /// Uygulama arka plana giderken geçici duraklatma.
+  Future<void> pauseBackgroundMusic() async {
+    if (!_isPlaying) return;
+    try {
+      await _ambientPlayer.pause();
+    } catch (_) {}
+  }
 
   Future<void> stopMusic() async {
     try {
       await _ambientPlayer.stop();
     } catch (_) {}
     _isPlaying = false;
+    _playingBgmAsset = null;
     notifyListeners();
   }
 
-  /// [dispose] veya rota çıkışında güvenli durdurma (await yok).
-  /// [notifyListeners] bir sonraki kareye ertelenir; dispose / build kilidi sırasında assert önlenir.
-  void cancelAmbientSync() {
-    if (_disposed) return;
-    // ignore: discarded_futures
-    _ambientPlayer.stop();
-    _isPlaying = false;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!_disposed) notifyListeners();
-    });
-  }
+  /// Ekran dispose — global müzik durmaz (oyun boyunca devam).
+  void cancelAmbientSync() {}
 
   Future<void> playSound(SoundEffect effect) async {
-    if (!_soundEffectsEnabled) return;
+    if (!_soundEffectsEnabled || _disposed) return;
     try {
-      final path = 'sounds/sfx_${effect.fileName}.wav';
-      await _sfxPlayer.stop();
+      await _sfxPlayer.setVolume(_effectsVolume * 0.75);
       await _sfxPlayer.setReleaseMode(ReleaseMode.release);
-      await _sfxPlayer.play(AssetSource(path));
-      await _sfxPlayer.setVolume(_effectsVolume * 0.85);
+
+      final fileName = effect.fileName;
+      Uint8List? bytes = _sfxByteCache[fileName];
+      if (bytes == null) {
+        try {
+          final data = await rootBundle.load('assets/sounds/sfx_$fileName.wav');
+          bytes = data.buffer.asUint8List();
+          _sfxByteCache[fileName] = bytes;
+        } catch (e) {
+          debugPrint('SFX yükleme $fileName: $e');
+        }
+      }
+
+      if (bytes != null) {
+        await _sfxPlayer.play(BytesSource(bytes, mimeType: 'audio/wav'));
+      } else {
+        await _sfxPlayer.play(AssetSource('sounds/sfx_$fileName.wav'));
+      }
     } catch (e) {
       debugPrint('SFX ${effect.name}: $e');
     }
   }
+
+  void playUiTap() => playSound(SoundEffect.buttonTap);
+
+  void playUiHover() => playSound(SoundEffect.buttonHover);
 
   void playAnswerFeedback(bool correct) {
     if (correct) {
@@ -149,18 +398,19 @@ class AudioService extends ChangeNotifier {
     switch (context) {
       case GameContext.menu:
         setMusicMood(MusicMood.relaxed);
-        playMenuAmbientLoop();
+        ensureBackgroundMusic();
         break;
       case GameContext.playing:
         setMusicMood(MusicMood.normal);
+        ensureBackgroundMusic();
         break;
       case GameContext.timed:
         setMusicMood(MusicMood.intense);
-        playMoodLoop(MusicMood.intense);
+        ensureBackgroundMusic();
         break;
       case GameContext.thinking:
         setMusicMood(MusicMood.thinking);
-        playMoodLoop(MusicMood.thinking);
+        ensureBackgroundMusic();
         break;
       case GameContext.success:
         playSound(SoundEffect.correct);

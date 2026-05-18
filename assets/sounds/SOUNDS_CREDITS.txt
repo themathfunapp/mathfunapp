@@ -1,0 +1,9 @@
+Background music (music_kids_bgm_loop.mp3) — default, 45s loop (~530 KB, fast load)
+  Source: excerpt from "Children games on the beach"
+  Author: Snabisch (via OpenGameArt.org)
+  URL: https://opengameart.org/content/children-games-on-the-beach
+  License: CC-BY 3.0 — credit in app credits / about if you distribute.
+
+Full track (music_kids_bgm.mp3, ~3 MB) kept in assets but not used in-game.
+
+Other SFX/ambient WAV: dart run tool/generate_game_sounds.dart

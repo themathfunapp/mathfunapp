@@ -50,7 +50,6 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
   int? _bonusStepSlot;
 
   int _score = 0;
-  int _stars = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _isBonusLevel = false;
@@ -286,7 +285,6 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
             final gained = _replayRound ? 6 : 5;
             setState(() {
               _score += gained;
-              _stars += 1;
             });
             _showRoundCompleteDialog(gained);
           }
@@ -873,21 +871,6 @@ class _GeometryCastleScreenState extends State<GeometryCastleScreen>
                         ),
                       ),
                     ),
-                  SizedBox(width: narrow ? 4 : 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: narrow ? 8 : 12,
-                      vertical: narrow ? 5 : 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '⭐ $_stars',
-                      style: _textStyle(Colors.amber, size: narrow ? 13 : 16, bold: true),
-                    ),
-                  ),
                 ],
               ),
             );

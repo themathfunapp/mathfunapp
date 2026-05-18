@@ -733,7 +733,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               children: [
                 Text('👑', style: TextStyle(fontSize: 14)),
                 SizedBox(width: 8),
-                Text("Yükselt", style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  AppLocalizations.of(context).get('upgrade_short'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -865,7 +868,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${item.title} özelliği yakında eklenecek!'),
+        content: Text(
+          AppLocalizations.of(context)
+              .get('feature_coming_soon')
+              .replaceAll('{name}', item.title),
+        ),
         backgroundColor: Colors.purple,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

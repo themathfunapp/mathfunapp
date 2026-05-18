@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../localization/app_localizations.dart';
 import '../models/family_member.dart';
+import '../constants/friend_duel_topics.dart';
 import '../models/game_mechanics.dart';
 import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
@@ -38,16 +39,7 @@ class _FamilyRemoteDuelSetupScreenState extends State<FamilyRemoteDuelSetupScree
   late final AnimationController _bgWave;
   late final AnimationController _gentlePulse;
 
-  static const List<TopicType> _topics = [
-    TopicType.counting,
-    TopicType.addition,
-    TopicType.subtraction,
-    TopicType.multiplication,
-    TopicType.division,
-    TopicType.geometry,
-    TopicType.fractions,
-    TopicType.time,
-  ];
+  static const List<TopicType> _topics = kFriendDuelTopicTypes;
 
   String _topicLabel(BuildContext context, AppLocalizations loc, TopicType t) {
     final lc = Provider.of<LocaleProvider>(context, listen: false)

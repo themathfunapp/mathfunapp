@@ -526,8 +526,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil fotoğrafı güncellendi.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).get('profile_photo_updated')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -615,14 +615,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (!completer.isCompleted) completer.complete(null);
                             Navigator.pop(dialogContext);
                           },
-                          child: const Text('Vazgeç'),
+                          child: Text(AppLocalizations.of(context).get('give_up')),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () => controller.crop(),
-                          child: const Text('Kırp ve Kullan'),
+                          child: Text(AppLocalizations.of(context).get('crop_and_use')),
                         ),
                       ),
                     ],
@@ -1663,7 +1663,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bir hata oluştu: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).get('error_occurred')}: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

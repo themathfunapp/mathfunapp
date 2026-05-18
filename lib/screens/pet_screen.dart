@@ -69,7 +69,9 @@ class _PetScreenState extends State<PetScreen>
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_selectedPet!.name} beslendi! +10 XP 🍎'),
+        content: Text(
+          '${AppLocalizations.of(context).get('pet_fed_snackbar').replaceAll('{name}', _selectedPet!.name)} 🍎',
+        ),
         backgroundColor: Colors.green,
       ),
     );
@@ -84,7 +86,9 @@ class _PetScreenState extends State<PetScreen>
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_selectedPet!.name} ile oynadın! +5 XP 🎾'),
+        content: Text(
+          '${AppLocalizations.of(context).get('pet_played_snackbar').replaceAll('{name}', _selectedPet!.name)} 🎾',
+        ),
         backgroundColor: Colors.blue,
       ),
     );
@@ -93,8 +97,8 @@ class _PetScreenState extends State<PetScreen>
   void _purchasePet(Pet pet) {
     if (_coins < pet.cost) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Yeterli altın yok! 😢'),
+        SnackBar(
+          content: Text('${AppLocalizations.of(context).get('not_enough_gold')} 😢'),
           backgroundColor: Colors.red,
         ),
       );
@@ -121,9 +125,9 @@ class _PetScreenState extends State<PetScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Bu evcil hayvanı satın almak ister misin?',
-              style: TextStyle(color: Colors.white70),
+            Text(
+              AppLocalizations.of(context).get('pet_purchase_confirm'),
+              style: const TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 16),
             Row(
@@ -146,7 +150,10 @@ class _PetScreenState extends State<PetScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İPTAL', style: TextStyle(color: Colors.white70)),
+            child: Text(
+              AppLocalizations.of(context).get('cancel'),
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -157,7 +164,9 @@ class _PetScreenState extends State<PetScreen>
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('${pet.name} ailene katıldı! 🎉'),
+                  content: Text(
+                    '${AppLocalizations.of(context).get('pet_adopted_snackbar').replaceAll('{name}', pet.name)} 🎉',
+                  ),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -166,7 +175,7 @@ class _PetScreenState extends State<PetScreen>
               backgroundColor: Colors.amber,
               foregroundColor: Colors.black,
             ),
-            child: const Text('SATIN AL'),
+            child: Text(AppLocalizations.of(context).get('buy_action')),
           ),
         ],
       ),

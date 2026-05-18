@@ -29,20 +29,22 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   int _popStreak = 0;
   int _bestPopStreak = 0;
   int _level = 1;
-  int _totalQuestions = 10;
-  int _currentQuestion = 0;
+  int _maxAllowedNumber = 9;
   bool _isPlaying = false;
   bool _showConfetti = false;
   Timer? _gameTimer;
   Timer? _balloonTimer;
-  
+  int _laneCursor = 0;
+  double _playAreaWidth = 400;
+
   late AnimationController _confettiController;
   /// Hedef sayı rozeti — hafif nabız (çocuk dostu)
   late AnimationController _targetPulseController;
 
-  /// Yaklaşık yatay/dikey merkez mesafesi (normalize); çakışmayı azaltır.
-  static const double _minCenterDistX = 0.20;
-  static const double _minCenterDistY = 0.32;
+  static const double _spawnY = 0.88;
+  static const int _minNumber = 1;
+  static const int _absoluteMaxNumber = 1000;
+  static const int _correctPerTier = 10;
 
   @override
   void initState() {
@@ -75,24 +77,51 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       _wrongPops = 0;
       _popStreak = 0;
       _bestPopStreak = 0;
-      _currentQuestion = 0;
+      _maxAllowedNumber = 9;
+      _level = 1;
       _balloons = [];
     });
     _generateNewTarget();
     _startBalloonGeneration();
   }
 
+  int _randomNumber(math.Random random, {int? exclude}) {
+    final span = _maxAllowedNumber - _minNumber + 1;
+    var n = _minNumber + random.nextInt(span);
+    if (exclude != null && exclude >= _minNumber && exclude <= _maxAllowedNumber) {
+      for (var i = 0; i < 16 && n == exclude; i++) {
+        n = _minNumber + random.nextInt(span);
+      }
+    }
+    return n;
+  }
+
+  void _maybeIncreaseNumberRange() {
+    if (_correctPops == 0 || _correctPops % _correctPerTier != 0) return;
+    if (_maxAllowedNumber >= _absoluteMaxNumber) return;
+    _maxAllowedNumber++;
+    _level = 1 + (_maxAllowedNumber - 9);
+  }
+
+  double _numberFontSize(int value, {double base = 28}) {
+    final digits = value.abs().toString().length;
+    if (digits >= 4) return base * 0.45;
+    if (digits == 3) return base * 0.58;
+    if (digits == 2) return base * 0.78;
+    return base;
+  }
+
   void _generateNewTarget() {
     final random = math.Random();
+    final previous = _targetNumber;
     setState(() {
-      _targetNumber = random.nextInt(_level + 4) + 1; // 1 to level+4
-      _currentQuestion++;
+      _targetNumber = _randomNumber(random, exclude: previous);
     });
   }
 
   void _startBalloonGeneration() {
     _balloonTimer?.cancel();
-    _balloonTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
+    _balloonTimer = Timer.periodic(const Duration(milliseconds: 2200), (timer) {
       if (!_isPlaying) {
         timer.cancel();
         return;
@@ -101,8 +130,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     });
 
     // Initial balloons
-    for (int i = 0; i < 5; i++) {
-      Future.delayed(Duration(milliseconds: i * 300), () {
+    for (int i = 0; i < 3; i++) {
+      Future.delayed(Duration(milliseconds: i * 550), () {
         if (mounted && _isPlaying) _addNewBalloon();
       });
     }
@@ -117,49 +146,65 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     });
   }
 
+  double get _minHorizontalGap {
+    final w = _playAreaWidth.clamp(280.0, 900.0);
+    return (88 / w).clamp(0.20, 0.34);
+  }
+
+  List<double> get _spawnLanes {
+    final w = _playAreaWidth;
+    if (w < 360) return [0.20, 0.40, 0.60, 0.80];
+    if (w < 520) return [0.16, 0.32, 0.48, 0.64, 0.80];
+    return [0.12, 0.26, 0.40, 0.54, 0.68, 0.82];
+  }
+
   bool _balloonOverlapsCandidate(double x, double y) {
-    const margin = 1.15;
-    final dxNeed = _minCenterDistX * margin;
-    final dyNeed = _minCenterDistY * margin;
+    final gapX = _minHorizontalGap;
+    const gapY = 0.22;
     for (final b in _balloons) {
       if (b.isPopped) continue;
       final dx = (b.x - x).abs();
       final dy = (b.y - y).abs();
-      if (dx < dxNeed && dy < dyNeed) return true;
+      if (dy < gapY && dx < gapX) return true;
     }
     return false;
   }
 
-  /// Yeni balon için x: mümkün olduğunca mevcut balonlarla üst üste binmeyen konum.
+  /// Yeni balon için x: şerit + mesafe kontrolü ile üst üste binmeyi engeller.
   double _pickSpawnX(math.Random random) {
-    const spawnY = 1.1;
-    for (int attempt = 0; attempt < 45; attempt++) {
-      final candidate = 0.10 + random.nextDouble() * 0.80;
-      if (!_balloonOverlapsCandidate(candidate, spawnY)) {
+    final lanes = List<double>.from(_spawnLanes);
+    lanes.shuffle(random);
+
+    for (final lx in lanes) {
+      if (!_balloonOverlapsCandidate(lx, _spawnY)) {
+        return lx;
+      }
+    }
+
+    for (var attempt = 0; attempt < 40; attempt++) {
+      final candidate = 0.12 + random.nextDouble() * 0.76;
+      if (!_balloonOverlapsCandidate(candidate, _spawnY)) {
         return candidate;
       }
     }
-    const lanes = [0.16, 0.28, 0.40, 0.52, 0.64, 0.76];
-    double bestX = lanes[3];
-    double bestMinDist = -1;
-    for (final lx in lanes) {
-      double minNeighbor = double.infinity;
-      for (final b in _balloons) {
-        if (b.isPopped) continue;
-        if ((b.y - spawnY).abs() > 0.55) continue;
-        final d = (b.x - lx).abs();
-        if (d < minNeighbor) minNeighbor = d;
-      }
-      if (minNeighbor > bestMinDist) {
-        bestMinDist = minNeighbor;
-        bestX = lx;
-      }
-    }
-    return bestX;
+
+    final ordered = List<double>.from(_spawnLanes)
+      ..sort((a, b) {
+        double minA = double.infinity;
+        double minB = double.infinity;
+        for (final balloon in _balloons) {
+          if (balloon.isPopped) continue;
+          minA = math.min(minA, (balloon.x - a).abs());
+          minB = math.min(minB, (balloon.x - b).abs());
+        }
+        return minB.compareTo(minA);
+      });
+    _laneCursor = (_laneCursor + 1) % ordered.length;
+    return ordered[_laneCursor];
   }
 
   void _addNewBalloon() {
-    if (_balloons.length >= 10) return;
+    if (_balloons.length >= 8) return;
 
     final random = math.Random();
     final colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#74B9FF', '#FF9FF3'];
@@ -169,10 +214,10 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     if (random.nextDouble() < 0.3) {
       number = _targetNumber;
     } else {
-      number = random.nextInt(_level + 4) + 1;
+      number = _randomNumber(random, exclude: _targetNumber);
     }
 
-    final scale = 0.8 + random.nextDouble() * 0.35;
+    final scale = 0.78 + random.nextDouble() * 0.22;
 
     setState(() {
       _balloons.add(Balloon(
@@ -180,8 +225,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
         number: number,
         color: colors[random.nextInt(colors.length)],
         x: _pickSpawnX(random),
-        y: 1.1,
-        speed: 0.003 + random.nextDouble() * 0.002,
+        y: _spawnY,
+        speed: 0.0022 + random.nextDouble() * 0.0016,
         scale: scale,
       ));
     });
@@ -202,29 +247,26 @@ class _BalloonPopGameState extends State<BalloonPopGame>
   void _popBalloon(Balloon balloon) {
     if (balloon.isPopped) return;
 
-    setState(() {
-      balloon.isPopped = true;
-    });
-
     if (balloon.number == _targetNumber) {
-      // Correct!
-      _correctPops++;
-      _popStreak++;
-      if (_popStreak > _bestPopStreak) _bestPopStreak = _popStreak;
-      _score += 10 * _level;
+      setState(() {
+        balloon.isPopped = true;
+        _correctPops++;
+        _popStreak++;
+        if (_popStreak > _bestPopStreak) _bestPopStreak = _popStreak;
+        _score += 8 + _maxAllowedNumber;
+        _maybeIncreaseNumberRange();
+      });
       _showSuccessEffect();
-      
-      if (_currentQuestion >= _totalQuestions) {
-        _endGame();
-      } else {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && _isPlaying) _generateNewTarget();
-        });
-      }
+
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (mounted && _isPlaying) _generateNewTarget();
+      });
     } else {
-      // Wrong
-      _wrongPops++;
-      _popStreak = 0;
+      setState(() {
+        balloon.isPopped = true;
+        _wrongPops++;
+        _popStreak = 0;
+      });
       final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
       mechanics.onWrongAnswer();
       _showWrongEffect();
@@ -262,9 +304,10 @@ class _BalloonPopGameState extends State<BalloonPopGame>
     );
 
     final miniGameService = Provider.of<MiniGameService>(context, listen: false);
+    final attempts = math.max(_correctPops + _wrongPops, 1);
     final stars = miniGameService.calculateStars(
       _correctPops,
-      _totalQuestions,
+      attempts,
       Duration.zero,
       GameDifficulty.easy,
     );
@@ -282,7 +325,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
       gameId: widget.game.id,
       score: _score,
       correctAnswers: _correctPops,
-      totalQuestions: _totalQuestions,
+      totalQuestions: attempts,
       stars: stars,
       coinsEarned: coinsEarned,
       timeTaken: Duration.zero,
@@ -364,7 +407,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
               ),
               const SizedBox(height: 8),
               Text(
-                '${localizations.get('correct')}: $_correctPops/$_totalQuestions',
+                '${localizations.get('correct')}: $_correctPops',
                 style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 16),
@@ -465,7 +508,9 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                     child: RepaintBoundary(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
+                          _playAreaWidth = constraints.maxWidth;
                           return Stack(
+                            clipBehavior: Clip.none,
                             children: _balloons.map((balloon) {
                               return _buildBalloon(balloon, constraints.biggest);
                             }).toList(),
@@ -533,36 +578,6 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                  ),
-                ),
-                Text(
-                  '${localizations.get('question')} $_currentQuestion/$_totalQuestions',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 4),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
                 ),
               ],
@@ -654,7 +669,7 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                     ],
                   ),
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
+                    duration: const Duration(milliseconds: 650),
                     switchInCurve: Curves.elasticOut,
                     switchOutCurve: Curves.easeIn,
                     transitionBuilder: (child, animation) {
@@ -669,11 +684,11 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                     child: Text(
                       '$_targetNumber',
                       key: ValueKey<int>(_targetNumber),
-                      style: const TextStyle(
-                        fontSize: 32,
+                      style: TextStyle(
+                        fontSize: _numberFontSize(_targetNumber, base: 32),
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        shadows: [
+                        shadows: const [
                           Shadow(
                             color: Colors.black26,
                             offset: Offset(0, 2),
@@ -702,8 +717,8 @@ class _BalloonPopGameState extends State<BalloonPopGame>
 
     return Positioned(
       key: ValueKey(balloon.id),
-      left: gameAreaSize.width * balloon.x - 40,
-      bottom: gameAreaSize.height * balloon.y - 100,
+      left: (gameAreaSize.width * balloon.x - 40).clamp(4.0, gameAreaSize.width - 88),
+      bottom: gameAreaSize.height * balloon.y - 72,
       child: GestureDetector(
         onTap: () => _popBalloon(balloon),
         child: Transform.scale(
@@ -736,19 +751,22 @@ class _BalloonPopGameState extends State<BalloonPopGame>
                   ],
                 ),
                 child: Center(
-                  child: Text(
-                    '${balloon.number}',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black26,
-                          offset: Offset(1, 1),
-                          blurRadius: 2,
-                        ),
-                      ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${balloon.number}',
+                      style: TextStyle(
+                        fontSize: _numberFontSize(balloon.number),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(
+                            color: Colors.black26,
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

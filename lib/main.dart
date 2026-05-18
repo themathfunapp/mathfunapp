@@ -20,6 +20,7 @@ import 'package:mathfun/services/ad_service.dart';
 import 'package:mathfun/services/family_service.dart';
 import 'package:mathfun/services/in_app_notification_service.dart';
 import 'package:mathfun/services/family_remote_duel_service.dart';
+import 'package:mathfun/services/friend_duel_service.dart';
 import 'package:mathfun/services/family_story_invite_service.dart';
 import 'package:mathfun/services/parent_mode_service.dart';
 import 'package:mathfun/services/parent_pin_service.dart';
@@ -34,6 +35,8 @@ import 'package:mathfun/localization/app_localizations.dart';
 import 'package:mathfun/localization/material_localizations_fallback.dart';
 import 'package:mathfun/app_navigator.dart';
 import 'package:mathfun/widgets/global_remote_duel_invite_host.dart';
+import 'package:mathfun/widgets/global_friend_duel_invite_host.dart';
+import 'package:mathfun/widgets/background_music_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -110,10 +113,12 @@ Future<void> main() async {
           create: (_) => PremiumService(),
           update: (_, authService, premiumService) {
             final u = authService.currentUser;
-            premiumService!.initialize(
-              userId: u?.uid,
-              userCode: u?.userCode,
-            );
+            premiumService!
+              ..attachAuthService(authService)
+              ..initialize(
+                userId: u?.uid,
+                userCode: u?.userCode,
+              );
             return premiumService;
           },
         ),
@@ -133,7 +138,10 @@ Future<void> main() async {
           create: (_) => GameMechanicsService(),
           update: (_, authService, premiumService, mechanicsService) {
             final m = mechanicsService!;
-            final premium = authService.currentUser != null && premiumService.isPremium;
+            // Firestore kullanıcı kaydı (Auth) ve mağaza (Premium) birlikte — yalnızca PremiumService yeterli değil.
+            final premium = authService.currentUser != null &&
+                !authService.isGuest &&
+                (authService.isPremium || premiumService.isPremium);
             m.setPremiumUnlimited(premium);
             if (authService.currentUser != null) {
               final u = authService.currentUser!;
@@ -200,6 +208,9 @@ Future<void> main() async {
         Provider<FamilyRemoteDuelService>(
           create: (_) => FamilyRemoteDuelService(),
         ),
+        Provider<FriendDuelService>(
+          create: (_) => FriendDuelService(),
+        ),
         Provider<FamilyStoryInviteService>(
           create: (_) => FamilyStoryInviteService(),
         ),
@@ -258,8 +269,12 @@ class MyApp extends StatelessWidget {
             // karşılama dil şeridinde görsel/hit-test kayması oluyordu.
             // child null iken mor ColoredBox dolgu web’de rota itildikten sonra kalıcı
             // “boş ekran” yapıyordu (Navigator geçici null); sadece gerçek child kullan.
-            Widget w = GlobalRemoteDuelInviteHost(
-              child: child ?? const SizedBox.shrink(),
+            Widget w = BackgroundMusicHost(
+              child: GlobalFriendDuelInviteHost(
+                child: GlobalRemoteDuelInviteHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
             );
             if (localeProvider.locale.languageCode == 'ku') {
               w = Directionality(

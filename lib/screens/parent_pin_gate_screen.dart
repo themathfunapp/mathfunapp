@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/parent_pin_service.dart';
 import '../services/pin_reset_email_service.dart';
+import '../localization/app_localizations.dart';
 import 'parent_panel_screen.dart';
 
 /// Ebeveyn paneli giriş kapısı - PIN veya biyometrik doğrulama
@@ -253,7 +254,7 @@ class _ParentPinGateScreenState extends State<ParentPinGateScreen> {
                         OutlinedButton.icon(
                           onPressed: _isLoading ? null : _tryBiometric,
                           icon: const Icon(Icons.fingerprint, size: 28),
-                          label: const Text('Parmak İzi / Yüz ile Giriş'),
+                          label: Text(AppLocalizations.of(context).get('parent_pin_biometric_login')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: Colors.white54),
@@ -324,7 +325,7 @@ class _ParentPinGateScreenState extends State<ParentPinGateScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Giriş Yap'),
+                        : Text(AppLocalizations.of(context).get('parent_pin_login')),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -343,7 +344,10 @@ class _ParentPinGateScreenState extends State<ParentPinGateScreen> {
               TextButton.icon(
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                label: const Text('Geri', style: TextStyle(color: Colors.white70)),
+                label: Text(
+                  AppLocalizations.of(context).get('parent_pin_back'),
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ),
             ],
           ),
@@ -437,7 +441,9 @@ class _ParentPinSetupViewState extends State<_ParentPinSetupView> {
     if (ok) {
       widget.onSuccess();
     } else {
-      setState(() => _errorMessage = 'Bir hata oluştu');
+      setState(
+        () => _errorMessage = AppLocalizations.of(context).get('error_occurred'),
+      );
     }
   }
 
@@ -530,7 +536,7 @@ class _ParentPinSetupViewState extends State<_ParentPinSetupView> {
                     width: 24,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('PIN Oluştur'),
+                : Text(AppLocalizations.of(context).get('parent_pin_create')),
           ),
           const SizedBox(height: 16),
           TextButton.icon(
@@ -730,7 +736,10 @@ class _ForgotPinDialogState extends State<_ForgotPinDialog> {
     return AlertDialog(
       backgroundColor: const Color(0xFF2C3E50),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('PIN Sıfırla', style: TextStyle(color: Colors.white)),
+      title: Text(
+        AppLocalizations.of(context).get('parent_pin_reset_title'),
+        style: const TextStyle(color: Colors.white),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -808,7 +817,10 @@ class _ForgotPinDialogState extends State<_ForgotPinDialog> {
       actions: [
         TextButton(
           onPressed: widget.onCancel,
-          child: const Text('İptal', style: TextStyle(color: Colors.white70)),
+          child: Text(
+            AppLocalizations.of(context).get('cancel'),
+            style: const TextStyle(color: Colors.white70),
+          ),
         ),
         FilledButton(
           onPressed: _isLoading || (_step == _ResetStep.sendCode && _userEmail == null)

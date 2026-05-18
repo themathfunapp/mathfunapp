@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/age_group_selection.dart';
+import '../services/game_mechanics_service.dart';
+import '../widgets/daily_gold_help_sheet.dart';
 
 /// Keloğlan'ın Köyü - Dinamik Soru Üretim Sistemi
 /// 18 farklı soru tipi, binlerce kombinasyon
@@ -79,12 +81,12 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
   int _currentLevel = 1;
   int _score = 0;
-  int _stars = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   int _lives = 5;
   Question? _currentQuestion;
   String? _lastLocale;
+  bool _exitHandled = false;
 
   // Renk paleti
   static const Color _villageGreen = Color(0xFF8BC34A);
@@ -983,6 +985,116 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
   // UI FONKSİYONLARI
   // ============================================================================
 
+  Future<void> _showKeloglanRewardDialog() async {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF8BC34A), Color(0xFF558B2F)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                loc.get('keloglan_daily_complete_msg'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${GameMechanicsService.keloglanDailyRewardCoins}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF558B2F),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(loc.get('ok')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _leaveKeloglan() async {
+    if (_exitHandled) return;
+    _exitHandled = true;
+
+    if (mounted) {
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      final outcome = await mechanics.tryClaimKeloglanDailyRewardOnExit();
+      if (mounted && outcome.rewardGranted) {
+        await _showKeloglanRewardDialog();
+      }
+    }
+    widget.onBack();
+  }
+
+  void _showKeloglanGoldHelp(AppLocalizations loc) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final correct = mechanics.keloglanCorrectAnswersToday;
+    final claimed = mechanics.keloglanDailyRewardClaimed;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DailyGoldHelpSheet(
+          title: loc.get('keloglan_daily_help_title'),
+          rules: [
+            loc.get('keloglan_daily_help_rule_1'),
+            loc.get('keloglan_daily_help_rule_2'),
+            loc.get('keloglan_daily_help_rule_3'),
+            loc.get('keloglan_daily_help_rule_4'),
+          ],
+          progressLabel: loc
+              .get('keloglan_daily_help_progress')
+              .replaceAll('{0}', '$correct'),
+          progressValue: correct / GameMechanicsService.keloglanDailyCorrectTarget,
+          claimed: claimed,
+          claimedMessage: loc.get('keloglan_daily_help_claimed'),
+          closeLabel: loc.get('ok'),
+        );
+      },
+    );
+  }
+
   void _checkAnswer(int answer) {
     if (_isAnswered || _currentQuestion == null) return;
 
@@ -992,8 +1104,8 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
       if (_isCorrect) {
         _score += 10;
-        _stars++;
         _celebrationController.forward(from: 0);
+        Provider.of<GameMechanicsService>(context, listen: false).recordKeloglanCorrectAnswer();
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -1027,7 +1139,12 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
 
     final q = _currentQuestion!;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveKeloglan();
+      },
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -1051,8 +1168,6 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
                       ),
                       child: Column(
                         children: [
-                          _buildLevelInfo(loc),
-                          const SizedBox(height: 16),
                           _buildCharacterMessage(loc, q),
                           const SizedBox(height: 24),
                           _buildQuestionArea(loc, q),
@@ -1069,6 +1184,7 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -1078,7 +1194,7 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
       child: Row(
         children: [
           GestureDetector(
-            onTap: widget.onBack,
+            onTap: _leaveKeloglan,
             child: Container(
               width: 44,
               height: 44,
@@ -1105,6 +1221,20 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
               ),
             ),
           ),
+          GestureDetector(
+            onTap: () => _showKeloglanGoldHelp(loc),
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: _cream.withOpacity(0.85),
+                shape: BoxShape.circle,
+                border: Border.all(color: _earthBrown.withOpacity(0.4)),
+              ),
+              child: Icon(Icons.help_outline, size: 20, color: _earthBrown),
+            ),
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(5, (i) {
@@ -1116,23 +1246,6 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
                     : const Text('🪹', style: TextStyle(fontSize: 15, color: Colors.grey)),
               );
             }),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: _villageGreen.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _villageGreen.withOpacity(0.5)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 4),
-                Text('$_stars', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _earthBrown)),
-              ],
-            ),
           ),
         ],
       ),
@@ -1190,69 +1303,6 @@ class _KeloglanVillageScreenState extends State<KeloglanVillageScreen>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLevelInfo(AppLocalizations loc) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: _cream.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _villageGreen.withOpacity(0.4), width: 2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(loc.get('level'), '$_currentLevel', '🎯'),
-              Container(
-                width: 1,
-                height: 36,
-                color: _earthBrown.withOpacity(0.15),
-              ),
-              _buildStatItem(loc.get('score'), '$_score', '⭐'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: (_currentLevel % 5) / 5,
-              minHeight: 10,
-              backgroundColor: _cream.withOpacity(0.9),
-              valueColor: const AlwaysStoppedAnimation<Color>(_villageGreen),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, String emoji) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(width: 8),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: _textStyle(_earthBrown, size: 18, bold: true).copyWith(height: 1.05),
-            ),
-            Text(
-              label,
-              style: _textStyle(_earthBrown.withOpacity(0.85), size: 10).copyWith(height: 1.1),
-            ),
-          ],
-        ),
-      ],
     );
   }
 

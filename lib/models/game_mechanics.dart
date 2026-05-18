@@ -809,61 +809,199 @@ class TopicGameManager {
       TopicGameSettings settings, {
       String difficulty = 'Orta',
     }) {
-    final questionTypes = ['identify_shapes', 'count_sides', 'find_area'];
-    final type = questionTypes[random.nextInt(questionTypes.length)];
+    final easy = _isEasyMath(difficulty);
+    final hard = _isHardMath(difficulty);
+    final shapes = (settings.customRules['shapes'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        ['daire', 'kare', 'üçgen', 'dikdörtgen', 'beşgen'];
+
+    final types = <String>[
+      'identify_shapes',
+      'count_sides',
+      'square_area',
+      'rectangle_area',
+      'triangle_area',
+      'square_perimeter',
+      'rectangle_perimeter',
+      'triangle_perimeter',
+    ];
+
+    List<String> pool;
+    if (easy) {
+      pool = ['identify_shapes', 'count_sides', 'square_perimeter', 'square_area'];
+    } else if (hard) {
+      pool = types;
+    } else {
+      pool = [
+        'identify_shapes',
+        'count_sides',
+        'square_area',
+        'rectangle_area',
+        'triangle_area',
+        'square_perimeter',
+        'rectangle_perimeter',
+        'triangle_perimeter',
+      ];
+    }
+
+    final type = pool[random.nextInt(pool.length)];
 
     switch (type) {
       case 'identify_shapes':
-        final shapes = settings.customRules['shapes'] as List<String>;
         final shape = shapes[random.nextInt(shapes.length)];
-        final options = List.from(shapes)..shuffle();
-
+        final options = List<String>.from(shapes)..shuffle();
         return {
-          'type': 'identify_shapes',
+          'type': type,
           'questionKey': 'question_geometry_which_shape',
           'questionParams': <String, String>{},
+          'formulaKey': 'geom_formula_identify_hint',
           'correctAnswer': shape,
           'shapeToShow': shape,
           'options': options.take(4).toList(),
-          'explanation': 'Bir $shape, ${_getShapeDescription(shape)}.',
         };
 
       case 'count_sides':
         final shapeData = [
           {'name': 'üçgen', 'sides': 3},
           {'name': 'kare', 'sides': 4},
+          {'name': 'dikdörtgen', 'sides': 4},
           {'name': 'beşgen', 'sides': 5},
         ];
         final selected = shapeData[random.nextInt(shapeData.length)];
         final shapeName = selected['name'] as String;
         final sides = selected['sides'] as int;
-
         return {
-          'type': 'count_sides',
+          'type': type,
           'questionKey': 'question_geometry_count_sides',
           'questionParams': <String, String>{},
+          'formulaKey': 'geom_formula_count_sides',
           'correctAnswer': sides,
           'shapeToShow': shapeName,
-          'options': [sides, sides + 1, sides - 1, sides + 2]..shuffle(),
+          'options': _uniqueIntOptions(sides, random, minValue: 3, maxValue: 8),
         };
 
-      case 'find_area':
-        final side = random.nextInt(5) + 2;
+      case 'square_area':
+        final maxSide = hard ? 12 : (easy ? 6 : 9);
+        final side = random.nextInt(maxSide - 1) + 2;
         final area = side * side;
-
         return {
-          'type': 'find_area',
+          'type': type,
           'questionKey': 'question_geometry_square_area',
           'questionParams': <String, String>{'side': '$side'},
+          'formulaKey': 'geom_formula_square_area',
           'correctAnswer': area,
           'shapeToShow': 'kare',
           'options': _generateOptions(area, random),
-          'explanation': 'Karenin alanı = kenar × kenar = $side × $side = $area',
+        };
+
+      case 'rectangle_area':
+        final maxL = hard ? 14 : (easy ? 7 : 10);
+        var length = random.nextInt(maxL - 2) + 3;
+        var width = random.nextInt(maxL - 2) + 2;
+        if (length == width) width += 1;
+        final area = length * width;
+        return {
+          'type': type,
+          'questionKey': 'question_geometry_rectangle_area',
+          'questionParams': <String, String>{
+            'length': '$length',
+            'width': '$width',
+          },
+          'formulaKey': 'geom_formula_rectangle_area',
+          'correctAnswer': area,
+          'shapeToShow': 'dikdörtgen',
+          'options': _generateOptions(area, random),
+        };
+
+      case 'triangle_area':
+        var base = random.nextInt(hard ? 10 : 6) + 4;
+        var height = random.nextInt(hard ? 10 : 6) + 3;
+        if (base.isEven && height.isOdd) height++;
+        if (base.isOdd && height.isOdd) height++;
+        final area = (base * height) ~/ 2;
+        return {
+          'type': type,
+          'questionKey': 'question_geometry_triangle_area',
+          'questionParams': <String, String>{
+            'base': '$base',
+            'height': '$height',
+          },
+          'formulaKey': 'geom_formula_triangle_area',
+          'correctAnswer': area,
+          'shapeToShow': 'üçgen',
+          'options': _generateOptions(area, random),
+        };
+
+      case 'square_perimeter':
+        final side = random.nextInt(hard ? 10 : (easy ? 5 : 8)) + 2;
+        final perimeter = 4 * side;
+        return {
+          'type': type,
+          'questionKey': 'question_geometry_square_perimeter',
+          'questionParams': <String, String>{'side': '$side'},
+          'formulaKey': 'geom_formula_square_perimeter',
+          'correctAnswer': perimeter,
+          'shapeToShow': 'kare',
+          'options': _generateOptions(perimeter, random),
+        };
+
+      case 'rectangle_perimeter':
+        var length = random.nextInt(hard ? 12 : 7) + 3;
+        var width = random.nextInt(hard ? 8 : 5) + 2;
+        if (length == width) width += 1;
+        final perimeter = 2 * (length + width);
+        return {
+          'type': type,
+          'questionKey': 'question_geometry_rectangle_perimeter',
+          'questionParams': <String, String>{
+            'length': '$length',
+            'width': '$width',
+          },
+          'formulaKey': 'geom_formula_rectangle_perimeter',
+          'correctAnswer': perimeter,
+          'shapeToShow': 'dikdörtgen',
+          'options': _generateOptions(perimeter, random),
+        };
+
+      case 'triangle_perimeter':
+        final a = random.nextInt(hard ? 8 : 5) + 3;
+        final b = random.nextInt(hard ? 8 : 5) + 3;
+        final c = random.nextInt(hard ? 8 : 5) + 3;
+        final perimeter = a + b + c;
+        return {
+          'type': type,
+          'questionKey': 'question_geometry_triangle_perimeter',
+          'questionParams': <String, String>{
+            'a': '$a',
+            'b': '$b',
+            'c': '$c',
+          },
+          'formulaKey': 'geom_formula_triangle_perimeter',
+          'correctAnswer': perimeter,
+          'shapeToShow': 'üçgen',
+          'options': _generateOptions(perimeter, random),
         };
 
       default:
-        return _generateBasicMathQuestion(TopicType.addition, ageGroup, random, difficulty: difficulty);
+        return _generateGeometryQuestion(ageGroup, random, settings, difficulty: difficulty);
     }
+  }
+
+  /// Geometri / kenar sayısı şıkları — birbirinden farklı tam sayılar.
+  static List<int> _uniqueIntOptions(
+    int correct,
+    math.Random random, {
+    required int minValue,
+    required int maxValue,
+  }) {
+    final opts = <int>{correct};
+    var guard = 0;
+    while (opts.length < 4 && guard < 40) {
+      opts.add(minValue + random.nextInt(maxValue - minValue + 1));
+      guard++;
+    }
+    return opts.toList()..shuffle();
   }
 
   static Map<String, dynamic> _generateFractionQuestion(

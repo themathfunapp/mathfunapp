@@ -13,11 +13,13 @@ import '../widgets/story_parent_invite_strip.dart';
 class TimeIslandScreen extends StatefulWidget {
   final String ageGroup;
   final StoryInvitePayload? parentPanelStoryInvite;
+  final bool showTopScore;
 
   const TimeIslandScreen({
     Key? key,
     required this.ageGroup,
     this.parentPanelStoryInvite,
+    this.showTopScore = true,
   }) : super(key: key);
 
   @override
@@ -520,29 +522,30 @@ class _TimeIslandScreenState extends State<TimeIslandScreen>
               );
             },
           ),
-          const SizedBox(width: 16),
-          // Puan
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 24),
-                const SizedBox(width: 4),
-                Text(
-                  '$_score',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          if (widget.showTopScore) ...[
+            const SizedBox(width: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 24),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_score',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

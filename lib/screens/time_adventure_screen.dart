@@ -20,6 +20,7 @@ class TimeAdventureScreen extends StatelessWidget {
       ageGroup: 'early',
       key: const ValueKey('time_adventure'),
       parentPanelStoryInvite: parentPanelStoryInvite,
+      showTopScore: false,
     );
   }
 }

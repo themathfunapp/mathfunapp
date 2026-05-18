@@ -86,16 +86,11 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
 
     _updateLevel();
     _generateQuestion();
-    _startHintTimer();
   }
 
-  void _startHintTimer() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && !_isAnswered && _stepOptions.isNotEmpty) {
-        setState(() => _showHint = true);
-        _hintController.repeat(reverse: true);
-      }
-    });
+  void _activateHintAnimation() {
+    if (!mounted || _isAnswered || _stepOptions.isEmpty) return;
+    _hintController.repeat(reverse: true);
   }
 
   @override
@@ -164,7 +159,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
   void _generateQuestion() {
     final random = math.Random();
     _isAnswered = false;
-    _showHint = false;
+    _showHint = true;
     _hintController.stop();
     _hintController.reset();
 
@@ -251,7 +246,7 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
 
     _stepOptions.shuffle(random);
     setState(() {});
-    _startHintTimer();
+    _activateHintAnimation();
   }
 
   void _checkAnswer(int selected) {
@@ -282,7 +277,13 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
           if (mounted) {
             if (bonusSteps > 0) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('🔥 ${bonusSteps + 1} basamak bonus!'), backgroundColor: _purple, behavior: SnackBarBehavior.floating),
+                SnackBar(
+                  content: Text(
+                    '🔥 ${AppLocalizations.of(context).get('multipliers_bonus_steps').replaceAll('{count}', '${bonusSteps + 1}')}',
+                  ),
+                  backgroundColor: _purple,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             }
             _generateQuestion();
@@ -468,22 +469,6 @@ class _MultipliersTowerScreenState extends State<MultipliersTowerScreen>
                               child: const Text('⚡', style: TextStyle(fontSize: 18)),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _gold.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('🍌', style: TextStyle(fontSize: 16)),
-                            const SizedBox(width: 4),
-                            Text('$_bananas', style: _textStyle(Colors.white, size: 14, bold: true)),
-                          ],
                         ),
                       ),
                     ],

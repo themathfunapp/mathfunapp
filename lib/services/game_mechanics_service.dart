@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_mechanics.dart';
 import '../models/daily_reward.dart' show UserRewards;
+import '../models/endless_daily_reward_outcome.dart';
+import '../models/instant_math_session_outcome.dart';
+import 'instant_math_notification_scheduler.dart';
 import 'world_leaderboard_sync.dart';
 
 /// Oyun Mekanikleri Servisi
@@ -88,8 +91,41 @@ class GameMechanicsService extends ChangeNotifier {
   };
   int _adventureWeeklyStreak = 0;
   String? _adventureLastQualifiedDateKey;
+
+  // Anında Matematik: günde 2 oturum → 5 altın (günde bir kez)
+  String? _instantMathDailyDateKey;
+  int _instantMathSessionsToday = 0;
+  bool _instantMathDailyRewardClaimed = false;
+  DateTime? _instantMathFirstSessionAt;
+
+  // Sonsuz mod: günde 5 dakika oyun ekranında → 5 altın (günde bir kez, çıkışta)
+  String? _endlessDailyDateKey;
+  int _endlessPlaySecondsToday = 0;
+  bool _endlessDailyRewardClaimed = false;
+
+  // Boss savaşı: günde toplam 10 dk (hangi boss olursa) → 5 altın (çıkışta)
+  String? _bossDailyDateKey;
+  int _bossPlaySecondsToday = 0;
+  bool _bossDailyRewardClaimed = false;
+
+  // Keloğlan köyü: günde 10 doğru cevap → 5 altın (çıkışta)
+  String? _keloglanDailyDateKey;
+  int _keloglanCorrectAnswersToday = 0;
+  bool _keloglanDailyRewardClaimed = false;
+
+  // Rakam nehri: günde 10 doğru cevap → 5 altın (çıkışta)
+  String? _numberRiverDailyDateKey;
+  int _numberRiverCorrectAnswersToday = 0;
+  bool _numberRiverDailyRewardClaimed = false;
+
   /// Premium: can düşmez, her zaman oynanabilir (reklam / can zamanlayıcısı yok).
   bool _premiumUnlimited = false;
+
+  /// Günde reklam ile kazanılabilecek maksimum can sayısı.
+  static const int maxLifeAdsPerDay = 3;
+  String? _lifeAdsDateKey;
+  int _lifeAdsWatchedToday = 0;
+
   bool get isLoading => _isLoading;
   bool get isGuest => _isGuest;
   bool get premiumUnlimited => _premiumUnlimited;
@@ -125,6 +161,58 @@ class GameMechanicsService extends ChangeNotifier {
     inventory = PlayerInventory();
   }
 
+  /// Bellekteki oyun durumunu varsayılana döndürür (hesap değişiminde misafir verisi taşınmasın).
+  void _resetMechanicsToDefaults() {
+    comboSystem = ComboSystem();
+    livesSystem = LivesSystem();
+    inventory = PlayerInventory();
+    todayChallenge = null;
+    lastSpinTime = null;
+    bonusWheelSpins = 0;
+    _pendingSpinRewardMultiplier = 1;
+    activePowerUps = {};
+    dailyStreak = 0;
+    lastPlayDate = null;
+    _lastClockGameDailyRewardAt = null;
+    _lastBrainGamesDailyRewardAt = null;
+    _brainGamesCoinsDateKey = null;
+    _brainGamesCoinsEarnedToday = 0;
+    _lastColorMathDailyRewardAt = null;
+    _colorMathCoinsDateKey = null;
+    _colorMathCoinsEarnedToday = 0;
+    _colorMathNumberProgress = 0;
+    _colorMathShapeProgress = 0;
+    _colorMathLabProgress = 0;
+    _lastWorldMapDailyRewardAt = null;
+    _worldMapTickets = 0;
+    _worldMapDailyStreak = 0;
+    _worldMapLastVisitDateKey = null;
+    _worldMapMilestonesClaimedMask = 0;
+    _adventurePassDateKey = null;
+    _adventurePassChestTierClaimed = 0;
+    _adventurePassBadgesByMode = {'instant': 0, 'daily': 0, 'endless': 0, 'boss': 0};
+    _adventureWeeklyStreak = 0;
+    _adventureLastQualifiedDateKey = null;
+    _instantMathDailyDateKey = null;
+    _instantMathSessionsToday = 0;
+    _instantMathDailyRewardClaimed = false;
+    _instantMathFirstSessionAt = null;
+    _endlessDailyDateKey = null;
+    _endlessPlaySecondsToday = 0;
+    _endlessDailyRewardClaimed = false;
+    _bossDailyDateKey = null;
+    _bossPlaySecondsToday = 0;
+    _bossDailyRewardClaimed = false;
+    _keloglanDailyDateKey = null;
+    _keloglanCorrectAnswersToday = 0;
+    _keloglanDailyRewardClaimed = false;
+    _numberRiverDailyDateKey = null;
+    _numberRiverCorrectAnswersToday = 0;
+    _numberRiverDailyRewardClaimed = false;
+    _lifeAdsDateKey = null;
+    _lifeAdsWatchedToday = 0;
+  }
+
   /// Kullanıcı için sistemi başlat
   Future<void> initialize(String userId, {bool isGuest = false}) async {
     _lifeRegenTimer?.cancel();
@@ -134,17 +222,21 @@ class GameMechanicsService extends ChangeNotifier {
     _isGuest = isGuest;
     _cloudAccessDenied = false;
     _isLoading = true;
+    _resetMechanicsToDefaults();
     notifyListeners();
 
     try {
       if (_isGuest) {
         await _clearGuestData();
+      } else {
+        await _clearGuestMechanicsPrefs();
       }
       await _loadUserData();
       if (!_isGuest) {
         await _loadCurrencyFromRewards();
       }
       await _loadTodayChallenge();
+      await _resyncInstantMathNotificationReminder();
       tickLifeRegeneration();
       _updateDailyStreak();
       _startLifeRegenTimer();
@@ -184,11 +276,16 @@ class GameMechanicsService extends ChangeNotifier {
 
   /// Misafir verilerini temizle (her uygulama açılışında - çıkış sonrası sıfırlama)
   Future<void> _clearGuestData() async {
+    await _clearGuestMechanicsPrefs();
+  }
+
+  /// Kayıtlı hesaba geçince misafir can/ilerleme verisini sil.
+  Future<void> _clearGuestMechanicsPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_guestMechanicsKey);
     } catch (e) {
-      debugPrint('Clear guest data error: $e');
+      debugPrint('Clear guest mechanics prefs error: $e');
     }
   }
 
@@ -277,6 +374,24 @@ class GameMechanicsService extends ChangeNotifier {
       _adventurePassBadgesByMode = {'instant': 0, 'daily': 0, 'endless': 0, 'boss': 0};
       _adventureWeeklyStreak = 0;
       _adventureLastQualifiedDateKey = null;
+      _instantMathDailyDateKey = null;
+      _instantMathSessionsToday = 0;
+      _instantMathDailyRewardClaimed = false;
+      _instantMathFirstSessionAt = null;
+      _endlessDailyDateKey = null;
+      _endlessPlaySecondsToday = 0;
+      _endlessDailyRewardClaimed = false;
+      _bossDailyDateKey = null;
+      _bossPlaySecondsToday = 0;
+      _bossDailyRewardClaimed = false;
+      _keloglanDailyDateKey = null;
+      _keloglanCorrectAnswersToday = 0;
+      _keloglanDailyRewardClaimed = false;
+      _numberRiverDailyDateKey = null;
+      _numberRiverCorrectAnswersToday = 0;
+      _numberRiverDailyRewardClaimed = false;
+      _lifeAdsDateKey = null;
+      _lifeAdsWatchedToday = 0;
       if (_isGuest) {
         final prefs = await SharedPreferences.getInstance();
         final jsonStr = prefs.getString(_guestMechanicsKey);
@@ -324,6 +439,15 @@ class GameMechanicsService extends ChangeNotifier {
             _adventureWeeklyStreak =
                 (data['adventureWeeklyStreak'] is int) ? data['adventureWeeklyStreak'] as int : 0;
             _adventureLastQualifiedDateKey = (data['adventureLastQualifiedDateKey'] as String?)?.trim();
+            _lifeAdsDateKey = (data['lifeAdsDateKey'] as String?)?.trim();
+            _lifeAdsWatchedToday = (data['lifeAdsWatchedToday'] is int)
+                ? (data['lifeAdsWatchedToday'] as int).clamp(0, maxLifeAdsPerDay)
+                : 0;
+            _loadInstantMathDailyFields(data);
+            _loadEndlessDailyFields(data);
+            _loadBossRewardFields(data);
+            _loadKeloglanDailyFields(data);
+            _loadNumberRiverDailyFields(data);
           } catch (_) {}
         }
       } else {
@@ -380,6 +504,13 @@ class GameMechanicsService extends ChangeNotifier {
           _adventureWeeklyStreak =
               (data['adventureWeeklyStreak'] is int) ? data['adventureWeeklyStreak'] as int : 0;
           _adventureLastQualifiedDateKey = (data['adventureLastQualifiedDateKey'] as String?)?.trim();
+          _lifeAdsDateKey = (data['lifeAdsDateKey'] as String?)?.trim();
+          _lifeAdsWatchedToday = (data['lifeAdsWatchedToday'] is int)
+              ? (data['lifeAdsWatchedToday'] as int).clamp(0, maxLifeAdsPerDay)
+              : 0;
+          _loadInstantMathDailyFields(data);
+          _loadEndlessDailyFields(data);
+          _loadBossRewardFields(data);
         }
       }
     } on FirebaseException catch (e) {
@@ -439,6 +570,172 @@ class GameMechanicsService extends ChangeNotifier {
     _adventurePassBadgesByMode = {'instant': 0, 'daily': 0, 'endless': 0, 'boss': 0};
   }
 
+  void _loadInstantMathDailyFields(Map<String, dynamic> data) {
+    _instantMathDailyDateKey = (data['instantMathDailyDateKey'] as String?)?.trim();
+    _instantMathSessionsToday =
+        (data['instantMathSessionsToday'] is int) ? data['instantMathSessionsToday'] as int : 0;
+    _instantMathDailyRewardClaimed = data['instantMathDailyRewardClaimed'] == true;
+    _instantMathFirstSessionAt = _parseClockDailyRewardAt(data['instantMathFirstSessionAt']);
+    _resetInstantMathDailyIfNeeded();
+  }
+
+  void _resetInstantMathDailyIfNeeded() {
+    final today = _todayKey();
+    if (_instantMathDailyDateKey == today) return;
+    _instantMathDailyDateKey = today;
+    _instantMathSessionsToday = 0;
+    _instantMathDailyRewardClaimed = false;
+    _instantMathFirstSessionAt = null;
+    unawaited(InstantMathNotificationScheduler.cancelReminder());
+  }
+
+  static const int instantMathDailyRewardCoins = 5;
+
+  int get instantMathSessionsToday {
+    _resetInstantMathDailyIfNeeded();
+    return _instantMathSessionsToday;
+  }
+
+  bool get instantMathDailyRewardClaimed {
+    _resetInstantMathDailyIfNeeded();
+    return _instantMathDailyRewardClaimed;
+  }
+
+  /// Günde 2. tamamlanan Anında Matematik oturumunda 5 altın (günde bir kez).
+  Future<InstantMathSessionOutcome> recordInstantMathSessionCompleted({
+    required String languageCode,
+  }) async {
+    _resetInstantMathDailyIfNeeded();
+
+    if (_instantMathDailyRewardClaimed) {
+      _instantMathSessionsToday++;
+      await _saveUserData();
+      await InstantMathNotificationScheduler.cancelReminder();
+      notifyListeners();
+      return InstantMathSessionOutcome(
+        dailyRewardGranted: false,
+        coinsGranted: 0,
+        sessionsToday: _instantMathSessionsToday,
+        rewardAlreadyClaimedToday: true,
+      );
+    }
+
+    _instantMathSessionsToday++;
+    var granted = false;
+    var coins = 0;
+
+    if (_instantMathSessionsToday == 1) {
+      _instantMathFirstSessionAt = DateTime.now();
+      await InstantMathNotificationScheduler.scheduleReminder(
+        firstSessionAt: _instantMathFirstSessionAt!,
+        languageCode: languageCode,
+      );
+    } else if (_instantMathSessionsToday >= 2) {
+      _instantMathDailyRewardClaimed = true;
+      coins = instantMathDailyRewardCoins;
+      inventory.coins += coins;
+      granted = true;
+      await InstantMathNotificationScheduler.cancelReminder();
+    }
+
+    await _saveUserData();
+    notifyListeners();
+
+    return InstantMathSessionOutcome(
+      dailyRewardGranted: granted,
+      coinsGranted: coins,
+      sessionsToday: _instantMathSessionsToday,
+      rewardAlreadyClaimedToday: _instantMathDailyRewardClaimed && !granted,
+    );
+  }
+
+  /// Uygulama açılışında / eski cihazda yeniden başlatma sonrası hatırlatmayı yenile.
+  Future<void> _resyncInstantMathNotificationReminder() async {
+    _resetInstantMathDailyIfNeeded();
+    if (_instantMathDailyRewardClaimed || _instantMathSessionsToday != 1) {
+      if (_instantMathDailyRewardClaimed || _instantMathSessionsToday == 0) {
+        await InstantMathNotificationScheduler.cancelReminder();
+      }
+      return;
+    }
+    final first = _instantMathFirstSessionAt;
+    if (first == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final lang = prefs.getString('user_language') ?? 'tr';
+    await InstantMathNotificationScheduler.scheduleReminder(
+      firstSessionAt: first,
+      languageCode: lang,
+    );
+  }
+
+  void _loadEndlessDailyFields(Map<String, dynamic> data) {
+    _endlessDailyDateKey = (data['endlessDailyDateKey'] as String?)?.trim();
+    _endlessPlaySecondsToday =
+        (data['endlessPlaySecondsToday'] is int) ? data['endlessPlaySecondsToday'] as int : 0;
+    _endlessDailyRewardClaimed = data['endlessDailyRewardClaimed'] == true;
+    _resetEndlessDailyIfNeeded();
+  }
+
+  void _resetEndlessDailyIfNeeded() {
+    final today = _todayKey();
+    if (_endlessDailyDateKey == today) return;
+    _endlessDailyDateKey = today;
+    _endlessPlaySecondsToday = 0;
+    _endlessDailyRewardClaimed = false;
+  }
+
+  static const int endlessDailyPlayTargetSeconds = 300;
+  static const int endlessDailyRewardCoins = 5;
+
+  int get endlessPlaySecondsToday {
+    _resetEndlessDailyIfNeeded();
+    return _endlessPlaySecondsToday;
+  }
+
+  bool get endlessDailyRewardClaimed {
+    _resetEndlessDailyIfNeeded();
+    return _endlessDailyRewardClaimed;
+  }
+
+  /// Sonsuz mod ekranında geçen süreyi günlük toplama ekler (ödül alınmışsa saymaya gerek yok).
+  Future<void> addEndlessActivePlaySeconds(int seconds) async {
+    if (seconds <= 0) return;
+    _resetEndlessDailyIfNeeded();
+    if (_endlessDailyRewardClaimed) return;
+    _endlessPlaySecondsToday += seconds;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  /// Oyundan çıkışta: bugün toplam ≥5 dk ise 5 altın (günde bir kez).
+  Future<EndlessDailyRewardOutcome> tryClaimEndlessDailyRewardOnExit() async {
+    _resetEndlessDailyIfNeeded();
+    if (_endlessDailyRewardClaimed) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    if (_endlessPlaySecondsToday < endlessDailyPlayTargetSeconds) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    _endlessDailyRewardClaimed = true;
+    inventory.coins += endlessDailyRewardCoins;
+    await _saveUserData();
+    notifyListeners();
+    return const EndlessDailyRewardOutcome(
+      rewardGranted: true,
+      coinsGranted: endlessDailyRewardCoins,
+    );
+  }
+
+  /// İlk oturumdan 5+ saat geçti, ödül alınmadı, 2. oyun oynanmadı.
+  bool shouldPromptInstantMathReminder() {
+    _resetInstantMathDailyIfNeeded();
+    if (_instantMathDailyRewardClaimed) return false;
+    if (_instantMathSessionsToday != 1) return false;
+    final first = _instantMathFirstSessionAt;
+    if (first == null) return false;
+    return DateTime.now().difference(first) >= InstantMathNotificationScheduler.reminderDelay;
+  }
+
   /// Kullanıcı verisini kaydet
   Future<void> _saveUserData() async {
     if (_userId == null) return;
@@ -474,6 +771,24 @@ class GameMechanicsService extends ChangeNotifier {
           'adventurePassBadgesByMode': _adventurePassBadgesByMode,
           'adventureWeeklyStreak': _adventureWeeklyStreak,
           'adventureLastQualifiedDateKey': _adventureLastQualifiedDateKey,
+          'lifeAdsDateKey': _lifeAdsDateKey,
+          'lifeAdsWatchedToday': _lifeAdsWatchedToday,
+          'instantMathDailyDateKey': _instantMathDailyDateKey,
+          'instantMathSessionsToday': _instantMathSessionsToday,
+          'instantMathDailyRewardClaimed': _instantMathDailyRewardClaimed,
+          'instantMathFirstSessionAt': _instantMathFirstSessionAt?.toIso8601String(),
+          'endlessDailyDateKey': _endlessDailyDateKey,
+          'endlessPlaySecondsToday': _endlessPlaySecondsToday,
+          'endlessDailyRewardClaimed': _endlessDailyRewardClaimed,
+          'bossDailyDateKey': _bossDailyDateKey,
+          'bossPlaySecondsToday': _bossPlaySecondsToday,
+          'bossDailyRewardClaimed': _bossDailyRewardClaimed,
+          'keloglanDailyDateKey': _keloglanDailyDateKey,
+          'keloglanCorrectAnswersToday': _keloglanCorrectAnswersToday,
+          'keloglanDailyRewardClaimed': _keloglanDailyRewardClaimed,
+          'numberRiverDailyDateKey': _numberRiverDailyDateKey,
+          'numberRiverCorrectAnswersToday': _numberRiverCorrectAnswersToday,
+          'numberRiverDailyRewardClaimed': _numberRiverDailyRewardClaimed,
         };
         await prefs.setString(_guestMechanicsKey, jsonEncode(data));
       } else {
@@ -506,6 +821,24 @@ class GameMechanicsService extends ChangeNotifier {
           'adventurePassBadgesByMode': _adventurePassBadgesByMode,
           'adventureWeeklyStreak': _adventureWeeklyStreak,
           'adventureLastQualifiedDateKey': _adventureLastQualifiedDateKey,
+          'lifeAdsDateKey': _lifeAdsDateKey,
+          'lifeAdsWatchedToday': _lifeAdsWatchedToday,
+          'instantMathDailyDateKey': _instantMathDailyDateKey,
+          'instantMathSessionsToday': _instantMathSessionsToday,
+          'instantMathDailyRewardClaimed': _instantMathDailyRewardClaimed,
+          'instantMathFirstSessionAt': _instantMathFirstSessionAt?.toIso8601String(),
+          'endlessDailyDateKey': _endlessDailyDateKey,
+          'endlessPlaySecondsToday': _endlessPlaySecondsToday,
+          'endlessDailyRewardClaimed': _endlessDailyRewardClaimed,
+          'bossDailyDateKey': _bossDailyDateKey,
+          'bossPlaySecondsToday': _bossPlaySecondsToday,
+          'bossDailyRewardClaimed': _bossDailyRewardClaimed,
+          'keloglanDailyDateKey': _keloglanDailyDateKey,
+          'keloglanCorrectAnswersToday': _keloglanCorrectAnswersToday,
+          'keloglanDailyRewardClaimed': _keloglanDailyRewardClaimed,
+          'numberRiverDailyDateKey': _numberRiverDailyDateKey,
+          'numberRiverCorrectAnswersToday': _numberRiverCorrectAnswersToday,
+          'numberRiverDailyRewardClaimed': _numberRiverDailyRewardClaimed,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
         await _syncCurrencyToRewards();
@@ -568,33 +901,13 @@ class GameMechanicsService extends ChangeNotifier {
           .timeout(_dailyChallengeNetworkTimeout);
 
       if (doc.exists) {
-        todayChallenge = DailyChallenge.fromJson(doc.data()!);
-        // Eski verilerde targetScore yanlış olabilir (2000 vb.) - düzelt
-        const int pointsPerCorrect = 10;
-        final correctTargetScore = todayChallenge!.targetCorrect * pointsPerCorrect;
-        if (todayChallenge!.targetScore != correctTargetScore) {
-          todayChallenge = DailyChallenge(
-            id: todayChallenge!.id,
-            date: todayChallenge!.date,
-            title: todayChallenge!.title,
-            description: todayChallenge!.description,
-            targetScore: correctTargetScore,
-            targetCorrect: todayChallenge!.targetCorrect,
-            timeLimit: todayChallenge!.timeLimit,
-            difficulty: todayChallenge!.difficulty,
-            topics: todayChallenge!.topics,
-            rewardCoins: todayChallenge!.rewardCoins,
-            rewardXp: todayChallenge!.rewardXp,
-            isCompleted: todayChallenge!.isCompleted,
-            bestScore: todayChallenge!.bestScore,
-          );
-          await _firestore.collection('daily_challenges').doc(dateKey).set(
-            todayChallenge!.toJson(),
-            SetOptions(merge: true),
-          ).timeout(_dailyChallengeNetworkTimeout);
-        }
+        todayChallenge =
+            _normalizeDailyChallenge(DailyChallenge.fromJson(doc.data()!));
+        await _firestore.collection('daily_challenges').doc(dateKey).set(
+          todayChallenge!.toJson(),
+          SetOptions(merge: true),
+        ).timeout(_dailyChallengeNetworkTimeout);
       } else {
-        // Günlük challenge oluştur
         todayChallenge = _generateDailyChallenge(today);
         await _firestore.collection('daily_challenges').doc(dateKey).set(
           todayChallenge!.toJson(),
@@ -610,12 +923,13 @@ class GameMechanicsService extends ChangeNotifier {
             .timeout(_dailyChallengeNetworkTimeout);
 
         if (userChallengeDoc.exists) {
-          todayChallenge = DailyChallenge.fromJson({
+          todayChallenge = _normalizeDailyChallenge(DailyChallenge.fromJson({
             ...todayChallenge!.toJson(),
             ...userChallengeDoc.data()!,
-          });
+          }));
         }
       }
+      todayChallenge = _normalizeDailyChallenge(todayChallenge!);
     } on TimeoutException catch (e) {
       debugPrint('Daily challenge load timeout: $e');
       todayChallenge = _generateDailyChallenge(today);
@@ -632,74 +946,59 @@ class GameMechanicsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Günlük challenge oluştur
+  static const int dailyChallengeQuestionCount = 10;
+  static const int dailyChallengeRewardCoins = 5;
+  /// Günlük challenge — her gün 10 soru, 5 altın (profil cüzdanına).
   DailyChallenge _generateDailyChallenge(DateTime date) {
-    final random = Random(date.millisecondsSinceEpoch);
-    final difficulties = ['easy', 'medium', 'hard'];
-    final topics = [
-      ['addition'],
-      ['subtraction'],
-      ['addition', 'subtraction'],
-      ['multiplication'],
-      ['addition', 'subtraction', 'multiplication'],
-    ];
-
-    final difficulty = difficulties[random.nextInt(difficulties.length)];
-    final selectedTopics = topics[random.nextInt(topics.length)];
-
-    int targetScore, targetCorrect, timeLimit, rewardCoins, rewardXp;
-    String title, description;
-
-    // Her doğru cevap 10 puan (daily_challenge_screen ile uyumlu)
-    const int pointsPerCorrect = 10;
-
-    switch (difficulty) {
-      case 'easy':
-        targetCorrect = 10;
-        timeLimit = 180;
-        rewardCoins = 50;
-        rewardXp = 25;
-        title = 'Kolay Meydan Okuma';
-        description = '10 soruyu 3 dakikada çöz!';
-        break;
-      case 'medium':
-        targetCorrect = 15;
-        timeLimit = 240;
-        rewardCoins = 100;
-        rewardXp = 50;
-        title = 'Orta Meydan Okuma';
-        description = '15 soruyu 4 dakikada çöz!';
-        break;
-      case 'hard':
-        targetCorrect = 20;
-        timeLimit = 300;
-        rewardCoins = 200;
-        rewardXp = 100;
-        title = 'Zor Meydan Okuma';
-        description = '20 soruyu 5 dakikada çöz!';
-        break;
-      default:
-        targetCorrect = 10;
-        timeLimit = 180;
-        rewardCoins = 50;
-        rewardXp = 25;
-        title = 'Günlük Meydan Okuma';
-        description = 'Bugünün görevini tamamla!';
-    }
-    targetScore = targetCorrect * pointsPerCorrect;
+    const targetCorrect = dailyChallengeQuestionCount;
 
     return DailyChallenge(
       id: '${date.year}${date.month}${date.day}',
       date: date,
-      title: title,
-      description: description,
-      targetScore: targetScore,
+      title: 'Günün Görevi',
+      description: 'Her gün gel, 10 soru çöz, 5 altın kazan!',
+      targetScore: 0,
       targetCorrect: targetCorrect,
-      timeLimit: timeLimit,
-      difficulty: difficulty,
-      topics: selectedTopics,
-      rewardCoins: rewardCoins,
-      rewardXp: rewardXp,
+      timeLimit: 300,
+      difficulty: 'daily',
+      topics: const [
+        'addition',
+        'subtraction',
+        'multiplication',
+        'division',
+      ],
+      rewardCoins: dailyChallengeRewardCoins,
+      rewardXp: 0,
+    );
+  }
+
+  DailyChallenge _normalizeDailyChallenge(DailyChallenge c) {
+    const targetCorrect = dailyChallengeQuestionCount;
+    if (c.targetCorrect == targetCorrect &&
+        c.rewardCoins == dailyChallengeRewardCoins &&
+        c.timeLimit == 300 &&
+        c.targetScore == 0) {
+      return c;
+    }
+    return DailyChallenge(
+      id: c.id,
+      date: c.date,
+      title: 'Günün Görevi',
+      description: 'Her gün gel, 10 soru çöz, 5 altın kazan!',
+      targetScore: 0,
+      targetCorrect: targetCorrect,
+      timeLimit: 300,
+      difficulty: 'daily',
+      topics: const [
+        'addition',
+        'subtraction',
+        'multiplication',
+        'division',
+      ],
+      rewardCoins: dailyChallengeRewardCoins,
+      rewardXp: 0,
+      isCompleted: c.isCompleted,
+      bestScore: c.bestScore,
     );
   }
 
@@ -906,16 +1205,21 @@ class GameMechanicsService extends ChangeNotifier {
 
   // ============= GÜNLÜK CHALLENGE =============
   
-  /// Challenge'ı tamamla
-  Future<void> completeChallenge(int score, int correctAnswers) async {
+  /// Challenge'ı tamamla — 10 soru cevaplanınca 5 altın (profil [inventory.coins]).
+  Future<void> completeChallenge(
+    int score,
+    int correctAnswers, {
+    int totalAnswered = 0,
+  }) async {
     if (todayChallenge == null) return;
 
-    final success = score >= todayChallenge!.targetScore && 
-                    correctAnswers >= todayChallenge!.targetCorrect;
+    final answered =
+        totalAnswered > 0 ? totalAnswered : correctAnswers;
+    final success = answered >= todayChallenge!.targetCorrect;
 
     if (success && !todayChallenge!.isCompleted) {
       todayChallenge!.isCompleted = true;
-      inventory.coins += todayChallenge!.rewardCoins;
+      inventory.coins += dailyChallengeRewardCoins;
       
       // Kaydet
       if (_userId != null) {
@@ -938,8 +1242,184 @@ class GameMechanicsService extends ChangeNotifier {
     }
   }
 
+  void _loadBossRewardFields(Map<String, dynamic> data) {
+    _bossDailyDateKey = (data['bossDailyDateKey'] as String?)?.trim();
+    if (_bossDailyDateKey == null || _bossDailyDateKey!.isEmpty) {
+      _bossDailyDateKey = (data['bossRewardsDateKey'] as String?)?.trim();
+    }
+    _bossPlaySecondsToday =
+        (data['bossPlaySecondsToday'] is int) ? data['bossPlaySecondsToday'] as int : 0;
+    _bossDailyRewardClaimed = data['bossDailyRewardClaimed'] == true;
+    _resetBossDailyIfNeeded();
+  }
+
+  void _resetBossDailyIfNeeded() {
+    final today = _todayKey();
+    if (_bossDailyDateKey == today) return;
+    _bossDailyDateKey = today;
+    _bossPlaySecondsToday = 0;
+    _bossDailyRewardClaimed = false;
+  }
+
+  static const int bossDailyPlayTargetSeconds = 600;
+  static const int bossDailyRewardCoins = 5;
+
+  int get bossPlaySecondsToday {
+    _resetBossDailyIfNeeded();
+    return _bossPlaySecondsToday;
+  }
+
+  bool get bossDailyRewardClaimed {
+    _resetBossDailyIfNeeded();
+    return _bossDailyRewardClaimed;
+  }
+
+  Future<void> addBossActivePlaySeconds(int seconds) async {
+    if (seconds <= 0) return;
+    _resetBossDailyIfNeeded();
+    if (_bossDailyRewardClaimed) return;
+    _bossPlaySecondsToday += seconds;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  /// Boss savaşından çıkışta: bugün toplam ≥10 dk ise 5 altın (günde bir kez).
+  Future<EndlessDailyRewardOutcome> tryClaimBossDailyRewardOnExit() async {
+    _resetBossDailyIfNeeded();
+    if (_bossDailyRewardClaimed) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    if (_bossPlaySecondsToday < bossDailyPlayTargetSeconds) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    _bossDailyRewardClaimed = true;
+    inventory.coins += bossDailyRewardCoins;
+    await _saveUserData();
+    notifyListeners();
+    return const EndlessDailyRewardOutcome(
+      rewardGranted: true,
+      coinsGranted: bossDailyRewardCoins,
+    );
+  }
+
+  void _loadKeloglanDailyFields(Map<String, dynamic> data) {
+    _keloglanDailyDateKey = (data['keloglanDailyDateKey'] as String?)?.trim();
+    _keloglanCorrectAnswersToday = (data['keloglanCorrectAnswersToday'] is int)
+        ? data['keloglanCorrectAnswersToday'] as int
+        : 0;
+    _keloglanDailyRewardClaimed = data['keloglanDailyRewardClaimed'] == true;
+    _resetKeloglanDailyIfNeeded();
+  }
+
+  void _resetKeloglanDailyIfNeeded() {
+    final today = _todayKey();
+    if (_keloglanDailyDateKey == today) return;
+    _keloglanDailyDateKey = today;
+    _keloglanCorrectAnswersToday = 0;
+    _keloglanDailyRewardClaimed = false;
+  }
+
+  static const int keloglanDailyCorrectTarget = 10;
+  static const int keloglanDailyRewardCoins = 5;
+
+  int get keloglanCorrectAnswersToday {
+    _resetKeloglanDailyIfNeeded();
+    return _keloglanCorrectAnswersToday;
+  }
+
+  bool get keloglanDailyRewardClaimed {
+    _resetKeloglanDailyIfNeeded();
+    return _keloglanDailyRewardClaimed;
+  }
+
+  /// Keloğlan köyünde doğru cevap (günlük sayaç).
+  Future<void> recordKeloglanCorrectAnswer() async {
+    _resetKeloglanDailyIfNeeded();
+    if (_keloglanDailyRewardClaimed) return;
+    if (_keloglanCorrectAnswersToday >= keloglanDailyCorrectTarget) return;
+    _keloglanCorrectAnswersToday++;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  /// Keloğlan köyünden çıkışta: bugün ≥10 doğru ise 5 altın (günde bir kez).
+  Future<EndlessDailyRewardOutcome> tryClaimKeloglanDailyRewardOnExit() async {
+    _resetKeloglanDailyIfNeeded();
+    if (_keloglanDailyRewardClaimed) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    if (_keloglanCorrectAnswersToday < keloglanDailyCorrectTarget) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    _keloglanDailyRewardClaimed = true;
+    inventory.coins += keloglanDailyRewardCoins;
+    await _saveUserData();
+    notifyListeners();
+    return const EndlessDailyRewardOutcome(
+      rewardGranted: true,
+      coinsGranted: keloglanDailyRewardCoins,
+    );
+  }
+
+  void _loadNumberRiverDailyFields(Map<String, dynamic> data) {
+    _numberRiverDailyDateKey = (data['numberRiverDailyDateKey'] as String?)?.trim();
+    _numberRiverCorrectAnswersToday = (data['numberRiverCorrectAnswersToday'] is int)
+        ? data['numberRiverCorrectAnswersToday'] as int
+        : 0;
+    _numberRiverDailyRewardClaimed = data['numberRiverDailyRewardClaimed'] == true;
+    _resetNumberRiverDailyIfNeeded();
+  }
+
+  void _resetNumberRiverDailyIfNeeded() {
+    final today = _todayKey();
+    if (_numberRiverDailyDateKey == today) return;
+    _numberRiverDailyDateKey = today;
+    _numberRiverCorrectAnswersToday = 0;
+    _numberRiverDailyRewardClaimed = false;
+  }
+
+  static const int numberRiverDailyCorrectTarget = 10;
+  static const int numberRiverDailyRewardCoins = 5;
+
+  int get numberRiverCorrectAnswersToday {
+    _resetNumberRiverDailyIfNeeded();
+    return _numberRiverCorrectAnswersToday;
+  }
+
+  bool get numberRiverDailyRewardClaimed {
+    _resetNumberRiverDailyIfNeeded();
+    return _numberRiverDailyRewardClaimed;
+  }
+
+  Future<void> recordNumberRiverCorrectAnswer() async {
+    _resetNumberRiverDailyIfNeeded();
+    if (_numberRiverDailyRewardClaimed) return;
+    if (_numberRiverCorrectAnswersToday >= numberRiverDailyCorrectTarget) return;
+    _numberRiverCorrectAnswersToday++;
+    await _saveUserData();
+    notifyListeners();
+  }
+
+  Future<EndlessDailyRewardOutcome> tryClaimNumberRiverDailyRewardOnExit() async {
+    _resetNumberRiverDailyIfNeeded();
+    if (_numberRiverDailyRewardClaimed) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    if (_numberRiverCorrectAnswersToday < numberRiverDailyCorrectTarget) {
+      return const EndlessDailyRewardOutcome(rewardGranted: false, coinsGranted: 0);
+    }
+    _numberRiverDailyRewardClaimed = true;
+    inventory.coins += numberRiverDailyRewardCoins;
+    await _saveUserData();
+    notifyListeners();
+    return const EndlessDailyRewardOutcome(
+      rewardGranted: true,
+      coinsGranted: numberRiverDailyRewardCoins,
+    );
+  }
+
   // ============= BOSS SAVAŞI =============
-  
+
   /// Boss'a hasar ver
   int damageBoss(BossBattle boss, bool isCorrect) {
     if (isCorrect) {
@@ -1296,14 +1776,40 @@ class GameMechanicsService extends ChangeNotifier {
   }
 
   // ============= REKLAM İLE CAN KAZANMA =============
-  
-  /// Reklam izleyerek 1 can kazan
-  void earnLifeFromAd() {
-    if (_premiumUnlimited) return;
+
+  void _resetLifeAdsDailyIfNeeded() {
+    final key = _todayKey();
+    if (_lifeAdsDateKey != key) {
+      _lifeAdsDateKey = key;
+      _lifeAdsWatchedToday = 0;
+    }
+  }
+
+  /// Bugün reklam ile can kazanılabilir mi (günde en fazla [maxLifeAdsPerDay]).
+  bool get canWatchAdForLife {
+    if (_premiumUnlimited) return false;
+    _resetLifeAdsDailyIfNeeded();
+    return _lifeAdsWatchedToday < maxLifeAdsPerDay;
+  }
+
+  /// Bugün kalan reklam ile can hakkı.
+  int get remainingLifeAdsToday {
+    _resetLifeAdsDailyIfNeeded();
+    return (maxLifeAdsPerDay - _lifeAdsWatchedToday).clamp(0, maxLifeAdsPerDay);
+  }
+
+  /// Reklam izleyerek 1 can kazan. Başarılıysa true.
+  bool earnLifeFromAd() {
+    if (_premiumUnlimited) return false;
+    _resetLifeAdsDailyIfNeeded();
+    if (_lifeAdsWatchedToday >= maxLifeAdsPerDay) return false;
     livesSystem.gainLife();
+    _lifeAdsWatchedToday++;
+    _lifeAdsDateKey = _todayKey();
     _saveUserData();
     notifyListeners();
     debugPrint('GameMechanicsService: Reklam ile 1 can kazanıldı!');
+    return true;
   }
 
   /// Can durumunu kontrol et

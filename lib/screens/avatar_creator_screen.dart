@@ -1248,7 +1248,7 @@ class _AvatarCreatorScreenState extends State<AvatarCreatorScreen>
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Lütfen bir isim girin'),
+          content: Text(AppLocalizations.of(context).get('please_enter_name')),
           backgroundColor: Colors.red,
         ),
       );

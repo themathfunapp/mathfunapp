@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 
 import 'package:mathfun/config/legal_urls.dart';
 import 'package:mathfun/localization/app_localizations.dart';
-import 'package:mathfun/models/game_manager.dart';
 import 'package:mathfun/services/ad_service.dart';
+import 'package:mathfun/services/audio_service.dart';
 import 'package:mathfun/providers/locale_provider.dart';
 import 'package:mathfun/services/auth_service.dart';
 import 'package:mathfun/services/push_notification_service.dart';
@@ -24,13 +24,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late GameManager _gameManager;
   bool _notificationsEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _gameManager = GameManager();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (kIsWeb || !mounted) return;
       final v = await PushNotificationService.instance.notificationsEnabled();
@@ -40,6 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final audio = context.watch<AudioService>();
     final authService = Provider.of<AuthService>(context, listen: true);
     final locale = Provider.of<LocaleProvider>(context).locale;
     final currentUser = authService.currentUser;
@@ -114,12 +113,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       title: localizations.get('sound_effects'),
                       subtitle: localizations.get('sound_effects_subtitle'),
-                      isEnabled: _gameManager.soundEnabled,
-                      onToggle: (value) {
-                        setState(() {
-                          _gameManager.soundEnabled = value;
-                        });
-                      },
+                      isEnabled: audio.soundEffectsEnabled,
+                      onToggle: (value) => audio.setSoundEffectsEnabled(value),
                       emoji: "🔊",
                     ),
 
@@ -130,12 +125,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       title: localizations.get('music'),
                       subtitle: localizations.get('music_subtitle'),
-                      isEnabled: _gameManager.musicEnabled,
-                      onToggle: (value) {
-                        setState(() {
-                          _gameManager.musicEnabled = value;
-                        });
-                      },
+                      isEnabled: audio.musicEnabled,
+                      onToggle: (value) => audio.setMusicEnabled(value),
                       emoji: "🎹",
                     ),
 

@@ -22,11 +22,19 @@
           }
         },
         {
-          "client_id": "728773599076-iqijod9ks20g5q9sm57n3sm9shtiv4ss.apps.googleusercontent.com",
+          "client_id": "728773599076-dsocmojs0bihi0ubeccotlr7puq0ioft.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.themathfunapp.mathfunapp",
-            "certificate_hash": "1ffdbd21666c0c27467f6576a70b6c7b3ad8ca98"
+            "certificate_hash": "c89615fc6d8f48aed5cf7c837ae10293b27771a3"
+          }
+        },
+        {
+          "client_id": "728773599076-piauc7se90kaamgsmp0iaeqdg95e4cli.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.themathfunapp.mathfunapp",
+            "certificate_hash": "ccf58619e41f62becbe04fcc615d9d52c9c591ef"
           }
         },
         {

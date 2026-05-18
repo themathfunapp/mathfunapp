@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/friend_service.dart';
+import '../services/friend_duel_service.dart';
 import '../models/app_user.dart';
 import '../models/friend_request.dart';
 import '../models/friendship.dart';
@@ -11,16 +14,20 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import 'welcome_screen.dart';
 import 'app_screen_wrappers.dart';
-import 'live_duel_screen.dart';
-import 'game_start_screen.dart' show AgeGroupSelection;
+import '../utils/friend_duel_invite_flow.dart';
 import '../widgets/player_code_visual.dart';
+import '../widgets/animated_friends_search_button.dart';
 
 class FriendsScreen extends StatefulWidget {
   final VoidCallback onBack;
 
+  /// 0 = arkadaşlar, 1 = istekler; 2 = arama paneli (üst arama ikonu ile aynı)
+  final int initialTabIndex;
+
   const FriendsScreen({
     super.key,
     required this.onBack,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -32,15 +39,35 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   final TextEditingController _searchController = TextEditingController();
   List<AppUser> _searchResults = [];
   bool _isSearching = false;
+  bool _searchPanelOpen = false;
   Map<String, FriendshipStatus> _friendshipStatuses = {};
+  Stream<List<FriendDuelInvite>>? _duelInvitesStream;
+  bool _duelStreamReady = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _searchPanelOpen = widget.initialTabIndex == 2;
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
+    );
     _searchController.addListener(() {
       if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_duelStreamReady) return;
+    final uid = context.read<AuthService>().currentUser?.uid ?? '';
+    if (uid.isNotEmpty) {
+      _duelInvitesStream =
+          context.read<FriendDuelService>().incomingInvitesStream(uid);
+    }
+    _duelStreamReady = true;
   }
 
   @override
@@ -78,7 +105,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Bir hata oluştu: $e'),
+            content: Text('${AppLocalizations.of(context).get('error_occurred')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -118,14 +145,18 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       setState(() {
         _isSearching = false;
       });
-      _showErrorSnackbar('Arama hatası: $e');
+      _showErrorSnackbar(
+        AppLocalizations.of(context)
+            .get('friends_search_error')
+            .replaceAll('{error}', '$e'),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final friendService = Provider.of<FriendService>(context);
+    final friendService = Provider.of<FriendService>(context, listen: false);
     final locale = Provider.of<LocaleProvider>(context).locale;
     final localizations = AppLocalizations(locale);
     final isGuest = authService.isGuest;
@@ -151,21 +182,27 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               // MİSAFİR UYARISI
               if (isGuest) _buildGuestWarning(localizations),
 
-              // TAB BAR
-              if (!isGuest) _buildTabBar(localizations, friendService),
+              // TAB BAR (yalnızca Arkadaşlar + İstekler; arama üst ikondan)
+              if (!isGuest && !_searchPanelOpen)
+                Selector<FriendService, int>(
+                  selector: (_, fs) => fs.pendingRequestsCount,
+                  builder: (context, pendingCount, _) =>
+                      _buildTabBar(localizations, pendingCount),
+                ),
 
               // İÇERİK
               Expanded(
                 child: isGuest
                     ? _buildGuestContent(localizations)
-                    : TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildFriendsTab(friendService, localizations),
-                          _buildRequestsTab(friendService, localizations),
-                          _buildSearchTab(friendService, localizations),
-                        ],
-                      ),
+                    : _searchPanelOpen
+                        ? _buildSearchPanel(friendService, localizations)
+                        : TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildFriendsTab(friendService, localizations),
+                              _buildRequestsTab(friendService, localizations),
+                            ],
+                          ),
               ),
             ],
           ),
@@ -267,7 +304,11 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               ],
             ),
           ),
-          // BİLGİ BUTONU
+          if (!authService.isGuest && !_searchPanelOpen)
+            AnimatedFriendsSearchButton(
+              tooltip: localizations.get('search_tab'),
+              onPressed: () => setState(() => _searchPanelOpen = true),
+            ),
           IconButton(
             onPressed: () => _showIdInfoDialog(localizations),
             icon: const Icon(Icons.info_outline, color: Colors.white),
@@ -460,7 +501,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildTabBar(AppLocalizations localizations, FriendService friendService) {
+  Widget _buildTabBar(AppLocalizations localizations, int pendingRequestsCount) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -506,7 +547,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                   const Icon(Icons.mail, size: 16),
                   const SizedBox(width: 3),
                   Text(localizations.get('requests_tab')),
-                  if (friendService.pendingRequestsCount > 0) ...[
+                  if (pendingRequestsCount > 0) ...[
                     const SizedBox(width: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -515,7 +556,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '${friendService.pendingRequestsCount}',
+                        '$pendingRequestsCount',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9,
@@ -528,23 +569,49 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               ),
             ),
           ),
-          Tab(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.search, size: 16),
-                  const SizedBox(width: 3),
-                  Text(localizations.get('search_tab')),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
+    );
+  }
+
+  void _closeSearchPanel() {
+    setState(() {
+      _searchPanelOpen = false;
+      _searchController.clear();
+      _searchResults = [];
+    });
+  }
+
+  Widget _buildSearchPanel(
+    FriendService friendService,
+    AppLocalizations localizations,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _closeSearchPanel,
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+              ),
+              Expanded(
+                child: Text(
+                  localizations.get('search_tab'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: _buildSearchTab(friendService, localizations)),
+      ],
     );
   }
 
@@ -554,33 +621,43 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        StreamBuilder<List<FriendDuelInvite>>(
-          stream: friendService.incomingFriendDuelInvitesStream(),
-          builder: (context, duelSnap) {
-            final invites = duelSnap.data ?? [];
-            if (invites.isEmpty) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: invites
-                    .map((i) => _buildIncomingDuelInviteCard(i, friendService, localizations))
-                    .toList(),
-              ),
-            );
-          },
-        ),
+        if (_duelInvitesStream != null)
+          StreamBuilder<List<FriendDuelInvite>>(
+            stream: _duelInvitesStream,
+            builder: (context, duelSnap) {
+              if (duelSnap.connectionState == ConnectionState.waiting &&
+                  !duelSnap.hasData) {
+                return const SizedBox.shrink();
+              }
+              final invites = duelSnap.data ?? [];
+              if (invites.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: invites
+                      .map((i) => _IncomingDuelInviteCard(
+                            invite: i,
+                            localizations: localizations,
+                            onAccept: () => _acceptFriendDuelInvite(i, friendService),
+                            onDecline: () => _declineFriendDuelInvite(i),
+                          ))
+                      .toList(),
+                ),
+              );
+            },
+          ),
         Expanded(
-          child: StreamBuilder<List<Friendship>>(
-            stream: friendService.friendsStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          child: ListenableBuilder(
+            listenable: friendService,
+            builder: (context, _) {
+              if (!friendService.friendsHydrated) {
                 return const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 );
               }
 
-              final friends = snapshot.data ?? [];
+              final friends = friendService.friends;
 
               if (friends.isEmpty) {
                 return _buildEmptyState(
@@ -604,66 +681,14 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildIncomingDuelInviteCard(
-    FriendDuelInvite invite,
-    FriendService friendService,
-    AppLocalizations localizations,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade800,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.shade200),
-      ),
-      child: Row(
-        children: [
-          const Text('⚔️', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '${invite.fromDisplayName} seni düelloya davet etti!',
-              style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.25),
-            ),
-          ),
-          TextButton(
-            onPressed: () => friendService.deleteFriendDuelInvite(invite.id),
-            child: Text(localizations.get('reject'), style: const TextStyle(color: Colors.white70)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.amber.shade300,
-              foregroundColor: Colors.black87,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            onPressed: () => _acceptFriendDuelInvite(invite, friendService),
-            child: Text(localizations.get('accept')),
-          ),
-        ],
-      ),
-    );
+  Future<void> _declineFriendDuelInvite(FriendDuelInvite invite) async {
+    final uid = context.read<AuthService>().currentUser?.uid;
+    if (uid == null) return;
+    await context.read<FriendDuelService>().declineInvite(invite.id, uid);
   }
 
   Future<void> _acceptFriendDuelInvite(FriendDuelInvite invite, FriendService friendService) async {
-    final opponent = Friendship(
-      id: invite.fromUserId,
-      friendId: invite.fromUserId,
-      friendName: invite.fromDisplayName,
-      friendUserCode: invite.fromUserCode,
-      friendsSince: DateTime.now(),
-    );
-    await friendService.deleteFriendDuelInvite(invite.id);
-    if (!mounted) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (ctx) => LiveDuelScreen(
-          ageGroup: AgeGroupSelection.elementary,
-          opponent: opponent,
-          onBack: () => Navigator.of(ctx).pop(),
-        ),
-      ),
-    );
+    await FriendDuelInviteFlow.openInviteeScreen(context, invite: invite);
   }
 
   Widget _buildFriendCard(Friendship friend, FriendService friendService, AppLocalizations localizations) {
@@ -783,7 +808,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             child: ElevatedButton.icon(
               onPressed: () => _challengeToDuel(friend),
               icon: const Icon(Icons.sports_mma, size: 18),
-              label: const Text('Düelloya Davet Et'),
+              label: Text(localizations.get('invite_friend_to_duel')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
@@ -800,102 +825,16 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   void _challengeToDuel(Friendship friend) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Text('⚔️ '),
-            Text('Düello Daveti'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.orange, Colors.deepOrange],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  const Text('🥊', style: TextStyle(fontSize: 48)),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${friend.friendName} adlı\narkadaşını düelloya\ndavet ediyorsun!',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Davet gönderildiğinde arkadaşın\nbildirim alacak ve kabul ederse\ndüello başlayacak!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _sendDuelInvite(friend);
-            },
-            icon: const Icon(Icons.send),
-            label: const Text('Davet Gönder'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendDuelInvite(Friendship friend) async {
-    final friendService = Provider.of<FriendService>(context, listen: false);
-    final ok = await friendService.sendFriendDuelInvite(friend);
-    if (!mounted) return;
-    if (ok) {
-      _showSuccessSnackbar('${friend.friendName} adlı arkadaşına düello daveti gönderildi!');
-    } else {
-      _showErrorSnackbar(
-        'Davet gönderilemedi veya bu arkadaş için zaten bekleyen bir davetin var.',
-      );
-    }
+    FriendDuelInviteFlow.showSendInviteDialog(context, friend: friend);
   }
 
   // ------------- İSTEKLER TAB -------------
 
   Widget _buildRequestsTab(FriendService friendService, AppLocalizations localizations) {
-    return StreamBuilder<List<FriendRequest>>(
-      stream: friendService.incomingRequestsStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
-        }
-
-        final requests = snapshot.data ?? [];
+    return ListenableBuilder(
+      listenable: friendService,
+      builder: (context, _) {
+        final requests = friendService.incomingRequests;
 
         if (requests.isEmpty) {
           return _buildEmptyState(
@@ -905,12 +844,17 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: requests.length,
-          itemBuilder: (context, index) {
-            return _buildRequestCard(requests[index], friendService, localizations);
-          },
+        return RefreshIndicator(
+          onRefresh: friendService.refresh,
+          color: const Color(0xFF667eea),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              return _buildRequestCard(requests[index], friendService, localizations);
+            },
+          ),
         );
       },
     );
@@ -1221,7 +1165,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.displayName ?? user.email?.split('@').first ?? 'Kullanıcı',
+                  user.displayName ??
+                      user.email?.split('@').first ??
+                      localizations.get('default_player_name'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -1328,13 +1274,25 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       case FriendshipStatus.none:
         return ElevatedButton.icon(
           onPressed: () async {
-            final success = await friendService.sendFriendRequest(user);
-            if (success) {
+            final err = await friendService.sendFriendRequest(user);
+            if (!mounted) return;
+            if (err == null) {
               _showSuccessSnackbar(localizations.get('friend_request_sent'));
-              // Durumu güncelle
               setState(() {
                 _friendshipStatuses[user.uid] = FriendshipStatus.requestSent;
               });
+            } else if (err == 'already_sent') {
+              _showSuccessSnackbar(localizations.get('request_sent'));
+              setState(() {
+                _friendshipStatuses[user.uid] = FriendshipStatus.requestSent;
+              });
+            } else if (err == 'already_friends') {
+              setState(() {
+                _friendshipStatuses[user.uid] = FriendshipStatus.friends;
+              });
+              _showSuccessSnackbar(localizations.get('already_friends'));
+            } else if (err == 'guest') {
+              _showErrorSnackbar(localizations.get('guest_cannot_add_friends'));
             } else {
               _showErrorSnackbar(localizations.get('friend_request_failed'));
             }
@@ -1462,6 +1420,101 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+      ),
+    );
+  }
+}
+
+class _IncomingDuelInviteCard extends StatefulWidget {
+  const _IncomingDuelInviteCard({
+    required this.invite,
+    required this.localizations,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final FriendDuelInvite invite;
+  final AppLocalizations localizations;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  State<_IncomingDuelInviteCard> createState() => _IncomingDuelInviteCardState();
+}
+
+class _IncomingDuelInviteCardState extends State<_IncomingDuelInviteCard> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sec = widget.invite.secondsRemaining;
+    final loc = widget.localizations;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade800,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text('⚔️', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  loc.get('friend_duel_invite_banner')
+                      .replaceAll('{name}', widget.invite.fromDisplayName),
+                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.25),
+                ),
+              ),
+              Text(
+                '${sec}s',
+                style: const TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: widget.onDecline,
+                child: Text(loc.get('decline'), style: const TextStyle(color: Colors.white70)),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.amber.shade300,
+                  foregroundColor: Colors.black87,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: sec > 0 ? widget.onAccept : null,
+                child: Text(loc.get('accept')),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

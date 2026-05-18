@@ -373,7 +373,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               _navigateToHomeScreen();
             }
           } catch (e) {
-            _showErrorSnackbar('Misafir girişi hatası: $e');
+            _showErrorSnackbar(
+              AppLocalizations.of(context)
+                  .get('welcome_guest_error')
+                  .replaceAll('{error}', '$e'),
+            );
           } finally {
             setState(() {
               _isLoading = false;

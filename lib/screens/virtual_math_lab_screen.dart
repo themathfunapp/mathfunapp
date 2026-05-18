@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import '../localization/app_localizations.dart';
+
 /// Sanal Matematik Laboratuvarı
 /// Deneyler, araçlar, simülasyonlar
 class VirtualMathLabScreen extends StatefulWidget {
@@ -597,7 +599,11 @@ class _VirtualMathLabScreenState extends State<VirtualMathLabScreen>
   void _openExperiment(LabExperiment experiment) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${experiment.name} açılıyor...'),
+        content: Text(
+          AppLocalizations.of(context)
+              .get('opening_item')
+              .replaceAll('{name}', experiment.name),
+        ),
         backgroundColor: experiment.color,
       ),
     );
@@ -606,7 +612,11 @@ class _VirtualMathLabScreenState extends State<VirtualMathLabScreen>
   void _openTool(LabTool tool) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${tool.name} açılıyor...'),
+        content: Text(
+          AppLocalizations.of(context)
+              .get('opening_item')
+              .replaceAll('{name}', tool.name),
+        ),
         backgroundColor: Colors.blue,
       ),
     );

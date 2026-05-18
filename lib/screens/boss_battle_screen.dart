@@ -10,6 +10,7 @@ import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
+import '../widgets/daily_gold_help_sheet.dart';
 import '../services/game_session_report.dart';
 import '../utils/locale_text_helpers.dart';
 
@@ -40,9 +41,12 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   late int _bossMaxHealth;
 
   // OYUNCU CAN SİSTEMİ - GameMechanicsService ile profil senkron (5 can)
-  int _score = 0;
   bool _gameOver = false;
   bool _sessionReported = false;
+  Timer? _playTimeTimer;
+  int _sessionSeconds = 0;
+  bool _exitHandled = false;
+  final Set<String> _usedQuestionFingerprints = {};
   int _sessionCorrect = 0;
   int _sessionWrong = 0;
   int _runStreak = 0;
@@ -72,6 +76,8 @@ class _BossBattleScreenState extends State<BossBattleScreen>
   late Animation<double> _lifeShakeAnimation;
 
   final math.Random _random = math.Random();
+
+  bool get _countsPlayTime => !_gameOver;
 
   @override
   void initState() {
@@ -122,10 +128,156 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
     _generateQuestion();
     _startTimer();
+    _startPlayTimeTracking();
+  }
+
+  void _startPlayTimeTracking() {
+    _playTimeTimer?.cancel();
+    _playTimeTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_countsPlayTime) return;
+      setState(() => _sessionSeconds++);
+    });
+  }
+
+  String _formatMinutesSeconds(int totalSeconds) {
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _flushSessionPlayTime() async {
+    if (_sessionSeconds <= 0) return;
+    final seconds = _sessionSeconds;
+    _sessionSeconds = 0;
+    await Provider.of<GameMechanicsService>(context, listen: false)
+        .addBossActivePlaySeconds(seconds);
+  }
+
+  Future<void> _showBossRewardDialog() async {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                loc.get('boss_daily_complete_msg'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${GameMechanicsService.bossDailyRewardCoins}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF5E35B1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(loc.get('ok')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _leaveBossBattle() async {
+    if (_exitHandled) return;
+    _exitHandled = true;
+    _playTimeTimer?.cancel();
+    _timer?.cancel();
+    _reportBossSession();
+
+    if (mounted) {
+      await _flushSessionPlayTime();
+      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+      final outcome = await mechanics.tryClaimBossDailyRewardOnExit();
+      if (mounted && outcome.rewardGranted) {
+        await _showBossRewardDialog();
+      }
+    }
+    widget.onBack();
+  }
+
+  void _showBossGoldHelp(AppLocalizations loc) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final totalSeconds = (mechanics.bossPlaySecondsToday + _sessionSeconds)
+        .clamp(0, GameMechanicsService.bossDailyPlayTargetSeconds);
+    final claimed = mechanics.bossDailyRewardClaimed;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DailyGoldHelpSheet(
+          title: loc.get('boss_daily_help_title'),
+          rules: [
+            loc.get('boss_daily_help_rule_1'),
+            loc.get('boss_daily_help_rule_2'),
+            loc.get('boss_daily_help_rule_3'),
+            loc.get('boss_daily_help_rule_4'),
+          ],
+          progressLabel: loc
+              .get('boss_daily_help_progress')
+              .replaceAll('{0}', _formatMinutesSeconds(totalSeconds)),
+          progressValue: totalSeconds / GameMechanicsService.bossDailyPlayTargetSeconds,
+          claimed: claimed,
+          claimedMessage: loc.get('boss_daily_help_claimed'),
+          closeLabel: loc.get('ok'),
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
+    _playTimeTimer?.cancel();
+    if (!_exitHandled && _sessionSeconds > 0) {
+      final seconds = _sessionSeconds;
+      _sessionSeconds = 0;
+      try {
+        context.read<GameMechanicsService>().addBossActivePlaySeconds(seconds);
+      } catch (_) {}
+    }
     _audio.cancelAmbientSync();
     _timer?.cancel();
     _bossShakeController.dispose();
@@ -135,10 +287,53 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     super.dispose();
   }
 
-  void _generateQuestion() {
-    int num1, num2, answer;
-    String operator;
+  String _questionFingerprint(_BossQuestion q) {
+    if (q.isCounting) return 'count:${q.countingEmoji}:${q.correctAnswer}';
+    return '${q.num1}|${q.operator}|${q.num2}';
+  }
 
+  List<int> _makeAnswerChoices(int answer, {int spread = 5}) {
+    final options = <int>[answer];
+    var attempts = 0;
+    while (options.length < 4 && attempts < 40) {
+      attempts++;
+      final wrong = answer + _random.nextInt(spread * 2 + 1) - spread;
+      if (wrong > 0 && wrong != answer && !options.contains(wrong)) {
+        options.add(wrong);
+      }
+    }
+    while (options.length < 4) {
+      final wrong = answer + options.length;
+      if (wrong > 0 && !options.contains(wrong)) options.add(wrong);
+    }
+    options.shuffle(_random);
+    return options;
+  }
+
+  _BossQuestion _buildCountingQuestion() {
+    final (minCount, maxCount) = switch (widget.boss.difficulty) {
+      'easy' => (3, 8),
+      'medium' => (5, 12),
+      'hard' => (8, 15),
+      'expert' => (10, 18),
+      _ => (3, 10),
+    };
+    final count = minCount + _random.nextInt(maxCount - minCount + 1);
+    const emojis = ['🍎', '⭐', '🐱', '🎈', '🌸', '🦋'];
+    final emoji = emojis[_random.nextInt(emojis.length)];
+    return _BossQuestion(
+      isCounting: true,
+      countingEmoji: emoji,
+      countingItems: count,
+      num1: 0,
+      num2: 0,
+      operator: '',
+      correctAnswer: count,
+      options: _makeAnswerChoices(count, spread: 3),
+    );
+  }
+
+  _BossQuestion _buildMathQuestion() {
     int maxNum;
     switch (widget.boss.difficulty) {
       case 'easy':
@@ -157,12 +352,8 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         maxNum = 10;
     }
 
-    // Her boss kendi işlem türünde sorar; yalnız Sayı Canavarı dört işlem karışık.
     final List<String> operators;
     switch (widget.boss.id) {
-      case 'count_monster':
-        operators = ['+', '-', '×', '÷'];
-        break;
       case 'plus_dragon':
         operators = ['+'];
         break;
@@ -186,7 +377,10 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         }
     }
 
-    operator = operators[_random.nextInt(operators.length)];
+    final operator = operators[_random.nextInt(operators.length)];
+    late int num1;
+    late int num2;
+    late int answer;
 
     switch (operator) {
       case '+':
@@ -215,22 +409,33 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         answer = num1 + num2;
     }
 
-    List<int> options = [answer];
-    while (options.length < 4) {
-      int wrong = answer + _random.nextInt(10) - 5;
-      if (wrong > 0 && wrong != answer && !options.contains(wrong)) {
-        options.add(wrong);
-      }
-    }
-    options.shuffle();
-
-    _currentQuestion = _BossQuestion(
+    return _BossQuestion(
       num1: num1,
       num2: num2,
       operator: operator,
       correctAnswer: answer,
-      options: options,
+      options: _makeAnswerChoices(answer),
     );
+  }
+
+  void _generateQuestion() {
+    const maxAttempts = 48;
+    _BossQuestion? fallback;
+    for (var i = 0; i < maxAttempts; i++) {
+      final candidate = widget.boss.id == 'count_monster'
+          ? _buildCountingQuestion()
+          : _buildMathQuestion();
+      fallback = candidate;
+      final fp = _questionFingerprint(candidate);
+      if (!_usedQuestionFingerprints.contains(fp)) {
+        _usedQuestionFingerprints.add(fp);
+        _currentQuestion = candidate;
+        return;
+      }
+    }
+    if (fallback != null) {
+      _currentQuestion = fallback;
+    }
   }
 
   void _startTimer() {
@@ -282,7 +487,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 
       setState(() {
         _bossHealth -= widget.boss.damagePerCorrect;
-        _score += 10;
       });
 
       if (_bossHealth <= 0) {
@@ -320,10 +524,10 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     });
   }
 
-  void _victory() {
+  Future<void> _victory() async {
     _timer?.cancel();
-    widget.onComplete?.call(true, _score);
-    _showResultDialog(true);
+    widget.onComplete?.call(true, _sessionCorrect);
+    if (mounted) _showResultDialog(true);
   }
 
   void _defeat() {
@@ -332,7 +536,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     if (mechanicsService.currentLives <= 0) {
       _showGameOverDialog(); // CAN BİTTİĞİNDE ÖZEL DİYALOG
     } else {
-      widget.onComplete?.call(false, _score);
+      widget.onComplete?.call(false, _sessionCorrect);
       _showResultDialog(false);
     }
   }
@@ -416,7 +620,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                 child: TextButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    widget.onBack();
+                    _leaveBossBattle();
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white.withOpacity(0.7),
@@ -463,7 +667,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                won ? '🎉 ZAFER! 🎉' : '💀 YENİLDİN 💀',
+                won
+                    ? '🎉 ${loc.get('boss_victory_title')} 🎉'
+                    : '💀 ${loc.get('boss_defeat_title')} 💀',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -488,51 +694,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
               ),
               const SizedBox(height: 24),
 
-              if (won) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('⭐ Puan: ',
-                              style: TextStyle(color: Colors.white)),
-                          Text(
-                            '$_score',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('🪙 Ödül: ',
-                              style: TextStyle(color: Colors.white)),
-                          Text(
-                            '+${widget.boss.rewardCoins}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
               const SizedBox(height: 24),
 
               Row(
@@ -541,7 +702,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        widget.onBack();
+                        _leaveBossBattle();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -551,7 +712,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('ÇIKIŞ'),
+                      child: Text(loc.get('exit_button')),
                     ),
                   ),
                   if (!won) ...[
@@ -570,7 +731,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('TEKRAR'),
+                        child: Text(loc.get('try_again_short')),
                       ),
                     ),
                   ],
@@ -604,7 +765,7 @@ class _BossBattleScreenState extends State<BossBattleScreen>
         questionsAnswered: q,
         correctAnswers: _sessionCorrect,
         wrongAnswers: _sessionWrong,
-        score: _score,
+        score: _sessionCorrect * 10,
         averageAnswerTimeSeconds: avg,
         fastAnswersCount: _fastAnswersSession,
         superFastAnswersCount: _superFastAnswersSession,
@@ -631,8 +792,8 @@ class _BossBattleScreenState extends State<BossBattleScreen>
     }
     setState(() {
       _bossHealth = _bossMaxHealth;
-      _score = 0;
       _gameOver = false;
+      _usedQuestionFingerprints.clear();
       _sessionReported = false;
       _sessionCorrect = 0;
       _sessionWrong = 0;
@@ -653,17 +814,24 @@ class _BossBattleScreenState extends State<BossBattleScreen>
       context,
       themeColor: const Color(0xFF667eea),
       onStay: () {},
-      onExit: () {
-        _timer?.cancel();
-        widget.onBack();
-      },
+      onExit: _leaveBossBattle,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _showExitConfirmation();
+      },
+      child: Scaffold(
+      body: Stack(
+        children: [
+          Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -700,6 +868,38 @@ class _BossBattleScreenState extends State<BossBattleScreen>
           ),
         ),
       ),
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showBossGoldHelp(loc),
+                customBorder: const CircleBorder(),
+                child: Ink(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFD54F), Color(0xFFFF8F00)],
+                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.85), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFFB300).withOpacity(0.45),
+                        blurRadius: 14,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.help_outline_rounded, color: Colors.white, size: 26),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
     );
   }
 
@@ -777,29 +977,6 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                         );
                       },
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 17),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$_score',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -850,31 +1027,23 @@ class _BossBattleScreenState extends State<BossBattleScreen>
                     color: Colors.grey.shade800,
                     borderRadius: BorderRadius.circular(7),
                   ),
-                  child: Stack(
-                    children: [
-                      AnimatedContainer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: 180 * healthPercent,
+                        height: 14,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: healthPercent > 0.5
                                 ? [Colors.red, Colors.orange]
                                 : [Colors.red.shade900, Colors.red],
                           ),
-                          borderRadius: BorderRadius.circular(7),
                         ),
                       ),
-                      Center(
-                        child: Text(
-                          '$_bossHealth / $_bossMaxHealth',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -936,22 +1105,56 @@ class _BossBattleScreenState extends State<BossBattleScreen>
           const Text('⚔️', style: TextStyle(fontSize: 20)),
           const SizedBox(width: 6),
           Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: Text(
-                LocaleTextHelpers.ltrMathIsolate(
-                  '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
-                ),
-                maxLines: 1,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            child: _currentQuestion.isCounting
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: List.generate(
+                          _currentQuestion.countingItems,
+                          (_) => Text(
+                            _currentQuestion.countingEmoji,
+                            style: const TextStyle(fontSize: 22),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale)
+                              .get('how_many_objects')
+                              .replaceAll('{object}', _currentQuestion.countingEmoji),
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: Text(
+                      LocaleTextHelpers.ltrMathIsolate(
+                        '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                      ),
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
           ),
           if (_isAnswered) ...[
             const SizedBox(width: 6),
@@ -1053,6 +1256,9 @@ class _BossBattleScreenState extends State<BossBattleScreen>
 }
 
 class _BossQuestion {
+  final bool isCounting;
+  final String countingEmoji;
+  final int countingItems;
   final int num1;
   final int num2;
   final String operator;
@@ -1060,6 +1266,9 @@ class _BossQuestion {
   final List<int> options;
 
   _BossQuestion({
+    this.isCounting = false,
+    this.countingEmoji = '',
+    this.countingItems = 0,
     required this.num1,
     required this.num2,
     required this.operator,

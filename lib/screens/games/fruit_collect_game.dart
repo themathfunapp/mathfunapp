@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
+import '../../constants/fruit_collect_catalog.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_mechanics_service.dart';
 import '../../services/mini_game_session_report.dart';
 import '../../services/mini_game_service.dart';
 import '../../models/mini_game.dart';
 import '../../localization/app_localizations.dart';
+import '../../localization/fruit_collect_l10n.dart';
+import '../../widgets/fruit_photo.dart';
 
 class FruitCollectGame extends StatefulWidget {
   final MiniGame game;
@@ -21,13 +24,9 @@ class FruitCollectGame extends StatefulWidget {
 class _FruitCollectGameState extends State<FruitCollectGame>
     with TickerProviderStateMixin {
   List<_FruitItem> _fruits = [];
-  String _targetFruit = '🍎';
-  String _targetName = 'apple';
-  int _targetCount = 3;
-  int _collectedCount = 0;
+  List<_FruitGoal> _goals = [];
+  int _completedRounds = 0;
   int _score = 0;
-  int _currentQuestion = 0;
-  int _totalQuestions = 8;
   int _correctAnswers = 0;
   int _wrongTaps = 0;
   int _runStreak = 0;
@@ -64,78 +63,138 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       _wrongTaps = 0;
       _runStreak = 0;
       _bestStreak = 0;
-      _currentQuestion = 0;
+      _completedRounds = 0;
     });
     _generateNewQuestion();
   }
 
+  /// Her 10 başarılı turda +1 meyve çeşidi (en fazla 10 çeşit, her birinden N adet).
+  int get _fruitTypeCount {
+    final tier = 1 + (_completedRounds ~/ 10);
+    return tier.clamp(1, 10);
+  }
+
+  int get _requiredPerType => _fruitTypeCount;
+
+  int get _totalRequired =>
+      _goals.fold<int>(0, (sum, g) => sum + g.required);
+
+  int get _totalCollected =>
+      _goals.fold<int>(0, (sum, g) => sum + g.collected);
+
+  bool get _allGoalsMet =>
+      _goals.isNotEmpty && _goals.every((g) => g.collected >= g.required);
+
+  List<double> _spawnPositions(Random random, int count) {
+    final xs = <double>[];
+    final ys = <double>[];
+    const minDx = 0.14;
+    const minDy = 0.16;
+
+    for (var i = 0; i < count; i++) {
+      for (var attempt = 0; attempt < 40; attempt++) {
+        final x = 0.08 + random.nextDouble() * 0.74;
+        final y = 0.06 + random.nextDouble() * 0.52;
+        var ok = true;
+        for (var j = 0; j < xs.length; j++) {
+          if ((xs[j] - x).abs() < minDx && (ys[j] - y).abs() < minDy) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          xs.add(x);
+          ys.add(y);
+          break;
+        }
+      }
+      if (xs.length <= i) {
+        xs.add(0.1 + (i % 5) * 0.16);
+        ys.add(0.08 + (i ~/ 5) * 0.18);
+      }
+    }
+    return [...xs, ...ys];
+  }
+
   void _generateNewQuestion() {
     final random = Random();
-    final fruitTypes = [
-      {'emoji': '🍎', 'name': 'apple'},
-      {'emoji': '🍊', 'name': 'orange'},
-      {'emoji': '🍋', 'name': 'lemon'},
-      {'emoji': '🍇', 'name': 'grape'},
-      {'emoji': '🍓', 'name': 'strawberry'},
-      {'emoji': '🍌', 'name': 'banana'},
-    ];
+    final typeCount = _fruitTypeCount;
+    final perType = _requiredPerType;
+    final picked = pickDistinctFruitGoals(random, typeCount);
 
-    final selectedFruit = fruitTypes[random.nextInt(fruitTypes.length)];
-    final count = random.nextInt(5) + 2; // 2-6
+    final goals = picked
+        .map(
+          (e) => _FruitGoal(
+            fruitId: e.id,
+            required: perType,
+          ),
+        )
+        .toList();
+    final goalIds = goals.map((g) => g.fruitId).toSet();
 
-    // Generate fruits
     final fruits = <_FruitItem>[];
-    
-    // Add target fruits
-    for (int i = 0; i < count + random.nextInt(3); i++) {
-      fruits.add(_FruitItem(
-        id: i,
-        emoji: selectedFruit['emoji']!,
-        name: selectedFruit['name']!,
-        x: random.nextDouble() * 0.7 + 0.1,
-        y: random.nextDouble() * 0.4 + 0.1,
-      ));
+    var spawnTotal = 0;
+    for (final goal in goals) {
+      spawnTotal += goal.required + 1;
     }
+    spawnTotal += random.nextInt(3) + 2;
 
-    // Add some other fruits
-    for (int i = 0; i < random.nextInt(4) + 2; i++) {
-      final otherFruit = fruitTypes[random.nextInt(fruitTypes.length)];
-      if (otherFruit['emoji'] != selectedFruit['emoji']) {
+    final positions = _spawnPositions(random, spawnTotal);
+    var posIndex = 0;
+    var id = 0;
+
+    for (final goal in goals) {
+      for (var i = 0; i < goal.required + 1; i++) {
         fruits.add(_FruitItem(
-          id: fruits.length,
-          emoji: otherFruit['emoji']!,
-          name: otherFruit['name']!,
-          x: random.nextDouble() * 0.7 + 0.1,
-          y: random.nextDouble() * 0.4 + 0.1,
+          id: id++,
+          fruitId: goal.fruitId,
+          x: positions[posIndex++],
+          y: positions[posIndex++],
         ));
       }
     }
 
-    fruits.shuffle();
+    while (posIndex < positions.length) {
+      final other = randomDistractorFruit(random, goalIds);
+      fruits.add(_FruitItem(
+        id: id++,
+        fruitId: other.id,
+        x: positions[posIndex++],
+        y: positions[posIndex++],
+      ));
+    }
+
+    fruits.shuffle(random);
 
     setState(() {
+      _goals = goals;
       _fruits = fruits;
-      _targetFruit = selectedFruit['emoji']!;
-      _targetName = selectedFruit['name']!;
-      _targetCount = count;
-      _collectedCount = 0;
-      _currentQuestion++;
     });
+  }
+
+  String _goalText(AppLocalizations localizations) {
+    final lang = localizations.locale.languageCode;
+    final parts = _goals
+        .map((g) => (count: g.required, fruitId: g.fruitId))
+        .toList();
+    return fruitCollectMultiGoal(lang, parts);
   }
 
   void _collectFruit(_FruitItem fruit) {
     if (fruit.isCollected) return;
 
-    if (fruit.emoji == _targetFruit) {
+    final goalIndex = _goals.indexWhere((g) => g.fruitId == fruit.fruitId);
+    if (goalIndex >= 0 && _goals[goalIndex].collected < _goals[goalIndex].required) {
       setState(() {
         fruit.isCollected = true;
-        _collectedCount++;
+        _goals[goalIndex].collected++;
       });
       _basketController.forward(from: 0);
 
-      if (_collectedCount == _targetCount) {
-        _score += 15;
+      if (_allGoalsMet) {
+        _score += 10 * _goals.length * _requiredPerType;
         _correctAnswers++;
+        _completedRounds++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _showSuccessFeedback();
@@ -156,23 +215,23 @@ class _FruitCollectGameState extends State<FruitCollectGame>
 
   void _showSuccessFeedback() {
     Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      if (_currentQuestion >= _totalQuestions) {
-        _endGame();
-      } else {
-        _generateNewQuestion();
-      }
+      if (!mounted || !_isPlaying) return;
+      _generateNewQuestion();
     });
   }
 
   void _showWrongFeedback() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final loc = AppLocalizations(
+      Locale(authService.currentUser?.selectedLanguage ?? 'tr'),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Text('❌'),
             const SizedBox(width: 8),
-            Text(AppLocalizations(Locale('en')).get('wrong_fruit')),
+            Text(loc.get('wrong_fruit')),
           ],
         ),
         duration: const Duration(seconds: 1),
@@ -193,9 +252,10 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     );
 
     final miniGameService = Provider.of<MiniGameService>(context, listen: false);
+    final attempts = (_correctAnswers + _wrongTaps).clamp(1, 9999);
     final stars = miniGameService.calculateStars(
       _correctAnswers,
-      _totalQuestions,
+      attempts,
       Duration.zero,
       GameDifficulty.easy,
     );
@@ -212,7 +272,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       gameId: widget.game.id,
       score: _score,
       correctAnswers: _correctAnswers,
-      totalQuestions: _totalQuestions,
+      totalQuestions: attempts,
       stars: stars,
       coinsEarned: coinsEarned,
       timeTaken: Duration.zero,
@@ -362,27 +422,23 @@ class _FruitCollectGameState extends State<FruitCollectGame>
             ),
           ),
           Expanded(
-            child: Column(
-              children: [
-                Text(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
                   localizations.get(widget.game.nameKey),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  textAlign: TextAlign.start,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-                Text(
-                  '$_currentQuestion/$_totalQuestions',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
-                ),
-              ],
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(12)),
-            child: Text('⭐ $_score', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -397,14 +453,30 @@ class _FruitCollectGameState extends State<FruitCollectGame>
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
         children: [
-          Text('${localizations.get('collect')}: ', style: const TextStyle(fontSize: 18)),
-          Text('$_targetCount ', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
-          Text(_targetFruit, style: const TextStyle(fontSize: 32)),
-          const SizedBox(width: 16),
-          Text('($_collectedCount/$_targetCount)', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 6,
+            children: _goals
+                .map((g) => FruitPhoto(fruitId: g.fruitId, size: 40))
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _goalText(localizations),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2E7D32),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '($_totalCollected/$_totalRequired)',
+            style: const TextStyle(fontSize: 15, color: Colors.grey),
+          ),
         ],
       ),
     );
@@ -451,14 +523,17 @@ class _FruitCollectGameState extends State<FruitCollectGame>
                 top: constraints.maxHeight * fruit.y,
                 child: Draggable<_FruitItem>(
                   data: fruit,
-                  feedback: Text(fruit.emoji, style: const TextStyle(fontSize: 50)),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: FruitPhoto(fruitId: fruit.fruitId, size: 50),
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.3,
-                    child: Text(fruit.emoji, style: const TextStyle(fontSize: 40)),
+                    child: FruitPhoto(fruitId: fruit.fruitId, size: 40),
                   ),
                   child: GestureDetector(
                     onTap: () => _collectFruit(fruit),
-                    child: Text(fruit.emoji, style: const TextStyle(fontSize: 40)),
+                    child: FruitPhoto(fruitId: fruit.fruitId, size: 40),
                   ),
                 ),
               );
@@ -495,7 +570,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
                 const Text('🧺', style: TextStyle(fontSize: 40)),
                 const SizedBox(width: 16),
                 Text(
-                  '${localizations.get('basket')}: $_collectedCount/$_targetCount',
+                  '${localizations.get('basket')}: $_totalCollected/$_totalRequired',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -507,18 +582,28 @@ class _FruitCollectGameState extends State<FruitCollectGame>
   }
 }
 
+class _FruitGoal {
+  final String fruitId;
+  final int required;
+  int collected;
+
+  _FruitGoal({
+    required this.fruitId,
+    required this.required,
+    this.collected = 0,
+  });
+}
+
 class _FruitItem {
   final int id;
-  final String emoji;
-  final String name;
+  final String fruitId;
   final double x;
   final double y;
   bool isCollected;
 
   _FruitItem({
     required this.id,
-    required this.emoji,
-    required this.name,
+    required this.fruitId,
     required this.x,
     required this.y,
     this.isCollected = false,

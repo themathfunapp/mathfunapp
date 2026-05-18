@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import '../constants/friend_duel_topics.dart';
 import '../localization/app_localizations.dart';
 import '../models/friendship.dart';
+import '../models/game_mechanics.dart';
 import '../providers/locale_provider.dart';
 import 'game_start_screen.dart';
 import '../utils/locale_text_helpers.dart';
@@ -223,81 +225,85 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
     _startRoundTimer();
   }
 
-  void _generateQuestion() {
-    int num1, num2, answer;
-    String operator;
-
-    int maxNum;
-    switch (widget.ageGroup) {
-      case AgeGroupSelection.preschool:
-        maxNum = 10;
-        break;
-      case AgeGroupSelection.elementary:
-        maxNum = 20;
-        break;
-      case AgeGroupSelection.advanced:
-        maxNum = 50;
-        break;
-    }
-
-    List<String> operators;
-    switch (widget.ageGroup) {
-      case AgeGroupSelection.preschool:
-        operators = ['+', '-'];
-        break;
-      case AgeGroupSelection.elementary:
-        operators = ['+', '-', '×'];
-        break;
-      case AgeGroupSelection.advanced:
-        operators = ['+', '-', '×', '÷'];
-        break;
-    }
-
-    operator = operators[_random.nextInt(operators.length)];
-
-    switch (operator) {
-      case '+':
-        num1 = _random.nextInt(maxNum) + 1;
-        num2 = _random.nextInt(maxNum) + 1;
-        answer = num1 + num2;
-        break;
-      case '-':
-        num1 = _random.nextInt(maxNum) + 1;
-        num2 = _random.nextInt(num1) + 1;
-        answer = num1 - num2;
-        break;
-      case '×':
-        num1 = _random.nextInt(12) + 1;
-        num2 = _random.nextInt(12) + 1;
-        answer = num1 * num2;
-        break;
-      case '÷':
-        num2 = _random.nextInt(10) + 1;
-        answer = _random.nextInt(10) + 1;
-        num1 = num2 * answer;
-        break;
-      default:
-        num1 = _random.nextInt(maxNum) + 1;
-        num2 = _random.nextInt(maxNum) + 1;
-        answer = num1 + num2;
-    }
-
-    List<int> options = [answer];
-    while (options.length < 4) {
-      int wrong = answer + _random.nextInt(10) - 5;
-      if (wrong > 0 && wrong != answer && !options.contains(wrong)) {
-        options.add(wrong);
+  String _duelPromptFromQuestion(
+    Map<String, dynamic> q,
+    AppLocalizations loc,
+  ) {
+    final key = q['questionKey'] as String?;
+    if (key != null) {
+      var text = loc.get(key);
+      final params = q['questionParams'] as Map<String, dynamic>?;
+      if (params != null) {
+        for (final e in params.entries) {
+          text = text.replaceAll('{${e.key}}', '${e.value}');
+        }
       }
+      final shapeId = q['shapeToShow'] as String?;
+      if (shapeId != null && shapeId.isNotEmpty) {
+        text = text.replaceAll('{shape}', loc.get('geom_shape_$shapeId'));
+      }
+      return text;
+    }
+    if (q['type'] == 'basic_math') {
+      return '${q['num1']} ${q['operator']} ${q['num2']} = ?';
+    }
+    if (q['type'] == 'count_objects') {
+      final emoji = q['emoji'] as String? ?? '⭐';
+      return '${loc.get('question_count_objects')} $emoji';
+    }
+    return q['question'] as String? ?? '?';
+  }
+
+  void _generateQuestion() {
+    final loc = AppLocalizations(
+      Provider.of<LocaleProvider>(context, listen: false).locale,
+    );
+    Map<String, dynamic>? picked;
+    for (var attempt = 0; attempt < 40; attempt++) {
+      final topic = kFriendDuelTopicTypes[
+          _random.nextInt(kFriendDuelTopicTypes.length)];
+      final q = TopicGameManager.generateTopicQuestion(
+        topic,
+        widget.ageGroup,
+        _random,
+        difficulty: 'Orta',
+      );
+      final answer = q['correctAnswer'];
+      final opts = q['options'];
+      if (answer is! int || opts is! List || opts.isEmpty) continue;
+      final intOptions = opts.whereType<int>().toList();
+      if (intOptions.length < 2) continue;
+      picked = q;
+      break;
+    }
+
+    picked ??= TopicGameManager.generateTopicQuestion(
+      TopicType.addition,
+      widget.ageGroup,
+      _random,
+      difficulty: 'Orta',
+    );
+
+    final answer = picked['correctAnswer'] as int? ?? 0;
+    var options = (picked['options'] as List<dynamic>?)
+            ?.whereType<int>()
+            .toList() ??
+        <int>[answer];
+    if (options.length < 4) {
+      final extra = <int>{...options};
+      while (extra.length < 4) {
+        final wrong = answer + _random.nextInt(10) - 5;
+        if (wrong > 0) extra.add(wrong);
+      }
+      options = extra.toList();
     }
     options.shuffle();
 
     setState(() {
       _currentQuestion = _DuelQuestion(
-        num1: num1,
-        num2: num2,
-        operator: operator,
+        promptText: _duelPromptFromQuestion(picked!, loc),
         correctAnswer: answer,
-        options: options,
+        options: options.take(4).toList(),
       );
       _isAnswered = false;
       _opponentAnswered = false;
@@ -995,10 +1001,12 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                       children: [
                         const Text('🤔', style: TextStyle(fontSize: 28)),
                         const SizedBox(width: 12),
-                        Text(
+                        Flexible(
+                          child: Text(
                           LocaleTextHelpers.ltrMathIsolate(
-                            '${_currentQuestion.num1} ${_currentQuestion.operator} ${_currentQuestion.num2} = ?',
+                            _currentQuestion.promptText,
                           ),
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
@@ -1011,6 +1019,7 @@ class _LiveDuelScreenState extends State<LiveDuelScreen>
                               ),
                             ],
                           ),
+                        ),
                         ),
                         const SizedBox(width: 12),
                         if (_isAnswered)
@@ -1367,16 +1376,12 @@ enum DuelState {
 }
 
 class _DuelQuestion {
-  final int num1;
-  final int num2;
-  final String operator;
+  final String promptText;
   final int correctAnswer;
   final List<int> options;
 
   _DuelQuestion({
-    required this.num1,
-    required this.num2,
-    required this.operator,
+    required this.promptText,
     required this.correctAnswer,
     required this.options,
   });

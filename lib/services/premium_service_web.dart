@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/premium_qa_allowlist.dart';
+import 'auth_service.dart';
 
 /// Web platformu için PremiumService - in_app_purchase desteklenmediği için
 /// sadece Firestore üzerinden premium durumunu kontrol eder.
@@ -19,6 +20,11 @@ class PremiumService extends ChangeNotifier {
   String? _errorMessage;
   String? _userId;
   String? _userCode;
+  AuthService? _authService;
+
+  void attachAuthService(AuthService authService) {
+    _authService = authService;
+  }
 
   static const double premiumPrice = 59.90;
 

@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
-import '../services/friend_service.dart';
-import '../models/friendship.dart';
 import 'topic_selection_screen.dart';
 import 'specialized_game_screen.dart';
 import 'math_regions_screen.dart';
@@ -14,7 +14,6 @@ import 'quick_math_screen.dart';
 import 'endless_mode_screen.dart';
 import 'daily_challenge_screen.dart';
 import 'boss_battle_screen.dart';
-import 'live_duel_screen.dart';
 import 'friends_screen.dart';
 import '../models/game_mechanics.dart';
 import 'coming_soon_screen.dart';
@@ -22,6 +21,7 @@ import 'colorful_math_screen.dart';
 import 'intelligence_games_screen.dart';
 import 'premium_screen.dart';
 import 'package:mathfun/services/game_mechanics_service.dart';
+import '../widgets/daily_gold_help_sheet.dart';
 import '../models/age_group_selection.dart';
 import '../services/audio_service.dart';
 import '../widgets/no_lives_gate_dialog.dart';
@@ -64,18 +64,18 @@ class _GameStartScreenState extends State<GameStartScreen>
   late GameMechanicsService _mechanicsService;
   bool _isLoading = true;
 
-  // Günlük karşılama mesajları
-  final List<String> _dailyMessages = [
-    "Bugün matematikle neler keşfedeceğiz? 🔍",
-    "Matematik süper kahramanı hazır mısın? 🦸",
-    "Sayı canavarları seni bekliyor! 👾",
-    "Geometri diyarında macera başlıyor! 🔺",
-    "Matematiğin sihirli dünyasına hoş geldin! ✨",
-    "Bugün yıldızlar toplamaya hazır mısın? ⭐",
-    "Yeni matematik maceraları seni bekliyor! 🚀",
+  static const _dailyMessageKeys = [
+    'game_start_daily_1',
+    'game_start_daily_2',
+    'game_start_daily_3',
+    'game_start_daily_4',
+    'game_start_daily_5',
+    'game_start_daily_6',
+    'game_start_daily_7',
   ];
 
-  String _currentMessage = "";
+  String _currentMessage = '';
+  bool _instantReminderChecked = false;
 
   @override
   void initState() {
@@ -90,9 +90,8 @@ class _GameStartScreenState extends State<GameStartScreen>
     _mechanicsService = GameMechanicsService();
     _initializeMechanics();
 
-    // Rastgele karşılama mesajı
-    _currentMessage =
-    _dailyMessages[math.Random().nextInt(_dailyMessages.length)];
+    // Rastgele karşılama mesajı (dil initState'te henüz hazır olmayabilir)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _pickDailyMessage());
 
     // Kapı animasyonu
     _doorController = AnimationController(
@@ -135,6 +134,13 @@ class _GameStartScreenState extends State<GameStartScreen>
     });
   }
 
+  void _pickDailyMessage() {
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    final key = _dailyMessageKeys[math.Random().nextInt(_dailyMessageKeys.length)];
+    setState(() => _currentMessage = loc.get(key));
+  }
+
   @override
   void dispose() {
     _audio.cancelAmbientSync();
@@ -162,13 +168,50 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   // Can bilgisini formatlamak için yardımcı metod
   String _getLivesDisplay() {
-    final lives = _mechanicsService.livesSystem.currentLives;
-    return '❤️' * lives + '🖤' * (3 - lives);
+    if (_mechanicsService.premiumUnlimited) return '∞';
+    final lives = _mechanicsService.currentLives;
+    final max = _mechanicsService.maxLives;
+    return '❤️' * lives + '🖤' * (max - lives);
+  }
+
+  Future<void> _maybeShowInstantMathReminder() async {
+    if (_instantReminderChecked || !mounted) return;
+    _instantReminderChecked = true;
+
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    if (!mechanics.shouldPromptInstantMathReminder()) return;
+
+    final now = DateTime.now();
+    final dayKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString('instant_math_inapp_reminder_shown') == dayKey) return;
+    await prefs.setString('instant_math_inapp_reminder_shown', dayKey);
+
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc.get('instant_math_reminder_body')),
+        duration: const Duration(seconds: 7),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: loc.get('instant_math'),
+          onPressed: () => _startQuickGame('instant'),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+
+    if (!_isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybeShowInstantMathReminder();
+      });
+    }
 
     return Scaffold(
       body: Container(
@@ -762,7 +805,10 @@ class _GameStartScreenState extends State<GameStartScreen>
     // int livesCount = 3,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        _audio.playUiTap();
+        onTap();
+      },
       child: AnimatedBuilder(
         animation: _pulseAnimation,
         builder: (context, child) {
@@ -882,44 +928,38 @@ class _GameStartScreenState extends State<GameStartScreen>
               _buildTopicCard(
                 emoji: '🔢',
                 title: localizations.get('counting'),
-                stars: 1,
                 color: const Color(0xFF2ECC71),
+                onTap: _openTopicSelection,
               ),
               _buildTopicCard(
                 emoji: '➕',
                 title: localizations.get('addition'),
-                stars: 1,
                 color: const Color(0xFF3498DB),
+                onTap: _openTopicSelection,
               ),
               _buildTopicCard(
                 emoji: '➖',
                 title: localizations.get('subtraction'),
-                stars: 1,
                 color: const Color(0xFFE74C3C),
+                onTap: _openTopicSelection,
               ),
               _buildTopicCard(
                 emoji: '✖️',
                 title: localizations.get('multiplication'),
-                stars: 2,
                 color: const Color(0xFF9B59B6),
-              ),
-              _buildTopicCard(
-                emoji: '➗',
-                title: localizations.get('division'),
-                stars: 2,
-                color: const Color(0xFF34495E),
+                onTap: _openTopicSelection,
               ),
               _buildTopicCard(
                 emoji: '🔺',
                 title: localizations.get('geometry'),
-                stars: 1,
                 color: const Color(0xFFE67E22),
+                onTap: _openTopicSelection,
               ),
               _buildTopicCard(
                 emoji: '🕰',
                 title: localizations.get('topic_time'),
-                stars: 2,
                 color: const Color(0xFF1ABC9C),
+                onTap: _openTopicSelection,
               ),
             ],
           ),
@@ -931,57 +971,48 @@ class _GameStartScreenState extends State<GameStartScreen>
   Widget _buildTopicCard({
     required String emoji,
     required String title,
-    required int stars,
     required Color color,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      width: 90,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.7)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 90,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.7)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.4),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 28)),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              3,
-              (index) => Icon(
-                index < stars ? Icons.star : Icons.star_border,
-                color: Colors.amber,
-                size: 12,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1022,7 +1053,9 @@ class _GameStartScreenState extends State<GameStartScreen>
           ],
         ),
         const SizedBox(height: 12),
-        Container(
+        GestureDetector(
+          onTap: _openMathRegions,
+          child: Container(
           height: 140,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
@@ -1067,44 +1100,42 @@ class _GameStartScreenState extends State<GameStartScreen>
                 ),
               ),
 
-              // Keşfet butonu
+              // Keşfet butonu (görsel; tüm banner tıklanabilir)
               Positioned(
                 bottom: 12,
                 right: 12,
-                child: GestureDetector(
-                  onTap: _openMathRegions,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          localizations.get('explore_map'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF764ba2),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.arrow_forward,
-                          size: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        localizations.get('explore_map'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                           color: Color(0xFF764ba2),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward,
+                        size: 14,
+                        color: Color(0xFF764ba2),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
+        ),
         ),
       ],
     );
@@ -1594,8 +1625,7 @@ class _GameStartScreenState extends State<GameStartScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => FriendDuelPickerScreen(
-              ageGroup: _selectedAgeGroup,
+            builder: (context) => FriendsScreen(
               onBack: () => Navigator.pop(context),
             ),
           ),
@@ -1617,6 +1647,43 @@ class _GameStartScreenState extends State<GameStartScreen>
 
   void _showNoLivesDialog() {
     showNoLivesGateDialog(context);
+  }
+
+  String _formatBossPlayTime(int totalSeconds) {
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _showBossGoldHelp(BuildContext context, AppLocalizations loc) {
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final totalSeconds = mechanics.bossPlaySecondsToday
+        .clamp(0, GameMechanicsService.bossDailyPlayTargetSeconds);
+    final claimed = mechanics.bossDailyRewardClaimed;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DailyGoldHelpSheet(
+          title: loc.get('boss_daily_help_title'),
+          rules: [
+            loc.get('boss_daily_help_rule_1'),
+            loc.get('boss_daily_help_rule_2'),
+            loc.get('boss_daily_help_rule_3'),
+            loc.get('boss_daily_help_rule_4'),
+          ],
+          progressLabel: loc
+              .get('boss_daily_help_progress')
+              .replaceAll('{0}', _formatBossPlayTime(totalSeconds)),
+          progressValue: totalSeconds / GameMechanicsService.bossDailyPlayTargetSeconds,
+          claimed: claimed,
+          claimedMessage: loc.get('boss_daily_help_claimed'),
+          closeLabel: loc.get('ok'),
+        );
+      },
+    );
   }
 
   void _showBossSelection() {
@@ -1709,7 +1776,7 @@ class _GameStartScreenState extends State<GameStartScreen>
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(14),
@@ -1717,55 +1784,61 @@ class _GameStartScreenState extends State<GameStartScreen>
             color: Colors.white.withOpacity(0.2),
           ),
         ),
-        child: Row(
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Text(boss.emoji, style: const TextStyle(fontSize: 35)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    bossName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    '${loc.get('difficulty')}: $difficultyLabel',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
+            Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.favorite, color: Colors.red, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${boss.health}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
+                Text(boss.emoji, style: const TextStyle(fontSize: 35)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bossName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        '${loc.get('difficulty')}: $difficultyLabel',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Row(
-                  children: [
-                    const Text('🪙', style: TextStyle(fontSize: 14)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${boss.rewardCoins}',
-                      style: const TextStyle(color: Colors.amber),
-                    ),
-                  ],
-                ),
+                const SizedBox(width: 36),
               ],
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () => _showBossGoldHelp(context, loc),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFD54F), Color(0xFFFF8F00)],
+                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.7), width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.help_outline_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -1994,254 +2067,14 @@ class _GameStartScreenState extends State<GameStartScreen>
     debugPrint('Selected goal: $goal');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$goal hedefi seçildi!'),
+        content: Text(
+          AppLocalizations.of(context)
+              .get('goal_selected_snackbar')
+              .replaceAll('{goal}', goal),
+        ),
         backgroundColor: Colors.purple,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-}
-
-/// Arkadaş listesinden gerçek kayıtlı oyuncu seçilir; düello o isimle başlar.
-class FriendDuelPickerScreen extends StatelessWidget {
-  const FriendDuelPickerScreen({
-    super.key,
-    required this.ageGroup,
-    required this.onBack,
-  });
-
-  final AgeGroupSelection ageGroup;
-  final VoidCallback onBack;
-
-  static String _initial(String name) {
-    final t = name.trim();
-    if (t.isEmpty) return '?';
-    return t[0].toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = Provider.of<LocaleProvider>(context).locale;
-    final loc = AppLocalizations(locale);
-    final auth = Provider.of<AuthService>(context);
-    final user = auth.currentUser;
-
-    if (user == null || user.isGuest) {
-      return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF1a237e), Color(0xFF3949ab)],
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Text(
-                        loc.get('friend_duel_guest'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 18,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final friendService = Provider.of<FriendService>(context, listen: false);
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1a237e), Color(0xFF3949ab)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                  ),
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        loc.get('friend_duel_pick_title'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Text(
-                  loc.get('friend_duel_subtitle'),
-                  softWrap: true,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.88),
-                    fontSize: 14,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<List<Friendship>>(
-                  stream: friendService.friendsStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      );
-                    }
-                    final friends = snapshot.data ?? [];
-                    if (friends.isEmpty) {
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          return SingleChildScrollView(
-                            padding: const EdgeInsets.all(24),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text('👥', style: TextStyle(fontSize: 56)),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    loc.get('friend_duel_empty'),
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 16,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (ctx) => FriendsScreen(
-                                            onBack: () => Navigator.pop(ctx),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.person_add),
-                                    label: Text(loc.get('friends')),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.amber,
-                                      foregroundColor: Colors.black87,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: friends.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final f = friends[index];
-                        return Material(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.amber.shade200,
-                              child: Text(
-                                _initial(f.friendName),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            title: Text(
-                              f.friendName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: f.friendUserCode != null && f.friendUserCode!.isNotEmpty
-                                ? Text(
-                                    f.friendUserCode!,
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.65),
-                                      fontSize: 13,
-                                    ),
-                                  )
-                                : null,
-                            trailing: const Icon(
-                              Icons.sports_martial_arts,
-                              color: Colors.amber,
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (ctx) => LiveDuelScreen(
-                                    ageGroup: ageGroup,
-                                    opponent: f,
-                                    onBack: () => Navigator.pop(ctx),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -147,9 +147,6 @@ class _FairyLandScreenState extends State<FairyLandScreen>
   int _bestStreak = 0;
   int _currentCount = 0; // Şu ana kadar sayılan
 
-  /// Ekrandaki seviye: her 10 doğru cevap = 1 seviye artışı (1 tabanlı).
-  int get _displayLevel => 1 + (_sessCorrect ~/ 10);
-
   // Nesne ve soru verileri
   List<GameObject> _objects = [];
   FairyLandQuestion? _currentQuestion;
@@ -740,8 +737,6 @@ class _FairyLandScreenState extends State<FairyLandScreen>
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            _buildLevelInfo(loc),
-                            const SizedBox(height: 8),
                             _buildCharacterMessage(loc),
                             const SizedBox(height: 12),
                             _buildCentralPlayArea(loc),
@@ -940,36 +935,6 @@ class _FairyLandScreenState extends State<FairyLandScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLevelInfo(AppLocalizations loc) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(loc.get('level_label'), '$_displayLevel', '🎯'),
-          _buildStatItem(loc.get('score'), '$_score', '⭐'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, String emoji) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        Text(value, style: _textStyle(_fairyPurple, size: 16, bold: true)),
-        Text(label, style: _textStyle(_fairyPurple.withOpacity(0.8), size: 10)),
-      ],
     );
   }
 

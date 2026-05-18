@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/family_member.dart';
+import '../constants/friend_duel_topics.dart';
 import '../models/game_mechanics.dart';
 import '../services/auth_service.dart';
 import '../services/family_remote_duel_service.dart';
@@ -142,16 +143,7 @@ class _FamilyDuelRaceScreenState extends State<FamilyDuelRaceScreen> {
     widget.onBack();
   }
 
-  static const List<TopicType> _duelTopics = [
-    TopicType.counting,
-    TopicType.addition,
-    TopicType.subtraction,
-    TopicType.multiplication,
-    TopicType.division,
-    TopicType.geometry,
-    TopicType.fractions,
-    TopicType.time,
-  ];
+  static const List<TopicType> _duelTopics = kFriendDuelTopicTypes;
 
   String _topicLabel(BuildContext context, TopicType t) {
     final lc = Provider.of<LocaleProvider>(context).locale.languageCode;

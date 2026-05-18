@@ -98,7 +98,34 @@ service cloud.firestore {
             || (resource.data.toUserId == request.auth.uid
                 && resource.data.status == 'pending'));
 
-      allow update: if false;
+      allow update: if signedIn()
+        && resource.data.toUserId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'declined', 'expired']
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && request.resource.data.toUserId == resource.data.toUserId;
+    }
+
+    match /friendDuelSessions/{sessionId} {
+      allow read: if signedIn()
+        && request.auth.uid in resource.data.participantUserIds;
+
+      allow create: if signedIn()
+        && request.resource.data.hostUserId == request.auth.uid
+        && request.resource.data.guestUserId is string
+        && request.resource.data.guestUserId != request.auth.uid
+        && request.resource.data.participantUserIds is list
+        && request.auth.uid in request.resource.data.participantUserIds
+        && request.resource.data.guestUserId in request.resource.data.participantUserIds
+        && request.resource.data.status == 'waiting_accept';
+
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.participantUserIds
+        && request.resource.data.hostUserId == resource.data.hostUserId
+        && request.resource.data.guestUserId == resource.data.guestUserId
+        && request.resource.data.participantUserIds == resource.data.participantUserIds;
+
+      allow delete: if false;
     }
 
     // --- Arkadaşlık isteği ---

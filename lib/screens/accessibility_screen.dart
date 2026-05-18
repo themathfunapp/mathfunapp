@@ -611,7 +611,7 @@ class _AccessibilityScreenState extends State<AccessibilityScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ayarlar sıfırlandı'),
+            content: Text(AppLocalizations.of(context).get('settings_reset_success')),
             backgroundColor: Colors.green,
           ),
         );

@@ -189,16 +189,21 @@ class _FamilyStoryInviteIncomingBarState extends State<FamilyStoryInviteIncoming
                           if (!context.mounted) return;
                           if (!ok) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Davet süresi doldu veya artık geçerli değil.'),
+                              SnackBar(
+                                content: Text(
+                                  AppLocalizations.of(context).get('story_invite_expired'),
+                                ),
                                 duration: kAppSnackBarDuration,
                               ),
                             );
                             return;
                           }
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Kabul edildi. Diğer üyeler bekleniyor...'),
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(context)
+                                    .get('story_invite_accepted_waiting'),
+                              ),
                               duration: kAppSnackBarDuration,
                             ),
                           );
@@ -498,7 +503,10 @@ class _FamilyStoryInviteSenderInfoBarState extends State<FamilyStoryInviteSender
                     onPressed: _dismissing
                         ? null
                         : () => unawaited(_dismissAndAck(svc, doc.id)),
-                    child: const Text('Tamam', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      AppLocalizations.of(context).get('ok'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),

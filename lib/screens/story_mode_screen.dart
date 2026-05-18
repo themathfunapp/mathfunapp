@@ -274,8 +274,6 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                         scale: scale,
                         title: localizations.get('number_adventures'),
                         subtitle: localizations.get('colorful_animals_discovery'),
-                        ageRange: '3-5',
-                        yearsOld: localizations.get('years_old'),
                         emoji: '🧒',
                         colors: [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
                         storyService: storyService,
@@ -288,8 +286,6 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                         scale: scale,
                         title: localizations.get('math_explorers'),
                         subtitle: localizations.get('time_space_journey'),
-                        ageRange: '6-8',
-                        yearsOld: localizations.get('years_old'),
                         emoji: '🚀',
                         colors: [const Color(0xFF2196F3), const Color(0xFF03A9F4)],
                         storyService: storyService,
@@ -302,8 +298,6 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                         scale: scale,
                         title: localizations.get('math_kingdom'),
                         subtitle: localizations.get('kingdom_rescue_mission'),
-                        ageRange: '9-11',
-                        yearsOld: localizations.get('years_old'),
                         emoji: '🏰',
                         colors: [const Color(0xFF9C27B0), const Color(0xFFE91E63)],
                         storyService: storyService,
@@ -327,8 +321,6 @@ class _StoryModeScreenState extends State<StoryModeScreen>
     required double scale,
     required String title,
     required String subtitle,
-    required String ageRange,
-    required String yearsOld,
     required String emoji,
     required List<Color> colors,
     required StoryService storyService,
@@ -415,26 +407,7 @@ class _StoryModeScreenState extends State<StoryModeScreen>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 4 * scale),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: (7 * scale).clamp(6.0, 9.0),
-                      vertical: (3 * scale).clamp(2.0, 4.0),
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$ageRange $yearsOld',
-                      style: TextStyle(
-                        fontSize: (10.5 * scale).clamp(10.0, 12.0),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 4 * scale),
+                  SizedBox(height: 6 * scale),
                   Text(
                     subtitle,
                     style: TextStyle(

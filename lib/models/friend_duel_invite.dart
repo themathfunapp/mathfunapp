@@ -10,6 +10,8 @@ class FriendDuelInvite {
     required this.toUserId,
     required this.createdAt,
     this.status = 'pending',
+    this.sessionId = '',
+    this.expiresAtMs = 0,
   });
 
   final String id;
@@ -19,6 +21,8 @@ class FriendDuelInvite {
   final String toUserId;
   final DateTime createdAt;
   final String status;
+  final String sessionId;
+  final int expiresAtMs;
 
   factory FriendDuelInvite.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -35,17 +39,22 @@ class FriendDuelInvite {
           ? created.toDate()
           : DateTime.tryParse(created?.toString() ?? '') ?? DateTime.now(),
       status: m['status'] as String? ?? 'pending',
+      sessionId: m['sessionId'] as String? ?? '',
+      expiresAtMs: (m['expiresAtMs'] as num?)?.toInt() ?? 0,
     );
   }
 
-  Map<String, dynamic> toCreateMap() {
-    return {
-      'fromUserId': fromUserId,
-      'fromDisplayName': fromDisplayName,
-      'fromUserCode': fromUserCode,
-      'toUserId': toUserId,
-      'status': status,
-      'createdAt': FieldValue.serverTimestamp(),
-    };
+  int get secondsRemaining {
+    if (expiresAtMs <= 0) return 0;
+    final left = expiresAtMs - DateTime.now().millisecondsSinceEpoch;
+    return (left / 1000).ceil().clamp(0, FriendDuelInvite.ttlSeconds);
+  }
+
+  static const int ttlSeconds = 90;
+
+  bool get isExpired {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (expiresAtMs > 0) return now > expiresAtMs;
+    return DateTime.now().difference(createdAt).inSeconds > ttlSeconds;
   }
 }

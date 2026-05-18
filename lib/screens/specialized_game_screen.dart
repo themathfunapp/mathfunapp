@@ -7,11 +7,14 @@ import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../models/game_mechanics.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
+import '../models/topic_play_level.dart';
 import '../audio/section_soundscape.dart';
 import '../services/audio_service.dart';
+import '../services/auth_service.dart';
 import '../services/game_session_report.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/daily_reward_service.dart';
+import '../services/topic_level_progress_service.dart';
 import 'game_start_screen.dart';
 import '../widgets/game_exit_confirm_dialog.dart';
 import '../utils/locale_text_helpers.dart';
@@ -22,6 +25,12 @@ class SpecializedGameScreen extends StatefulWidget {
   final String difficulty;
   final String? difficultyDisplay;
   final VoidCallback onBack;
+  /// Konu kimliği (ör. `addition`) — seviye ilerlemesi kaydı için.
+  final String? topicId;
+  /// Seviye diyaloğundan gelen Kolay/Orta/Zor tanımları.
+  final List<TopicPlayLevel>? playLevels;
+  /// Başlangıç seviye numarası (1–3).
+  final int initialLevelNumber;
 
   const SpecializedGameScreen({
     super.key,
@@ -30,6 +39,9 @@ class SpecializedGameScreen extends StatefulWidget {
     required this.difficulty,
     this.difficultyDisplay,
     required this.onBack,
+    this.topicId,
+    this.playLevels,
+    this.initialLevelNumber = 1,
   });
 
   @override
@@ -66,10 +78,134 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   bool _isGameOver = false; // Oyun bitti mi?
   bool _gamePaused = false; // Oyun duraklatıldı mı?
+  late String _currentDifficulty;
+  String? _currentDifficultyDisplay;
+  late int _currentLevelNumber;
+  int? _sessionQuestionCount;
+  int? _sessionTimeLimitSeconds;
+  final TopicLevelProgressService _topicProgress = TopicLevelProgressService();
+
+  bool get _usesTurkishDifficultyLabels =>
+      widget.difficulty == 'Kolay' ||
+      widget.difficulty == 'Orta' ||
+      widget.difficulty == 'Zor';
+
+  String _normalizeDifficultyId(String difficulty) {
+    switch (difficulty) {
+      case 'Kolay':
+      case 'easy':
+        return 'easy';
+      case 'Orta':
+      case 'medium':
+        return 'medium';
+      case 'Zor':
+      case 'hard':
+        return 'hard';
+      default:
+        return difficulty;
+    }
+  }
+
+  String? _getNextDifficultyId() {
+    if (_getNextPlayLevel() != null) {
+      return _getNextPlayLevel()!.difficultyId;
+    }
+    if (_usesTurkishDifficultyLabels) {
+      switch (_currentDifficulty) {
+        case 'Kolay':
+          return 'Orta';
+        case 'Orta':
+          return 'Zor';
+        default:
+          return null;
+      }
+    }
+    switch (_normalizeDifficultyId(_currentDifficulty)) {
+      case 'easy':
+        return 'medium';
+      case 'medium':
+        return 'hard';
+      default:
+        return null;
+    }
+  }
+
+  String _difficultyDisplayFor(String difficultyId, AppLocalizations loc) {
+    switch (_normalizeDifficultyId(difficultyId)) {
+      case 'easy':
+        return loc.get('level_easy');
+      case 'medium':
+        return loc.get('level_medium');
+      case 'hard':
+        return loc.get('level_hard');
+      default:
+        return difficultyId;
+    }
+  }
+
+  TopicPlayLevel? _playLevelByNumber(int levelNumber) {
+    final levels = widget.playLevels;
+    if (levels == null) return null;
+    for (final l in levels) {
+      if (l.levelNumber == levelNumber) return l;
+    }
+    return null;
+  }
+
+  void _applyPlayLevel(TopicPlayLevel level, AppLocalizations? loc) {
+    _currentLevelNumber = level.levelNumber;
+    _currentDifficulty = level.difficultyId;
+    _sessionQuestionCount = level.questionCount;
+    _sessionTimeLimitSeconds = level.timeLimitSeconds;
+    if (loc != null) {
+      _currentDifficultyDisplay = loc.get(level.nameKey);
+    }
+  }
+
+  TopicPlayLevel? _getNextPlayLevel() {
+    return _playLevelByNumber(_currentLevelNumber + 1);
+  }
+
+  String _ageGroupStorageKey() => widget.ageGroup.name;
+
+  Future<void> _persistTopicProgress({required bool passed}) async {
+    final topicId = widget.topicId;
+    if (topicId == null) return;
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    if (user == null) return;
+    final userId = user.isGuest ? 'guest_${user.uid}' : user.uid;
+    if (passed) {
+      await _topicProgress.markLevelCompleted(
+        userId: userId,
+        ageGroupKey: _ageGroupStorageKey(),
+        topicId: topicId,
+        completedLevel: _currentLevelNumber,
+        passed: true,
+      );
+    }
+    await _topicProgress.setContinueLevel(
+      userId: userId,
+      ageGroupKey: _ageGroupStorageKey(),
+      topicId: topicId,
+      level: _currentLevelNumber,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _currentLevelNumber = widget.initialLevelNumber.clamp(1, 3);
+    final startLevel = _playLevelByNumber(_currentLevelNumber);
+    if (startLevel != null) {
+      _currentDifficulty = startLevel.difficultyId;
+      _sessionQuestionCount = startLevel.questionCount;
+      _sessionTimeLimitSeconds = startLevel.timeLimitSeconds;
+      _currentDifficultyDisplay = widget.difficultyDisplay;
+    } else {
+      _currentDifficulty = widget.difficulty;
+      _currentDifficultyDisplay = widget.difficultyDisplay;
+    }
     _audio = context.read<AudioService>();
     _questions = [];
     _generateQuestions();
@@ -107,6 +243,17 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
 
   bool get _isTimeTopic => widget.topicSettings.topicType == GameMechanics.TopicType.time;
   bool get _isCountingTopic => widget.topicSettings.topicType == GameMechanics.TopicType.counting;
+
+  /// Temel işlem konularında (±×÷) aynı oturumda tekrar engeli için daha fazla deneme.
+  bool get _useBoostedQuestionDedup {
+    final t = widget.topicSettings.topicType;
+    return _isCountingTopic ||
+        t == GameMechanics.TopicType.addition ||
+        t == GameMechanics.TopicType.subtraction ||
+        t == GameMechanics.TopicType.multiplication ||
+        t == GameMechanics.TopicType.division ||
+        t == GameMechanics.TopicType.geometry;
+  }
   bool get _isAdditionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.addition;
   bool get _isSubtractionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.subtraction;
   bool get _isDivisionTopic => widget.topicSettings.topicType == GameMechanics.TopicType.division;
@@ -248,24 +395,82 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     super.dispose();
   }
 
+  /// Aynı oturumda tekrarlayan soruları engellemek için parmak izi.
+  String _questionFingerprint(Map<String, dynamic> q) {
+    final type = q['type']?.toString() ?? '';
+    final answer = q['correctAnswer']?.toString() ?? '';
+    switch (type) {
+      case 'basic_math':
+        return 'basic_math:${q['num1']}_${q['operator']}_${q['num2']}';
+      case 'count_objects':
+        return 'count_objects:${q['emoji']}_${q['count']}';
+      case 'find_missing':
+        return 'find_missing:${q['sequence']}_$answer';
+      case 'whats_next':
+        return 'whats_next:${q['sequence']}_$answer';
+      case 'before_after':
+        return 'before_after:${q['questionKey']}_${q['questionParams']}_$answer';
+      case 'identify_shapes':
+        return 'identify_shapes:${q['shapeToShow']}';
+      case 'count_sides':
+        return 'count_sides:${q['shapeToShow']}';
+      case 'square_area':
+      case 'rectangle_area':
+      case 'triangle_area':
+      case 'square_perimeter':
+      case 'rectangle_perimeter':
+      case 'triangle_perimeter':
+        return '$type:${_geometryParamsFingerprint(q['questionParams'])}';
+      default:
+        final qText = q['question']?.toString() ?? q['questionKey']?.toString() ?? '';
+        final opts = q['options'];
+        final optsKey = opts is List ? opts.map((e) => e.toString()).join(',') : '';
+        return '$type:$qText:$answer:$optsKey';
+    }
+  }
+
   void _generateQuestions() {
     final random = math.Random();
     _questions.clear();
-    int questionCount = _getQuestionCount();
+    final questionCount = _getQuestionCount();
+    final seen = <String>{};
+    final maxAttemptsPerSlot = _useBoostedQuestionDedup ? 80 : 40;
 
     for (int i = 0; i < questionCount; i++) {
-      final question = GameMechanics.TopicGameManager.generateTopicQuestion(
-        widget.topicSettings.topicType,
-        widget.ageGroup,
-        random,
-        difficulty: widget.difficulty,
+      Map<String, dynamic>? question;
+      for (int attempt = 0; attempt < maxAttemptsPerSlot; attempt++) {
+        final candidate = Map<String, dynamic>.from(
+          GameMechanics.TopicGameManager.generateTopicQuestion(
+            widget.topicSettings.topicType,
+            widget.ageGroup,
+            random,
+            difficulty: _currentDifficulty,
+          ),
+        );
+        final fp = _questionFingerprint(candidate);
+        if (!seen.contains(fp)) {
+          seen.add(fp);
+          question = candidate;
+          break;
+        }
+      }
+      _questions.add(
+        question ??
+            Map<String, dynamic>.from(
+              GameMechanics.TopicGameManager.generateTopicQuestion(
+                widget.topicSettings.topicType,
+                widget.ageGroup,
+                random,
+                difficulty: _currentDifficulty,
+              ),
+            ),
       );
-      _questions.add(Map<String, dynamic>.from(question));
     }
   }
 
   int _getQuestionCount() {
-    switch (widget.difficulty) {
+    if (_sessionQuestionCount != null) return _sessionQuestionCount!;
+    switch (_currentDifficulty) {
       case 'easy':
       case 'Kolay': return 5;
       case 'medium':
@@ -291,7 +496,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
   }
 
   int _getTimeLimit() {
-    switch (widget.difficulty) {
+    if (_sessionTimeLimitSeconds != null) return _sessionTimeLimitSeconds!;
+    switch (_currentDifficulty) {
       case 'easy':
       case 'Kolay': return 45;
       case 'medium':
@@ -561,6 +767,131 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     });
   }
 
+  String _geometryParamsFingerprint(dynamic params) {
+    if (params is! Map) return '';
+    final entries = params.entries.map((e) => '${e.key}=${e.value}').toList()
+      ..sort();
+    return entries.join('&');
+  }
+
+  void _showGeometryFormulaDialog(AppLocalizations loc, Map<String, dynamic> question) {
+    final formulaKey = question['formulaKey'] as String?;
+    if (formulaKey == null || formulaKey.isEmpty) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.get('geom_formula_hint_title')),
+        content: SingleChildScrollView(
+          child: Text(
+            loc.get(formulaKey),
+            style: const TextStyle(fontSize: 18, height: 1.45),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.get('ok')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGeometryFormulaButton(
+    Map<String, dynamic> question,
+    AppLocalizations loc,
+  ) {
+    final formulaKey = question['formulaKey'] as String?;
+    if (formulaKey == null || formulaKey.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Material(
+      color: Colors.amber.shade700,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showGeometryFormulaDialog(loc, question),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.functions, color: Colors.white, size: 22),
+              const SizedBox(width: 4),
+              Text(
+                'ƒ',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeometryShapeHeader({
+    required String shapeName,
+    required Map<String, dynamic> question,
+    required AppLocalizations loc,
+    double boxSize = 100,
+    double emojiSize = 50,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: boxSize,
+          height: boxSize,
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Center(
+            child: Text(
+              _getShapeEmoji(shapeName),
+              style: TextStyle(fontSize: emojiSize),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildGeometryFormulaButton(question, loc),
+      ],
+    );
+  }
+
+  Widget _buildGeometryNumericOptions(List<dynamic> options) {
+    final optionsList = options.map((o) => o as int).toList();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          if (optionsList.length > 1)
+            Row(
+              children: [
+                Expanded(child: _buildCompactNumberOption(optionsList[0])),
+                const SizedBox(width: 8),
+                Expanded(child: _buildCompactNumberOption(optionsList[1])),
+              ],
+            ),
+          if (optionsList.length > 2) const SizedBox(height: 8),
+          if (optionsList.length > 2)
+            Row(
+              children: [
+                Expanded(child: _buildCompactNumberOption(optionsList[2])),
+                if (optionsList.length > 3) const SizedBox(width: 8),
+                if (optionsList.length > 3)
+                  Expanded(child: _buildCompactNumberOption(optionsList[3])),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   String _geometryQuestionText(Map<String, dynamic> question, AppLocalizations loc) {
     final key = question['questionKey'] as String?;
     if (key != null) {
@@ -585,6 +916,15 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     final correctAnswer = question['correctAnswer'];
     final questionText = _geometryQuestionText(question, loc);
     final options = question['options'] as List<dynamic>? ?? [];
+    const measurementTypes = {
+      'square_area',
+      'rectangle_area',
+      'triangle_area',
+      'square_perimeter',
+      'rectangle_perimeter',
+      'triangle_perimeter',
+      'find_area',
+    };
 
     switch (type) {
       case 'identify_shapes':
@@ -592,19 +932,12 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
             (correctAnswer is String ? correctAnswer : '');
         return Column(
           children: [
-            Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Center(
-                child: Text(
-                  _getShapeEmoji(shapeToShow),
-                  style: const TextStyle(fontSize: 80),
-                ),
-              ),
+            _buildGeometryShapeHeader(
+              shapeName: shapeToShow,
+              question: question,
+              loc: loc,
+              boxSize: 150,
+              emojiSize: 80,
             ),
             const SizedBox(height: 20),
             Text(
@@ -627,27 +960,14 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
         );
 
       case 'count_sides':
-        final shapeName = question['shapeToShow'] as String? ??
-            (correctAnswer is int && correctAnswer == 3 ? 'üçgen' :
-            correctAnswer is int && correctAnswer == 4 ? 'kare' : 'beşgen');
-        final optionsList = options.map((o) => o as int).toList();
-
+        final shapeName = question['shapeToShow'] as String? ?? 'kare';
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  _getShapeEmoji(shapeName),
-                  style: const TextStyle(fontSize: 50),
-                ),
-              ),
+            _buildGeometryShapeHeader(
+              shapeName: shapeName,
+              question: question,
+              loc: loc,
             ),
             const SizedBox(height: 15),
             Text(
@@ -660,102 +980,52 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 25),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  if (optionsList.length > 1)
-                    Row(
-                      children: [
-                        Expanded(child: _buildCompactNumberOption(optionsList[0])),
-                        const SizedBox(width: 8),
-                        Expanded(child: _buildCompactNumberOption(optionsList[1])),
-                      ],
-                    ),
-                  if (optionsList.length > 2) const SizedBox(height: 8),
-                  if (optionsList.length > 2)
-                    Row(
-                      children: [
-                        Expanded(child: _buildCompactNumberOption(optionsList[2])),
-                        if (optionsList.length > 3) const SizedBox(width: 8),
-                        if (optionsList.length > 3)
-                          Expanded(child: _buildCompactNumberOption(optionsList[3])),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ],
-        );
-
-      case 'find_area':
-        final optionsList = options.map((o) => o as int).toList();
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Center(
-                child: Text(
-                  '⬛',
-                  style: const TextStyle(fontSize: 50),
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              LocaleTextHelpers.ltrMathIsolate(questionText),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 25),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  if (optionsList.length > 1)
-                    Row(
-                      children: [
-                        Expanded(child: _buildCompactNumberOption(optionsList[0])),
-                        const SizedBox(width: 8),
-                        Expanded(child: _buildCompactNumberOption(optionsList[1])),
-                      ],
-                    ),
-                  if (optionsList.length > 2) const SizedBox(height: 8),
-                  if (optionsList.length > 2)
-                    Row(
-                      children: [
-                        Expanded(child: _buildCompactNumberOption(optionsList[2])),
-                        if (optionsList.length > 3) const SizedBox(width: 8),
-                        if (optionsList.length > 3)
-                          Expanded(child: _buildCompactNumberOption(optionsList[3])),
-                      ],
-                    ),
-                ],
-              ),
-            ),
+            _buildGeometryNumericOptions(options),
           ],
         );
 
       default:
-        return Center(
-          child: Text(
-            LocaleTextHelpers.ltrMathIsolate(questionText),
-            style: const TextStyle(
-              fontSize: 28,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+        if (measurementTypes.contains(type)) {
+          final shapeName = question['shapeToShow'] as String? ?? 'kare';
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildGeometryShapeHeader(
+                shapeName: shapeName,
+                question: question,
+                loc: loc,
+              ),
+              const SizedBox(height: 15),
+              Text(
+                LocaleTextHelpers.ltrMathIsolate(questionText),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 25),
+              _buildGeometryNumericOptions(options),
+            ],
+          );
+        }
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildGeometryFormulaButton(question, loc),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                LocaleTextHelpers.ltrMathIsolate(questionText),
+                style: const TextStyle(
+                  fontSize: 28,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
+          ],
         );
     }
   }
@@ -1570,7 +1840,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                   ),
                 ),
                 Text(
-                  widget.difficultyDisplay ?? widget.difficulty,
+                  _currentDifficultyDisplay ?? _currentDifficulty,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1816,13 +2086,33 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Column(
+                  Builder(
+                    builder: (context) {
+                      final passed = percentage >= 60;
+                      final nextPlayLevel = _getNextPlayLevel();
+                      final nextDifficulty = nextPlayLevel?.difficultyId ?? _getNextDifficultyId();
+                      final primaryLabel = !passed
+                          ? loc.get('try_again')
+                          : (nextDifficulty != null
+                              ? loc.get('next_level')
+                              : loc.get('continue_button'));
+                      return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.pop(context);
-                          _restartGame();
+                          if (passed) {
+                            await _persistTopicProgress(passed: true);
+                          }
+                          if (!mounted) return;
+                          if (passed && nextPlayLevel != null) {
+                            _advanceToPlayLevel(nextPlayLevel, loc);
+                          } else if (passed && nextDifficulty != null) {
+                            _advanceToNextLevel(nextDifficulty, loc);
+                          } else {
+                            _restartGame();
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.3),
@@ -1832,7 +2122,7 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                           ),
                         ),
                         child: Text(
-                          loc.get('play_again'),
+                          primaryLabel,
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -1861,6 +2151,8 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
                         ),
                       ),
                     ],
+                  );
+                    },
                   ),
                 ],
               ),
@@ -1922,33 +2214,65 @@ class _SpecializedGameScreenState extends State<SpecializedGameScreen>
     );
   }
 
-  void _restartGame() {
+  bool _ensureCanPlay() {
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
-    if (!mechanicsService.hasLives) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
+    if (mechanicsService.hasLives) return true;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale).get('no_lives_play')),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-    setState(() {
-      _currentQuestionIndex = 0;
-      _score = 0;
-      _correctAnswers = 0;
-      _isGameOver = false;
-      _gamePaused = false;
-      _isAnswered = false;
-      _selectedAnswer = null;
-      _wrongReactionEmoji = null;
-      _generateQuestions();
-    });
+    return false;
+  }
+
+  void _resetRoundState() {
+    _currentQuestionIndex = 0;
+    _score = 0;
+    _correctAnswers = 0;
+    _wrongAnswers = 0;
+    _currentStreak = 0;
+    _bestStreak = 0;
+    _totalAnswerTimeSeconds = 0;
+    _fastAnswersCount = 0;
+    _superFastAnswersCount = 0;
+    _hasReportedCompletion = false;
+    _isGameOver = false;
+    _gamePaused = false;
+    _isAnswered = false;
+    _selectedAnswer = null;
+    _isCorrect = false;
+    _wrongReactionEmoji = null;
+    _generateQuestions();
     _confettiController.stop();
     _wrongShakeController.reset();
+  }
+
+  void _advanceToPlayLevel(TopicPlayLevel level, AppLocalizations loc) {
+    if (!_ensureCanPlay()) return;
+    setState(() {
+      _applyPlayLevel(level, loc);
+      _resetRoundState();
+    });
+    _startTimer();
+  }
+
+  void _advanceToNextLevel(String nextDifficulty, AppLocalizations loc) {
+    if (!_ensureCanPlay()) return;
+    setState(() {
+      _currentDifficulty = nextDifficulty;
+      _currentDifficultyDisplay = _difficultyDisplayFor(nextDifficulty, loc);
+      _resetRoundState();
+    });
+    _startTimer();
+  }
+
+  void _restartGame() {
+    if (!_ensureCanPlay()) return;
+    setState(_resetRoundState);
     _startTimer();
   }
 

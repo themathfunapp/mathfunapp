@@ -123,7 +123,7 @@ class _MagicClockGameState extends State<MagicClockGame> {
                 _generateQuestion();
               }
             },
-            child: const Text('Devam'),
+            child: Text(AppLocalizations.of(context).get('continue_short')),
           ),
         ],
       ),

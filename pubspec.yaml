@@ -1,7 +1,7 @@
 name: mathfun
 description: "Mathfun - Çocuklar için Matematik Öğrenme Oyunu"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+4
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
@@ -92,6 +92,8 @@ flutter:
 
   assets:
     - assets/sounds/
+    - assets/sounds/music_kids_bgm.mp3
+    - assets/sounds/music_kids_bgm_loop.mp3
     - assets/avatar/face/Face/Completes/
     - assets/avatar/hair/Hair/Black/
     - assets/avatar/hair/Hair/Blonde/
@@ -138,6 +140,7 @@ flutter:
     - assets/avatar/skin/Skin/Tint 8/
     - assets/images/logo.png
     - assets/icons/app_icon.png
+    - assets/fruits/
 
 flutter_icons:
   android: true

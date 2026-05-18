@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:confetti/confetti.dart';
-import 'package:provider/provider.dart';
-import 'dart:math' as math;
 import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:confetti/confetti.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
@@ -110,6 +111,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
   ConfettiController? _burstConfetti;
   /// Anında Matematik: yanlış / süre bittiğinde üzgün emoji
   String? _reactionEmoji;
+  bool _instantSessionRecorded = false;
 
   bool get _isInstantMath => widget.gameType == 'instant';
 
@@ -471,7 +473,8 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _burstConfetti?.stop();
     _reportSessionToBadges();
 
-    showDialog(
+    Future<void> openGameOverDialog() {
+      return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -630,6 +633,18 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         );
       },
     );
+    }
+
+    if (_isInstantMath) {
+      _recordInstantMathSessionIfNeeded().then((granted) async {
+        await openGameOverDialog();
+        if (granted && mounted) {
+          _showInstantMathRewardDialog();
+        }
+      });
+    } else {
+      openGameOverDialog();
+    }
   }
 
   Widget _buildTopBar() {
@@ -687,38 +702,40 @@ class _QuickMathScreenState extends State<QuickMathScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.amber.shade400, Colors.orange.shade400],
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.amber.withOpacity(0.4),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
+                            if (!_isInstantMath) ...[
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: chipHP, vertical: chipVP),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.amber.shade400, Colors.orange.shade400],
                                   ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('⭐', style: TextStyle(fontSize: starFont)),
-                                  SizedBox(width: narrow ? 4 : 6),
-                                  Text(
-                                    '$_score',
-                                    style: TextStyle(
-                                      fontSize: starFont,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.amber.withOpacity(0.4),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('⭐', style: TextStyle(fontSize: starFont)),
+                                    SizedBox(width: narrow ? 4 : 6),
+                                    Text(
+                                      '$_score',
+                                      style: TextStyle(
+                                        fontSize: starFont,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            SizedBox(width: narrow ? 8 : 12),
+                              SizedBox(width: narrow ? 8 : 12),
+                            ],
                             AnimatedBuilder(
                               animation: _lifeShakeAnimation,
                               builder: (context, child) {
@@ -1083,8 +1100,93 @@ class _QuickMathScreenState extends State<QuickMathScreen>
         _timer?.cancel();
         _particleTimer?.cancel();
         _burstConfetti?.stop();
+        if (_isInstantMath) {
+          _recordInstantMathSessionIfNeeded().then((granted) {
+            if (granted && mounted) _showInstantMathRewardDialog();
+          });
+        }
         widget.onBack();
       },
+    );
+  }
+
+  Future<bool> _recordInstantMathSessionIfNeeded() async {
+    if (!_isInstantMath || _instantSessionRecorded) return false;
+    final answered = _correctAnswers + _wrongAnswers;
+    if (answered < 1) return false;
+    _instantSessionRecorded = true;
+
+    final locale = Provider.of<LocaleProvider>(context, listen: false).locale;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final outcome = await mechanics.recordInstantMathSessionCompleted(
+      languageCode: locale.languageCode,
+    );
+    return outcome.dailyRewardGranted;
+  }
+
+  void _showInstantMathRewardDialog() {
+    final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                loc.get('instant_math_daily_complete_msg'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${GameMechanicsService.instantMathDailyRewardCoins}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.green.shade800,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(loc.get('ok')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1100,6 +1202,22 @@ class _QuickMathScreenState extends State<QuickMathScreen>
     _burstConfetti?.stop();
     _reportSessionToBadges();
 
+    if (_isInstantMath) {
+      _recordInstantMathSessionIfNeeded().then((granted) {
+        if (!mounted) return;
+        if (granted) {
+          _showInstantMathRewardDialog();
+          return;
+        }
+        _showResultsDialogInner();
+      });
+      return;
+    }
+
+    _showResultsDialogInner();
+  }
+
+  void _showResultsDialogInner() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1109,6 +1227,14 @@ class _QuickMathScreenState extends State<QuickMathScreen>
 
   Widget _buildResultsDialog() {
     final loc = AppLocalizations(Provider.of<LocaleProvider>(context, listen: false).locale);
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    final instantHint = _isInstantMath &&
+            !mechanics.instantMathDailyRewardClaimed &&
+            mechanics.instantMathSessionsToday == 1
+        ? loc
+            .get('instant_math_progress_hint')
+            .replaceAll('{0}', '${mechanics.instantMathSessionsToday}')
+        : null;
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
@@ -1136,7 +1262,8 @@ class _QuickMathScreenState extends State<QuickMathScreen>
             ),
             const SizedBox(height: 6),
             Text(
-              loc.get('keep_trying'),
+              instantHint ?? loc.get('keep_trying'),
+              textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             const SizedBox(height: 18),
@@ -1249,6 +1376,7 @@ class _QuickMathScreenState extends State<QuickMathScreen>
       _currentCharacter = _happyCharacters[math.Random().nextInt(_happyCharacters.length)];
       _particles.clear();
       _reactionEmoji = null;
+      _instantSessionRecorded = false;
     });
     _burstConfetti?.stop();
     _startTimer();

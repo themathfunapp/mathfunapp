@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onFamilyRemoteDuelInviteCreated = exports.verifyPinResetCode = exports.requestPinResetCode = void 0;
+exports.onFriendDuelInviteCreated = exports.onFamilyRemoteDuelInviteCreated = exports.verifyPinResetCode = exports.requestPinResetCode = void 0;
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 admin.initializeApp();
@@ -147,6 +147,52 @@ exports.onFamilyRemoteDuelInviteCreated = functions.firestore
     }
     catch (err) {
         functions.logger.error("onFamilyRemoteDuelInviteCreated FCM error", err);
+    }
+});
+/**
+ * Arkadaş düellosu: davet oluşunca karşı tarafa FCM bildirimi.
+ */
+exports.onFriendDuelInviteCreated = functions.firestore
+    .document("friendDuelInvites/{inviteId}")
+    .onCreate(async (snap, context) => {
+    var _a;
+    const d = snap.data();
+    if (!d || d.status !== "pending") {
+        return;
+    }
+    const toUid = d.toUserId;
+    const fromName = d.fromDisplayName || "Arkadaşın";
+    const sessionId = d.sessionId || "";
+    if (!toUid) {
+        return;
+    }
+    const tokenSnap = await admin
+        .firestore()
+        .doc(`users/${toUid}/private/fcm/current`)
+        .get();
+    const token = (_a = tokenSnap.data()) === null || _a === void 0 ? void 0 : _a.token;
+    if (!token) {
+        functions.logger.info("onFriendDuelInviteCreated: no FCM token", {
+            toUid,
+        });
+        return;
+    }
+    try {
+        await admin.messaging().send({
+            token,
+            notification: {
+                title: "MathFun — Düello",
+                body: `${fromName} seni düelloya davet etti.`,
+            },
+            data: {
+                type: "friend_duel_invite",
+                inviteId: context.params.inviteId,
+                sessionId,
+            },
+        });
+    }
+    catch (err) {
+        functions.logger.error("onFriendDuelInviteCreated FCM error", err);
     }
 });
 //# sourceMappingURL=index.js.map

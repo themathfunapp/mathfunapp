@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/friend_request.dart';
 import '../models/friendship.dart';
 import '../models/friend_duel_invite.dart';
+import 'friend_duel_service.dart';
 import '../models/app_user.dart';
 
 class FriendService extends ChangeNotifier {
@@ -12,6 +15,11 @@ class FriendService extends ChangeNotifier {
   final FirebaseFirestore _firestore;
 
   static const String _friendDuelInvitesCol = 'friendDuelInvites';
+  static const String _friendRequestsCol = 'friendRequests';
+
+  /// Gönderen_alıcı — bileşik sorgu / indeks gerektirmez.
+  static String friendRequestDocId(String senderId, String receiverId) =>
+      '${senderId}_$receiverId';
   
   // Current user info
   String? _currentUserId;
@@ -24,9 +32,13 @@ class FriendService extends ChangeNotifier {
   List<Friendship> _friends = [];
   List<FriendRequest> _incomingRequests = [];
   List<FriendRequest> _outgoingRequests = [];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _incomingRequestsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _friendsSub;
+  bool _friendsHydrated = false;
 
   // Getters
   List<Friendship> get friends => _friends;
+  bool get friendsHydrated => _friendsHydrated;
   List<FriendRequest> get incomingRequests => _incomingRequests;
   List<FriendRequest> get outgoingRequests => _outgoingRequests;
   bool get isGuest => _isGuest;
@@ -35,6 +47,12 @@ class FriendService extends ChangeNotifier {
 
   // Initialize with user
   void initialize(AppUser? user) {
+    _incomingRequestsSub?.cancel();
+    _incomingRequestsSub = null;
+    _friendsSub?.cancel();
+    _friendsSub = null;
+    _friendsHydrated = false;
+
     if (user == null) {
       _currentUserId = null;
       _currentUserName = null;
@@ -58,7 +76,45 @@ class FriendService extends ChangeNotifier {
       _loadFriends();
       _loadIncomingRequests();
       _loadOutgoingRequests();
+      _watchIncomingRequests();
+      _watchFriends();
     }
+  }
+
+  List<FriendRequest> _parseRequestDocs(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final list = <FriendRequest>[];
+    for (final doc in docs) {
+      try {
+        list.add(FriendRequest.fromMap(doc.data(), doc.id));
+      } catch (e) {
+        debugPrint('friend request parse ${doc.id}: $e');
+      }
+    }
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  void _watchIncomingRequests() {
+    _incomingRequestsSub?.cancel();
+    if (_currentUserId == null || _isGuest) return;
+
+    _incomingRequestsSub = _firestore
+        .collection(_friendRequestsCol)
+        .where('receiverId', isEqualTo: _currentUserId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen(
+      (snapshot) {
+        _incomingRequests = _parseRequestDocs(snapshot.docs);
+        notifyListeners();
+      },
+      onError: (Object e) {
+        debugPrint('Incoming requests watch error: $e');
+        _loadIncomingRequestsFallback();
+      },
+    );
   }
 
   // ------------- ARKADAŞ LİSTESİ -------------
@@ -77,20 +133,51 @@ class FriendService extends ChangeNotifier {
       _friends = snapshot.docs
           .map((doc) => Friendship.fromMap(doc.data(), doc.id))
           .toList();
-      
+      _friendsHydrated = true;
       notifyListeners();
     } catch (e) {
       debugPrint('Load friends error: $e');
     }
   }
 
-  // Real-time friends stream
+  void _watchFriends() {
+    _friendsSub?.cancel();
+    if (_currentUserId == null || _isGuest) return;
+
+    _friendsSub = _firestore
+        .collection('users')
+        .doc(_currentUserId)
+        .collection('friends')
+        .orderBy('friendName')
+        .snapshots()
+        .listen(
+      (snapshot) {
+        _friends = snapshot.docs
+            .map((doc) => Friendship.fromMap(doc.data(), doc.id))
+            .toList();
+        _friendsHydrated = true;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        debugPrint('Friends watch error: $e');
+        unawaited(_loadFriends());
+      },
+    );
+  }
+
+  // Real-time friends stream (önbellekli — her build'de yeni dinleyici açılmasın)
+  Stream<List<Friendship>>? _friendsStreamCache;
+  String? _friendsStreamUserId;
+
   Stream<List<Friendship>> friendsStream() {
     if (_currentUserId == null || _isGuest) {
-      return Stream.value([]);
+      return Stream.value(const []);
     }
-
-    return _firestore
+    if (_friendsStreamCache != null && _friendsStreamUserId == _currentUserId) {
+      return _friendsStreamCache!;
+    }
+    _friendsStreamUserId = _currentUserId;
+    _friendsStreamCache = _firestore
         .collection('users')
         .doc(_currentUserId)
         .collection('friends')
@@ -100,51 +187,36 @@ class FriendService extends ChangeNotifier {
           _friends = snapshot.docs
               .map((doc) => Friendship.fromMap(doc.data(), doc.id))
               .toList();
+          _friendsHydrated = true;
           return _friends;
         });
+    return _friendsStreamCache!;
   }
 
   // ------------- GELEN İSTEKLER -------------
 
   Future<void> _loadIncomingRequests() async {
-    if (_currentUserId == null || _isGuest) return;
+    await _loadIncomingRequestsFallback();
+  }
 
+  Future<void> _loadIncomingRequestsFallback() async {
+    if (_currentUserId == null || _isGuest) return;
     try {
       final snapshot = await _firestore
-          .collection('friendRequests')
+          .collection(_friendRequestsCol)
           .where('receiverId', isEqualTo: _currentUserId)
           .where('status', isEqualTo: 'pending')
-          .orderBy('createdAt', descending: true)
           .get();
-
-      _incomingRequests = snapshot.docs
-          .map((doc) => FriendRequest.fromMap(doc.data(), doc.id))
-          .toList();
-      
+      _incomingRequests = _parseRequestDocs(snapshot.docs);
       notifyListeners();
     } catch (e) {
-      debugPrint('Load incoming requests error: $e');
+      debugPrint('Load incoming requests fallback error: $e');
     }
   }
 
-  // Real-time incoming requests stream
-  Stream<List<FriendRequest>> incomingRequestsStream() {
-    if (_currentUserId == null || _isGuest) {
-      return Stream.value([]);
-    }
-
-    return _firestore
-        .collection('friendRequests')
-        .where('receiverId', isEqualTo: _currentUserId)
-        .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-          _incomingRequests = snapshot.docs
-              .map((doc) => FriendRequest.fromMap(doc.data(), doc.id))
-              .toList();
-          return _incomingRequests;
-        });
+  /// Rozet ve liste aynı kaynaktan ([incomingRequests]) beslenir.
+  Stream<List<FriendRequest>> incomingRequestsStream() async* {
+    yield _incomingRequests;
   }
 
   // ------------- GİDEN İSTEKLER -------------
@@ -154,7 +226,7 @@ class FriendService extends ChangeNotifier {
 
     try {
       final snapshot = await _firestore
-          .collection('friendRequests')
+          .collection(_friendRequestsCol)
           .where('senderId', isEqualTo: _currentUserId)
           .where('status', isEqualTo: 'pending')
           .orderBy('createdAt', descending: true)
@@ -167,6 +239,25 @@ class FriendService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Load outgoing requests error: $e');
+      await _loadOutgoingRequestsFallback();
+    }
+  }
+
+  Future<void> _loadOutgoingRequestsFallback() async {
+    if (_currentUserId == null || _isGuest) return;
+    try {
+      final snapshot = await _firestore
+          .collection(_friendRequestsCol)
+          .where('senderId', isEqualTo: _currentUserId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      _outgoingRequests = snapshot.docs
+          .map((doc) => FriendRequest.fromMap(doc.data(), doc.id))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Load outgoing requests fallback error: $e');
     }
   }
 
@@ -290,24 +381,20 @@ class FriendService extends ChangeNotifier {
 
   // ------------- ARKADAŞLIK İSTEĞİ GÖNDER -------------
 
-  Future<bool> sendFriendRequest(AppUser targetUser) async {
+  Future<String?> sendFriendRequest(AppUser targetUser) async {
     if (_isGuest || _currentUserId == null) {
-      debugPrint('Guest users cannot send friend requests');
-      return false;
+      return 'guest';
     }
 
     if (targetUser.isGuest) {
-      debugPrint('Cannot send friend request to guest user');
-      return false;
+      return 'target_guest';
     }
 
     if (targetUser.uid == _currentUserId) {
-      debugPrint('Cannot send friend request to yourself');
-      return false;
+      return 'self';
     }
 
     try {
-      // Zaten arkadaş mı kontrol et
       final existingFriend = await _firestore
           .collection('users')
           .doc(_currentUserId)
@@ -316,59 +403,56 @@ class FriendService extends ChangeNotifier {
           .get();
 
       if (existingFriend.exists) {
-        debugPrint('Already friends');
-        return false;
+        return 'already_friends';
       }
 
-      // Bekleyen istek var mı kontrol et
-      final existingRequest = await _firestore
-          .collection('friendRequests')
-          .where('senderId', isEqualTo: _currentUserId)
-          .where('receiverId', isEqualTo: targetUser.uid)
-          .where('status', isEqualTo: 'pending')
-          .get();
+      final outgoingId =
+          friendRequestDocId(_currentUserId!, targetUser.uid);
+      final incomingId =
+          friendRequestDocId(targetUser.uid, _currentUserId!);
 
-      if (existingRequest.docs.isNotEmpty) {
-        debugPrint('Friend request already sent');
-        return false;
+      final incomingSnap =
+          await _firestore.collection(_friendRequestsCol).doc(incomingId).get();
+      if (incomingSnap.exists &&
+          incomingSnap.data()?['status'] == 'pending') {
+        final ok = await acceptFriendRequest(incomingId);
+        return ok ? null : 'accept_failed';
       }
 
-      // Karşı taraftan gelen istek var mı kontrol et
-      final incomingRequest = await _firestore
-          .collection('friendRequests')
-          .where('senderId', isEqualTo: targetUser.uid)
-          .where('receiverId', isEqualTo: _currentUserId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      if (incomingRequest.docs.isNotEmpty) {
-        // Karşı taraftan istek var, otomatik kabul et
-        await acceptFriendRequest(incomingRequest.docs.first.id);
-        return true;
+      final outgoingSnap =
+          await _firestore.collection(_friendRequestsCol).doc(outgoingId).get();
+      if (outgoingSnap.exists &&
+          outgoingSnap.data()?['status'] == 'pending') {
+        return 'already_sent';
       }
 
-      // Yeni istek oluştur
       final request = FriendRequest(
-        id: '',
+        id: outgoingId,
         senderId: _currentUserId!,
         senderName: _currentUserName ?? 'Kullanıcı',
         senderPhotoUrl: _currentUserPhotoUrl,
         senderUserCode: _currentUserCode,
         receiverId: targetUser.uid,
-        receiverName: targetUser.displayName ?? targetUser.email?.split('@').first ?? 'Kullanıcı',
+        receiverName: targetUser.displayName ??
+            targetUser.email?.split('@').first ??
+            'Kullanıcı',
         receiverPhotoUrl: targetUser.photoURL,
         receiverUserCode: targetUser.userCode,
         status: FriendRequestStatus.pending,
         createdAt: DateTime.now(),
       );
 
-      await _firestore.collection('friendRequests').add(request.toMap());
-      
+      await _firestore
+          .collection(_friendRequestsCol)
+          .doc(outgoingId)
+          .set(request.toMap());
+
       await _loadOutgoingRequests();
-      return true;
-    } catch (e) {
-      debugPrint('Send friend request error: $e');
-      return false;
+      notifyListeners();
+      return null;
+    } catch (e, st) {
+      debugPrint('Send friend request error: $e\n$st');
+      return 'error';
     }
   }
 
@@ -379,7 +463,7 @@ class FriendService extends ChangeNotifier {
 
     try {
       final requestDoc = await _firestore
-          .collection('friendRequests')
+          .collection(_friendRequestsCol)
           .doc(requestId)
           .get();
 
@@ -388,7 +472,7 @@ class FriendService extends ChangeNotifier {
       final request = FriendRequest.fromMap(requestDoc.data()!, requestDoc.id);
 
       // İsteği güncelle
-      await _firestore.collection('friendRequests').doc(requestId).update({
+      await _firestore.collection(_friendRequestsCol).doc(requestId).update({
         'status': 'accepted',
         'respondedAt': Timestamp.now(),
       });
@@ -441,7 +525,7 @@ class FriendService extends ChangeNotifier {
     if (_isGuest || _currentUserId == null) return false;
 
     try {
-      await _firestore.collection('friendRequests').doc(requestId).update({
+      await _firestore.collection(_friendRequestsCol).doc(requestId).update({
         'status': 'rejected',
         'respondedAt': Timestamp.now(),
       });
@@ -460,7 +544,7 @@ class FriendService extends ChangeNotifier {
     if (_isGuest || _currentUserId == null) return false;
 
     try {
-      await _firestore.collection('friendRequests').doc(requestId).delete();
+      await _firestore.collection(_friendRequestsCol).doc(requestId).delete();
       
       await _loadOutgoingRequests();
       return true;
@@ -508,7 +592,6 @@ class FriendService extends ChangeNotifier {
     }
 
     try {
-      // Zaten arkadaş mı?
       final friendDoc = await _firestore
           .collection('users')
           .doc(_currentUserId)
@@ -520,27 +603,17 @@ class FriendService extends ChangeNotifier {
         return FriendshipStatus.friends;
       }
 
-      // Gönderilen istek var mı?
-      final sentRequest = await _firestore
-          .collection('friendRequests')
-          .where('senderId', isEqualTo: _currentUserId)
-          .where('receiverId', isEqualTo: userId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      if (sentRequest.docs.isNotEmpty) {
+      final outgoingId = friendRequestDocId(_currentUserId!, userId);
+      final outgoingDoc =
+          await _firestore.collection(_friendRequestsCol).doc(outgoingId).get();
+      if (outgoingDoc.exists && outgoingDoc.data()?['status'] == 'pending') {
         return FriendshipStatus.requestSent;
       }
 
-      // Gelen istek var mı?
-      final receivedRequest = await _firestore
-          .collection('friendRequests')
-          .where('senderId', isEqualTo: userId)
-          .where('receiverId', isEqualTo: _currentUserId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      if (receivedRequest.docs.isNotEmpty) {
+      final incomingId = friendRequestDocId(userId, _currentUserId!);
+      final incomingDoc =
+          await _firestore.collection(_friendRequestsCol).doc(incomingId).get();
+      if (incomingDoc.exists && incomingDoc.data()?['status'] == 'pending') {
         return FriendshipStatus.requestReceived;
       }
 
@@ -563,36 +636,20 @@ class FriendService extends ChangeNotifier {
         .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map(FriendDuelInvite.fromFirestore).toList());
+        .map((snap) => FriendDuelService.parsePendingInvitesFromSnapshot(snap));
   }
 
-  /// Aynı arkadaşa bekleyen davet varsa false döner.
+  /// Aynı arkadaşa bekleyen davet varsa false döner (Firestore oturumu ile).
   Future<bool> sendFriendDuelInvite(Friendship friend) async {
     if (_isGuest || _currentUserId == null) return false;
-    try {
-      final dup = await _firestore
-          .collection(_friendDuelInvitesCol)
-          .where('fromUserId', isEqualTo: _currentUserId)
-          .where('toUserId', isEqualTo: friend.friendId)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-      if (dup.docs.isNotEmpty) return false;
-
-      final invite = FriendDuelInvite(
-        id: '',
-        fromUserId: _currentUserId!,
-        fromDisplayName: _currentUserName ?? 'Oyuncu',
-        fromUserCode: _currentUserCode,
-        toUserId: friend.friendId,
-        createdAt: DateTime.now(),
-      );
-      await _firestore.collection(_friendDuelInvitesCol).add(invite.toCreateMap());
-      return true;
-    } catch (e) {
-      debugPrint('sendFriendDuelInvite error: $e');
-      return false;
-    }
+    final result = await FriendDuelService().createInvite(
+      hostUserId: _currentUserId!,
+      hostDisplayName: _currentUserName ?? 'Oyuncu',
+      hostUserCode: _currentUserCode,
+      guestUserId: friend.friendId,
+      guestDisplayName: friend.friendName,
+    );
+    return result != null;
   }
 
   Future<void> deleteFriendDuelInvite(String inviteId) async {
@@ -606,10 +663,18 @@ class FriendService extends ChangeNotifier {
   // Verileri yenile
   Future<void> refresh() async {
     if (_isGuest) return;
-    
+
     await _loadFriends();
     await _loadIncomingRequests();
     await _loadOutgoingRequests();
+    _watchIncomingRequests();
+  }
+
+  @override
+  void dispose() {
+    _incomingRequestsSub?.cancel();
+    _friendsSub?.cancel();
+    super.dispose();
   }
 }
 

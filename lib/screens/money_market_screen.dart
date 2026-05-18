@@ -33,7 +33,6 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
   late Animation<double> _floatAnimation;
 
   int _currentLevel = 1;
-  int _stars = 0;
   int _coins = 0;
   int _sessCorrect = 0;
   bool _isAnswered = false;
@@ -120,7 +119,6 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
       _isAnswered = true;
       _isCorrect = correct;
       if (correct) {
-        _stars++;
         _sessCorrect++;
         if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
         _coins += _correctAnswer;
@@ -316,78 +314,61 @@ class _MoneyMarketScreenState extends State<MoneyMarketScreen>
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: widget.onBack,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _gold.withOpacity(0.6)),
-                  ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                ),
+          GestureDetector(
+            onTap: widget.onBack,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                shape: BoxShape.circle,
+                border: Border.all(color: _gold.withOpacity(0.6)),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🏪 ${loc.get('world_money_market')}',
-                      style: _textStyle(Colors.white, size: 20, bold: true),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      loc.get('world_money_market_desc'),
-                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _gold.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text('⭐ $_stars', style: _textStyle(_gold, size: 16, bold: true)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Consumer<GameMechanicsService>(
-              builder: (context, mechanicsService, _) {
-                final lives = mechanicsService.currentLives;
-                final maxLives = mechanicsService.maxLives;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
-                    maxLives,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: Opacity(
-                        opacity: i < lives ? 1.0 : 0.3,
-                        child: const Text('💰', style: TextStyle(fontSize: 18)),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '🏪 ${loc.get('world_money_market')}',
+                  style: _textStyle(Colors.white, size: 20, bold: true),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  loc.get('world_money_market_desc'),
+                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  maxLives,
+                  (i) => Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: Opacity(
+                      opacity: i < lives ? 1.0 : 0.3,
+                      child: const Text('💰', style: TextStyle(fontSize: 18)),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

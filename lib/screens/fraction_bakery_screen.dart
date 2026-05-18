@@ -6,6 +6,7 @@ import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/audio_service.dart';
+import '../services/fraction_bakery_question_history.dart';
 import '../services/game_mechanics_service.dart';
 import '../services/game_session_report.dart';
 import '../models/story_invite_payload.dart';
@@ -36,7 +37,6 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
 
   int _currentLevel = 1;
   int _score = 0;
-  int _stars = 0;
   int _correctParts = 2; // Her parçadaki doğru cevap sayısı
   int _fractionType = 2; // 1=bütün, 2=yarım, 4=çeyrek (parça sayısı)
   List<int> _options = [];
@@ -64,7 +64,7 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   static const Color _blueberryPurple = Color(0xFF8E44AD);
   static const Color _cream = Color(0xFFFFF8F0);
 
-  // Pastane nesneleri - emoji -> localization key
+  // Pastane nesneleri - emoji -> localization key (isim / iyelik)
   static const Map<String, String> _pastryKeys = {
     '🍰': 'fraction_bakery_tech_pasta',
     '🍕': 'fraction_bakery_tech_pizza',
@@ -73,7 +73,17 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     '🥐': 'fraction_bakery_tech_croissant',
     '🍩': 'fraction_bakery_tech_donut',
   };
+  static const Map<String, String> _pastryPossKeys = {
+    '🍰': 'fraction_bakery_poss_pasta',
+    '🍕': 'fraction_bakery_poss_pizza',
+    '🍪': 'fraction_bakery_poss_kurabiye',
+    '🥧': 'fraction_bakery_poss_turta',
+    '🥐': 'fraction_bakery_poss_croissant',
+    '🍩': 'fraction_bakery_poss_donut',
+  };
   final List<String> _pastries = _pastryKeys.keys.toList();
+  final Set<String> _sessionQuestionFingerprints = {};
+  bool _generatingQuestion = false;
 
   @override
   void initState() {
@@ -95,7 +105,17 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
       vsync: this,
     );
 
-    _generateQuestion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _generateQuestion();
+    });
+  }
+
+  String _pastryNoun(AppLocalizations loc) =>
+      loc.get(_currentPastryKey);
+
+  String _pastryPossessive(AppLocalizations loc) {
+    final key = _pastryPossKeys[_currentPastry] ?? _currentPastryKey;
+    return loc.get(key);
   }
 
   @override
@@ -107,91 +127,141 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   String _getQuestionText(AppLocalizations loc) {
-    final objectName = loc.get(_currentPastryKey);
+    final noun = _pastryNoun(loc);
     final fracTypeKey = {
       1: 'fraction_bakery_frac_type_whole',
       2: 'fraction_bakery_frac_type_half',
       4: 'fraction_bakery_frac_type_quarter',
     }[_fractionType] ?? 'fraction_bakery_frac_type_half';
     final fracType = loc.get(fracTypeKey);
-    
+
     if (_eatenItems > 0) {
       final format = loc.get('fraction_bakery_question_format_eaten');
       return format
           .replaceAll('{0}', '$_totalItems')
-          .replaceAll('{1}', objectName)
+          .replaceAll('{1}', _pastryPossessive(loc))
           .replaceAll('{2}', '$_eatenItems')
-          .replaceAll('{3}', '$_fractionType')
-          .replaceAll('{4}', fracType);
+          .replaceAll('{4}', '$_fractionType')
+          .replaceAll('{6}', _pastryPossessive(loc));
     }
-    
+
     final format = loc.get('fraction_bakery_how_many_format');
-    return format.replaceAll('{0}', objectName).replaceAll('{1}', fracType);
+    return format.replaceAll('{0}', noun).replaceAll('{1}', fracType);
   }
 
   String _getCharacterMessage(AppLocalizations loc) {
-    final objectName = loc.get(_currentPastryKey);
+    final noun = _pastryNoun(loc);
     final fracTypeKey = {
       1: 'fraction_bakery_frac_type_whole',
       2: 'fraction_bakery_frac_type_half',
       4: 'fraction_bakery_frac_type_quarter',
     }[_fractionType] ?? 'fraction_bakery_frac_type_half';
     final fracType = loc.get(fracTypeKey);
-    
+
     if (_eatenItems > 0) {
       final format = loc.get('fraction_bakery_character_format_eaten');
       return format
           .replaceAll('{0}', '$_totalItems')
-          .replaceAll('{1}', objectName)
           .replaceAll('{2}', '$_eatenItems')
           .replaceAll('{3}', '$_remainingItems')
-          .replaceAll('{4}', fracType);
+          .replaceAll('{4}', '$_fractionType')
+          .replaceAll('{5}', noun);
     }
-    
+
     final format = loc.get('fraction_bakery_character_message_format');
-    return format.replaceAll('{0}', objectName).replaceAll('{1}', fracType);
+    return format.replaceAll('{0}', noun).replaceAll('{1}', fracType);
   }
 
-  void _generateQuestion() {
-    final random = math.Random();
+  void _rollQuestionParams(math.Random random) {
     final partChoices = [1, 2, 4];
     _fractionType = partChoices[random.nextInt(3)];
     _currentPastry = _pastries[random.nextInt(_pastries.length)];
-    _currentPastryKey = _pastryKeys[_currentPastry] ?? 'fraction_bakery_tech_pasta';
+    _currentPastryKey =
+        _pastryKeys[_currentPastry] ?? 'fraction_bakery_tech_pasta';
 
-    // Kesir tipine göre uygun sayı üret
-    // Çeyrek (4) için kalan sayı 4'ün katı olmalı
-    // Yarım (2) için kalan sayı 2'nin katı olmalı
-    // Bütün (1) için herhangi bir sayı olabilir
-    
     if (_fractionType == 4) {
-      // Çeyrek: 4'ün katı (8, 12, 16, 20, 24)
-      // Her parçaya düşen: 2, 3, 4, 5, 6
-      _correctParts = 2 + random.nextInt(5); // 2, 3, 4, 5, 6
-      _remainingItems = _correctParts * 4; // 8, 12, 16, 20, 24
-      _eatenItems = (random.nextInt(3) + 2) * 2; // 4, 6, 8 tane yenmiş olsun
+      _correctParts = 2 + random.nextInt(5);
+      _remainingItems = _correctParts * 4;
+      _eatenItems = (random.nextInt(3) + 2) * 2;
       _totalItems = _remainingItems + _eatenItems;
     } else if (_fractionType == 2) {
-      // Yarım: 2'nin katı
-      // Her parçaya düşen: 2, 3, 4, 5, 6, 7, 8
-      _correctParts = 2 + random.nextInt(7); // 2-8
-      _remainingItems = _correctParts * 2; // 4, 6, 8, 10, 12, 14, 16
-      _eatenItems = random.nextInt(6) + 2; // 2-7 tane yenmiş olsun
+      _correctParts = 2 + random.nextInt(7);
+      _remainingItems = _correctParts * 2;
+      _eatenItems = random.nextInt(6) + 2;
       _totalItems = _remainingItems + _eatenItems;
     } else {
-      // Bütün: Her parçada kalan kadar olur (1 parça = hepsi)
       _remainingItems = 1 + random.nextInt(8);
       _correctParts = _remainingItems;
       _eatenItems = random.nextInt(5);
       _totalItems = _remainingItems + _eatenItems;
     }
+  }
 
-    // Şıkları üret: doğru cevap ve 2 yakın yanlış
-    _options = _generateOptions(_correctParts, random);
+  String _questionFingerprint() => FractionBakeryQuestionHistory.fingerprint(
+        _currentPastry,
+        _totalItems,
+        _eatenItems,
+        _remainingItems,
+        _fractionType,
+      );
 
-    _isAnswered = false;
-    _isCorrect = false;
-    if (mounted) setState(() {});
+  Future<void> _generateQuestion() async {
+    if (!mounted || _generatingQuestion) return;
+    _generatingQuestion = true;
+
+    try {
+      final random = math.Random();
+      Set<String> askedToday = {};
+      try {
+        askedToday = await FractionBakeryQuestionHistory.loadToday().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => <String>{},
+        );
+      } catch (e) {
+        debugPrint('FractionBakery loadToday error: $e');
+      }
+
+      final excluded = <String>{...askedToday, ..._sessionQuestionFingerprints};
+      String? chosenFp;
+
+      for (var attempt = 0; attempt < 300; attempt++) {
+        _rollQuestionParams(random);
+        final fp = _questionFingerprint();
+        if (!excluded.contains(fp)) {
+          chosenFp = fp;
+          break;
+        }
+      }
+
+      if (chosenFp == null) {
+        _rollQuestionParams(random);
+        chosenFp = _questionFingerprint();
+      }
+
+      _sessionQuestionFingerprints.add(chosenFp);
+      _options = _generateOptions(_correctParts, random);
+
+      if (mounted) {
+        setState(() {
+          _isAnswered = false;
+          _isCorrect = false;
+        });
+      }
+
+      FractionBakeryQuestionHistory.record(chosenFp).catchError((Object e) {
+        debugPrint('FractionBakery record error: $e');
+      });
+    } catch (e, st) {
+      debugPrint('FractionBakery _generateQuestion error: $e\n$st');
+      if (mounted) {
+        setState(() {
+          _isAnswered = false;
+          _isCorrect = false;
+        });
+      }
+    } finally {
+      _generatingQuestion = false;
+    }
   }
 
   List<int> _generateOptions(int correct, math.Random random) {
@@ -209,42 +279,45 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!mechanicsService.hasLives) return;
 
+    final correct = answer == _correctParts;
     setState(() {
       _isAnswered = true;
-      _isCorrect = answer == _correctParts;
+      _isCorrect = correct;
+    });
 
-      if (_isCorrect) {
-        _sessQuestions++;
-        _sessCorrect++;
-        _runStreak++;
-        if (_runStreak > _bestStreak) _bestStreak = _runStreak;
-        if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
-        _score += 10;
-        _stars++;
-        _audio.playAnswerFeedback(true);
-        _celebrationController.forward(from: 0);
+    if (correct) {
+      _sessQuestions++;
+      _sessCorrect++;
+      _runStreak++;
+      if (_runStreak > _bestStreak) _bestStreak = _runStreak;
+      if (_sessCorrect % 10 == 0) mechanicsService.addCoins(5);
+      _score += 10;
+      _audio.playAnswerFeedback(true);
+      _celebrationController.forward(from: 0);
 
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            _currentLevel++;
-            _generateQuestion();
-          }
-        });
-      } else {
-        _sessQuestions++;
-        _sessWrong++;
-        _runStreak = 0;
-        _audio.playAnswerFeedback(false);
-        mechanicsService.onWrongAnswer();
-        if (!mechanicsService.hasLives) {
-          _gameOver = true;
-          _showGameOver();
-          return;
-        }
-        Future.delayed(const Duration(seconds: 1), () {
-          if (mounted && !_gameOver) _generateQuestion();
-        });
-      }
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted || _gameOver) return;
+        _currentLevel++;
+        _generateQuestion();
+      });
+      return;
+    }
+
+    _sessQuestions++;
+    _sessWrong++;
+    _runStreak = 0;
+    _audio.playAnswerFeedback(false);
+    mechanicsService.onWrongAnswer();
+
+    if (!mechanicsService.hasLives) {
+      setState(() => _gameOver = true);
+      _showGameOver();
+      return;
+    }
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted || _gameOver) return;
+      _generateQuestion();
     });
   }
 
@@ -411,8 +484,6 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
                 child: Column(
                   children: [
                     _buildCharacterMessage(loc),
-                    const SizedBox(height: 8),
-                    _buildLevelInfo(loc),
                     const SizedBox(height: 12),
                     _buildQuestionArea(loc),
                     const SizedBox(height: 12),
@@ -435,99 +506,67 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   Widget _buildTopBar(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: widget.onBack,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: _cream.withOpacity(0.8),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _blueberryPurple.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+          GestureDetector(
+            onTap: widget.onBack,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _cream.withOpacity(0.8),
+                shape: BoxShape.circle,
+                border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _blueberryPurple.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  child: Icon(Icons.arrow_back, color: _blueberryPurple),
-                ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🍰 ${loc.get('fraction_bakery')}',
-                      style: _textStyle(_blueberryPurple, size: 22, bold: true),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      loc.get('fraction_bakery_subtitle'),
-                      style: _textStyle(_blueberryPurple.withOpacity(0.8), size: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _blueberryPurple.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _blueberryPurple.withOpacity(0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('⭐', style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_stars',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _blueberryPurple,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Consumer<GameMechanicsService>(
-              builder: (context, mechanicsService, _) {
-                final lives = mechanicsService.currentLives;
-                final maxLives = mechanicsService.maxLives;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(maxLives, (i) {
-                    final hasLife = i < lives;
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: hasLife
-                          ? const Text('🧁', style: TextStyle(fontSize: 18))
-                          : _buildCupcakeWrapper(compact: true),
-                    );
-                  }),
-                );
-              },
+              child: Icon(Icons.arrow_back, color: _blueberryPurple),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '🍰 ${loc.get('fraction_bakery')}',
+                  style: _textStyle(_blueberryPurple, size: 22, bold: true),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  loc.get('fraction_bakery_subtitle'),
+                  style: _textStyle(_blueberryPurple.withOpacity(0.8), size: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Consumer<GameMechanicsService>(
+            builder: (context, mechanicsService, _) {
+              final lives = mechanicsService.currentLives;
+              final maxLives = mechanicsService.maxLives;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(maxLives, (i) {
+                  final hasLife = i < lives;
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: hasLife
+                        ? const Text('🧁', style: TextStyle(fontSize: 18))
+                        : _buildCupcakeWrapper(compact: true),
+                  );
+                }),
+              );
+            },
           ),
         ],
       ),
@@ -574,73 +613,6 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLevelInfo(AppLocalizations loc) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _cream.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _blueberryPurple.withOpacity(0.4), width: 2),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(loc.get('level_label'), _currentLevel.toString(), '🎯'),
-              _buildStatItem(loc.get('score'), _score.toString(), '⭐'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // İlerleme çubuğu - Pembe/krema rengi, üzerinde renkli şekerlemeler (krema dolgusu)
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: LinearProgressIndicator(
-                  value: (_currentLevel % 5) / 5,
-                  minHeight: 18,
-                  backgroundColor: _cream.withOpacity(0.9),
-                  valueColor: const AlwaysStoppedAnimation<Color>(_pastelPink),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: -6,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: ['🍬', '🍭', '🍫', '🍪', '🧁']
-                      .map((e) => Text(e, style: const TextStyle(fontSize: 16)))
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, String emoji) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: _textStyle(_blueberryPurple, size: 24, bold: true),
-        ),
-        Text(
-          label,
-          style: _textStyle(_blueberryPurple.withOpacity(0.8), size: 12),
-        ),
-      ],
     );
   }
 
@@ -693,7 +665,10 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
         child: Text(_currentPastry, style: const TextStyle(fontSize: 24)),
       ),
     );
-    final remainingText = loc.get('fraction_bakery_remaining_format').replaceAll('{0}', '$_remainingItems');
+    final remainingText = loc
+        .get('fraction_bakery_remaining_format')
+        .replaceAll('{0}', '$_remainingItems')
+        .replaceAll('{1}', _pastryNoun(loc));
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -747,8 +722,9 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
   }
 
   Widget _buildAnswerOptions(AppLocalizations loc) {
-    final objectName = loc.get(_currentPastryKey);
-    final questionText = loc.get('fraction_bakery_how_many_per_part').replaceAll('{0}', objectName);
+    final questionText = loc
+        .get('fraction_bakery_how_many_per_part')
+        .replaceAll('{0}', _pastryPossessive(loc));
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),

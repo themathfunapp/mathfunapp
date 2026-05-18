@@ -10,6 +10,7 @@ import 'premium_service_stub.dart'
     if (dart.library.io) 'premium_service_io.dart';
 
 import '../config/premium_qa_allowlist.dart';
+import 'auth_service.dart';
 
 class PremiumService extends ChangeNotifier {
   // Singleton instance
@@ -55,6 +56,11 @@ class PremiumService extends ChangeNotifier {
   // Kullanıcı ID'si (AuthService'den gelecek)
   String? _userId;
   String? _userCode;
+  AuthService? _authService;
+
+  void attachAuthService(AuthService authService) {
+    _authService = authService;
+  }
 
   // SharedPreferences key
   static const String _premiumKey = 'is_premium';
@@ -380,6 +386,9 @@ class PremiumService extends ChangeNotifier {
 
       // Firestore'a kaydet
       await _updateFirestorePremiumStatus(true, expiryDate);
+
+      // Oturumdaki kullanıcı modelini güncelle (can sınırsız + kilitler)
+      await _authService?.updatePremiumStatus(true, expiryDate);
 
       // Satın alma kaydı oluştur
       await _savePurchaseRecord(purchaseDetails, expiryDate);

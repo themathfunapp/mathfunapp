@@ -36,6 +36,8 @@ import '../screens/math_art_gallery_screen.dart';
 import '../screens/virtual_math_lab_screen.dart';
 import '../screens/avatar_customization_screen.dart';
 import '../screens/pet_screen.dart';
+import '../widgets/friend_duel_incoming_bar.dart';
+
 class HomeScreen extends StatefulWidget {
   final VoidCallback onGameSelection;
   final VoidCallback onDailyRewards;
@@ -147,6 +149,14 @@ class _HomeScreenState extends State<HomeScreen>
                   ..._buildStandardHomeBody(context, localizations, authService),
               ],
             ),
+            if (authService.currentUser != null &&
+                authService.currentUser!.isGuest != true)
+              Positioned(
+                top: topInset + 52,
+                left: 12,
+                right: 12,
+                child: const FriendDuelIncomingBar(),
+              ),
             Positioned(
               top: topInset + 80,
               left: 0,
@@ -420,9 +430,9 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       const Icon(Icons.language, color: Colors.blue, size: 28),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Dil Seçin',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).get('select_language'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 20,
@@ -504,9 +514,9 @@ class _HomeScreenState extends State<HomeScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'İptal',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalizations.of(context).get('cancel'),
+                        style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 16,
                         ),
@@ -546,7 +556,12 @@ class _HomeScreenState extends State<HomeScreen>
       await authService.updateUserLanguage(languageCode);
     } catch (e) {
       if (mounted) {
-        _showErrorSnackbar(context, 'Dil değiştirilirken bir hata oluştu: $e');
+        _showErrorSnackbar(
+          context,
+          AppLocalizations.of(context)
+              .get('language_change_error')
+              .replaceAll('{error}', '$e'),
+        );
       }
     }
   }

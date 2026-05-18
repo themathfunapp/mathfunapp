@@ -4,7 +4,11 @@
     <!-- Release derlemesinde de ağ erişimi (debug manifest birleşmez) -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- API 33+: bildirim izni; eski sürümlerde yok sayılır -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Zamanlanmış hatırlatma (eski cihaz / yeniden başlatma sonrası) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <!-- Biyometrik doğrulama (Ebeveyn paneli) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>

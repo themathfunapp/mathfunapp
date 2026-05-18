@@ -54,6 +54,7 @@ class AuthService extends ChangeNotifier {
   static const String _userIdKey = 'current_user_id';
   static const String _guestIdKey = 'guest_user_id';
   static const String _isGuestKey = 'is_guest_user';
+  static const String _guestMechanicsKey = 'guest_mechanics';
 
   // Current user
   AppUser? _currentUser;
@@ -130,9 +131,7 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      // Clear guest flag
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_isGuestKey, false);
+      await _clearGuestSessionPrefs();
 
       notifyListeners();
     } catch (e) {
@@ -197,9 +196,7 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      // Clear guest flag
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_isGuestKey, false);
+      await _clearGuestSessionPrefs();
       notifyListeners();
 
       return _currentUser;
@@ -426,12 +423,18 @@ class AuthService extends ChangeNotifier {
       _currentUser = appUser;
     }
 
-    // Clear guest flag
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_isGuestKey, false);
+    await _clearGuestSessionPrefs();
 
     notifyListeners();
     return _currentUser ?? appUser;
+  }
+
+  /// Misafir oturumunu ve yerel misafir oyun verisini temizle.
+  Future<void> _clearGuestSessionPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isGuestKey, false);
+    await prefs.remove(_guestIdKey);
+    await prefs.remove(_guestMechanicsKey);
   }
 
   // ------------- EMAIL/PASSWORD İLE GİRİŞ -------------
@@ -456,9 +459,7 @@ class AuthService extends ChangeNotifier {
 
         await _saveOrUpdateUserInFirestore(appUser);
 
-        // Guest flag'ini temizle
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_isGuestKey, false);
+        await _clearGuestSessionPrefs();
 
         notifyListeners();
         return _currentUser ?? appUser;
@@ -499,9 +500,7 @@ class AuthService extends ChangeNotifier {
           await _saveOrUpdateUserInFirestore(appUser);
         }
 
-        // Guest flag'ini temizle
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_isGuestKey, false);
+        await _clearGuestSessionPrefs();
 
         notifyListeners();
         return _currentUser ?? appUser;
@@ -649,8 +648,6 @@ class AuthService extends ChangeNotifier {
       debugPrint("Clear guest data error: $e");
     }
   }
-
-  static const String _guestMechanicsKey = 'guest_mechanics';
 
   // Save user ID locally
   Future<void> saveUserId(String userId) async {

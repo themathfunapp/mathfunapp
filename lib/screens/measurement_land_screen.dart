@@ -37,7 +37,6 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
 
   int _currentLevel = 1;
   int _score = 0;
-  int _stars = 0;
   bool _isAnswered = false;
   bool _isCorrect = false;
   bool _isBonusLevel = false;
@@ -209,7 +208,6 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _score += _isBonusLevel ? 25 : 10;
-        _stars += _isBonusLevel ? 2 : 1;
         _audio.playAnswerFeedback(true);
         _celebrationController.forward(from: 0);
         Future.delayed(const Duration(seconds: 2), () {
@@ -502,7 +500,6 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
           final scale = (w / 400.0).clamp(0.82, 1.0);
           final titleSize = (20 * scale).clamp(15.0, 20.0);
           final descSize = (12 * scale).clamp(10.0, 12.0);
-          final starSize = (16 * scale).clamp(12.0, 16.0);
           final turtleEmoji = (20 * scale).clamp(16.0, 22.0);
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,21 +561,6 @@ class _MeasurementLandScreenState extends State<MeasurementLandScreen>
                     ),
                   );
                 },
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: (10 * scale).clamp(8.0, 12.0),
-                  vertical: (6 * scale).clamp(4.0, 7.0),
-                ),
-                decoration: BoxDecoration(
-                  color: _yellow.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '⭐ $_stars',
-                  style: _textStyle(Colors.amber, size: starSize, bold: true),
-                ),
               ),
             ],
           );

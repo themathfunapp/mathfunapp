@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_navigator.dart';
+import '../localization/app_localizations.dart';
 import '../screens/family_remote_duel_play_screen.dart';
 import '../screens/family_remote_duel_waiting_screen.dart';
 import '../services/auth_service.dart';
@@ -55,8 +56,8 @@ class _GlobalRemoteDuelInviteHostState extends State<GlobalRemoteDuelInviteHost>
     if (uid == null || uid.isEmpty || auth.currentUser?.isGuest == true) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(
-          content: Text('Davet için hesap ile giriş yapın.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).get('remote_duel_login_required')),
           duration: kAppSnackBarDuration,
         ),
       );

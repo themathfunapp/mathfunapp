@@ -6,14 +6,23 @@ import '../services/game_mechanics_service.dart';
 import 'game_start_screen.dart';
 import '../models/game_mechanics.dart' as GameMechanics;
 import 'specialized_game_screen.dart';
-import 'counting_forest_screen.dart';
+import '../widgets/topic_level_flow.dart';
 import 'cyber_workshop_screen.dart';
 import 'number_river_screen.dart';
-import 'geometry_mountain_screen.dart';
 import 'time_island_screen.dart';
-import 'colorful_math_screen.dart';
-import 'fraction_bakery_screen.dart';
 import 'keloglan_village_screen.dart';
+import '../widgets/no_lives_gate_dialog.dart';
+
+String? _regionDailyRewardHintKey(String regionId) {
+  switch (regionId) {
+    case 'keloglan_koyu':
+      return 'keloglan_daily_reward_hint';
+    case 'digit_river':
+      return 'digit_river_daily_reward_hint';
+    default:
+      return null;
+  }
+}
 
 String _topicDifficultyForAge(AgeGroupSelection age) {
   switch (age) {
@@ -334,14 +343,21 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        region['shortName'] as String,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            region['name'] as String,
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -356,26 +372,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                           Icons.lock,
                           color: Colors.white,
                           size: 30,
-                        ),
-                      ),
-                    ),
-                  // İlerleme göstergesi - sadece kilitli olmayanlar için
-                  if (!isLocked && region['progress'] > 0)
-                    Positioned(
-                      bottom: 5,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${region['progress']}%',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                       ),
                     ),
@@ -458,45 +454,19 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
               ),
             ],
           ),
+          if (!isLocked && _regionDailyRewardHintKey(region['id'] as String) != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              localizations.get(_regionDailyRewardHintKey(region['id'] as String)!),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.amber.shade200,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           if (!isLocked) ...[
-            // İlerleme çubuğu
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      localizations.get('progress'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                    Text(
-                      '${region['progress']}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: (region['progress'] as int) / 100,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation(region['color'] as Color),
-                    minHeight: 10,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             // Başla butonu
             GestureDetector(
               onTap: () => _enterRegion(region),
@@ -568,14 +538,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          localizations.get('region_locked_panel_subtitle'),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange.shade200,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -623,7 +585,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFF9B59B6),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': localizations.get('unlock_keloglan_village'),
       },
       // 4. Bölge - Zaman Adası (KİLİTLİ)
       {
@@ -635,33 +596,8 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFFE67E22),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': localizations.get('math_map_unlock_time_island'),
       },
-      // 5. Bölge - Kesir Pastanesi (KİLİTLİ)
-      {
-        'id': 'fraction_bakery',
-        'emoji': '🍰',
-        'shortName': localizations.get('bakery'),
-        'name': localizations.get('fraction_bakery'),
-        'description': localizations.get('fraction_bakery_desc'),
-        'color': const Color(0xFF8E44AD),
-        'progress': 0,
-        'locked': true,
-        'unlockRequirement': localizations.get('unlock_fraction_bakery'),
-      },
-      // 6. Bölge - Renkli Matematik (KİLİTLİ)
-      {
-        'id': 'colorful_math',
-        'emoji': '🎨',
-        'shortName': localizations.get('colorful_math_short'),
-        'name': localizations.get('game_color_math'),
-        'description': localizations.get('game_color_math_desc'),
-        'color': const Color(0xFFFF6B9D),
-        'progress': 0,
-        'locked': true,
-        'unlockRequirement': localizations.get('math_map_unlock_colorful'),
-      },
-      // 7. Bölge - Sihirli Makine (KİLİTLİ)
+      // 5. Bölge - Sihirli Makine (KİLİTLİ)
       {
         'id': 'magic_machine',
         'emoji': '🧮',
@@ -671,7 +607,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         'color': const Color(0xFF00BCD4),
         'progress': 0,
         'locked': true,
-        'unlockRequirement': localizations.get('math_map_unlock_magic_machine'),
       },
     ];
   }
@@ -685,7 +620,7 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
 
     final mechanicsService = Provider.of<GameMechanicsService>(context, listen: false);
     if (!mechanicsService.hasLives) {
-      _showNoLivesDialog();
+      showNoLivesGateDialog(context);
       return;
     }
 
@@ -705,15 +640,42 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       return;
     }
 
-    // Sayı Ormanı (eski bölge - geriye dönük uyumluluk)
+    // Sayı Ormanı → Sayma (seviye kaydı + Kolay/Orta/Zor)
     if (region['id'] == 'number_forest') {
-      Navigator.push(
+      TopicLevelFlow.openStandardMathTopic(
         context,
-        MaterialPageRoute(
-          builder: (context) => CountingForestScreen(
-            onBack: () => Navigator.pop(context),
-          ),
-        ),
+        topicId: 'counting',
+        ageGroup: widget.ageGroup,
+      );
+      return;
+    }
+
+    // Çıkarma Dağı → Çıkarma konusu
+    if (region['id'] == 'subtraction_mountain') {
+      TopicLevelFlow.openStandardMathTopic(
+        context,
+        topicId: 'subtraction',
+        ageGroup: widget.ageGroup,
+      );
+      return;
+    }
+
+    // Çarpma Kalesi → Çarpma konusu
+    if (region['id'] == 'multiplication_castle') {
+      TopicLevelFlow.openStandardMathTopic(
+        context,
+        topicId: 'multiplication',
+        ageGroup: widget.ageGroup,
+      );
+      return;
+    }
+
+    // Bölme Çölü → Bölme konusu
+    if (region['id'] == 'division_desert') {
+      TopicLevelFlow.openStandardMathTopic(
+        context,
+        topicId: 'division',
+        ageGroup: widget.ageGroup,
       );
       return;
     }
@@ -732,15 +694,12 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
       return;
     }
 
-    // Geometri Dağı için özel ekran
+    // Geometri Dağı → Geometri konusu (seviye + formül ipuçları)
     if (region['id'] == 'geometry_mountain') {
-      Navigator.push(
+      TopicLevelFlow.openStandardMathTopic(
         context,
-        MaterialPageRoute(
-          builder: (context) => GeometryMountainScreen(
-            onBack: () => Navigator.pop(context),
-          ),
-        ),
+        topicId: 'geometry',
+        ageGroup: widget.ageGroup,
       );
       return;
     }
@@ -751,32 +710,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
         context,
         MaterialPageRoute(
           builder: (context) => TimeIslandScreen(
-            ageGroup: widget.ageGroup.toString().split('.').last,
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Kesir Pastanesi için özel ekran
-    if (region['id'] == 'fraction_bakery') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FractionBakeryScreen(
-            onBack: () => Navigator.pop(context),
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Renkli Matematik için özel ekran
-    if (region['id'] == 'colorful_math') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ColorfulMathScreen(
             ageGroup: widget.ageGroup.toString().split('.').last,
           ),
         ),
@@ -827,34 +760,6 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
     );
   }
 
-  void _showNoLivesDialog() {
-    final loc = AppLocalizations.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.favorite_border, color: Colors.red, size: 32),
-            const SizedBox(width: 12),
-            Text(loc.get('lives_finished')),
-          ],
-        ),
-        content: Text(
-          loc.get('no_lives_play'),
-          style: const TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.get('ok')),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showLockedRegionDialog(Map<String, dynamic> region) {
     final loc = AppLocalizations.of(context);
     final name = region['name'] as String? ?? '';
@@ -889,19 +794,10 @@ class _MathRegionsScreenState extends State<MathRegionsScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                region['unlockRequirement'] as String? ?? loc.get('region_locked_panel_title'),
+                loc.get('region_locked_panel_title'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.orange.shade200,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                loc.get('region_locked_dialog_footer'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.white70,
                 ),
                 textAlign: TextAlign.center,
               ),

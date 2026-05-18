@@ -153,6 +153,30 @@ class _NoLivesGateDialogState extends State<_NoLivesGateDialog> {
                   ),
                 ),
               ],
+              if (!premium && !mechanics.isFullLives && mechanics.canWatchAdForLife) ...[
+                const SizedBox(height: 8),
+                Text(
+                  loc.get('life_ads_remaining').replaceAll(
+                    '{count}',
+                    '${mechanics.remainingLifeAdsToday}',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF5C6BC0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else if (!premium && !mechanics.isFullLives && !mechanics.canWatchAdForLife) ...[
+                const SizedBox(height: 8),
+                Text(
+                  loc.get('life_ads_limit_reached'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFFE65100),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
               if (premium) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -187,7 +211,7 @@ class _NoLivesGateDialogState extends State<_NoLivesGateDialog> {
                       child: Text(loc.get('ok')),
                     ),
                   ),
-                  if (!premium && !mechanics.isFullLives) ...[
+                  if (!premium && !mechanics.isFullLives && mechanics.canWatchAdForLife) ...[
                     const SizedBox(width: 10),
                     Expanded(
                       flex: 2,
