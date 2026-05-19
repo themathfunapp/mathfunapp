@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../audio/section_soundscape.dart';
 import '../localization/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../services/algebra_realm_question_history.dart';
 import '../services/audio_service.dart';
 import '../services/game_mechanics_service.dart';
 import '../models/story_invite_payload.dart';
@@ -53,6 +54,8 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
   String _questionDisplay = '';
   String _questionEmoji = '🍎';
   bool _isBossQuestion = false;
+  final Set<String> _sessionQuestionFingerprints = {};
+  bool _generatingQuestion = false;
 
   static const Color _purple = Color(0xFF673AB7);
   static const Color _gold = Color(0xFFFFD700);
@@ -93,7 +96,9 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
-    _generateQuestion(skipRebuild: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _generateQuestion();
+    });
   }
 
   @override
@@ -104,9 +109,71 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     super.dispose();
   }
 
-  void _generateQuestion({bool skipRebuild = false}) {
-    final random = math.Random();
-    _isAnswered = false;
+  String _questionFingerprint() => AlgebraRealmQuestionHistory.fingerprint(
+        _currentRegion.index,
+        _questionDisplay,
+        _correctAnswer,
+      );
+
+  Future<void> _generateQuestion() async {
+    if (!mounted || _generatingQuestion) return;
+    _generatingQuestion = true;
+
+    try {
+      final random = math.Random();
+      Set<String> askedRecently = {};
+      try {
+        askedRecently =
+            await AlgebraRealmQuestionHistory.loadWithinDays(
+              AlgebraRealmQuestionHistory.historyDays,
+            ).timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => <String>{},
+            );
+      } catch (e) {
+        debugPrint('AlgebraRealm load history error: $e');
+      }
+
+      final excluded = <String>{
+        ...askedRecently,
+        ..._sessionQuestionFingerprints,
+      };
+      String? chosenFp;
+
+      for (var attempt = 0; attempt < 300; attempt++) {
+        _rollQuestion(random);
+        final fp = _questionFingerprint();
+        if (!excluded.contains(fp)) {
+          chosenFp = fp;
+          break;
+        }
+      }
+
+      if (chosenFp == null) {
+        _rollQuestion(random);
+        chosenFp = _questionFingerprint();
+      }
+
+      _sessionQuestionFingerprints.add(chosenFp);
+      _options = _generateOptions(_correctAnswer, 4, random);
+      _isAnswered = false;
+
+      if (mounted) setState(() {});
+
+      AlgebraRealmQuestionHistory.record(chosenFp).catchError((Object e) {
+        debugPrint('AlgebraRealm record error: $e');
+      });
+    } catch (e, st) {
+      debugPrint('AlgebraRealm _generateQuestion error: $e\n$st');
+      if (mounted) {
+        setState(() => _isAnswered = false);
+      }
+    } finally {
+      _generatingQuestion = false;
+    }
+  }
+
+  void _rollQuestion(math.Random random) {
     _isBossQuestion = _currentQuestionInRegion == _questionsPerRegion - 1;
 
     switch (_currentRegion) {
@@ -126,7 +193,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
         _generateMixedEquation(random);
         break;
     }
-    if (!skipRebuild && mounted) setState(() {});
   }
 
   void _generateVisualEquation(math.Random random) {
@@ -136,7 +202,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     _questionEmoji = ['🍎', '🍌', '🍇', '🍊', '⭐', '🎈'][random.nextInt(6)];
     final parts = List.filled(count, _questionEmoji);
     _questionDisplay = parts.join(' + ') + ' = ${count * value}';
-    _options = _generateOptions(_correctAnswer, 4, random);
   }
 
   void _generateAddSubEquation(math.Random random) {
@@ -150,7 +215,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
       _correctAnswer = a + b;
       _questionDisplay = 'x - $a = $b';
     }
-    _options = _generateOptions(_correctAnswer, 4, random);
   }
 
   void _generateMulDivEquation(math.Random random) {
@@ -164,7 +228,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
       _correctAnswer = b;
       _questionDisplay = '${a * b} ÷ x = $a';
     }
-    _options = _generateOptions(_correctAnswer, 4, random);
   }
 
   void _generateTwoOpEquation(math.Random random) {
@@ -174,7 +237,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     final c = a * x + b;
     _correctAnswer = x;
     _questionDisplay = '${a}x + $b = $c';
-    _options = _generateOptions(_correctAnswer, 4, random);
   }
 
   void _generateMixedEquation(math.Random random) {
@@ -184,7 +246,6 @@ class _AlgebraRealmScreenState extends State<AlgebraRealmScreen>
     final c = a * x - b;
     _correctAnswer = x;
     _questionDisplay = '${a}x - $b = $c';
-    _options = _generateOptions(_correctAnswer, 4, random);
   }
 
   List<int> _generateOptions(int correct, int count, math.Random random) {

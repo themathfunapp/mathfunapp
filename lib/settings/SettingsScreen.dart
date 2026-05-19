@@ -137,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       title: localizations.get('notifications'),
                       subtitle: kIsWeb
-                          ? '${localizations.get('notifications_subtitle')} (Web sürümünde kapalı)'
+                          ? '${localizations.get('notifications_subtitle')} (${localizations.get('notifications_web_disabled')})'
                           : localizations.get('notifications_subtitle'),
                       isEnabled: kIsWeb ? false : _notificationsEnabled,
                       interactive: !kIsWeb,

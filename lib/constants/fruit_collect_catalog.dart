@@ -1,91 +1,82 @@
 import 'dart:math';
 
-/// Meyve Topanesi — her kimlik gerçek fotoğraf dosyasına bağlanır.
+import 'fruit_icon_assets.dart';
+
+/// Meyve Toplama — 60 çeşit; OpenMoji/Twemoji PNG ikonları ([fruit_icon_assets]).
 class FruitCatalogEntry {
   final String id;
 
   const FruitCatalogEntry(this.id);
 }
 
-/// Aynı fotoğrafı paylaşan çeşitler (isim metinde doğru kalır).
-const Map<String, String> _fruitImageAlias = {
-  'tangerine': 'orange',
-  'mandarin': 'orange',
-  'clementine': 'orange',
-  'grapefruit': 'orange',
-  'pomelo': 'orange',
-  'kumquat': 'orange',
-  'persimmon': 'orange',
-  'red_grape': 'grape',
-  'lime': 'lemon',
-  'plantain': 'banana',
-  'nectarine': 'peach',
-  'apricot': 'peach',
-  'plum': 'peach',
-  'quince': 'pear',
-  'guava': 'pear',
-  'cantaloupe': 'melon',
-  'honeydew': 'melon',
-  'papaya': 'mango',
-  'durian': 'mango',
-  'blackberry': 'blueberry',
-  'mulberry': 'blueberry',
-  'gooseberry': 'blueberry',
-  'sweet_cherry': 'cherry',
-  'sour_cherry': 'cherry',
-  'hazelnut': 'walnut',
-  'cranberry': 'raspberry',
-  'dragon_fruit': 'lychee',
-  'longan': 'lychee',
+/// Unicode / sistem emoji (WhatsApp, iMessage vb. ile aynı stil).
+String fruitEmoji(String fruitId) {
+  return _fruitEmoji[fruitId] ?? '🍎';
+}
+
+const Map<String, String> _fruitEmoji = {
+  'apple': '🍎',
+  'green_apple': '🍏',
+  'orange': '🍊',
+  'tangerine': '🍊',
+  'mandarin': '🍊',
+  'clementine': '🍊',
+  'grapefruit': '🍊',
+  'pomelo': '🍊',
+  'kumquat': '🍊',
+  'persimmon': '🟠',
+  'lemon': '🍋',
+  'lime': '🍋\u200D🟩',
+  'banana': '🍌',
+  'plantain': '🍌',
+  'watermelon': '🍉',
+  'grape': '🍇',
+  'red_grape': '🍇',
+  'strawberry': '🍓',
+  'cherry': '🍒',
+  'sweet_cherry': '🍒',
+  'sour_cherry': '🍒',
+  'peach': '🍑',
+  'nectarine': '🍑',
+  'apricot': '🍑',
+  'plum': '🟣',
+  'pear': '🍐',
+  'quince': '🍐',
+  'guava': '🍐',
+  'melon': '🍈',
+  'cantaloupe': '🍈',
+  'honeydew': '🍈',
+  'kiwi': '🥝',
+  'mango': '🥭',
+  'papaya': '🥭',
+  'durian': '🥭',
+  'pineapple': '🍍',
+  'coconut': '🥥',
+  'blueberry': '🫐',
+  'blackberry': '🫐',
+  'mulberry': '🫐',
+  'gooseberry': '🫐',
+  'tomato': '🍅',
+  'avocado': '🥑',
+  'olive': '🫒',
+  'corn': '🌽',
+  'pepper': '🫑',
+  'eggplant': '🍆',
+  'walnut': '🌰',
+  'hazelnut': '🌰',
+  'almond': '🥜',
+  'pomegranate': '🔴',
+  'fig': '🟤',
+  'date': '🟫',
+  'raspberry': '🍓',
+  'cranberry': '🔴',
+  'lychee': '⚪',
+  'dragon_fruit': '🩷',
+  'passion_fruit': '💜',
+  'starfruit': '⭐',
+  'jackfruit': '🍈',
+  'longan': '⚪',
 };
-
-String fruitImageAssetPath(String fruitId) {
-  final file = _fruitImageAlias[fruitId] ?? fruitId;
-  return 'assets/fruits/$file.png';
-}
-
-String fruitEmojiFallback(String fruitId) {
-  const map = {
-    'apple': '🍎',
-    'green_apple': '🍏',
-    'orange': '🍊',
-    'tangerine': '🍊',
-    'mandarin': '🍊',
-    'lemon': '🍋',
-    'lime': '🍋',
-    'banana': '🍌',
-    'watermelon': '🍉',
-    'grape': '🍇',
-    'strawberry': '🍓',
-    'cherry': '🍒',
-    'peach': '🍑',
-    'pear': '🍐',
-    'melon': '🍈',
-    'kiwi': '🥝',
-    'mango': '🥭',
-    'pineapple': '🍍',
-    'coconut': '🥥',
-    'blueberry': '🫐',
-    'tomato': '🍅',
-    'avocado': '🥑',
-    'olive': '🫒',
-    'corn': '🌽',
-    'pepper': '🫑',
-    'eggplant': '🍆',
-    'walnut': '🌰',
-    'almond': '🥜',
-    'pomegranate': '🍎',
-    'fig': '🟤',
-    'date': '🟫',
-    'raspberry': '🍓',
-    'lychee': '⚪',
-    'passion_fruit': '💜',
-    'starfruit': '⭐',
-    'jackfruit': '🍈',
-    'cranberry': '🔴',
-  };
-  return map[fruitId] ?? '🍎';
-}
 
 const List<FruitCatalogEntry> fruitCollectCatalog = [
   FruitCatalogEntry('apple'),
@@ -152,12 +143,13 @@ const List<FruitCatalogEntry> fruitCollectCatalog = [
 
 List<FruitCatalogEntry> pickDistinctFruitGoals(Random random, int count) {
   final shuffled = List<FruitCatalogEntry>.from(fruitCollectCatalog)..shuffle(random);
-  final seen = <String>{};
+  final seenVisual = <String>{};
   final picked = <FruitCatalogEntry>[];
 
   for (final entry in shuffled) {
-    if (seen.contains(entry.id)) continue;
-    seen.add(entry.id);
+    final visual = fruitVisualKey(entry.id);
+    if (seenVisual.contains(visual)) continue;
+    seenVisual.add(visual);
     picked.add(entry);
     if (picked.length >= count) break;
   }
@@ -166,10 +158,12 @@ List<FruitCatalogEntry> pickDistinctFruitGoals(Random random, int count) {
 
 FruitCatalogEntry randomDistractorFruit(
   Random random,
-  Set<String> excludeIds,
+  Set<String> goalFruitIds,
 ) {
-  final pool =
-      fruitCollectCatalog.where((e) => !excludeIds.contains(e.id)).toList();
+  final blockedVisual = goalFruitIds.map(fruitVisualKey).toSet();
+  final pool = fruitCollectCatalog
+      .where((e) => !blockedVisual.contains(fruitVisualKey(e.id)))
+      .toList();
   if (pool.isEmpty) {
     return fruitCollectCatalog[random.nextInt(fruitCollectCatalog.length)];
   }

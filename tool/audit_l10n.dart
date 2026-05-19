@@ -3,8 +3,11 @@
 // 18 dil eksik anahtar denetimi:
 //   dart run tool/audit_l10n.dart
 //
-// Eksikleri İngilizce bloğundan doldurma:
+// Eksikleri İngilizce bloğundan doldurma (diğer dillerde İngilizce kalır — dikkat):
 //   dart run tool/audit_l10n.dart --fill
+//
+// İngilizce kopya placeholder sayısı (tr çevrilmiş, hedef dilde en ile aynı):
+//   dart run tool/count_placeholder_l10n.dart
 
 import 'dart:io';
 

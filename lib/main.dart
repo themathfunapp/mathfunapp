@@ -32,6 +32,7 @@ import 'package:mathfun/localization/app_supported_locales.dart';
 import 'package:mathfun/screens/app_screen_wrappers.dart';
 import 'package:mathfun/screens/welcome_screen.dart';
 import 'package:mathfun/localization/app_localizations.dart';
+import 'package:mathfun/localization/cupertino_localizations_fallback.dart';
 import 'package:mathfun/localization/material_localizations_fallback.dart';
 import 'package:mathfun/app_navigator.dart';
 import 'package:mathfun/widgets/global_remote_duel_invite_host.dart';
@@ -313,6 +314,7 @@ class MyApp extends StatelessWidget {
             MaterialLocalizationsFallbackDelegate(),
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
+            CupertinoLocalizationsFallbackDelegate(),
           ],
           supportedLocales: kAppSupportedLocales,
           localeResolutionCallback: (locale, supportedLocales) {

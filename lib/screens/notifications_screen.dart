@@ -195,7 +195,7 @@ class _NotificationsPanelCard extends StatelessWidget {
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close_rounded, color: Colors.white),
-                        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                        tooltip: l.close,
                       ),
                     ],
                   ),

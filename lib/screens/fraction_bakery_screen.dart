@@ -141,8 +141,8 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
           .replaceAll('{0}', '$_totalItems')
           .replaceAll('{1}', _pastryPossessive(loc))
           .replaceAll('{2}', '$_eatenItems')
-          .replaceAll('{4}', '$_fractionType')
-          .replaceAll('{6}', _pastryPossessive(loc));
+          .replaceAll('{3}', '$_remainingItems')
+          .replaceAll('{4}', '$_fractionType');
     }
 
     final format = loc.get('fraction_bakery_how_many_format');
@@ -162,10 +162,10 @@ class _FractionBakeryScreenState extends State<FractionBakeryScreen>
       final format = loc.get('fraction_bakery_character_format_eaten');
       return format
           .replaceAll('{0}', '$_totalItems')
+          .replaceAll('{1}', _pastryPossessive(loc))
           .replaceAll('{2}', '$_eatenItems')
           .replaceAll('{3}', '$_remainingItems')
-          .replaceAll('{4}', '$_fractionType')
-          .replaceAll('{5}', noun);
+          .replaceAll('{4}', '$_fractionType');
     }
 
     final format = loc.get('fraction_bakery_character_message_format');

@@ -160,28 +160,6 @@ class _MiniGamesScreenState extends State<MiniGamesScreen>
               ],
             ),
           ),
-          // Stars counter
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
-                Text(
-                  '${service.progress?.totalStars ?? 0}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

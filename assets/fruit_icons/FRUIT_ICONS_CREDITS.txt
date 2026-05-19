@@ -1,0 +1,9 @@
+Meyve Toplama oyun ikonları (assets/fruit_icons/*.png)
+
+Kaynak: OpenMoji (https://openmoji.org) ve Twemoji (https://github.com/jdecked/twemoji)
+Lisans: OpenMoji CC BY-SA 4.0; Twemoji CC BY 4.0 + MIT (grafikler)
+
+Nar (pomegranate) ve diğer ek meyveler: OpenMoji extras (ör. E0C4).
+Standart meyveler: Unicode emoji karşılıkları (ör. elma 1F34E).
+
+Üretim: dart run tool/download_fruit_icons.dart

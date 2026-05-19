@@ -140,7 +140,7 @@ flutter:
     - assets/avatar/skin/Skin/Tint 8/
     - assets/images/logo.png
     - assets/icons/app_icon.png
-    - assets/fruits/
+    - assets/fruit_icons/
 
 flutter_icons:
   android: true

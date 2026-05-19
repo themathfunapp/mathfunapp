@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 import '../../constants/fruit_collect_catalog.dart';
+import '../../constants/fruit_icon_assets.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_mechanics_service.dart';
 import '../../services/mini_game_session_report.dart';
@@ -68,13 +69,17 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     _generateNewQuestion();
   }
 
-  /// Her 10 başarılı turda +1 meyve çeşidi (en fazla 10 çeşit, her birinden N adet).
+  /// Her 10 başarılı turda +1 meyve çeşidi (en fazla 10).
+  /// Adet: her turda 1–9 arası rastgele; çok çeşit varken üst sınır hafif düşer.
   int get _fruitTypeCount {
     final tier = 1 + (_completedRounds ~/ 10);
     return tier.clamp(1, 10);
   }
 
-  int get _requiredPerType => _fruitTypeCount;
+  int _randomRequiredCount(Random random, int typeCount) {
+    final maxCount = typeCount <= 1 ? 9 : (11 - typeCount).clamp(3, 9);
+    return random.nextInt(maxCount) + 1;
+  }
 
   int get _totalRequired =>
       _goals.fold<int>(0, (sum, g) => sum + g.required);
@@ -119,14 +124,13 @@ class _FruitCollectGameState extends State<FruitCollectGame>
   void _generateNewQuestion() {
     final random = Random();
     final typeCount = _fruitTypeCount;
-    final perType = _requiredPerType;
     final picked = pickDistinctFruitGoals(random, typeCount);
 
     final goals = picked
         .map(
           (e) => _FruitGoal(
             fruitId: e.id,
-            required: perType,
+            required: _randomRequiredCount(random, typeCount),
           ),
         )
         .toList();
@@ -135,7 +139,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     final fruits = <_FruitItem>[];
     var spawnTotal = 0;
     for (final goal in goals) {
-      spawnTotal += goal.required + 1;
+      spawnTotal += goal.required;
     }
     spawnTotal += random.nextInt(3) + 2;
 
@@ -144,7 +148,7 @@ class _FruitCollectGameState extends State<FruitCollectGame>
     var id = 0;
 
     for (final goal in goals) {
-      for (var i = 0; i < goal.required + 1; i++) {
+      for (var i = 0; i < goal.required; i++) {
         fruits.add(_FruitItem(
           id: id++,
           fruitId: goal.fruitId,
@@ -183,8 +187,12 @@ class _FruitCollectGameState extends State<FruitCollectGame>
   void _collectFruit(_FruitItem fruit) {
     if (fruit.isCollected) return;
 
-    final goalIndex = _goals.indexWhere((g) => g.fruitId == fruit.fruitId);
-    if (goalIndex >= 0 && _goals[goalIndex].collected < _goals[goalIndex].required) {
+    final goalIndex = _goals.indexWhere(
+      (g) =>
+          fruitsMatchVisually(fruit.fruitId, g.fruitId) &&
+          g.collected < g.required,
+    );
+    if (goalIndex >= 0) {
       setState(() {
         fruit.isCollected = true;
         _goals[goalIndex].collected++;
@@ -192,24 +200,30 @@ class _FruitCollectGameState extends State<FruitCollectGame>
       _basketController.forward(from: 0);
 
       if (_allGoalsMet) {
-        _score += 10 * _goals.length * _requiredPerType;
+        _score += 10 * _totalRequired;
         _correctAnswers++;
         _completedRounds++;
         _runStreak++;
         if (_runStreak > _bestStreak) _bestStreak = _runStreak;
         _showSuccessFeedback();
       }
-    } else {
-      _wrongTaps++;
-      _runStreak = 0;
-      final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
-      mechanics.onWrongAnswer();
-      _showWrongFeedback();
-      if (!mechanics.hasLives) {
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) _endGame();
-        });
-      }
+      return;
+    }
+
+    // Doğru tür ama hedef adedi tamam — fazla mandarin vb., ceza yok.
+    if (_goals.any((g) => fruitsMatchVisually(fruit.fruitId, g.fruitId))) {
+      return;
+    }
+
+    _wrongTaps++;
+    _runStreak = 0;
+    final mechanics = Provider.of<GameMechanicsService>(context, listen: false);
+    mechanics.onWrongAnswer();
+    _showWrongFeedback();
+    if (!mechanics.hasLives) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _endGame();
+      });
     }
   }
 
